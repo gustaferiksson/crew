@@ -12,6 +12,7 @@ let crewCatalogs: [Catalog<ComponentImplementation>] = {
         ComponentImplementation(api: BasicCatalogComponents.text) { CrewText(node: $0) },
         ComponentImplementation(api: BasicCatalogComponents.card) { CrewCard(node: $0) },
         ComponentImplementation(api: BasicCatalogComponents.button) { CrewButton(node: $0) },
+        ComponentImplementation(api: BasicCatalogComponents.textField) { CrewTextField(node: $0) },
         ComponentImplementation(name: "Table", schema: tableSchema) { CrewTable(node: $0) },
         ComponentImplementation(name: "KeyValue", schema: keyValueSchema) { CrewKeyValue(node: $0) },
     ]

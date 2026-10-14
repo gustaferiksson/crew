@@ -225,7 +225,7 @@ struct ChatView: View {
             #else
             .toolbar(removing: .title)
             #endif
-            .task {
+            .task(id: surfaces.blocks.count) {
                 guard let target = presentation.scrollTarget else { return }
                 position.scrollTo(id: target, anchor: .top)
             }

@@ -125,4 +125,12 @@ extension Snapshot {
         exit(0)
     }
 }
+#else
+extension Snapshot {
+    func capture() async {
+        try? await Task.sleep(for: .seconds(1.5))
+        print("ready")
+        fflush(stdout)
+    }
+}
 #endif

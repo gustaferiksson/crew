@@ -77,6 +77,7 @@ private struct FailedSurface: View {
             .multilineTextAlignment(.leading)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .tint(.primary)
         .font(.footnote)
         .padding(12)
         .frame(maxWidth: 560, alignment: .leading)

@@ -116,3 +116,48 @@ struct CrewKeyValue: View {
         }
     }
 }
+
+struct CrewTextField: View {
+    let node: Node
+
+    var body: some View {
+        let label = node.string(for: "label") ?? ""
+        let variant = node.string(for: "variant") ?? "shortText"
+        let text = node.binding(for: "value", default: "")
+        let error = node.validationErrors.first
+        VStack(alignment: .leading, spacing: 4) {
+            if !label.isEmpty {
+                Text(label)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(error == nil ? .secondary : Color.red)
+            }
+            Group {
+                if variant == "obscured" {
+                    SecureField(label, text: text, prompt: Text(""))
+                } else if variant == "longText" {
+                    TextField(label, text: text, prompt: Text(""), axis: .vertical)
+                        .lineLimit(3...8)
+                } else {
+                    TextField(label, text: text, prompt: Text(""))
+                        #if os(iOS)
+                        .keyboardType(variant == "number" ? .decimalPad : .default)
+                        #endif
+                }
+            }
+            .textFieldStyle(.plain)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(.fill.tertiary, in: .rect(cornerRadius: 12))
+            .overlay {
+                if error != nil {
+                    RoundedRectangle(cornerRadius: 12).stroke(.red)
+                }
+            }
+            if let error {
+                Text(error)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
+        }
+    }
+}

@@ -39,9 +39,7 @@ struct CrewApp: App {
                 #endif
                 .task {
                     guard let snapshot = Snapshot.requested else { return await connection.monitorNetwork() }
-                    #if os(macOS)
                     await snapshot.capture()
-                    #endif
                 }
                 .task(id: connection.state == .connected ? appDelegate.push.readiness : nil) {
                     guard connection.state == .connected, Snapshot.requested == nil else { return }

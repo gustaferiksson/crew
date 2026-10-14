@@ -37,12 +37,14 @@ for appearance in light dark; do
   suffix=$([[ $appearance == dark ]] && echo "-dark" || echo "")
   for screen in "${SCREENS[@]}"; do
     xcrun simctl terminate "$DEVICE" dev.gustaf.crew 2>/dev/null || true
-    xcrun simctl launch "$DEVICE" dev.gustaf.crew -snapshot "$screen" "${FIXTURE_ARGS[@]}" >/dev/null
-    sleep 3
+    rm -f snapshots/.out
+    xcrun simctl launch --stdout="$PWD/snapshots/.out" "$DEVICE" dev.gustaf.crew -snapshot "$screen" "${FIXTURE_ARGS[@]}" >/dev/null
+    for _ in {1..40}; do grep -q ready snapshots/.out 2>/dev/null && break; sleep 0.5; done
     xcrun simctl io "$DEVICE" screenshot "snapshots/ios-${screen}${suffix}.png" >/dev/null 2>&1
     echo "▸ snapshots/ios-${screen}${suffix}.png"
   done
 done
+rm -f snapshots/.out
 xcrun simctl ui "$DEVICE" appearance light
 xcrun simctl terminate "$DEVICE" dev.gustaf.crew 2>/dev/null || true
 if [[ $WAS_BOOTED == no ]]; then xcrun simctl shutdown "$DEVICE"; fi

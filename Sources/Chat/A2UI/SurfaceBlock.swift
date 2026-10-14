@@ -41,10 +41,11 @@ private struct SurfaceCard: View {
     @ObservedObject var model: SurfaceViewModel
 
     var body: some View {
-        if let root = model.rootNode {
+        if model.rootNode != nil {
             Surface(viewModel: model, catalogs: crewCatalogs)
-                .padding(root.type == "Card" ? 0 : 16)
-                .background(.fill.quaternary.opacity(root.type == "Card" ? 0 : 1), in: .rect(cornerRadius: 20))
+                .padding(20)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .glassEffect(.regular, in: .rect(cornerRadius: 28))
                 .frame(maxWidth: 560, alignment: .leading)
         }
     }

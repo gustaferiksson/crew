@@ -1,5 +1,6 @@
 import A2UICore
 import A2UISwiftUI
+import BasicCatalogSwiftUI
 import SwiftUI
 
 struct CrewText: View {
@@ -11,11 +12,29 @@ struct CrewText: View {
         let text = Text((try? AttributedString(markdown: source, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))) ?? AttributedString(source))
         if variant == "caption" {
             text.font(.footnote).foregroundStyle(.secondary)
-        } else if variant == "body" {
-            text
+        } else if variant == "h5" {
+            text.font(.subheadline.weight(.semibold)).foregroundStyle(.secondary)
+        } else if let font = ["h1": Font.title.bold(), "h2": .title2.bold(), "h3": .title3.weight(.semibold), "h4": .headline][variant] {
+            text.font(font).padding(.top, variant == "h4" ? 4 : 0)
         } else {
-            text.font(["h1": .title2.bold(), "h2": .title3.bold(), "h3": .headline, "h4": .headline][variant] ?? .subheadline.weight(.semibold))
+            text
         }
+    }
+}
+
+struct CrewColumn: View {
+    let node: Node
+
+    var body: some View {
+        let align = node.string(for: "align") ?? "stretch"
+        let alignment = ["center": HorizontalAlignment.center, "end": .trailing][align] ?? .leading
+        VStack(alignment: alignment, spacing: 12) {
+            ForEach(node.children(for: "children")) { child in
+                ComponentNodeView(node: child)
+                    .frame(maxWidth: align == "stretch" ? .infinity : nil, alignment: Alignment(horizontal: alignment, vertical: .center))
+            }
+        }
+        .frame(maxWidth: align == "stretch" ? .infinity : nil, alignment: Alignment(horizontal: alignment, vertical: .center))
     }
 }
 
@@ -23,14 +42,16 @@ struct CrewCard: View {
     let node: Node
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            if let child = node.child(for: "child") {
+        if let child = node.child(for: "child") {
+            if node.id == "root" {
                 ComponentNodeView(node: child)
+            } else {
+                ComponentNodeView(node: child)
+                    .padding(16)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(.fill.quaternary, in: .rect(cornerRadius: 16))
             }
         }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.fill.quaternary, in: .rect(cornerRadius: 20))
     }
 }
 
@@ -54,8 +75,10 @@ struct CrewButton: View {
                     ComponentNodeView(node: child)
                 }
             }
+            .padding(.horizontal, 4)
         }
         .buttonBorderShape(.capsule)
+        .controlSize(.large)
         .disabled(!node.isValid)
         .accessibilityAddTraits(isChosen ? .isSelected : [])
         if variant == "primary" {
@@ -68,49 +91,98 @@ struct CrewButton: View {
     }
 }
 
-struct CrewTable: View {
+struct CrewCheckBox: View {
     let node: Node
 
     var body: some View {
-        let columns = (node.array(for: "columns") ?? []).map { $0 as? String ?? "" }
-        let rows = (node.array(for: "rows") ?? []).map { (($0 as? ResolvedArray)?.elements ?? []).map { $0 as? String ?? "" } }
-        ScrollView(.horizontal) {
-            Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 8) {
-                GridRow {
-                    ForEach(columns.indices, id: \.self) { index in
-                        Text(columns[index])
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                    }
+        let isOn = node.binding(for: "value", default: false)
+        let error = node.validationErrors.first
+        VStack(alignment: .leading, spacing: 4) {
+            Button {
+                withAnimation(.snappy) { isOn.wrappedValue.toggle() }
+            } label: {
+                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                    Image(systemName: isOn.wrappedValue ? "checkmark.circle.fill" : "circle")
+                        .font(.title3)
+                        .foregroundStyle(isOn.wrappedValue ? AnyShapeStyle(.tint) : AnyShapeStyle(.tertiary))
+                        .contentTransition(.symbolEffect(.replace))
+                    Text(node.string(for: "label") ?? "")
+                        .strikethrough(isOn.wrappedValue)
+                        .foregroundStyle(isOn.wrappedValue ? .secondary : .primary)
                 }
-                ForEach(rows.indices, id: \.self) { row in
-                    Divider()
-                    GridRow {
-                        ForEach(rows[row].indices, id: \.self) { column in
-                            Text(rows[row][column])
-                        }
-                    }
-                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            .accessibilityAddTraits(isOn.wrappedValue ? .isSelected : [])
+            if let error {
+                Text(error)
+                    .font(.caption)
+                    .foregroundStyle(.red)
             }
         }
-        .scrollIndicators(.hidden)
     }
 }
 
-struct CrewKeyValue: View {
+struct CrewChoicePicker: View {
     let node: Node
 
     var body: some View {
-        let items = (node.array(for: "items") ?? []).compactMap { $0 as? ResolvedDictionary }
-        Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 8) {
-            ForEach(items.indices, id: \.self) { index in
-                if index > 0 {
-                    Divider()
+        let label = node.string(for: "label") ?? ""
+        let isExclusive = node.string(for: "variant") != "multipleSelection"
+        let selection = node.binding(for: "value", default: [String]())
+        let options = (node.array(for: "options") ?? []).compactMap { $0 as? ResolvedDictionary }.map { option in
+            (label: option.string(for: "label") ?? "", value: option.string(for: "value") ?? "")
+        }
+        let toggle = { (value: String) in
+            withAnimation(.snappy) {
+                let current = selection.wrappedValue
+                selection.wrappedValue = isExclusive ? [value] : current.contains(value) ? current.filter { $0 != value } : current + [value]
+            }
+        }
+        VStack(alignment: .leading, spacing: 8) {
+            if !label.isEmpty {
+                Text(label)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.secondary)
+            }
+            if node.string(for: "displayStyle") == "chips" {
+                ScrollView(.horizontal) {
+                    GlassEffectContainer(spacing: 8) {
+                        HStack(spacing: 8) {
+                            ForEach(options, id: \.value) { option in
+                                let isSelected = selection.wrappedValue.contains(option.value)
+                                let chip = Button(option.label) { toggle(option.value) }
+                                    .buttonBorderShape(.capsule)
+                                    .accessibilityAddTraits(isSelected ? .isSelected : [])
+                                if isSelected {
+                                    chip.buttonStyle(.glassProminent)
+                                } else {
+                                    chip.buttonStyle(.glass)
+                                }
+                            }
+                        }
+                        .padding(4)
+                    }
                 }
-                GridRow {
-                    Text(items[index]["key"].map { $0 as? String ?? "" } ?? "")
-                        .foregroundStyle(.secondary)
-                    Text(items[index]["value"].map { $0 as? String ?? "" } ?? "")
+                .scrollIndicators(.hidden)
+                .padding(-4)
+            } else {
+                ForEach(options, id: \.value) { option in
+                    let isSelected = selection.wrappedValue.contains(option.value)
+                    Button { toggle(option.value) } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                                .font(.title3)
+                                .foregroundStyle(isSelected ? AnyShapeStyle(.tint) : AnyShapeStyle(.tertiary))
+                                .contentTransition(.symbolEffect(.replace))
+                            Text(option.label)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(.rect)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(isSelected ? .isSelected : [])
                 }
             }
         }
@@ -145,9 +217,9 @@ struct CrewTextField: View {
                 }
             }
             .textFieldStyle(.plain)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(.fill.tertiary, in: .rect(cornerRadius: 12))
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(.fill.quaternary, in: .rect(cornerRadius: 12))
             .overlay {
                 if error != nil {
                     RoundedRectangle(cornerRadius: 12).stroke(.red)
@@ -158,6 +230,21 @@ struct CrewTextField: View {
                     .font(.caption)
                     .foregroundStyle(.red)
             }
+        }
+    }
+}
+
+struct CrewDateTimeInput: View {
+    let node: Node
+
+    var body: some View {
+        HStack {
+            Text(node.string(for: "label") ?? "")
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.secondary)
+            Spacer(minLength: 12)
+            A2UIDateTimeInput(node: Node(id: node.id, type: node.type, catalogID: node.catalogID, properties: node.properties.filter { $0.key != "label" }))
+                .fixedSize()
         }
     }
 }

@@ -215,17 +215,10 @@ final class ChatSession {
 
     private func load(_ snapshot: LiveSnapshot) async throws {
         let stored = snapshot.storedSessionID ?? stored
-        var rows: [HistoryRow] = []
-        if let stored, snapshot.messageCount != 0 {
-            var request = hermesRequest("api/sessions/\(stored.rawValue)/messages", on: gateway.server)
-            request.url?.append(queryItems: [
-                URLQueryItem(name: "profile", value: profile),
-                URLQueryItem(name: "order", value: "latest"),
-                URLQueryItem(name: "limit", value: "500"),
-                URLQueryItem(name: "include_compacted", value: "true"),
-                URLQueryItem(name: "inline_images", value: "false"),
-            ])
-            rows = try await fetch(request, with: urlSession, as: HistoryPage.self).messages
+        let rows = if let stored, snapshot.messageCount != 0 {
+            try await history(of: stored, profile: profile, on: gateway.server, with: urlSession)
+        } else {
+            [HistoryRow]()
         }
         let replay = try await gateway.eventsSince(snapshot.sessionID, after: 0)
         var transcript = Transcript(history: rows)
@@ -462,6 +455,18 @@ nonisolated private struct StoredSessions: Decodable, Sendable {
 
 nonisolated private struct HistoryPage: Decodable, Sendable {
     let messages: [HistoryRow]
+}
+
+nonisolated func history(of stored: StoredSessionID, profile: String, on server: URL, with urlSession: URLSession) async throws -> [HistoryRow] {
+    var request = hermesRequest("api/sessions/\(stored.rawValue)/messages", on: server)
+    request.url?.append(queryItems: [
+        URLQueryItem(name: "profile", value: profile),
+        URLQueryItem(name: "order", value: "latest"),
+        URLQueryItem(name: "limit", value: "500"),
+        URLQueryItem(name: "include_compacted", value: "true"),
+        URLQueryItem(name: "inline_images", value: "false"),
+    ])
+    return try await fetch(request, with: urlSession, as: HistoryPage.self).messages
 }
 
 nonisolated private struct LiveSnapshot: Decodable, Sendable {

@@ -233,7 +233,7 @@ struct ChatView: View {
     }
 }
 
-private struct TurnView: View {
+struct TurnView: View {
     let turn: Turn
     let surfaces: SurfaceStore
     let activity: String?

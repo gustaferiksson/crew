@@ -26,19 +26,23 @@ struct BotInspector: View {
     @State private var deleting: Bot?
     @State private var pendingSave: Task<Void, Never>?
     @State private var showsSaved = false
+    @State private var conversations: [Conversation]?
+    @State private var conversationFailure: String?
+    @State private var openedConversation: Conversation?
     @FocusState private var focusedField: FocusedField?
 
     private enum FocusedField {
         case name, description
     }
 
-    init(bot: Bot, tab: InspectorTab = .info, routines: RoutineStore = RoutineStore(), draft: ProfileDraft? = nil, models: ModelSwitcher, isPresented: Binding<Bool>) {
+    init(bot: Bot, tab: InspectorTab = .info, routines: RoutineStore = RoutineStore(), draft: ProfileDraft? = nil, conversations: [Conversation]? = nil, models: ModelSwitcher, isPresented: Binding<Bool>) {
         self.bot = bot
         self.models = models
         _isPresented = isPresented
         _tab = State(initialValue: tab)
         _routines = State(initialValue: routines)
         _draft = State(initialValue: draft ?? ProfileDraft(bot: bot))
+        _conversations = State(initialValue: conversations)
     }
 
     private var isEditable: Bool {
@@ -78,6 +82,9 @@ struct BotInspector: View {
         .sheet(item: $capabilitySheet) { kind in
             CapabilityList(kind: kind, items: $draft.fields[dynamicMember: kind.items])
         }
+        .sheet(item: $openedConversation) { conversation in
+            ConversationTranscript(bot: bot, conversation: conversation)
+        }
         .modifier(BotDeletion(bot: $deleting) { _ in isPresented = false })
         .onChange(of: draft.fields) { old, new in
             var typed = old
@@ -116,6 +123,14 @@ struct BotInspector: View {
             guard let gateway = connection.gateway else { return }
             await draft.load(gateway, urlSession: connection.urlSession)
             if draft.isDirty { save() }
+        }
+        .task(id: connection.gateway.map(ObjectIdentifier.init)) {
+            guard connection.gateway != nil, let server = connection.session?.server else { return }
+            do {
+                conversations = try await otherConversations(of: bot, on: server, with: connection.urlSession)
+            } catch {
+                conversationFailure = error.localizedDescription
+            }
         }
     }
 
@@ -286,6 +301,9 @@ struct BotInspector: View {
                     .disabled(!isEditable)
                 }
             }
+        }
+        Card(title: "Other Conversations", footer: "Sessions from other apps, the server and routines. Read only.") {
+            ConversationList(conversations: conversations, failure: conversationFailure) { openedConversation = $0 }
         }
         if !bot.isDefault {
             Button(role: .destructive) {

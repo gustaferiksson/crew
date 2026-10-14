@@ -57,9 +57,15 @@ struct InspectorFixtureScreen: View {
         #endif
     }
 
+    private let conversations = [
+        Conversation(id: StoredSessionID(rawValue: "c1"), title: "Find shared knowledge base endpoint", source: "api_server", startedAt: Date.now.addingTimeInterval(-40 * 60).timeIntervalSince1970, lastActive: Date.now.addingTimeInterval(-35 * 60).timeIntervalSince1970),
+        Conversation(id: StoredSessionID(rawValue: "c2"), title: "Compare three weekend flights", source: "tui", startedAt: Date.now.addingTimeInterval(-5 * 3600).timeIntervalSince1970, lastActive: nil),
+        Conversation(id: StoredSessionID(rawValue: "c3"), title: "Morning briefing · Oct 13 08:00", source: "cron", startedAt: Date.now.addingTimeInterval(-30 * 3600).timeIntervalSince1970, lastActive: nil),
+    ]
+
     private var inspector: some View {
         BotInspector(
-            bot: ada, tab: tab, routines: RoutineStore(fixture: routines), draft: Snapshot.profileDraft, models: Snapshot.profileModels,
+            bot: ada, tab: tab, routines: RoutineStore(fixture: routines), draft: Snapshot.profileDraft, conversations: conversations, models: Snapshot.profileModels,
             isPresented: .constant(true)
         )
             .environment(ChatSessions(fixture: [ada.id: ChatSession(fixture: ada, transcript: Transcript(), todos: adaTodos)]))

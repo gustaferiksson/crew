@@ -1,5 +1,6 @@
 from typing import Any, Callable
 
+from conftest import BOT_CHAT
 from crew_push.fanout import serve_every_profile
 from crew_push.hooks import CrewPush
 
@@ -21,9 +22,9 @@ class Manager(Dispatch):
 
 
 def turn(manager: Manager) -> None:
-    manager.invoke_hook("pre_llm_call", session_id="s1", platform="tui")
-    manager.invoke_hook("post_llm_call", session_id="s1", assistant_response="Done.")
-    manager.invoke_hook("on_session_end", session_id="s1", turn_id="t1", completed=True)
+    manager.invoke_hook("pre_llm_call", session_id=BOT_CHAT, platform="tui")
+    manager.invoke_hook("post_llm_call", session_id=BOT_CHAT, assistant_response="Done.")
+    manager.invoke_hook("on_session_end", session_id=BOT_CHAT, turn_id="t1", completed=True)
 
 
 def test_profile_without_own_copy_is_served(device, enqueued: list) -> None:

@@ -1,12 +1,14 @@
 import sys
 import types
+from pathlib import Path
 from typing import Any
 
 import pytest
 
+from conftest import BOT_CHAT
 from crew_push.hooks import CrewPush, plain
 
-SESSION = "20261013_101512_ab12cd"
+SESSION = BOT_CHAT
 
 
 @pytest.fixture
@@ -25,10 +27,9 @@ def hermes_helpers(monkeypatch: pytest.MonkeyPatch) -> None:
             list_gateway_approvals=lambda key: [{"request_id": "old"}, {"request_id": "c0ffee"}] if key == SESSION else []),
         "cron": types.ModuleType("cron"),
         "cron.jobs": types.SimpleNamespace(get_job=lambda job_id: {"name": "Morning brief"} if job_id == "a1b2" else None),
-        "hermes_cli": types.ModuleType("hermes_cli"),
         "hermes_cli.profiles": types.SimpleNamespace(
-            get_profile_dir=lambda name: name,
-            read_profile_meta=lambda directory: {"bot_title": "Atlas" if directory == "atlas" else ""}),
+            get_profile_dir=Path,
+            read_profile_meta=lambda directory: {"bot_title": "Atlas" if directory.name == "atlas" else ""}),
     }
     for name, module in modules.items():
         monkeypatch.setitem(sys.modules, name, module)
@@ -102,6 +103,30 @@ def test_question_with_garbage_args_never_raises(push: CrewPush, enqueued: list)
     assert enqueued[0][2]["aps"]["alert"]["body"] == "Has a question for you."
 
 
+def test_api_server_turn_is_skipped(push: CrewPush, enqueued: list) -> None:
+    turn(push, platform="api_server", session_id="20261013_120000_ffee00")
+    push.pre_approval_request(command="ls", session_id="20261013_120000_ffee00", surface="gateway")
+    assert enqueued == []
+
+
+def test_compressed_bot_chat_pushes(push: CrewPush, enqueued: list, bot_chat: dict[str, str]) -> None:
+    bot_chat["id"] = "20261012_080000_000000"
+    turn(push, platform="api_server")
+    assert [p["crew"]["session_id"] for _, _, p in enqueued] == [SESSION]
+
+
+def test_unresolvable_bot_chat_fails_closed(push: CrewPush, enqueued: list,
+                                            monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setitem(sys.modules, "hermes_state", None)
+    turn(push)
+    assert enqueued == []
+
+
+def test_routine_needs_its_pref(push: CrewPush, enqueued: list) -> None:
+    turn(push, reply="Three new emails.", platform="cron", session_id="cron_a1b2_20261013_070000")
+    assert enqueued == []
+
+
 def test_routine(device, enqueued: list, hermes_helpers: None) -> None:
     device("cd" * 32, routines=True)
     device()
@@ -128,9 +153,6 @@ def test_long_reply_is_clipped() -> None:
 
 @pytest.mark.parametrize("change", [
     {"interrupted": True},
-    {"platform": "telegram"},
-    {"platform": ""},
-    {"session_id": "kanban_task_1"},
     {"reply": "", "completed": True},
     {"completed": False},
 ])

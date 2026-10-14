@@ -17,6 +17,7 @@ References: `docs/hermes-api.md`, `docs/hermex-features.md`, `docs/swiftui-guide
 - Transport: one `URLSessionWebSocketTask` JSON-RPC client (actor) with ping, reconnect and `session.events.since` replay; REST for history, profile assets and cron.
 - Connection state: server may sit behind a VPN. One observable `connection` state (connected, connecting, offline/unreachable, signed out) driven by the gateway socket and `NWPathMonitor`; shown as a glass banner/pill in the list and chat, composer disabled while offline, cached bots and transcripts stay readable, auto-reconnect with backoff and on network change. Distinguish "server unreachable" (VPN off) from "signed out".
 - Push: `crew-push` Hermes plugin sends to APNs directly (token .p8 on the host, no relay, no NSE); design in `docs/push.md`. Approve/Deny actions from notifications in v1.1.
+- Push scope (crew-push 0.3.0): only the profile's canonical Bot Chat (the compression tip of the session titled exactly `Bot Chat`, looked up read-only in the profile's `state.db`) and `cron` routines notify. The old native-platform denylist let `api_server`/`cli` sessions (another agent driving Hermes) push turns that Crew never shows.
 - Persistence: Codable JSON cache in Application Support (bot list, last transcript per bot) for instant launch. No SwiftData.
 - Markdown: own block renderer (from guide), no packages for v1.
 - Transcript has no bottom scroll edge effect (`.scrollEdgeEffectHidden` for `.bottom`); content scrolls plainly under the glass composer, the top keeps the soft effect.

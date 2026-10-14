@@ -569,6 +569,6 @@ Updates later: rsync again, restart. Device registrations and the key survive be
 
 ## Open points for implementation
 
-- The `source` Crew passes to `session.create` (layer 3) decides the hook `platform`. Any value not in the native-platform deny list works; check that the chosen value is not filtered out of session listings (`_LISTING_DENY_SOURCES` in `tui_gateway/methods_session.py:141`).
+- The `source` Crew passes to `session.create` (layer 3) decides the hook `platform`. Since crew-push 0.3.0 only the Bot Chat session (and cron routines) notify, whatever its platform; check that the chosen value is not filtered out of session listings (`_LISTING_DENY_SOURCES` in `tui_gateway/methods_session.py:141`).
 - Confirm on device that a tapped remote notification's `request.identifier` equals the `apns-collapse-id`; if so, removing delivered notifications can use identifiers directly instead of scanning `userInfo`.
 - Later polish, not v1: Communication Notifications (bot avatar on the banner, Messages style) need an NSE + `INSendMessageIntent` + the communication-notifications entitlement; Live Activities for running turns (Hermex's `progress` design is the reference).

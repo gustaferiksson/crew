@@ -41,8 +41,9 @@ struct ChatScreen: View {
             models: models,
             presentation: Snapshot.requested == .layoutInspector ? ChatPresentation(scrollTarget: "t1") : ChatPresentation(),
             actions: ChatActions(
-                send: { session?.send($0, attachments: $1, mode: $2) },
+                send: { session?.send($0, attachments: $1, mentioning: $2, mode: $3) },
                 sendHidden: { session?.sendHidden($0) },
+                completePath: { await session?.completePath($0) ?? [] },
                 stop: { session?.stop() },
                 transcribe: transcribe,
                 openPersona: { showsBot.toggle() },

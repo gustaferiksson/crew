@@ -124,7 +124,7 @@ extension Prompt {
             lines.removeFirst()
         }
         let body = lines.joined(separator: "\n")
-        let text = ["\n\n--- Context Warnings ---", "\n\n--- Attached Context ---"]
+        let text = ["\n\n--- Context Warnings ---", "\n\n--- Attached Context ---", "\n\n[@mentions resolved from the Bot Mode roster"]
             .compactMap { body.range(of: $0)?.lowerBound }
             .min()
             .map { String(body[..<$0]) }

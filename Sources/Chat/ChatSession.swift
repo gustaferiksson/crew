@@ -81,8 +81,8 @@ final class ChatSession {
         }
     }
 
-    func send(_ text: String, attachments: [Attachment] = [], mode: SendMode) {
-        let prompt = Prompt(text: text.trimmingCharacters(in: .whitespacesAndNewlines), sentAt: .now, attachments: attachments)
+    func send(_ text: String, attachments: [Attachment] = [], mentioning bots: [Bot] = [], mode: SendMode) {
+        let prompt = Prompt(text: text.trimmingCharacters(in: .whitespacesAndNewlines), sentAt: .now, attachments: attachments, mentionNote: mentionNote(for: bots))
         guard !prompt.text.isEmpty || !attachments.isEmpty, let runtime else { return }
         guard isRunning else { return submit(prompt) }
         if mode == .queue || !attachments.isEmpty { return queue.append(prompt) }
@@ -155,6 +155,11 @@ final class ChatSession {
         return data
     }
 
+    func completePath(_ word: String) async -> [PathCompletion] {
+        guard let runtime else { return [] }
+        return (try? await gateway.call("complete.path", ["session_id": runtime.rawValue, "word": word], as: PathCompletions.self).items) ?? []
+    }
+
     private func submit(_ prompt: Prompt) {
         guard let runtime else { return }
         transcript.begin(prompt: prompt.text, attachments: prompt.attachments)
@@ -172,7 +177,7 @@ final class ChatSession {
                         references.append(try await gateway.call("file.attach", params, as: AttachResult.self).refText ?? "")
                     }
                 }
-                let message = [references.joined(separator: "\n"), prompt.text].filter { !$0.isEmpty }.joined(separator: "\n\n")
+                let message = [references.joined(separator: "\n"), prompt.text + prompt.mentionNote].filter { !$0.isEmpty }.joined(separator: "\n\n")
                 _ = try await gateway.call("prompt.submit", ["session_id": runtime.rawValue, "text": message.isEmpty ? imageOnlyPrompt : message], as: JSONValue.self)
             } catch {
                 for path in staged {
@@ -451,6 +456,10 @@ nonisolated private struct StoredSessions: Decodable, Sendable {
     }
 
     let sessions: [Row]
+}
+
+nonisolated private struct PathCompletions: Decodable, Sendable {
+    let items: [PathCompletion]
 }
 
 nonisolated private struct HistoryPage: Decodable, Sendable {

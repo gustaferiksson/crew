@@ -25,6 +25,7 @@ nonisolated struct Prompt: Codable, Sendable, Equatable {
     var text: String
     var sentAt: Date
     var attachments: [Attachment] = []
+    var mentionNote = ""
 }
 
 nonisolated struct WorkItem: Identifiable, Codable, Sendable, Equatable {

@@ -14,6 +14,7 @@ from crew_push import apns, store
 
 PLUGIN_ROOT = Path(__file__).resolve().parents[1]
 TOKEN = "ab" * 32
+BOT_CHAT = "20261013_101512_ab12cd"
 
 
 @pytest.fixture(autouse=True)
@@ -23,6 +24,30 @@ def hermes_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     monkeypatch.setattr(apns, "_token", (0.0, "", ""))
     monkeypatch.setattr(apns, "_client", None)
     return tmp_path
+
+
+@pytest.fixture(autouse=True)
+def bot_chat(monkeypatch: pytest.MonkeyPatch) -> dict[str, str]:
+    chat = {"id": BOT_CHAT, "tip": BOT_CHAT}
+
+    class SessionDB:
+        def __init__(self, db_path: Path, read_only: bool) -> None:
+            assert db_path.name == "state.db" and read_only
+
+        def get_session_by_title(self, title: str) -> dict[str, str] | None:
+            return {"id": chat["id"]} if title == "Bot Chat" else None
+
+        def get_compression_tip(self, session_id: str) -> str:
+            return chat["tip"] if session_id == chat["id"] else session_id
+
+        def close(self) -> None:
+            pass
+
+    monkeypatch.setitem(sys.modules, "hermes_state", types.SimpleNamespace(SessionDB=SessionDB))
+    monkeypatch.setitem(sys.modules, "hermes_cli", types.ModuleType("hermes_cli"))
+    monkeypatch.setitem(sys.modules, "hermes_cli.profiles",
+                        types.SimpleNamespace(get_profile_dir=Path, read_profile_meta=lambda directory: {}))
+    return chat
 
 
 @pytest.fixture

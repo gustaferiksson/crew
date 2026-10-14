@@ -16,13 +16,7 @@ Kind = Literal["reply", "turn_error", "approval", "clarify", "routine"]
 
 HOOK_NAMES = ("pre_llm_call", "post_llm_call", "on_session_end", "pre_tool_call", "pre_approval_request",
               "subagent_start")
-NATIVE_NOTIFY_PLATFORMS = frozenset({
-    "telegram", "discord", "whatsapp", "whatsapp_cloud", "slack", "signal", "mattermost", "matrix",
-    "homeassistant", "email", "sms", "dingtalk", "feishu", "wecom", "wecom_callback", "weixin",
-    "bluebubbles", "qqbot", "yuanbao", "irc", "line", "teams", "google_chat", "ntfy", "simplex",
-    "buzz", "photon", "raft", "a2a",
-})
-SKIPPED_SESSION_PREFIXES = ("kanban_",)
+BOT_CHAT_TITLE = "Bot Chat"
 
 
 @dataclass(frozen=True)
@@ -141,6 +135,18 @@ def pending_request_id(session_key: str) -> str:
     return str(pending[-1].get("request_id") or "") if pending else ""
 
 
+def is_bot_chat(profile: str, session_id: str) -> bool:
+    from hermes_cli.profiles import get_profile_dir
+    from hermes_state import SessionDB
+
+    db = SessionDB(db_path=get_profile_dir(profile) / "state.db", read_only=True)
+    try:
+        row = db.get_session_by_title(BOT_CHAT_TITLE)
+        return bool(row) and db.get_compression_tip(row["id"]) == session_id
+    finally:
+        db.close()
+
+
 def redact(command: str) -> str:
     try:
         from agent.redact import redact_sensitive_text
@@ -177,6 +183,7 @@ class CrewPush:
         self.replies = Recent()
         self.subagents = Recent()
         self.sent = Recent()
+        self.bot_chats = Recent()
 
     @quiet
     def pre_llm_call(self, *, session_id: str = "", platform: str = "", **_: Any) -> None:
@@ -238,12 +245,24 @@ class CrewPush:
                     body=redact(command) or "Needs your approval.", subtitle=description,
                     request_id=pending_request_id(session_key))
 
+    def in_bot_chat(self, session_id: str) -> bool:
+        with self.lock:
+            if session_id in self.bot_chats:
+                return self.bot_chats[session_id]
+        try:
+            found = is_bot_chat(self.profile, session_id)
+        except Exception:
+            log.debug("crew-push: could not resolve the Bot Chat session", exc_info=True)
+            return False
+        with self.lock:
+            self.bot_chats.remember(session_id, found)
+        return found
+
     def notify(self, kind: Kind, session_id: str, ref: str, *, body: str, subtitle: str = "",
                request_id: str = "") -> None:
-        platform = self.platforms.get(session_id, "")
-        if not session_id or session_id.startswith(SKIPPED_SESSION_PREFIXES):
+        if not session_id:
             return
-        if not platform or platform in NATIVE_NOTIFY_PLATFORMS:
+        if self.platforms.get(session_id) != "cron" and not self.in_bot_chat(session_id):
             return
         event = Event(kind, bot_name(self.profile), self.profile, session_id, ref, body, subtitle, request_id)
         event_key = f"{session_id}:{kind}:{ref}"

@@ -1,6 +1,6 @@
 # crew-push
 
-Hermes plugin that sends APNs notifications to Crew (finished turns, failed turns, approvals, questions, opt-in routines). Design: [`docs/push.md`](../../docs/push.md). Needs Hermes v0.21.7 or later.
+Hermes plugin that sends APNs notifications to Crew (finished turns, failed turns, approvals and questions in each bot's Bot Chat, plus opt-in routines). Design: [`docs/push.md`](../../docs/push.md). Needs Hermes v0.21.7 or later.
 
 ## Install (once)
 

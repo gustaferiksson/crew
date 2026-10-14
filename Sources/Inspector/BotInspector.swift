@@ -63,19 +63,13 @@ struct BotInspector: View {
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #else
-        .overlay(alignment: .topLeading) {
-            Button { isPresented = false } label: {
-                Image(systemName: "xmark")
-                    .font(.body.weight(.medium))
-                    .frame(width: 36, height: 36)
-                    .contentShape(.circle)
+        .contentMargins(.bottom, 24, for: .scrollIndicators)
+        .toolbar {
+            if isPresented {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Close", systemImage: "xmark") { isPresented = false }
+                }
             }
-            .buttonStyle(.plain)
-            .glassEffect(.regular.interactive(), in: .circle)
-            .accessibilityLabel("Close")
-            .padding(.leading, 12)
-            .padding(.top, 7)
-            .ignoresSafeArea(edges: .top)
         }
         #endif
         .sheet(isPresented: $isCreatingRoutine) {
@@ -246,9 +240,12 @@ struct BotInspector: View {
             }
         }
         Card(title: "Rich UI", footer: "Lets this bot answer with cards, checklists and forms that Crew draws natively. Other apps show them as code.") {
-            Toggle("Cards and Forms", isOn: $draft.fields.richUI)
-                .toggleStyle(.switch)
-                .disabled(!isEditable)
+            Toggle(isOn: $draft.fields.richUI) {
+                Text("Cards and Forms")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .toggleStyle(.switch)
+            .disabled(!isEditable)
         }
         Card(title: "Soul", footer: "The bot's identity, saved as SOUL.md. Saving replaces the whole file.") {
             if isEditable {

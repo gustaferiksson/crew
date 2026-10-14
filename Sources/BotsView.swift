@@ -92,7 +92,7 @@ struct BotsView: View {
                 try? await Task.sleep(for: .seconds(2))
                 showsConnectionPill = !Task.isCancelled
             }
-            .navigationTitle("Bots")
+            .navigationTitle("Crew")
             .navigationSplitViewColumnWidth(min: 240, ideal: 320, max: 400)
             .toolbar {
                 #if os(iOS)
@@ -110,6 +110,7 @@ struct BotsView: View {
                             }
                             .disabled(updates.isChecking)
                             #endif
+                            Text("Crew \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "") (\(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? ""))")
                             Button("Sign Out", systemImage: "rectangle.portrait.and.arrow.right", role: .destructive) {
                                 Task {
                                     await push.unregister(on: connection)
@@ -145,6 +146,7 @@ struct BotsView: View {
                     .inspectorColumnWidth(min: inspectorWidth.min, ideal: inspectorWidth.ideal, max: inspectorWidth.max)
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .measureInspector)) { showsBot = $0.object as? Bool ?? false }
         #endif
         .sheet(isPresented: $isCreating) {
             NewBotSheet { selection = $0 }

@@ -116,6 +116,7 @@ extension Snapshot {
         window.setFrameOrigin(NSPoint(x: -4000, y: 0))
         if self == .layoutInspector { window.setContentSize(NSSize(width: 860, height: 640)) }
         try? await Task.sleep(for: .seconds(1.5))
+        if UserDefaults.standard.bool(forKey: "measure") { await measure(window) }
         // cacheDisplay and ImageRenderer skip Liquid Glass; CGWindowListCreateImage is SDK-obsoleted but still exported for own windows.
         typealias CreateImage = @convention(c) (CGRect, CGWindowListOption, CGWindowID, CGWindowImageOption) -> Unmanaged<CGImage>?
         guard let symbol = dlsym(UnsafeMutableRawPointer(bitPattern: -2), "CGWindowListCreateImage"),
@@ -127,6 +128,46 @@ extension Snapshot {
         print(output.path(percentEncoded: false))
         exit(0)
     }
+
+    private func measure(_ window: NSWindow) async {
+        func splitControllers(_ view: NSView) -> [NSSplitViewController] {
+            (((view as? NSSplitView)?.delegate as? NSSplitViewController).map { [$0] } ?? []) + view.subviews.flatMap(splitControllers)
+        }
+        let controllers = window.contentView.map(splitControllers) ?? []
+        controllers.forEach { $0.splitView.autosaveName = nil }
+        window.setFrameAutosaveName("")
+        func report(_ label: String) async {
+            window.setContentSize(window.contentMinSize)
+            try? await Task.sleep(for: .seconds(1))
+            let columns = controllers.map { $0.splitViewItems.map { $0.isCollapsed ? "-" : "\(Int($0.viewController.view.frame.width))" }.joined(separator: "|") }
+            let items = (window.toolbar?.items ?? []).compactMap { item in
+                item.view.map { view in
+                    let rect = view.convert(view.bounds, to: nil)
+                    let hit = window.contentView?.superview?.hitTest(NSPoint(x: rect.midX, y: rect.midY))
+                    return "\(item.label)@\(Int(rect.minX))\(hit?.isDescendant(of: view) == true ? "" : " (blocked)")"
+                }
+            }
+            print("MEASURE \(rawValue) \(label): min \(Int(window.contentMinSize.width))x\(Int(window.contentMinSize.height)), max \(window.contentMaxSize.width > 10_000 ? "none" : "\(window.contentMaxSize)"), columns \(columns), toolbar \(items)")
+        }
+        await report("initial")
+        NotificationCenter.default.post(name: .measureInspector, object: true)
+        try? await Task.sleep(for: .seconds(1.5))
+        await report("inspector open")
+        controllers.last?.toggleSidebar(nil)
+        try? await Task.sleep(for: .seconds(1.5))
+        await report("inspector open, sidebar toggled")
+        NotificationCenter.default.post(name: .measureInspector, object: false)
+        try? await Task.sleep(for: .seconds(1.5))
+        await report("inspector closed, sidebar toggled")
+        window.setContentSize(NSSize(width: 4000, height: 3000))
+        try? await Task.sleep(for: .seconds(1))
+        print("MEASURE \(rawValue) largest \(Int(window.contentLayoutRect.width))x\(Int(window.contentLayoutRect.height))")
+        exit(0)
+    }
+}
+
+extension Notification.Name {
+    static let measureInspector = Notification.Name("measureInspector")
 }
 #else
 extension Snapshot {

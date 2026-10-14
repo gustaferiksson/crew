@@ -60,3 +60,10 @@ targets:
         Release:
           APS_ENVIRONMENT: production
           CODE_SIGN_INJECT_BASE_ENTITLEMENTS: NO
+          DEVELOPMENT_TEAM: 82K3YC8HVF
+          CODE_SIGN_STYLE: Manual
+          CODE_SIGN_IDENTITY[sdk=macosx*]: Developer ID Application
+          PROVISIONING_PROFILE_SPECIFIER[sdk=macosx*]: Crew Developer ID
+          OTHER_CODE_SIGN_FLAGS[sdk=macosx*]: --timestamp
+          CODE_SIGN_IDENTITY[sdk=iphoneos*]: Apple Distribution
+          PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]: Crew Ad Hoc

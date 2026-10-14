@@ -96,7 +96,7 @@ final class PushCenter: NSObject {
     init(fixture status: PushStatus, plugin: PluginStatus? = nil) {
         self.status = status
         self.plugin = plugin
-        self.authorization = .provisional
+        self.authorization = .authorized
         self.prefs = PushPrefs()
     }
 

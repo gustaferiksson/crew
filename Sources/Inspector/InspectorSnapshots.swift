@@ -74,8 +74,8 @@ struct BotPageFixtureScreen: View {
     var body: some View {
         #if os(iOS)
         NavigationStack(path: .constant([0])) {
-            Text("Bots")
-                .navigationTitle("Bots")
+            Text("Crew")
+                .navigationTitle("Crew")
                 .navigationDestination(for: Int.self) { _ in chat }
         }
         .environment(chats)

@@ -4,6 +4,10 @@ options:
   deploymentTarget:
     iOS: "27.0"
     macOS: "27.0"
+packages:
+  A2UI:
+    url: https://github.com/a2ui-project/a2ui
+    revision: 4ca7353f81ce5339bb4a4d718af027dbff60e2ef
 settings:
   base:
     SWIFT_VERSION: "6.0"
@@ -20,6 +24,9 @@ targets:
     platform: auto
     supportedDestinations: [iOS, macOS]
     scheme: {}
+    dependencies:
+      - package: A2UI
+        products: [A2UISwiftCore, A2UISwiftUI, BasicCatalog, BasicCatalogSwiftUI]
     sources:
       - path: Sources
         type: syncedFolder

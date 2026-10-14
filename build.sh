@@ -32,7 +32,7 @@ xcodegen generate --quiet
 build() {
   local log
   log=$(mktemp)
-  if ! xcodebuild -project Crew.xcodeproj -scheme Crew -configuration Debug -derivedDataPath .build "MARKETING_VERSION=${MARKETING_VERSION}" "$@" build >"$log" 2>&1; then
+  if ! xcodebuild -project Crew.xcodeproj -scheme Crew -configuration Debug -derivedDataPath .build -skipPackagePluginValidation -skipMacroValidation "MARKETING_VERSION=${MARKETING_VERSION}" "$@" build >"$log" 2>&1; then
     grep -E 'error:|warning:' "$log" | sort -u || tail -40 "$log"
     exit 1
   fi

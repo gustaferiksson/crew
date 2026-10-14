@@ -9,7 +9,7 @@ VERSION="${VERSION:-$(git describe --tags --always --dirty 2>/dev/null || echo d
 BUILD="${BUILD:-1}"
 TEAM=82K3YC8HVF
 PROFILES_DIR="$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"
-COMMON=( -project Crew.xcodeproj -scheme Crew -configuration Release -derivedDataPath .build -quiet
+COMMON=( -project Crew.xcodeproj -scheme Crew -configuration Release -derivedDataPath .build -quiet -skipPackagePluginValidation -skipMacroValidation
   "DEVELOPMENT_TEAM=${TEAM}" CODE_SIGN_STYLE=Manual "MARKETING_VERSION=${VERSION}" "CURRENT_PROJECT_VERSION=${BUILD}" )
 
 install_profile() {

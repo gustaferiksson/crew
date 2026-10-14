@@ -111,6 +111,7 @@ References: `docs/hermes-api.md`, `docs/hermex-features.md`, `docs/swiftui-guide
 - Snapshot `inspector-look` (Look editor) replaces `profile-editor`/`profile-capabilities`; round trips of name, look, description, instructions, soul, model, revert and a stale-revision conflict were verified on `crew-test` with a scratch `ProfileDraft` harness and restored from raw captures.
 - Distribution (docs/release.md): macOS ships Developer ID, notarized, without the App Sandbox (hardened runtime plus `device.audio-input`) so the Rinse-style `AppUpdater` can swap the bundle; iOS ships Ad Hoc over GitHub Pages and `UpdateCheck` offers the Pages manifest's newer version as a banner in the bot list. Both skip Debug and `-local` builds; `-updateManifest <url>` points the iOS check at a local manifest for testing.
 - After the first release, `main` only moves through PRs with green CI; the user tags releases.
+- Generative UI dependency: a2ui-project/a2ui (products `A2UISwiftCore`, `BasicCatalog`, `A2UISwiftUI`, `BasicCatalogSwiftUI`) is Crew's first package, pinned by XcodeGen `packages:` to commit `4ca7353` (no Swift release tags upstream; bump deliberately). It builds unchanged under Swift 6 with default MainActor isolation on both platforms; its schema build-tool plugin and swift-json-schema's macros need `-skipPackagePluginValidation -skipMacroValidation` on every `xcodebuild` (`build.sh`, `device.sh`, `package.sh`, so CI inherits them).
 
 ## Navigation
 

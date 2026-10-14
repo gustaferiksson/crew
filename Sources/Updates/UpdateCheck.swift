@@ -4,13 +4,15 @@ import Observation
 @Observable
 final class UpdateCheck {
     nonisolated static let currentVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0"
-    private static let interval: TimeInterval = 24 * 60 * 60
-    private static let lastCheckKey = "updateLastCheck"
+    private static let foregroundGap: TimeInterval = 5 * 60
     // `-updateManifest <url>` points the check at a local manifest and enables it in Debug builds.
     private static let manifestOverride = UserDefaults.standard.string(forKey: "updateManifest").flatMap(URL.init(string:))
     private static let manifestURL = manifestOverride ?? URL(string: "https://gustaferiksson.github.io/crew/manifest.plist")!
 
     private(set) var available: String?
+    private(set) var isChecking = false
+    var note: String?
+    @ObservationIgnored private var lastCheck: Date?
 
     var installURL: URL? {
         var components = URLComponents(string: "itms-services://")
@@ -27,20 +29,38 @@ final class UpdateCheck {
         #endif
     }
 
-    func checkIfDue() async {
-        let defaults = UserDefaults.standard
-        guard Self.isEnabled, available == nil else { return }
-        if let last = defaults.object(forKey: Self.lastCheckKey) as? Date, Self.manifestOverride == nil, Date.now.timeIntervalSince(last) < Self.interval { return }
-        guard let latest = await Self.latestVersion(from: Self.manifestURL) else { return }
-        guard isNewerVersion(latest, than: Self.currentVersion) else {
-            defaults.set(Date.now, forKey: Self.lastCheckKey)
+    func checkOnForeground() async {
+        guard Self.isEnabled, available == nil, !isChecking else { return }
+        if let lastCheck, Date.now.timeIntervalSince(lastCheck) < Self.foregroundGap { return }
+        await refresh()
+    }
+
+    func checkNow() async {
+        guard Self.isEnabled else {
+            note = String(localized: "This build doesn’t update itself.")
             return
         }
-        available = latest
+        guard !isChecking else { return }
+        guard await refresh() else {
+            note = String(localized: "Couldn’t reach the update server.")
+            return
+        }
+        if available == nil { note = String(localized: "Crew \(Self.currentVersion) is up to date.") }
+    }
+
+    @discardableResult
+    private func refresh() async -> Bool {
+        isChecking = true
+        lastCheck = .now
+        defer { isChecking = false }
+        guard let latest = await Self.latestVersion(from: Self.manifestURL) else { return false }
+        available = isNewerVersion(latest, than: Self.currentVersion) ? latest : nil
+        return true
     }
 
     nonisolated static func latestVersion(from manifest: URL) async -> String? {
-        guard let (data, response) = try? await URLSession.shared.data(from: manifest),
+        let request = URLRequest(url: manifest, cachePolicy: .reloadIgnoringLocalCacheData)
+        guard let (data, response) = try? await URLSession.shared.data(for: request),
               (response as? HTTPURLResponse)?.statusCode ?? 200 == 200,
               let plist = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
               let items = plist["items"] as? [[String: Any]],

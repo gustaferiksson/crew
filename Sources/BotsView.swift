@@ -104,6 +104,11 @@ struct BotsView: View {
                             Button("Notifications…", systemImage: "bell.badge") { showsNotifications = true }
                             #if os(macOS)
                             UpdateMenuItems(updater: updater)
+                            #else
+                            Button(updates.isChecking ? "Checking for Updates…" : "Check for Updates", systemImage: "arrow.down.circle") {
+                                Task { await updates.checkNow() }
+                            }
+                            .disabled(updates.isChecking)
                             #endif
                             Button("Sign Out", systemImage: "rectangle.portrait.and.arrow.right", role: .destructive) {
                                 Task {
@@ -164,6 +169,13 @@ struct BotsView: View {
         } message: {
             Text(failure ?? "")
         }
+        #if os(iOS)
+        .alert("Software Update", isPresented: Binding(get: { updates.note != nil }, set: { if !$0 { updates.note = nil } })) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(updates.note ?? "")
+        }
+        #endif
         .onChange(of: store.bots.map(\.id)) { _, ids in
             if store.isLoaded, let selection, !ids.contains(selection) { self.selection = nil }
         }

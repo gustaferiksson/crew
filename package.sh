@@ -7,10 +7,9 @@ cd "$(dirname "$0")"
 PLATFORM="${1:-}"
 VERSION="${VERSION:-$(git describe --tags --always --dirty 2>/dev/null || echo dev)-local}"
 BUILD="${BUILD:-1}"
-TEAM=82K3YC8HVF
 PROFILES_DIR="$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"
 COMMON=( -project Crew.xcodeproj -scheme Crew -configuration Release -derivedDataPath .build -quiet -skipPackagePluginValidation -skipMacroValidation
-  "DEVELOPMENT_TEAM=${TEAM}" CODE_SIGN_STYLE=Manual "MARKETING_VERSION=${VERSION}" "CURRENT_PROJECT_VERSION=${BUILD}" )
+  "MARKETING_VERSION=${VERSION}" "CURRENT_PROJECT_VERSION=${BUILD}" )
 
 install_profile() {
   local profile=$1 extension=$2 uuid
@@ -50,9 +49,7 @@ mkdir -p dist
 if [[ "$PLATFORM" == mac ]]; then
   install_profile Signing/Crew_DeveloperID.provisionprofile provisionprofile
   echo "▸ Building Crew ${VERSION} (${BUILD}) for macOS…"
-  xcodebuild "${COMMON[@]}" -destination 'generic/platform=macOS' \
-    CODE_SIGN_IDENTITY="Developer ID Application" PROVISIONING_PROFILE_SPECIFIER="Crew Developer ID" \
-    OTHER_CODE_SIGN_FLAGS=--timestamp build
+  xcodebuild "${COMMON[@]}" -destination 'generic/platform=macOS' build
   cp -R .build/Build/Products/Release/Crew.app dist/Crew.app
   check_entitlements dist/Crew.app com.apple.developer.aps-environment
   echo "✅ Built dist/Crew.app"
@@ -62,8 +59,7 @@ fi
 install_profile "${IOS_ADHOC_PROFILE_PATH:-.secrets/Crew_Ad_Hoc.mobileprovision}" mobileprovision
 echo "▸ Archiving Crew ${VERSION} (${BUILD}) for iOS…"
 rm -rf .build/Crew.xcarchive .build/export
-xcodebuild "${COMMON[@]}" -destination 'generic/platform=iOS' -archivePath .build/Crew.xcarchive \
-  CODE_SIGN_IDENTITY="Apple Distribution" PROVISIONING_PROFILE_SPECIFIER="Crew Ad Hoc" archive
+xcodebuild "${COMMON[@]}" -destination 'generic/platform=iOS' -archivePath .build/Crew.xcarchive archive
 echo "▸ Exporting the Ad Hoc IPA…"
 xcodebuild -exportArchive -quiet -archivePath .build/Crew.xcarchive -exportPath .build/export \
   -exportOptionsPlist Signing/ExportOptions-AdHoc.plist

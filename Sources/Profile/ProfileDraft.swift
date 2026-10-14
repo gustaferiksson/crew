@@ -36,6 +36,7 @@ final class ProfileDraft {
         var description = ""
         var soul = ""
         var instructions = ""
+        var richUI = false
         var skills: [ProfileCapability] = []
         var toolsets: [ProfileCapability] = []
         var mcpServers: [ProfileCapability] = []
@@ -69,8 +70,9 @@ final class ProfileDraft {
 
     convenience init(bot: Bot, details: ProfileDetails, instructions: String = "", photo: CGImage? = nil) {
         self.init(bot: bot)
+        let overlay = splitRichUI(instructions)
         fields = Fields(
-            identity: fields.identity, description: details.description, soul: details.soul, instructions: instructions,
+            identity: fields.identity, description: details.description, soul: details.soul, instructions: overlay.instructions, richUI: overlay.richUI,
             skills: details.skills, toolsets: details.toolsets, mcpServers: details.mcpServers
         )
         baseline = fields
@@ -98,9 +100,10 @@ final class ProfileDraft {
                 phase = .failed(String(localized: "This bot no longer exists on the server."))
                 return
             }
+            let overlay = splitRichUI(instructionsText)
             let server = Fields(
                 identity: Identity(name: bot.name, meta: bot.meta), description: loadedDetails.description, soul: loadedDetails.soul,
-                instructions: instructionsText, skills: loadedDetails.skills, toolsets: loadedDetails.toolsets, mcpServers: loadedDetails.mcpServers
+                instructions: overlay.instructions, richUI: overlay.richUI, skills: loadedDetails.skills, toolsets: loadedDetails.toolsets, mcpServers: loadedDetails.mcpServers
             )
             meta = bot.meta
             revision = bot.metaRevision
@@ -108,6 +111,7 @@ final class ProfileDraft {
             if fields.description == baseline.description { fields.description = server.description }
             if fields.soul == baseline.soul { fields.soul = server.soul }
             if fields.instructions == baseline.instructions { fields.instructions = server.instructions }
+            if fields.richUI == baseline.richUI { fields.richUI = server.richUI }
             if fields.skills == baseline.skills { fields.skills = server.skills }
             if fields.toolsets == baseline.toolsets { fields.toolsets = server.toolsets }
             if fields.mcpServers == baseline.mcpServers { fields.mcpServers = server.mcpServers }
@@ -133,16 +137,18 @@ final class ProfileDraft {
         notice = nil
         let sent = fields
         var failed: [String] = []
-        if sent.instructions != baseline.instructions {
+        if sent.instructions != baseline.instructions || sent.richUI != baseline.richUI {
             do {
-                try await saveInstructions(sent.instructions, of: name, on: gateway.server, with: urlSession)
+                try await saveInstructions(joinRichUI(sent.instructions, richUI: sent.richUI), of: name, on: gateway.server, with: urlSession)
                 baseline.instructions = sent.instructions
+                baseline.richUI = sent.richUI
             } catch {
                 failed.append(String(localized: "instructions"))
             }
         }
         var configured = sent
         configured.instructions = baseline.instructions
+        configured.richUI = baseline.richUI
         if configured != baseline || photoChange != .unchanged {
             failed += await send(sent, gateway)
         }

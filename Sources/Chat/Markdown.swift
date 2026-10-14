@@ -39,6 +39,10 @@ nonisolated func markdownBlocks(from source: String) -> [MarkdownBlock] {
     }
 }
 
+nonisolated func a2uiFenced(_ text: String) -> String {
+    text.replacing(/<a2ui-json>\s*(?:```[a-z]*\n)?(?<body>[\s\S]*?)\s*(?:```\s*)?<\/a2ui-json>/) { "```a2ui\n\($0.output.body)\n```" }
+}
+
 struct MarkdownText: View {
     let source: String
 
@@ -63,6 +67,8 @@ struct MarkdownText: View {
 private struct MarkdownBlockView: View {
     let block: MarkdownBlock
 
+    @Environment(\.surfaces) private var surfaces
+
     var body: some View {
         switch block.kind {
         case .paragraph:
@@ -79,6 +85,8 @@ private struct MarkdownBlockView: View {
                 Text(block.content)
             }
             .padding(.leading, CGFloat(depth - 1) * 20)
+        case .code(let language) where language == "a2ui" && surfaces != nil:
+            SurfaceBlock(source: String(block.content.characters).trimmingCharacters(in: .newlines))
         case .code(let language):
             VStack(alignment: .leading, spacing: 4) {
                 if let language, !language.isEmpty {

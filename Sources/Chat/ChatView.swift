@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ChatActions {
     var send: (String, [Attachment], SendMode) -> Void = { _, _, _ in }
+    var sendHidden: (String) -> Void = { _ in }
     var stop: () -> Void = {}
     var transcribe: (Data) async throws -> String = { _ in "" }
     var openPersona: () -> Void = {}
@@ -51,6 +52,7 @@ struct ChatView: View {
     @GestureState private var dragTravel: CGFloat = 0
     @State private var trackpadTravel: CGFloat = 0
     @State private var timestampWidth: CGFloat = 40
+    @State private var surfaces = SurfaceStore()
     private let presentation: ChatPresentation
 
     init(botName: String, avatar: BotAvatar, transcript: Transcript, request: PendingRequest? = nil, offlineReason: String? = nil, activity: String? = nil, models: ModelSwitcher? = nil, presentation: ChatPresentation = ChatPresentation(), actions: ChatActions = ChatActions()) {
@@ -96,6 +98,7 @@ struct ChatView: View {
                                 }
                                 TurnView(
                                     turn: turn,
+                                    surfaces: surfaces,
                                     activity: index == transcript.turns.count - 1 ? activity : nil,
                                     reveal: reveal,
                                     timestampWidth: timestampWidth,
@@ -147,6 +150,10 @@ struct ChatView: View {
             #endif
             .onChange(of: transcript) {
                 if isAtBottom { position.scrollTo(edge: .bottom) }
+            }
+            .onChange(of: transcript, initial: true) {
+                surfaces.send = actions.sendHidden
+                surfaces.sync(transcript)
             }
             .dropDestination(for: URL.self) { urls, _ in
                 tray.add(urls)
@@ -228,6 +235,7 @@ struct ChatView: View {
 
 private struct TurnView: View {
     let turn: Turn
+    let surfaces: SurfaceStore
     let activity: String?
     let reveal: CGFloat
     let timestampWidth: CGFloat
@@ -260,7 +268,8 @@ private struct TurnView: View {
                     .modifier(Timestamp(date: turn.startedAt, reveal: reveal, width: timestampWidth))
             }
             if !turn.reply.isEmpty {
-                MarkdownText(source: turn.reply)
+                MarkdownText(source: a2uiFenced(turn.reply))
+                    .environment(\.surfaces, surfaces)
                     #if os(macOS)
                     .textSelection(.enabled)
                     #endif

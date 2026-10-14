@@ -1,0 +1,126 @@
+import A2UICore
+import A2UISwiftUI
+import SwiftUI
+
+struct CrewText: View {
+    let node: Node
+
+    var body: some View {
+        let source = node.string(for: "text") ?? ""
+        let variant = node.string(for: "variant") ?? "body"
+        let text = Text((try? AttributedString(markdown: source, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))) ?? AttributedString(source))
+        if variant == "caption" {
+            text.font(.footnote).foregroundStyle(.secondary)
+        } else if variant == "body" {
+            text
+        } else {
+            text.font(["h1": .title2.bold(), "h2": .title3.bold(), "h3": .headline, "h4": .headline][variant] ?? .subheadline.weight(.semibold))
+        }
+    }
+}
+
+struct CrewCard: View {
+    let node: Node
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            if let child = node.child(for: "child") {
+                ComponentNodeView(node: child)
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.fill.quaternary, in: .rect(cornerRadius: 20))
+    }
+}
+
+struct CrewButton: View {
+    let node: Node
+
+    @Environment(\.surfaceChoice) private var choice
+
+    var body: some View {
+        let isChosen = choice == node.id
+        let variant = isChosen ? "primary" : node.string(for: "variant") ?? "default"
+        let button = Button {
+            node.action(for: "action")?()
+        } label: {
+            HStack(spacing: 4) {
+                if isChosen {
+                    Image(systemName: "checkmark")
+                        .fontWeight(.semibold)
+                }
+                if let child = node.child(for: "child") {
+                    ComponentNodeView(node: child)
+                }
+            }
+        }
+        .buttonBorderShape(.capsule)
+        .disabled(!node.isValid)
+        .accessibilityAddTraits(isChosen ? .isSelected : [])
+        if variant == "primary" {
+            button.buttonStyle(.glassProminent)
+        } else if variant == "borderless" {
+            button.buttonStyle(.borderless)
+        } else {
+            button.buttonStyle(.glass)
+        }
+    }
+}
+
+struct CrewTable: View {
+    let node: Node
+
+    var body: some View {
+        let columns = (node.array(for: "columns") ?? []).map(cellText)
+        let rows = (node.array(for: "rows") ?? []).map { (($0 as? ResolvedArray)?.elements ?? []).map(cellText) }
+        ScrollView(.horizontal) {
+            Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 8) {
+                GridRow {
+                    ForEach(columns.indices, id: \.self) { index in
+                        Text(columns[index])
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                ForEach(rows.indices, id: \.self) { row in
+                    Divider()
+                    GridRow {
+                        ForEach(rows[row].indices, id: \.self) { column in
+                            Text(rows[row][column])
+                        }
+                    }
+                }
+            }
+        }
+        .scrollIndicators(.hidden)
+    }
+}
+
+struct CrewKeyValue: View {
+    let node: Node
+
+    var body: some View {
+        let items = (node.array(for: "items") ?? []).compactMap { $0 as? ResolvedDictionary }
+        Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 8) {
+            ForEach(items.indices, id: \.self) { index in
+                if index > 0 {
+                    Divider()
+                }
+                GridRow {
+                    Text(items[index]["key"].map(cellText) ?? "")
+                        .foregroundStyle(.secondary)
+                    Text(items[index]["value"].map(cellText) ?? "")
+                }
+            }
+        }
+    }
+}
+
+private func cellText(_ value: any Resolved) -> String {
+    if let text = value as? String { return text }
+    if let number = value as? Int { return number.formatted() }
+    if let number = value as? Double { return number.formatted() }
+    if let flag = value as? Bool { return flag ? String(localized: "Yes") : String(localized: "No") }
+    return ""
+}

@@ -165,7 +165,7 @@ final class PushCenter: NSObject {
             let reply = try await fetch(request, with: connection.urlSession, as: RegistrationReply.self)
             status = .registered(apnsConfigured: reply.apnsConfigured)
             UserDefaults.standard.set(reply.installId, forKey: "pushInstallID")
-        } catch HermesError.server(404) {
+        } catch HermesError.server(404, _) {
             status = .notInstalled
             return
         } catch {
@@ -190,7 +190,7 @@ final class PushCenter: NSObject {
         guard let server = connection.session?.server else { return }
         do {
             plugin = try await fetch(hermesRequest("api/plugins/crew-push/status", on: server), with: connection.urlSession, as: PluginStatus.self)
-        } catch HermesError.server(404) {
+        } catch HermesError.server(404, _) {
             plugin = nil
             status = .notInstalled
         } catch {

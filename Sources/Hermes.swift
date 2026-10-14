@@ -31,7 +31,7 @@ nonisolated enum HermesError: LocalizedError, Equatable {
     case unsupported(String)
     case identityChanged
     case keychain(OSStatus)
-    case server(Int)
+    case server(Int, detail: String? = nil)
     case invalidResponse
 
     var errorDescription: String? {
@@ -43,9 +43,13 @@ nonisolated enum HermesError: LocalizedError, Equatable {
         if case .unsupported(let reason) = self { return reason }
         if case .identityChanged = self { return "This server's identity changed since you signed in. Sign in again to trust it." }
         if case .keychain(let status) = self { return "Couldn't save the session to the Keychain (\(status))." }
-        if case .server(let code) = self { return "The server answered with an error (\(code))." }
+        if case .server(let code, let detail) = self { return detail ?? "The server answered with an error (\(code))." }
         return "The server sent a response Crew doesn't understand."
     }
+}
+
+nonisolated private struct ErrorBody: Decodable {
+    let detail: String
 }
 
 nonisolated private let unreachableCodes: Set<URLError.Code> = [
@@ -84,7 +88,9 @@ nonisolated func fetch<Response: Decodable>(_ request: URLRequest, with session:
     if http.statusCode == 401 { throw HermesError.unauthorized }
     if http.statusCode == 429 { throw HermesError.rateLimited }
     if [502, 503, 504].contains(http.statusCode) { throw HermesError.unreachable(host: host) }
-    guard (200..<300).contains(http.statusCode) else { throw HermesError.server(http.statusCode) }
+    guard (200..<300).contains(http.statusCode) else {
+        throw HermesError.server(http.statusCode, detail: (try? JSONDecoder().decode(ErrorBody.self, from: data))?.detail)
+    }
     let decoder = JSONDecoder()
     decoder.keyDecodingStrategy = .convertFromSnakeCase
     do {

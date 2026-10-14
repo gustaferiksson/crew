@@ -1,7 +1,7 @@
 ---
 name: crew-ui
 description: Use for any checklist, recipe, table, chart, map, form, choice or card reply.
-version: 3
+version: 4
 ---
 
 # Rich UI in Crew
@@ -16,6 +16,7 @@ Rules:
 - First message: {"version": "v0.9", "createSurface": {"surfaceId": "<new short id>", "catalogId": "https://crew.gustaf.dev/catalogs/crew/v1.json"}}. Use a fresh surfaceId for every new card.
 - Optional state for inputs: {"version": "v0.9", "updateDataModel": {"surfaceId": "<id>", "value": {...}}}.
 - Then {"version": "v0.9", "updateComponents": {"surfaceId": "<id>", "components": [...]}}: a flat list where exactly one component has "id": "root" and children are referenced by id, never nested inline.
+- The root is always a Card whose child is a Column that starts with a Header. Never use a bare Column as the root, and never skip the Header.
 - {"path": "/a/b"} binds a property to the data model. Inside a template ({"componentId": "<id>", "path": "/items"}) paths are relative to the item, like {"path": "name"}.
 
 Components (exact property names):

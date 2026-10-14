@@ -34,7 +34,7 @@ struct CrewApp: App {
                 .environment(updates)
                 .task(id: scenePhase) {
                     guard scenePhase == .active else { return }
-                    await updates.checkIfDue()
+                    await updates.checkOnForeground()
                 }
                 #endif
                 .task {

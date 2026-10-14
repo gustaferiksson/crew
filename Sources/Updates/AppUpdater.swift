@@ -157,7 +157,7 @@ final class AppUpdater {
     }
 
     nonisolated private static func latestVersion() async -> String? {
-        var request = URLRequest(url: releasesURL)
+        var request = URLRequest(url: releasesURL, cachePolicy: .reloadIgnoringLocalCacheData)
         request.httpMethod = "HEAD"
         guard let (_, response) = try? await URLSession.shared.data(for: request, delegate: RedirectBlocker()),
               let location = (response as? HTTPURLResponse)?.value(forHTTPHeaderField: "Location")

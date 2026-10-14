@@ -13,7 +13,7 @@ struct NotificationSettings: View {
             Form {
                 Section {
                     LabeledContent("Status") {
-                        Label(statusTitle, systemImage: push.isPushing ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
+                        Text("\(Image(systemName: push.isPushing ? "checkmark.circle.fill" : "exclamationmark.circle.fill")) \(statusTitle)")
                             .foregroundStyle(push.isPushing ? .green : .orange)
                     }
                     if [.notDetermined, .provisional].contains(push.authorization) {

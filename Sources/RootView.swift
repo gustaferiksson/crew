@@ -15,7 +15,7 @@ struct RootView: View {
                 BotPageFixtureScreen()
             } else if Snapshot.requested == .notifications {
                 NotificationSettings()
-                    .environment(PushCenter(fixture: .notInstalled))
+                    .environment(PushCenter(fixture: .registered(apnsConfigured: true), plugin: PluginStatus(pluginVersion: "0.2.0", installId: "fixture", apnsConfigured: true, http2: true, devices: 2)))
             } else if Snapshot.requested == .avatars {
                 AvatarGallery()
             } else if Snapshot.requested == .avatarPicker {

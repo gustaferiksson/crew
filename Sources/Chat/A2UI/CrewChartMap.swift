@@ -65,8 +65,29 @@ struct CrewChart: View {
     }
 }
 
+private final class MapSnapshot {
+    let image: Image
+    let size: CGSize
+    let points: [CGPoint]
+
+    init(image: Image, size: CGSize, points: [CGPoint]) {
+        self.image = image
+        self.size = size
+        self.points = points
+    }
+}
+
+@MainActor private let mapSnapshots = {
+    let cache = NSCache<NSString, MapSnapshot>()
+    cache.countLimit = 32
+    return cache
+}()
+
 struct CrewMap: View {
     let node: Node
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var width: CGFloat = 0
+    @State private var snapshot: MapSnapshot?
 
     var body: some View {
         let markers = (node.array(for: "markers") ?? []).compactMap { $0 as? ResolvedDictionary }.compactMap { marker -> (title: String, coordinate: CLLocationCoordinate2D)? in
@@ -87,28 +108,86 @@ struct CrewMap: View {
             let center = CLLocationCoordinate2D(latitude: ((latitudes.max() ?? south) + south) / 2 - latitudeSpan * 0.08, longitude: (west + east) / 2)
             return MKCoordinateRegion(center: center, span: MKCoordinateSpan(latitudeDelta: latitudeSpan, longitudeDelta: max(0.008, (east - west) * 1.6)))
         }
-        Map(initialPosition: (region ?? fitted).map { .region($0) } ?? .automatic, interactionModes: []) {
-            ForEach(markers.indices, id: \.self) { index in
-                Marker(markers[index].title, coordinate: markers[index].coordinate)
-            }
+        let shown = region ?? fitted
+        let size = CGSize(width: width.rounded(), height: 240)
+        let key = ([shown.map { "\($0.center.latitude),\($0.center.longitude),\($0.span.latitudeDelta),\($0.span.longitudeDelta)" } ?? "world", "\(size.width)", "\(colorScheme)"]
+            + markers.map { "\($0.title)@\($0.coordinate.latitude),\($0.coordinate.longitude)" }).joined(separator: "|")
+        let openInMaps = {
+            _ = MKMapItem.openMaps(with: markers.map { marker in
+                let item = MKMapItem(location: CLLocation(latitude: marker.coordinate.latitude, longitude: marker.coordinate.longitude), address: nil)
+                item.name = marker.title
+                return item
+            })
         }
-        .mapStyle(.standard(pointsOfInterest: .excludingAll))
-        .frame(height: 240)
-        .clipShape(.rect(cornerRadius: 12))
-        .overlay(alignment: .bottomTrailing) {
-            Button("Open in Maps", systemImage: "map") {
-                MKMapItem.openMaps(with: markers.map { marker in
-                    let item = MKMapItem(location: CLLocation(latitude: marker.coordinate.latitude, longitude: marker.coordinate.longitude), address: nil)
-                    item.name = marker.title
-                    return item
-                })
+        Button(action: openInMaps) {
+            ZStack {
+                Rectangle().fill(.fill.tertiary)
+                if let snapshot {
+                    ZStack(alignment: .topLeading) {
+                        snapshot.image
+                        ForEach(snapshot.points.indices, id: \.self) { index in
+                            Image(systemName: "mappin.circle.fill")
+                                .font(.title)
+                                .symbolRenderingMode(.palette)
+                                .foregroundStyle(.white, .red)
+                                .shadow(radius: 2, y: 1)
+                                .overlay(alignment: .top) {
+                                    Text(markers.indices.contains(index) ? markers[index].title : "")
+                                        .font(.caption2.weight(.semibold))
+                                        .fixedSize()
+                                        .shadow(color: .black.opacity(0.25), radius: 2)
+                                        .offset(y: 32)
+                                }
+                                .position(snapshot.points[index])
+                        }
+                    }
+                    .frame(width: snapshot.size.width, height: snapshot.size.height)
+                } else {
+                    ProgressView().controlSize(.small)
+                }
             }
-            .buttonStyle(.glass)
-            .buttonBorderShape(.capsule)
-            .controlSize(.small)
-            .padding(8)
+            .frame(maxWidth: .infinity)
+            .frame(height: size.height)
+            .clipShape(.rect(cornerRadius: 12))
+            .contentShape(.rect)
         }
-        .accessibilityElement(children: .contain)
+        .buttonStyle(.plain)
         .accessibilityLabel(markers.map(\.title).joined(separator: ", "))
+        .accessibilityHint("Opens in Maps")
+        .onGeometryChange(for: CGFloat.self, of: \.size.width) { width = $0 }
+        .task(id: key) {
+            guard size.width > 0 else { return }
+            if let cached = mapSnapshots.object(forKey: key as NSString) {
+                snapshot = cached
+                return
+            }
+            let configuration = MKStandardMapConfiguration()
+            configuration.pointOfInterestFilter = .excludingAll
+            let options = MKMapSnapshotter.Options()
+            options.preferredConfiguration = configuration
+            options.size = size
+            if let shown { options.region = shown }
+            #if os(macOS)
+            options.appearance = NSAppearance(named: colorScheme == .dark ? .darkAqua : .aqua)
+            #else
+            options.traitCollection = UITraitCollection { $0.userInterfaceStyle = colorScheme == .dark ? .dark : .light }
+            #endif
+            guard let result = try? await MKMapSnapshotter(options: options).start() else { return }
+            #if os(macOS)
+            let image = Image(nsImage: result.image)
+            #else
+            let image = Image(uiImage: result.image)
+            #endif
+            let fresh = MapSnapshot(image: image, size: size, points: markers.map { result.point(for: $0.coordinate) })
+            mapSnapshots.setObject(fresh, forKey: key as NSString)
+            snapshot = fresh
+        }
+        .overlay(alignment: .bottomTrailing) {
+            Button("Open in Maps", systemImage: "map", action: openInMaps)
+                .buttonStyle(.glass)
+                .buttonBorderShape(.capsule)
+                .controlSize(.small)
+                .padding(8)
+        }
     }
 }

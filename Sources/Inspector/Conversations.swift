@@ -75,6 +75,7 @@ struct ConversationTranscript: View {
     let conversation: Conversation
 
     @Environment(Connection.self) private var connection
+    @Environment(BotStore.self) private var bots
     @Environment(\.dismiss) private var dismiss
     @State private var transcript: Transcript?
     @State private var failure: String?
@@ -96,6 +97,7 @@ struct ConversationTranscript: View {
                                     activity: nil,
                                     reveal: 0,
                                     timestampWidth: 40,
+                                    mentionable: bots.bots.filter { $0.id != bot.id },
                                     expandedTurns: $expandedTurns,
                                     expandedWork: $expandedWork,
                                     expandedRuns: $expandedRuns

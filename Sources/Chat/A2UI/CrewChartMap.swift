@@ -65,15 +65,20 @@ struct CrewChart: View {
     }
 }
 
+private struct MapPin: Hashable {
+    let point: CGPoint
+    var titles: [String]
+}
+
 private final class MapSnapshot {
     let image: Image
     let size: CGSize
-    let points: [CGPoint]
+    let pins: [MapPin]
 
-    init(image: Image, size: CGSize, points: [CGPoint]) {
+    init(image: Image, size: CGSize, pins: [MapPin]) {
         self.image = image
         self.size = size
-        self.points = points
+        self.pins = pins
     }
 }
 
@@ -125,20 +130,30 @@ struct CrewMap: View {
                 if let snapshot {
                     ZStack(alignment: .topLeading) {
                         snapshot.image
-                        ForEach(snapshot.points.indices, id: \.self) { index in
-                            Image(systemName: "mappin.circle.fill")
-                                .font(.title)
-                                .symbolRenderingMode(.palette)
-                                .foregroundStyle(.white, .red)
-                                .shadow(radius: 2, y: 1)
-                                .overlay(alignment: .top) {
-                                    Text(markers.indices.contains(index) ? markers[index].title : "")
-                                        .font(.caption2.weight(.semibold))
-                                        .fixedSize()
-                                        .shadow(color: .black.opacity(0.25), radius: 2)
-                                        .offset(y: 32)
+                        ForEach(snapshot.pins, id: \.self) { pin in
+                            Circle()
+                                .fill(.red)
+                                .strokeBorder(.white, lineWidth: 2)
+                                .overlay {
+                                    if pin.titles.count > 1 {
+                                        Text(pin.titles.count, format: .number)
+                                            .font(.caption2.bold())
+                                            .foregroundStyle(.white)
+                                    } else {
+                                        Circle().fill(.white).frame(width: 6, height: 6)
+                                    }
                                 }
-                                .position(snapshot.points[index])
+                                .frame(width: 20, height: 20)
+                                .shadow(color: .black.opacity(0.3), radius: 2, y: 1)
+                                .overlay(alignment: .top) {
+                                    Text(pin.titles.count > 1 ? "\(pin.titles[0])\n+ \(pin.titles.count - 1) more" : pin.titles[0])
+                                        .font(.caption2.weight(.semibold))
+                                        .multilineTextAlignment(.center)
+                                        .fixedSize()
+                                        .shadow(color: Color(white: colorScheme == .dark ? 0 : 1), radius: 1)
+                                        .offset(y: 22)
+                                }
+                                .position(pin.point)
                         }
                     }
                     .frame(width: snapshot.size.width, height: snapshot.size.height)
@@ -173,12 +188,27 @@ struct CrewMap: View {
             options.traitCollection = UITraitCollection { $0.userInterfaceStyle = colorScheme == .dark ? .dark : .light }
             #endif
             guard let result = try? await MKMapSnapshotter(options: options).start() else { return }
+            var pins: [MapPin] = []
+            for marker in markers {
+                let projected = result.point(for: marker.coordinate)
+                #if os(macOS)
+                // AppKit snapshots project with a bottom-left origin.
+                let point = CGPoint(x: projected.x, y: size.height - projected.y)
+                #else
+                let point = projected
+                #endif
+                if let near = pins.firstIndex(where: { hypot($0.point.x - point.x, $0.point.y - point.y) < 24 }) {
+                    pins[near].titles.append(marker.title)
+                } else {
+                    pins.append(MapPin(point: point, titles: [marker.title]))
+                }
+            }
             #if os(macOS)
             let image = Image(nsImage: result.image)
             #else
             let image = Image(uiImage: result.image)
             #endif
-            let fresh = MapSnapshot(image: image, size: size, points: markers.map { result.point(for: $0.coordinate) })
+            let fresh = MapSnapshot(image: image, size: size, pins: pins)
             mapSnapshots.setObject(fresh, forKey: key as NSString)
             snapshot = fresh
         }

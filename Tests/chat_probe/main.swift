@@ -401,6 +401,20 @@ if phases.contains("read") {
     await peerGateway.disconnect()
 }
 
+if phases.contains("a2ui") {
+    record("a2ui-turn")
+    let skill = try String(contentsOf: URL(fileURLWithPath: #filePath).appending(path: "../../../Sources/Profile/crew-ui.SKILL.md").standardized, encoding: .utf8)
+    var install = hermesRequest("api/skills/content", on: server, json: ["name": "crew-ui", "content": skill, "profile": "crew-test"])
+    install.httpMethod = "PUT"
+    _ = try await fetch(install, with: urlSession, as: JSONValue.self)
+    chat.send(env["A2UI_PROMPT"] ?? "Compare the last 7 days of weather in Stockholm as a chart", mode: .send)
+    try await waitIdle(chat)
+    show("a2ui", chat)
+    let reply = outDir.appending(path: "a2ui-reply.md")
+    try (chat.transcript.turns.last?.reply ?? "").write(to: reply, atomically: true, encoding: .utf8)
+    print("REPLY", reply.path)
+}
+
 if phases.contains("history") {
     let reloaded = try await attached(try await crewTest())
     print("== full history")

@@ -2,13 +2,16 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 enum ChatFixture {
-    case conversation, history, timestamps, workLog, question, offline, attachments, dictation, a2ui, a2uiCards, a2uiForm
+    case conversation, history, timestamps, workLog, question, offline, attachments, dictation, a2ui, a2uiCards, a2uiForm, a2uiTable, a2uiChart, a2uiMap
 
     var presentation: ChatPresentation {
         if self == .history { return ChatPresentation(scrollTarget: "t1") }
         if self == .a2ui { return ChatPresentation(scrollTarget: "a1") }
         if self == .a2uiCards { return ChatPresentation(scrollTarget: "a2") }
         if self == .a2uiForm { return ChatPresentation(scrollTarget: "a6") }
+        if self == .a2uiTable { return ChatPresentation(scrollTarget: "a5") }
+        if self == .a2uiChart { return ChatPresentation(scrollTarget: "a4") }
+        if self == .a2uiMap { return ChatPresentation(scrollTarget: "a7") }
         if self == .timestamps { return ChatPresentation(revealsTimestamps: true, scrollTarget: "t2") }
         if self == .workLog { return ChatPresentation(expandedTurns: ["t4"], expandedWork: ["t4-w0", "t4-w2"], scrollTarget: "t4") }
         if self == .attachments {
@@ -46,7 +49,7 @@ enum ChatFixture {
         let now = Date.now
         let turns = [greeting(now.addingTimeInterval(-26 * 3600)), packing(now.addingTimeInterval(-3 * 3600)), notes(now.addingTimeInterval(-2.8 * 3600)), ciFix(now.addingTimeInterval(-25 * 60))]
         if [.offline, .history, .dictation].contains(self) { return Transcript(turns: turns) }
-        if [.a2ui, .a2uiCards, .a2uiForm].contains(self) { return Transcript(turns: Self.a2uiTurns(now)) }
+        if [.a2ui, .a2uiCards, .a2uiForm, .a2uiTable, .a2uiChart, .a2uiMap].contains(self) { return Transcript(turns: Self.a2uiTurns(now)) }
         if self == .attachments { return Transcript(turns: [greeting(now.addingTimeInterval(-26 * 3600)), receipt(now.addingTimeInterval(-6 * 60))]) }
         return Transcript(turns: turns + [deploy(now.addingTimeInterval(-48))])
     }

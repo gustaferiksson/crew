@@ -19,6 +19,7 @@ nonisolated struct Turn: Identifiable, Codable, Sendable, Equatable {
     var startedAt: Date
     var finishedAt: Date?
     var failure: String?
+    var speaker: String?
 }
 
 nonisolated struct Prompt: Codable, Sendable, Equatable {

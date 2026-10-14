@@ -4,6 +4,7 @@ struct RootView: View {
     @Environment(Connection.self) private var connection
     @Environment(BotStore.self) private var bots
     @Environment(ChatSessions.self) private var chats
+    @Environment(GroupStore.self) private var groups
 
     var body: some View {
         Group {
@@ -26,6 +27,8 @@ struct RootView: View {
                 LookFixture()
             } else if Snapshot.requested == .newBot {
                 NewBotFixture()
+            } else if Snapshot.requested == .groupChat {
+                GroupChatFixtureScreen()
             } else if connection.state == .signedOut {
                 LoginView()
             } else {
@@ -36,6 +39,7 @@ struct RootView: View {
             guard isSignedOut else { return }
             bots.reset()
             chats.reset()
+            groups.reset()
         }
     }
 }

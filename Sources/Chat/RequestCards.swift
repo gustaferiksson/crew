@@ -10,6 +10,7 @@ nonisolated struct ApprovalRequest: Identifiable, Sendable, Equatable {
     let description: String
     let toolName: String?
     let choices: [ApprovalChoice]
+    var requester: String?
 }
 
 nonisolated struct QuestionRequest: Identifiable, Sendable, Equatable {
@@ -42,7 +43,7 @@ struct ApprovalCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Label("\(botName) wants to run a command", systemImage: "exclamationmark.shield.fill")
+            Label("\(request.requester ?? botName) wants to run a command", systemImage: "exclamationmark.shield.fill")
                 .font(.subheadline.weight(.semibold))
                 .symbolRenderingMode(.multicolor)
             Text(request.command)

@@ -256,7 +256,7 @@ struct TurnView: View {
     @Environment(BotStore.self) private var bots
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 8) {
             if let speaker = turn.speaker {
                 let bot = bots.bots.first { $0.name == speaker }
                 HStack(spacing: 8) {
@@ -267,56 +267,57 @@ struct TurnView: View {
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.secondary)
                 }
-                .padding(.bottom, -8)
             }
-            if let notice = turn.notice {
-                Text(notice)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: .infinity)
-            }
-            if let prompt = turn.prompt {
-                if !prompt.attachments.isEmpty {
-                    PromptAttachments(attachments: prompt.attachments)
-                        .offset(x: reveal)
+            VStack(alignment: .leading, spacing: 16) {
+                if let notice = turn.notice {
+                    Text(notice)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
                 }
-                let mentioned = mentionedBots(in: prompt.text, among: mentionable)
-                if !mentioned.isEmpty {
-                    MentionChips(bots: mentioned)
-                        .frame(maxWidth: .infinity, alignment: .trailing)
-                        .offset(x: reveal)
+                if let prompt = turn.prompt {
+                    if !prompt.attachments.isEmpty {
+                        PromptAttachments(attachments: prompt.attachments)
+                            .offset(x: reveal)
+                    }
+                    let mentioned = mentionedBots(in: prompt.text, among: mentionable)
+                    if !mentioned.isEmpty {
+                        MentionChips(bots: mentioned)
+                            .frame(maxWidth: .infinity, alignment: .trailing)
+                            .offset(x: reveal)
+                    }
+                    if !prompt.text.isEmpty {
+                        UserBubble(text: prompt.text)
+                            .offset(x: reveal)
+                            .modifier(Timestamp(date: prompt.sentAt, reveal: reveal, width: timestampWidth))
+                    }
                 }
-                if !prompt.text.isEmpty {
-                    UserBubble(text: prompt.text)
-                        .offset(x: reveal)
-                        .modifier(Timestamp(date: prompt.sentAt, reveal: reveal, width: timestampWidth))
+                if !turn.work.isEmpty || turn.status == .streaming {
+                    WorkLog(turn: turn, activity: activity, expandedTurns: $expandedTurns, expandedWork: $expandedWork, expandedRuns: $expandedRuns)
+                        .modifier(Timestamp(date: turn.startedAt, reveal: reveal, width: timestampWidth))
                 }
-            }
-            if !turn.work.isEmpty || turn.status == .streaming {
-                WorkLog(turn: turn, activity: activity, expandedTurns: $expandedTurns, expandedWork: $expandedWork, expandedRuns: $expandedRuns)
-                    .modifier(Timestamp(date: turn.startedAt, reveal: reveal, width: timestampWidth))
-            }
-            if !turn.reply.isEmpty {
-                MarkdownText(source: a2uiFenced(turn.reply))
-                    .environment(\.surfaces, surfaces)
-                    #if os(macOS)
-                    .textSelection(.enabled)
-                    #endif
-                    .padding(12)
-                    .modifier(MessageMenu(text: turn.reply, shape: .rect(cornerRadius: 18)))
-                    .padding(-12)
-                    .modifier(Timestamp(date: turn.finishedAt ?? turn.startedAt, reveal: reveal, width: timestampWidth))
-            }
-            if turn.status == .error {
-                Label(turn.failure ?? "Something went wrong.", systemImage: "exclamationmark.triangle.fill")
-                    .font(.footnote)
-                    .foregroundStyle(.red)
-            }
-            if turn.status == .interrupted {
-                Label("Stopped", systemImage: "stop.circle")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                if !turn.reply.isEmpty {
+                    MarkdownText(source: a2uiFenced(turn.reply))
+                        .environment(\.surfaces, surfaces)
+                        #if os(macOS)
+                        .textSelection(.enabled)
+                        #endif
+                        .padding(12)
+                        .modifier(MessageMenu(text: turn.reply, shape: .rect(cornerRadius: 18)))
+                        .padding(-12)
+                        .modifier(Timestamp(date: turn.finishedAt ?? turn.startedAt, reveal: reveal, width: timestampWidth))
+                }
+                if turn.status == .error {
+                    Label(turn.failure ?? "Something went wrong.", systemImage: "exclamationmark.triangle.fill")
+                        .font(.footnote)
+                        .foregroundStyle(.red)
+                }
+                if turn.status == .interrupted {
+                    Label("Stopped", systemImage: "stop.circle")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
     }

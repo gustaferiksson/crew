@@ -67,6 +67,10 @@ nonisolated private struct RoomState: Decodable, Sendable {
     }
 }
 
+nonisolated private struct SentEvent: Decodable, Sendable {
+    let event: RoomEvent
+}
+
 nonisolated private struct RoomLogPage: Decodable, Sendable {
     let events: [RoomEvent]
     let cursor: Int
@@ -158,7 +162,8 @@ final class GroupSession {
         let names = room.members.map { $0.displayName ?? $0.memberID }.formatted(.list(type: .and))
         let welcome = Turn(id: "welcome", notice: String(localized: "\(names) are in this group."), status: .complete, startedAt: room.createdAt, finishedAt: room.createdAt)
         let working = isWorking ? [Turn(id: "working", status: .streaming, startedAt: events.last?.createdAt ?? .now)] : []
-        return Transcript(turns: [welcome] + events.compactMap(turn(for:)) + unsent + working)
+        let pending = unsent.filter { turn in !events.contains { $0.eventID == turn.id } }
+        return Transcript(turns: [welcome] + events.compactMap(turn(for:)) + pending + working)
     }
 
     var request: PendingRequest? {
@@ -193,10 +198,10 @@ final class GroupSession {
         Task {
             do {
                 let params = SendParams(roomID: room.id, eventID: id, payload: SendParams.Payload(text: text))
-                _ = try await gateway.call("groups.send", params, as: JSONValue.self)
+                let sent = try await gateway.call("groups.send", params, as: SentEvent.self).event
+                if let index = unsent.firstIndex(where: { $0.id == id }) { unsent[index].id = sent.eventID }
                 isWorking = true
                 await refresh()
-                unsent.removeAll { $0.id == id }
             } catch {
                 guard let index = unsent.firstIndex(where: { $0.id == id }) else { return }
                 unsent[index].status = .error
@@ -240,6 +245,7 @@ final class GroupSession {
                 let page = try await gateway.call("groups.log", RoomParams(roomID: room.id, sinceSeq: cursor), as: RoomLogPage.self)
                 let last = events.last?.seq ?? 0
                 events += page.events.filter { $0.seq > last }
+                unsent.removeAll { turn in page.events.contains { $0.eventID == turn.id } }
                 cursor = max(cursor, page.cursor)
                 guard page.hasMore else { break }
             }

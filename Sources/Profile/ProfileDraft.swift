@@ -36,10 +36,20 @@ final class ProfileDraft {
         var description = ""
         var soul = ""
         var instructions = ""
-        var richUI = false
         var skills: [ProfileCapability] = []
         var toolsets: [ProfileCapability] = []
         var mcpServers: [ProfileCapability] = []
+
+        var richUI: Bool {
+            get { skills.contains { $0.name == crewUISkillName && $0.enabled } }
+            set {
+                if let index = skills.firstIndex(where: { $0.name == crewUISkillName }) {
+                    skills[index].enabled = newValue
+                } else if newValue {
+                    skills.append(ProfileCapability(name: crewUISkillName, label: nil, description: nil, transport: nil, toolCount: nil, enabled: true))
+                }
+            }
+        }
     }
 
     let name: String
@@ -70,9 +80,8 @@ final class ProfileDraft {
 
     convenience init(bot: Bot, details: ProfileDetails, instructions: String = "", photo: CGImage? = nil) {
         self.init(bot: bot)
-        let overlay = splitRichUI(instructions)
         fields = Fields(
-            identity: fields.identity, description: details.description, soul: details.soul, instructions: overlay.instructions, richUI: overlay.richUI,
+            identity: fields.identity, description: details.description, soul: details.soul, instructions: instructions,
             skills: details.skills, toolsets: details.toolsets, mcpServers: details.mcpServers
         )
         baseline = fields
@@ -100,10 +109,9 @@ final class ProfileDraft {
                 phase = .failed(String(localized: "This bot no longer exists on the server."))
                 return
             }
-            let overlay = splitRichUI(instructionsText)
             let server = Fields(
                 identity: Identity(name: bot.name, meta: bot.meta), description: loadedDetails.description, soul: loadedDetails.soul,
-                instructions: overlay.instructions, richUI: overlay.richUI, skills: loadedDetails.skills, toolsets: loadedDetails.toolsets, mcpServers: loadedDetails.mcpServers
+                instructions: instructionsText, skills: loadedDetails.skills, toolsets: loadedDetails.toolsets, mcpServers: loadedDetails.mcpServers
             )
             meta = bot.meta
             revision = bot.metaRevision
@@ -111,11 +119,11 @@ final class ProfileDraft {
             if fields.description == baseline.description { fields.description = server.description }
             if fields.soul == baseline.soul { fields.soul = server.soul }
             if fields.instructions == baseline.instructions { fields.instructions = server.instructions }
-            if fields.richUI == baseline.richUI { fields.richUI = server.richUI }
             if fields.skills == baseline.skills { fields.skills = server.skills }
             if fields.toolsets == baseline.toolsets { fields.toolsets = server.toolsets }
             if fields.mcpServers == baseline.mcpServers { fields.mcpServers = server.mcpServers }
             baseline = server
+            if server.richUI { try? await installCrewUISkill(in: name, on: gateway.server, with: urlSession) }
             if photoChange == .unchanged {
                 photo = bot.hasAvatar ? await fetchPhoto(gateway) : nil
                 savedPhoto = photo
@@ -135,20 +143,26 @@ final class ProfileDraft {
         guard isDirty else { return }
         isSaving = true
         notice = nil
-        let sent = fields
+        var sent = fields
         var failed: [String] = []
-        if sent.instructions != baseline.instructions || sent.richUI != baseline.richUI {
+        if sent.instructions != baseline.instructions {
             do {
-                try await saveInstructions(joinRichUI(sent.instructions, richUI: sent.richUI), of: name, on: gateway.server, with: urlSession)
+                try await saveInstructions(sent.instructions, of: name, on: gateway.server, with: urlSession)
                 baseline.instructions = sent.instructions
-                baseline.richUI = sent.richUI
             } catch {
                 failed.append(String(localized: "instructions"))
             }
         }
+        if sent.richUI, !baseline.richUI {
+            do {
+                try await installCrewUISkill(in: name, on: gateway.server, with: urlSession)
+            } catch {
+                sent.skills = sent.skills.compactMap { $0.name == crewUISkillName ? baseline.skills.first { $0.name == crewUISkillName } : $0 }
+                failed.append(String(localized: "Rich UI"))
+            }
+        }
         var configured = sent
         configured.instructions = baseline.instructions
-        configured.richUI = baseline.richUI
         if configured != baseline || photoChange != .unchanged {
             failed += await send(sent, gateway)
         }

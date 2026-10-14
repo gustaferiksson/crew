@@ -9,13 +9,14 @@ extension ChatFixture {
                 status: .complete, startedAt: start, finishedAt: start.addingTimeInterval(6)
             )
         }
+        let skillExamples = markdownBlocks(from: crewUISkill).filter { $0.kind == .code(language: "a2ui") }.map { String($0.content.characters) }
         return [
             turn("a1", "Show me a recipe card for pancakes with an ingredient checklist", nil, realRecipeReply, 40),
-            turn("a2", "Can you clean up the old preview deployments?", nil, "Four previews have been idle for over two weeks. Want me to delete them?\n\n```a2ui\n\(richUIApprovalExample)\n```", 30),
+            turn("a2", "Can you clean up the old preview deployments?", nil, "Four previews have been idle for over two weeks. Want me to delete them?\n\n```a2ui\n\(skillExamples[0])\n```", 30),
             turn("a3", nil, #"<a2ui-action>{"context":{"choice":"delete"},"name":"decide","sourceComponentId":"delete","surfaceId":"cleanup-previews"}</a2ui-action>"#, "Deleted all four previews.", 29),
             turn("a5", "Compare the weekend flights to Bodø", nil, "Three direct options, Widerøe is the cheapest.\n\n```a2ui\n\(flightsBlock)\n```", 10),
             turn("a4", "Plot my steps for the week", nil, "Here's the week at a glance.\n\n```a2ui\n\(chartBlock)\n```", 5),
-            turn("a6", "Book us a table at Lilla Ego on Friday", nil, "Fill in the details and I'll send the request.\n\n```a2ui\n\(richUIFormExample)\n```", 1),
+            turn("a6", "Book us a table at Lilla Ego on Friday", nil, "Fill in the details and I'll send the request.\n\n```a2ui\n\(skillExamples[2])\n```", 1),
         ]
     }
 

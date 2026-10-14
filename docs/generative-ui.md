@@ -1,6 +1,6 @@
 # Generative UI in Crew
 
-Research date 2026-10-14. Read-only research: no app code, server config or plugins touched. Status: MVP implemented (see the Generative UI lines in `docs/PLAN.md` Decisions; Rich UI uses the Instructions overlay, not a skill). Hermes refs are against the local checkout `~/.hermes/hermes-agent` (`0.21.7+302`, the server runs `v0.21.7`; none of the files cited differ in a way that matters here).
+Research date 2026-10-14. Read-only research: no app code, server config or plugins touched. Status: MVP implemented (see the Generative UI lines in `docs/PLAN.md` Decisions; Rich UI installs and toggles a bundled `crew-ui` skill). Hermes refs are against the local checkout `~/.hermes/hermes-agent` (`0.21.7+302`, the server runs `v0.21.7`; none of the files cited differ in a way that matters here).
 
 Goal: let a bot put rich native components in the chat (approval with context, recipe, checklist, table, chart, form, card with actions, map) with as little custom engineering as possible.
 
@@ -121,7 +121,7 @@ Versioning: Crew accepts `version` `v0.9`/`v0.9.1` now and `v1.0` once final; th
 
 ## 6. Open questions
 
-1. **Cross-client noise.** Decided: opt-in per bot. A "Rich UI" toggle in the inspector adds or removes the `crew-ui` skill (or the Instructions overlay, if a skill can't be scoped to one profile) on that bot only, so bots without it never emit fences into Hermex or Desktop. Approved for after the first release, with A2UI and the official SwiftUI renderer as in section 4.
+1. **Cross-client noise.** Decided: opt-in per bot. A "Rich UI" toggle in the inspector installs (or upgrades) and enables the `crew-ui` skill on that bot only; Off disables it, so bots without it never emit fences into Hermex or Desktop. Approved for after the first release, with A2UI and the official SwiftUI renderer as in section 4.
 2. **Reliability of model-written JSON.** If fences come out invalid often, move to path (a): a `crew-ui` plugin `render_ui` tool that validates server-side with the A2UI SDK and returns errors. That needs a host plugin install (by Gustaf, never by an agent).
 3. **v0.9.1 vs v1.0.** The Swift package supports both; v1.0 is RC until Q4 2026. Start on v0.9.1 and move when v1.0 is final?
 4. **Pinning.** No Swift release tags in a2ui-project/a2ui; pin a commit and bump deliberately. Verify it builds under Crew's Swift 6 / default MainActor settings before committing to it (the package compiles as its own module, so likely fine).

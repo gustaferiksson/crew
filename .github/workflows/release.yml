@@ -1,0 +1,110 @@
+name: Release
+
+on:
+  push:
+    tags: [ 'v*' ]
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  macos:
+    uses: gustaferiksson/macos-release/.github/workflows/release.yml@main
+    secrets: inherit
+    with:
+      # AppUpdater downloads Crew-<version>.zip, and the shared workflow names the zip after `name`.
+      name: Crew
+      app: dist/Crew.app
+      cask: crew
+      runner: xcode-27
+      signed_by_build: true
+      build: |
+        brew install xcodegen
+        ./package.sh mac
+
+  ios:
+    # The shared workflow creates the release, so this job only uploads to it.
+    needs: macos
+    name: iOS, plugin and Pages
+    runs-on: xcode-27
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - name: Preflight, every iOS secret is set
+        env:
+          IOS_DIST_P12: ${{ secrets.IOS_DIST_P12 }}
+          IOS_DIST_P12_PASSWORD: ${{ secrets.IOS_DIST_P12_PASSWORD }}
+          IOS_ADHOC_PROFILE: ${{ secrets.IOS_ADHOC_PROFILE }}
+        run: |
+          set -euo pipefail
+          for name in IOS_DIST_P12 IOS_DIST_P12_PASSWORD IOS_ADHOC_PROFILE; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::secret $name is empty, refusing to release"
+              exit 1
+            fi
+          done
+
+      - name: Import the Apple Distribution certificate and Ad Hoc profile
+        env:
+          IOS_DIST_P12: ${{ secrets.IOS_DIST_P12 }}
+          IOS_DIST_P12_PASSWORD: ${{ secrets.IOS_DIST_P12_PASSWORD }}
+          IOS_ADHOC_PROFILE: ${{ secrets.IOS_ADHOC_PROFILE }}
+        run: |
+          set -euo pipefail
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PW="$(openssl rand -base64 24)"
+          echo "$IOS_DIST_P12" | base64 --decode > "$RUNNER_TEMP/dist.p12"
+          security create-keychain -p "$KEYCHAIN_PW" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PW" "$KEYCHAIN"
+          security import "$RUNNER_TEMP/dist.p12" -P "$IOS_DIST_P12_PASSWORD" \
+            -A -t cert -f pkcs12 -k "$KEYCHAIN" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PW" "$KEYCHAIN" >/dev/null
+          security list-keychains -d user -s "$KEYCHAIN" login.keychain-db
+          rm -f "$RUNNER_TEMP/dist.p12"
+          security find-identity -v -p codesigning "$KEYCHAIN" | grep -q "Apple Distribution" \
+            || { echo "::error::no Apple Distribution identity in the imported keychain"; exit 1; }
+          echo "$IOS_ADHOC_PROFILE" | base64 --decode > "$RUNNER_TEMP/Crew_AdHoc.mobileprovision"
+
+      - name: Build the IPA
+        env:
+          VERSION: ${{ github.ref_name }}
+          BUILD: ${{ github.run_number }}
+        run: |
+          set -euo pipefail
+          # gnu-tar: upload-pages-artifact runs gtar on macOS runners.
+          brew install xcodegen gnu-tar
+          VERSION="${VERSION#v}" IOS_ADHOC_PROFILE_PATH="$RUNNER_TEMP/Crew_AdHoc.mobileprovision" ./package.sh ios
+
+      - name: Upload the IPA, manifest and crew-push to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          plugin=$(sed -nE 's/^version: *(.*)$/\1/p' server/crew-push/plugin.yaml)
+          cp dist/Crew.ipa "dist/Crew-$version.ipa"
+          git archive --format=tar.gz --prefix=crew-push/ -o "dist/crew-push-$plugin.tar.gz" HEAD:server/crew-push
+          gh release upload "$GITHUB_REF_NAME" "dist/Crew-$version.ipa" dist/manifest.plist "dist/crew-push-$plugin.tar.gz"
+
+      - name: Stage the install page
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/pages"
+          cp pages/* dist/Crew.ipa dist/manifest.plist "$RUNNER_TEMP/pages/"
+
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: ${{ runner.temp }}/pages
+
+      - id: deploy
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

@@ -1,0 +1,15 @@
+{
+  "applied": {
+    "ui_meta": false,
+    "ui_meta_conflicts": {
+      "hermes-bots": {
+        "actual": 1,
+        "expected": 0
+      }
+    },
+    "ui_meta_revisions": {
+      "hermes-bots": 1
+    }
+  },
+  "ok": false
+}

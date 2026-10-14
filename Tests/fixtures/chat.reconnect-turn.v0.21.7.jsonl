@@ -1,0 +1,10 @@
+{"payload": {"model": "gpt-6-astra", "profile_name": "crew-test", "provider": "openai-codex", "running": false, "title": "Bot Chat", "turn_started_at": null}, "seq": 1, "session_id": "rt-3", "type": "session.info"}
+{"payload": null, "seq": 2, "session_id": "rt-3", "type": "message.start"}
+{"payload": {"text": "٩(๑❛ᴗ❛๑)۶ processing..."}, "seq": 3, "session_id": "rt-3", "type": "thinking.delta"}
+{"payload": {}, "type": "sessions.changed"}
+{"payload": {"usage": {"active_subagents": 0, "calls": 0, "completion": 0, "compressions": 0, "context_estimated": true, "context_max": 272000, "context_percent": 6, "context_source": "local_estimate", "context_used": 15791, "input": 0, "model": "gpt-6-astra", "output": 0, "prompt": 0, "reasoning": 0, "total": 0}}, "seq": 4, "session_id": "rt-3", "type": "session.usage"}
+{"payload": {"text": ""}, "seq": 5, "session_id": "rt-3", "type": "thinking.delta"}
+{"payload": {"args": {"command": "sleep 8 && echo reconnected", "timeout": 30}, "context": "sleep 8 + 1 command", "name": "terminal", "tool_id": "call_075eb0a8fdf34d0e8e39168e34540b68"}, "seq": 6, "session_id": "rt-3", "type": "tool.start"}
+{"payload": {}, "type": "sessions.changed"}
+{"payload": {"usage": {"active_subagents": 0, "avg_latency_s": 10, "avg_tps": 2.8, "cache_hit_pct": 99, "calls": 1, "completion": 28, "compressions": 0, "context_estimated": false, "context_max": 272000, "context_percent": 6, "context_source": "provider_usage", "context_used": 15783, "input": 167, "model": "gpt-6-astra", "output": 28, "prompt": 15783, "reasoning": 0, "total": 15811}}, "seq": 7, "session_id": "rt-3", "type": "session.usage"}
+{"payload": {"change_events": true, "heartbeat": true, "replay_epoch": "epoch-1"}, "type": "gateway.ready"}

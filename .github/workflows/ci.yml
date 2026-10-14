@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  app:
+    name: Build macOS and iOS (unsigned)
+    runs-on: xcode-27
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - name: Install build tools
+        run: brew install xcodegen
+
+      - name: Build (fails on any warning)
+        run: ./build.sh
+
+  plugin:
+    name: crew-push tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server/crew-push
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+
+      - name: Plugin version strings agree
+        run: |
+          set -euo pipefail
+          versions=$(printf '%s\n' \
+            "$(sed -nE 's/^version: *(.*)$/\1/p' plugin.yaml)" \
+            "$(sed -nE 's/^version *= *"(.*)"$/\1/p' pyproject.toml)" \
+            "$(sed -nE 's/^PLUGIN_VERSION *= *"(.*)"$/\1/p' crew_push/__init__.py)" \
+            "$(python -c 'import json; print(json.load(open("dashboard/manifest.json"))["version"])')")
+          echo "$versions"
+          [ "$(echo "$versions" | grep -c .)" = 4 ] && [ "$(echo "$versions" | sort -u | grep -c .)" = 1 ]
+
+      - name: Install test dependencies
+        run: pip install pytest httpx h2 'PyJWT[crypto]' fastapi
+
+      - name: Test
+        run: python -m pytest -q

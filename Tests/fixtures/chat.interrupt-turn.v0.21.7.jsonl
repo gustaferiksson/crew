@@ -1,0 +1,9 @@
+{"payload": null, "seq": 26, "session_id": "rt-1", "type": "message.start"}
+{"payload": {"text": "٩(๑❛ᴗ❛๑)۶ computing..."}, "seq": 27, "session_id": "rt-1", "type": "thinking.delta"}
+{"payload": {}, "type": "sessions.changed"}
+{"payload": {"text": ""}, "seq": 28, "session_id": "rt-1", "type": "thinking.delta"}
+{"payload": {"args": {"command": "sleep 40 && echo done", "timeout": 60}, "context": "sleep 40 + 1 command", "name": "terminal", "tool_id": "call_q6b2r0Ouq8xqFz9D6qtQLH82"}, "seq": 29, "session_id": "rt-1", "type": "tool.start"}
+{"payload": {"args": {"command": "sleep 40 && echo done", "timeout": 60}, "duration_s": 0.23073458671569824, "name": "terminal", "result": {"error": null, "exit_code": 130, "output": "[Command interrupted]"}, "tool_id": "call_q6b2r0Ouq8xqFz9D6qtQLH82"}, "seq": 30, "session_id": "rt-1", "type": "tool.complete"}
+{"payload": {"persisted_turn": {"complete": false, "row_ids": [31, 32, 33, 34], "user_row_id": 31}, "status": "interrupted", "text": null, "usage": {"active_subagents": 0, "avg_latency_s": 6.6, "avg_tps": 3.9, "cache_hit_pct": 99, "calls": 3, "completion": 77, "compressions": 0, "context_estimated": false, "context_max": 272000, "context_percent": 6, "context_source": "provider_usage", "context_used": 15106, "input": 658, "model": "gpt-6-astra", "output": 77, "prompt": 45074, "reasoning": 0, "total": 45151}}, "seq": 31, "session_id": "rt-1", "type": "message.complete"}
+{"payload": {}, "type": "sessions.changed"}
+{"payload": {"model": "gpt-6-astra", "profile_name": "crew-test", "provider": "openai-codex", "running": false, "title": "Bot Chat", "turn_started_at": null}, "seq": 32, "session_id": "rt-1", "type": "session.info"}

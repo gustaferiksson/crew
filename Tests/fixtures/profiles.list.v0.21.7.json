@@ -1,0 +1,45 @@
+{
+  "bot_mode_protocol": true,
+  "install_id": "0000install",
+  "profiles": [
+    {
+      "canonical_session": {
+        "id": "20261013_000000_cano",
+        "last_active": 1791882729.5363917,
+        "live_message_count": 47,
+        "message_count": 47,
+        "preview": "Scrubbed preview text.",
+        "resolved_id": "20261013_000000_cano",
+        "root_title": "Bot Chat",
+        "started_at": 1791882242.2254214,
+        "title": "Bot Chat"
+      },
+      "description": "",
+      "display_name": "",
+      "has_avatar": true,
+      "is_default": true,
+      "last_session": {
+        "id": "20261013_000000_last",
+        "last_active": 1791881107.288198,
+        "live_message_count": 2,
+        "message_count": 2,
+        "preview": "Scrubbed preview text.",
+        "started_at": 1791881104.557621,
+        "title": "Scrubbed title"
+      },
+      "model": "gpt-6-astra",
+      "name": "default",
+      "path": "/home/hermes/.hermes",
+      "previous_names": [],
+      "provider": "openai-codex",
+      "skill_count": 38,
+      "ui_meta_revisions": {},
+      "worker_session": {
+        "id": "20261013_000000_work",
+        "last_active": 1791878658.7783456,
+        "source": "oneshot",
+        "title": "Scrubbed title"
+      }
+    }
+  ]
+}

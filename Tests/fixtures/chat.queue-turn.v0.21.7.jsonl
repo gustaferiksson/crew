@@ -1,0 +1,25 @@
+{"payload": null, "seq": 33, "session_id": "rt-1", "type": "message.start"}
+{"payload": {"text": "(◔_◔) reflecting..."}, "seq": 34, "session_id": "rt-1", "type": "thinking.delta"}
+{"payload": {}, "type": "sessions.changed"}
+{"payload": {"text": ""}, "seq": 35, "session_id": "rt-1", "type": "thinking.delta"}
+{"payload": {"args": {"command": "sleep 5 && echo first", "timeout": 30}, "context": "sleep 5 + 1 command", "name": "terminal", "tool_id": "call_DAGd8GvkI1rmoTLqa3Xcqbgv"}, "seq": 36, "session_id": "rt-1", "type": "tool.start"}
+{"payload": {}, "type": "sessions.changed"}
+{"payload": {"usage": {"active_subagents": 0, "avg_latency_s": 7, "avg_tps": 3.7, "cache_hit_pct": 99, "calls": 4, "completion": 104, "compressions": 0, "context_estimated": false, "context_max": 272000, "context_percent": 6, "context_source": "provider_usage", "context_used": 15208, "input": 890, "model": "gpt-6-astra", "output": 104, "prompt": 60282, "reasoning": 0, "total": 60386}}, "seq": 37, "session_id": "rt-1", "type": "session.usage"}
+{"payload": {"args": {"command": "sleep 5 && echo first", "timeout": 30}, "duration_s": 5.206049919128418, "name": "terminal", "result": {"error": null, "exit_code": 0, "output": "first"}, "tool_id": "call_DAGd8GvkI1rmoTLqa3Xcqbgv"}, "seq": 38, "session_id": "rt-1", "type": "tool.complete"}
+{"payload": {"text": "(°ロ°) musing..."}, "seq": 39, "session_id": "rt-1", "type": "thinking.delta"}
+{"payload": {}, "type": "sessions.changed"}
+{"payload": {"text": ""}, "seq": 40, "session_id": "rt-1", "type": "thinking.delta"}
+{"payload": {"text": "\n\nfirst"}, "seq": 41, "session_id": "rt-1", "type": "message.delta"}
+{"payload": {"text": ""}, "seq": 42, "session_id": "rt-1", "type": "thinking.delta"}
+{"payload": {"persisted_turn": {"complete": true, "final_assistant_row_id": 38, "row_ids": [35, 36, 37, 38], "user_row_id": 35}, "status": "complete", "text": "first", "usage": {"active_subagents": 0, "avg_latency_s": 6.9, "avg_tps": 3.2, "cache_hit_pct": 99, "calls": 5, "completion": 109, "compressions": 0, "context_estimated": false, "context_max": 272000, "context_percent": 6, "context_source": "provider_usage", "context_used": 15264, "input": 1050, "model": "gpt-6-astra", "output": 109, "prompt": 75546, "reasoning": 0, "total": 75655}}, "seq": 43, "session_id": "rt-1", "type": "message.complete"}
+{"payload": {}, "type": "sessions.changed"}
+{"payload": {"model": "gpt-6-astra", "profile_name": "crew-test", "provider": "openai-codex", "running": false, "title": "Bot Chat", "turn_started_at": null}, "seq": 44, "session_id": "rt-1", "type": "session.info"}
+{"payload": null, "seq": 45, "session_id": "rt-1", "type": "message.start"}
+{"payload": {"text": "(◔_◔) musing..."}, "seq": 46, "session_id": "rt-1", "type": "thinking.delta"}
+{"payload": {}, "type": "sessions.changed"}
+{"payload": {"text": ""}, "seq": 47, "session_id": "rt-1", "type": "thinking.delta"}
+{"payload": {"text": "queued"}, "seq": 48, "session_id": "rt-1", "type": "message.delta"}
+{"payload": {"text": "-ok"}, "seq": 49, "session_id": "rt-1", "type": "message.delta"}
+{"payload": {"text": ""}, "seq": 50, "session_id": "rt-1", "type": "thinking.delta"}
+{"payload": {"persisted_turn": {"complete": true, "final_assistant_row_id": 40, "row_ids": [39, 40], "user_row_id": 39}, "status": "complete", "text": "queued-ok", "usage": {"active_subagents": 0, "avg_latency_s": 6.7, "avg_tps": 2.8, "cache_hit_pct": 99, "calls": 6, "completion": 115, "compressions": 0, "context_estimated": false, "context_max": 272000, "context_percent": 6, "context_source": "provider_usage", "context_used": 15281, "input": 1227, "model": "gpt-6-astra", "output": 115, "prompt": 90827, "reasoning": 0, "total": 90942}}, "seq": 51, "session_id": "rt-1", "type": "message.complete"}
+{"payload": {"model": "gpt-6-astra", "profile_name": "crew-test", "provider": "openai-codex", "running": false, "title": "Bot Chat", "turn_started_at": null}, "seq": 52, "session_id": "rt-1", "type": "session.info"}

@@ -1,0 +1,15 @@
+{
+  "applied": {
+    "description": true,
+    "mcp_servers": true,
+    "model": true,
+    "skills": true,
+    "soul": true,
+    "toolsets": true,
+    "ui_meta": true,
+    "ui_meta_revisions": {
+      "hermes-bots": 1
+    }
+  },
+  "ok": true
+}

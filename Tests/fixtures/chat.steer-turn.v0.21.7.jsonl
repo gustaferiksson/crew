@@ -1,0 +1,20 @@
+{"payload": null, "seq": 2, "session_id": "rt-2", "type": "message.start"}
+{"payload": {"text": "(´･_･`) synthesizing..."}, "seq": 3, "session_id": "rt-2", "type": "thinking.delta"}
+{"payload": {}, "type": "sessions.changed"}
+{"payload": {"usage": {"active_subagents": 0, "calls": 0, "completion": 0, "compressions": 0, "context_estimated": true, "context_max": 272000, "context_percent": 6, "context_source": "local_estimate", "context_used": 15880, "input": 0, "model": "gpt-6-astra", "output": 0, "prompt": 0, "reasoning": 0, "total": 0}}, "seq": 4, "session_id": "rt-2", "type": "session.usage"}
+{"payload": {"text": ""}, "seq": 5, "session_id": "rt-2", "type": "thinking.delta"}
+{"payload": {"args": {"command": "sleep 6 && echo step-one", "timeout": 30}, "context": "sleep 6 + 1 command", "name": "terminal", "tool_id": "call_04a1b3e949ad4fadbf7328555df81909"}, "seq": 6, "session_id": "rt-2", "type": "tool.start"}
+{"payload": {}, "type": "sessions.changed"}
+{"payload": {"usage": {"active_subagents": 0, "avg_latency_s": 14.3, "avg_tps": 2, "cache_hit_pct": 99, "calls": 1, "completion": 28, "compressions": 0, "context_estimated": false, "context_max": 272000, "context_percent": 6, "context_source": "provider_usage", "context_used": 15873, "input": 129, "model": "gpt-6-astra", "output": 28, "prompt": 15873, "reasoning": 0, "total": 15901}}, "seq": 7, "session_id": "rt-2", "type": "session.usage"}
+{"payload": {"args": {"command": "sleep 6 && echo step-one", "timeout": 30}, "duration_s": 6.200618505477905, "name": "terminal", "result": {"error": null, "exit_code": 0, "output": "step-one"}, "tool_id": "call_04a1b3e949ad4fadbf7328555df81909"}, "seq": 8, "session_id": "rt-2", "type": "tool.complete"}
+{"payload": {"text": "(¬‿¬) computing..."}, "seq": 9, "session_id": "rt-2", "type": "thinking.delta"}
+{"payload": {}, "type": "sessions.changed"}
+{"payload": {"text": ""}, "seq": 10, "session_id": "rt-2", "type": "thinking.delta"}
+{"payload": {"text": "\n\nstep"}, "seq": 11, "session_id": "rt-2", "type": "message.delta"}
+{"payload": {"text": "-one"}, "seq": 12, "session_id": "rt-2", "type": "message.delta"}
+{"payload": {"text": "\n"}, "seq": 13, "session_id": "rt-2", "type": "message.delta"}
+{"payload": {"text": "STE"}, "seq": 14, "session_id": "rt-2", "type": "message.delta"}
+{"payload": {"text": "ER"}, "seq": 15, "session_id": "rt-2", "type": "message.delta"}
+{"payload": {"text": "ED"}, "seq": 16, "session_id": "rt-2", "type": "message.delta"}
+{"payload": {"text": ""}, "seq": 17, "session_id": "rt-2", "type": "thinking.delta"}
+{"payload": {"persisted_turn": {"complete": false, "final_assistant_row_id": 66, "row_ids": [62, 63, 64, 65, 66], "user_row_id": 62}, "status": "complete", "text": "step-one\nSTEERED", "usage": {"active_subagents": 0, "avg_latency_s": 13, "avg_tps": 1.5, "cache_hit_pct": 99, "calls": 2, "completion": 38, "compressions": 0, "context_estimated": false, "context_max": 272000, "context_percent": 6, "context_source": "provider_usage", "context_used": 15993, "input": 378, "model": "gpt-6-astra", "output": 38, "prompt": 31866, "reasoning": 0, "total": 31904}}, "seq": 18, "session_id": "rt-2", "type": "message.complete"}

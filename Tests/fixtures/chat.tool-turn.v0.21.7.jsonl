@@ -1,0 +1,27 @@
+{"payload": null, "seq": 2, "session_id": "rt-1", "type": "message.start"}
+{"payload": {"text": "( ͡° ͜ʖ ͡°) contemplating..."}, "seq": 3, "session_id": "rt-1", "type": "thinking.delta"}
+{"payload": {}, "type": "sessions.changed"}
+{"payload": {"text": ""}, "seq": 4, "session_id": "rt-1", "type": "thinking.delta"}
+{"payload": {"args": {"command": "ls; printf '\\nEntry count: '; ls -1 | wc -l"}, "context": "ls + 2 commands", "name": "terminal", "tool_id": "call_87c5a5df835947128c46df93d71152e9"}, "seq": 5, "session_id": "rt-1", "type": "tool.start"}
+{"payload": {"args": {"command": "ls; printf '\\nEntry count: '; ls -1 | wc -l"}, "duration_s": 0.08869814872741699, "name": "terminal", "result": {"error": null, "exit_code": 0, "output": "SOUL.md\nassets\naudio_cache\nauth.lock\nbackups\ncache\nconfig.yaml\ncontext_length_cache.yaml\ncron\ndesktop\nhome\nhooks\nimage_cache\nlogs\nmemories\npairing\nplans\nprofile.yaml\nprojects.db\nruntime\nsessions\nskills\nskins\nstate.db\nstate.db-shm\nstate.db-wal\nstate.db.fts_rebuild.lock\nstate.db.quarantine.lock\nworkspace\n\nEntry count: 29"}, "tool_id": "call_87c5a5df835947128c46df93d71152e9"}, "seq": 6, "session_id": "rt-1", "type": "tool.complete"}
+{"payload": {"text": "٩(๑❛ᴗ❛๑)۶ ruminating..."}, "seq": 7, "session_id": "rt-1", "type": "thinking.delta"}
+{"payload": {}, "type": "sessions.changed"}
+{"payload": {"usage": {"active_subagents": 0, "avg_latency_s": 8.3, "avg_tps": 4, "cache_hit_pct": 99, "calls": 1, "completion": 33, "compressions": 0, "context_estimated": false, "context_max": 272000, "context_percent": 5, "context_source": "provider_usage", "context_used": 14904, "input": 184, "model": "gpt-6-astra", "output": 33, "prompt": 14904, "reasoning": 0, "total": 14937}}, "seq": 8, "session_id": "rt-1", "type": "session.usage"}
+{"payload": {"text": ""}, "seq": 9, "session_id": "rt-1", "type": "thinking.delta"}
+{"payload": {"text": "\n\nThere"}, "seq": 10, "session_id": "rt-1", "type": "message.delta"}
+{"payload": {"text": " are"}, "seq": 11, "session_id": "rt-1", "type": "message.delta"}
+{"payload": {"text": " "}, "seq": 12, "session_id": "rt-1", "type": "message.delta"}
+{"payload": {"text": "29"}, "seq": 13, "session_id": "rt-1", "type": "message.delta"}
+{"payload": {"text": " non"}, "seq": 14, "session_id": "rt-1", "type": "message.delta"}
+{"payload": {"text": "-hidden"}, "seq": 15, "session_id": "rt-1", "type": "message.delta"}
+{"payload": {"text": " entries"}, "seq": 16, "session_id": "rt-1", "type": "message.delta"}
+{"payload": {"text": " in"}, "seq": 17, "session_id": "rt-1", "type": "message.delta"}
+{"payload": {"text": " the"}, "seq": 18, "session_id": "rt-1", "type": "message.delta"}
+{"payload": {"text": " current"}, "seq": 19, "session_id": "rt-1", "type": "message.delta"}
+{"payload": {"text": " working"}, "seq": 20, "session_id": "rt-1", "type": "message.delta"}
+{"payload": {"text": " directory"}, "seq": 21, "session_id": "rt-1", "type": "message.delta"}
+{"payload": {"text": "."}, "seq": 22, "session_id": "rt-1", "type": "message.delta"}
+{"payload": {"text": ""}, "seq": 23, "session_id": "rt-1", "type": "thinking.delta"}
+{"payload": {"persisted_turn": {"complete": true, "final_assistant_row_id": 30, "row_ids": [27, 28, 29, 30], "user_row_id": 27}, "status": "complete", "text": "There are 29 non-hidden entries in the current working directory.", "usage": {"active_subagents": 0, "avg_latency_s": 7.3, "avg_tps": 3.4, "cache_hit_pct": 98, "calls": 2, "completion": 50, "compressions": 0, "context_estimated": false, "context_max": 272000, "context_percent": 6, "context_source": "provider_usage", "context_used": 15064, "input": 528, "model": "gpt-6-astra", "output": 50, "prompt": 29968, "reasoning": 0, "total": 30018}}, "seq": 24, "session_id": "rt-1", "type": "message.complete"}
+{"payload": {"model": "gpt-6-astra", "profile_name": "crew-test", "provider": "openai-codex", "running": false, "title": "Bot Chat", "turn_started_at": null}, "seq": 25, "session_id": "rt-1", "type": "session.info"}
+{"payload": {}, "type": "sessions.changed"}

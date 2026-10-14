@@ -1,0 +1,88 @@
+{
+  "fill": {
+    "automatic-gradient": "display-p3:0.925,0.282,0.600,1.00000"
+  },
+  "fill-specializations": [
+    {
+      "value": {
+        "automatic-gradient": "display-p3:0.925,0.282,0.600,1.00000"
+      }
+    },
+    {
+      "appearance": "dark",
+      "value": {
+        "automatic-gradient": "display-p3:0.160,0.040,0.100,1.00000"
+      }
+    }
+  ],
+  "groups": [
+    {
+      "name": "Eyes",
+      "layers": [
+        {
+          "name": "eyes",
+          "image-name": "eyes.svg",
+          "fill-specializations": [
+            {
+              "value": {
+                "solid": "display-p3:0.380,0.055,0.220,1.00000"
+              }
+            },
+            {
+              "appearance": "dark",
+              "value": {
+                "solid": "display-p3:1.00000,1.00000,1.00000,1.00000"
+              }
+            }
+          ]
+        }
+      ],
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.3
+      },
+      "translucency": {
+        "enabled": false,
+        "value": 0
+      },
+      "specular": true
+    },
+    {
+      "name": "Blob",
+      "layers": [
+        {
+          "name": "blob",
+          "image-name": "blob.svg",
+          "fill-specializations": [
+            {
+              "value": {
+                "solid": "display-p3:1.00000,1.00000,1.00000,1.00000"
+              }
+            },
+            {
+              "appearance": "dark",
+              "value": {
+                "solid": "display-p3:0.925,0.282,0.600,1.00000"
+              }
+            }
+          ]
+        }
+      ],
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.5
+      },
+      "translucency": {
+        "enabled": true,
+        "value": 0.2
+      },
+      "specular": true
+    }
+  ],
+  "supported-platforms": {
+    "circles": [
+      "watchOS"
+    ],
+    "squares": "shared"
+  }
+}

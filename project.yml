@@ -1,0 +1,51 @@
+name: Crew
+options:
+  bundleIdPrefix: dev.gustaf
+  deploymentTarget:
+    iOS: "27.0"
+    macOS: "27.0"
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
+    SWIFT_APPROACHABLE_CONCURRENCY: YES
+    SWIFT_TREAT_WARNINGS_AS_ERRORS: YES
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    DEVELOPMENT_TEAM: ""
+    CODE_SIGN_STYLE: Automatic
+targets:
+  Crew:
+    type: application
+    platform: auto
+    supportedDestinations: [iOS, macOS]
+    sources:
+      - path: Sources
+        type: syncedFolder
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.gustaf.crew
+        PRODUCT_NAME: Crew
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Crew
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        INFOPLIST_KEY_NSLocalNetworkUsageDescription: Crew connects to your Hermes server on the local network or over VPN.
+        INFOPLIST_KEY_NSMicrophoneUsageDescription: Crew listens while you dictate a message.
+        INFOPLIST_KEY_NSSpeechRecognitionUsageDescription: Crew turns your dictation into text on this device.
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.productivity
+        INFOPLIST_FILE[sdk=iphoneos*]: Info-iOS.plist
+        INFOPLIST_FILE[sdk=iphonesimulator*]: Info-iOS.plist
+        SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
+        ENABLE_RESOURCE_ACCESS_AUDIO_INPUT: YES
+        ENABLE_HARDENED_RUNTIME: YES
+        CREW_ENTITLEMENTS_iphoneos: Entitlements/Crew-iOS.entitlements
+        CREW_ENTITLEMENTS_iphonesimulator: Entitlements/Crew-iOS.entitlements
+        CREW_ENTITLEMENTS_macosx: Entitlements/Crew-macOS.entitlements
+        CODE_SIGN_ENTITLEMENTS: $(CREW_ENTITLEMENTS_$(PLATFORM_NAME))
+      configs:
+        Debug:
+          APS_ENVIRONMENT: development
+        Release:
+          APS_ENVIRONMENT: production

@@ -1,0 +1,188 @@
+{
+  "description": "Crew round-trip bot",
+  "mcp_servers": [],
+  "model": {
+    "default": "gpt-6-astra",
+    "provider": "openai-codex"
+  },
+  "name": "crew-test",
+  "skills": [
+    {
+      "enabled": true,
+      "name": "apple-notes"
+    },
+    {
+      "enabled": true,
+      "name": "claude-code"
+    },
+    {
+      "enabled": true,
+      "name": "codex"
+    },
+    {
+      "enabled": true,
+      "name": "docx"
+    },
+    {
+      "enabled": true,
+      "name": "pdf"
+    },
+    {
+      "enabled": true,
+      "name": "arxiv"
+    },
+    {
+      "enabled": true,
+      "name": "github"
+    },
+    {
+      "enabled": true,
+      "name": "simplify-code"
+    },
+    {
+      "enabled": true,
+      "name": "systematic-debugging"
+    },
+    {
+      "enabled": true,
+      "name": "test-driven-development"
+    }
+  ],
+  "soul": "Scrubbed instructions.",
+  "toolsets": [
+    {
+      "description": "web_search, web_extract",
+      "enabled": true,
+      "label": "\ud83d\udd0d Web Search & Scraping",
+      "name": "web",
+      "tool_count": 2
+    },
+    {
+      "description": "navigate, click, type, scroll",
+      "enabled": true,
+      "label": "\ud83c\udf10 Browser Automation",
+      "name": "browser",
+      "tool_count": 18
+    },
+    {
+      "description": "terminal, process",
+      "enabled": true,
+      "label": "\ud83d\udcbb Terminal & Processes",
+      "name": "terminal",
+      "tool_count": 2
+    },
+    {
+      "description": "read, write, patch, search",
+      "enabled": true,
+      "label": "\ud83d\udcc1 File Operations",
+      "name": "file",
+      "tool_count": 4
+    },
+    {
+      "description": "execute_code",
+      "enabled": true,
+      "label": "\u26a1 Code Execution",
+      "name": "code_execution",
+      "tool_count": 1
+    },
+    {
+      "description": "vision_analyze",
+      "enabled": true,
+      "label": "\ud83d\udc41\ufe0f  Vision / Image Analysis",
+      "name": "vision",
+      "tool_count": 1
+    },
+    {
+      "description": "image_generate",
+      "enabled": true,
+      "label": "\ud83c\udfa8 Image Generation",
+      "name": "image_gen",
+      "tool_count": 1
+    },
+    {
+      "description": "text_to_speech",
+      "enabled": true,
+      "label": "\ud83d\udd0a Text-to-Speech",
+      "name": "tts",
+      "tool_count": 1
+    },
+    {
+      "description": "voice transcription (gateway voice messages + voice mode)",
+      "enabled": false,
+      "label": "\ud83c\udf99\ufe0f Speech-to-Text",
+      "name": "stt",
+      "tool_count": 0
+    },
+    {
+      "description": "list, view, manage",
+      "enabled": true,
+      "label": "\ud83d\udcda Skills",
+      "name": "skills",
+      "tool_count": 3
+    },
+    {
+      "description": "todo_list",
+      "enabled": true,
+      "label": "\ud83d\udccb Task Planning",
+      "name": "todo",
+      "tool_count": 1
+    },
+    {
+      "description": "persistent memory across sessions",
+      "enabled": true,
+      "label": "\ud83d\udcbe Memory",
+      "name": "memory",
+      "tool_count": 1
+    },
+    {
+      "description": "runtime tools from the active context engine",
+      "enabled": false,
+      "label": "\ud83e\udde9 Context Engine",
+      "name": "context_engine",
+      "tool_count": 0
+    },
+    {
+      "description": "search past conversations",
+      "enabled": true,
+      "label": "\ud83d\udd0e Session Search",
+      "name": "session_search",
+      "tool_count": 1
+    },
+    {
+      "description": "remote connector tools and account authorization",
+      "enabled": true,
+      "label": "\ud83d\udd0c Connections",
+      "name": "connections",
+      "tool_count": 1
+    },
+    {
+      "description": "clarify",
+      "enabled": true,
+      "label": "\u2753 Clarifying Questions",
+      "name": "clarify",
+      "tool_count": 1
+    },
+    {
+      "description": "delegate_task",
+      "enabled": true,
+      "label": "\ud83d\udc65 Task Delegation",
+      "name": "delegation",
+      "tool_count": 1
+    },
+    {
+      "description": "create/list/update/pause/resume/run, with optional attached skills",
+      "enabled": true,
+      "label": "\u23f0 Cron Jobs",
+      "name": "cronjob",
+      "tool_count": 1
+    },
+    {
+      "description": "background desktop control via cua-driver",
+      "enabled": true,
+      "label": "\ud83d\uddb1\ufe0f  Computer Use (macOS/Windows/Linux)",
+      "name": "computer_use",
+      "tool_count": 1
+    }
+  ],
+  "toolsets_pinned": false
+}

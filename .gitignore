@@ -1,0 +1,13 @@
+.env
+.build/
+*.xcodeproj/
+snapshots/
+.DS_Store
+.env.test
+icon/previews/
+.secrets/
+/dist/
+__pycache__/
+.pytest_cache/
+.claude/
+CLAUDE.md

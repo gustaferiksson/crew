@@ -1,0 +1,1077 @@
+{
+ "session_id": "stored-1",
+ "profile": "crew-test",
+ "messages": [
+  {
+   "id": 3,
+   "role": "user",
+   "content": "Use your terminal tool to run ls -la in your current working directory, then tell me in one sentence how many entries there are.",
+   "tool_call_id": null,
+   "tool_calls": null,
+   "tool_name": null,
+   "timestamp": 1791902787.6715558,
+   "finish_reason": null,
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": null,
+   "display_content": null,
+   "session_id": "stored-1"
+  },
+  {
+   "id": 4,
+   "role": "assistant",
+   "content": "",
+   "tool_call_id": null,
+   "tool_calls": [
+    {
+     "id": "call_79ac4f16927843ff890ab8753aef9df7",
+     "type": "function",
+     "function": {
+      "name": "terminal",
+      "arguments": "{\"command\":\"ls -la\"}"
+     }
+    }
+   ],
+   "tool_name": null,
+   "timestamp": 1791902793.534192,
+   "finish_reason": "tool_calls",
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": null,
+   "display_content": null,
+   "session_id": "stored-1"
+  },
+  {
+   "id": 5,
+   "role": "tool",
+   "content": "{\"output\": \"total 1040\\ndrwxr-xr-x. 20 hermes hermes   4096 Oct 13 14:46 .\\ndrwxr-xr-x.  3 hermes hermes     23 Oct 13 14:40 ..\\n-rw-r--r--.  1 hermes hermes     17 Oct 13 14:42 .codex_gpt55_autoraise_notice\\n-rw-------.  1 hermes hermes    360 Oct 13 14:40 .env\\n-rw-r--r--.  1 hermes hermes      0 Oct 13 14:40 .env.lock\\n-rw-r--r--.  1 hermes hermes  43027 Oct 13 14:42 .skills_prompt_snapshot.json\\n-rw-r--r--.  1 hermes hermes    667 Oct 13 14:46 SOUL.md\\ndrwxr-xr-x.  2 hermes hermes      6 Oct 13 14:46 assets\\ndrwxr-xr-x.  2 hermes hermes      6 Oct 13 14:40 audio_cache\\n-rw-r--r--.  1 hermes hermes      0 Oct 13 14:46 auth.lock\\ndrwxr-xr-x.  3 hermes hermes     20 Oct 13 14:40 backups\\ndrwxr-xr-x.  3 hermes hermes     77 Oct 13 14:42 cache\\n-rw-r--r--.  1 hermes hermes    654 Oct 13 14:46 config.yaml\\n-rw-r--r--.  1 hermes hermes     77 Oct 13 14:42 context_length_cache.yaml\\ndrwxr-xr-x.  3 hermes hermes   4096 Oct 13 14:46 cron\\ndrwxr-xr-x.  2 hermes hermes     36 Oct 13 14:46 desktop\\ndrwxr-xr-x.  2 hermes hermes      6 Oct 13 14:40 home\\ndrwxr-xr-x.  2 hermes hermes      6 Oct 13 14:40 hooks\\ndrwxr-xr-x.  2 hermes hermes      6 Oct 13 14:40 image_cache\\ndrwxr-xr-x.  3 hermes hermes     38 Oct 13 14:42 logs\\ndrwxr-xr-x.  2 hermes hermes      6 Oct 13 14:40 memories\\ndrwxr-xr-x.  2 hermes hermes      6 Oct 13 14:40 pairing\\ndrwxr-xr-x.  2 hermes hermes      6 Oct 13 14:40 plans\\n-rw-r--r--.  1 hermes hermes    236 Oct 13 14:46 profile.yaml\\n-rw-r--r--.  1 hermes hermes  45056 Oct 13 14:46 projects.db\\ndrwxr-xr-x.  2 hermes hermes     62 Oct 13 14:46 runtime\\ndrwxr-xr-x.  2 hermes hermes      6 Oct 13 14:40 sessions\\ndrwxr-xr-x. 14 hermes hermes   4096 Oct 13 14:40 skills\\ndrwxr-xr-x.  2 hermes hermes      6 Oct 13 14:40 skins\\n-rw-------.  1 hermes hermes 315392 Oct 13 14:46 state.db\\n-rw-------.  1 hermes hermes  32768 Oct 13 14:46 state.db-shm\\n-rw-------.  1 hermes hermes 535632 Oct 13 14:46 state.db-wal\\n-rw-r--r--.  1 hermes hermes      0 Oct 13 14:42 state.db.fts_rebuild.lock\\n-rw-r--r--.  1 hermes hermes      0 Oct 13 14:42 state.db.quarantine.lock\\ndrwxr-xr-x.  2 hermes hermes      6 Oct 13 14:40 workspace\", \"exit_code\": 0, \"error\": null}",
+   "tool_call_id": "call_79ac4f16927843ff890ab8753aef9df7",
+   "tool_calls": null,
+   "tool_name": "terminal",
+   "timestamp": 1791902793.6990092,
+   "finish_reason": null,
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": null,
+   "display_content": null,
+   "session_id": "stored-1"
+  },
+  {
+   "id": 6,
+   "role": "assistant",
+   "content": "",
+   "tool_call_id": null,
+   "tool_calls": [
+    {
+     "id": "call_66e3941a2750451aa428ac35867fb359",
+     "type": "function",
+     "function": {
+      "name": "terminal",
+      "arguments": "{\"command\":\"python -c \\\"import os; n=len(os.listdir('.')); print(f'{n} entries excluding dot entries; {n+2} including . and ..')\\\"\"}"
+     }
+    }
+   ],
+   "tool_name": null,
+   "timestamp": 1791902801.7972276,
+   "finish_reason": "tool_calls",
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": null,
+   "display_content": null,
+   "session_id": "stored-1"
+  },
+  {
+   "id": 7,
+   "role": "tool",
+   "content": "{\"output\": \"33 entries excluding dot entries; 35 including . and ..\", \"exit_code\": 0, \"error\": null, \"approval\": \"Command was flagged (script execution via -e/-c flag) and auto-approved by smart approval.\"}",
+   "tool_call_id": "call_66e3941a2750451aa428ac35867fb359",
+   "tool_calls": null,
+   "tool_name": "terminal",
+   "timestamp": 1791902805.0109818,
+   "finish_reason": null,
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": null,
+   "display_content": null,
+   "session_id": "stored-1"
+  },
+  {
+   "id": 8,
+   "role": "assistant",
+   "content": "There are 35 entries in the `ls -la` listing, including `.` and `..` (33 excluding them).",
+   "tool_call_id": null,
+   "tool_calls": null,
+   "tool_name": null,
+   "timestamp": 1791902809.9958544,
+   "finish_reason": "stop",
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": null,
+   "display_content": null,
+   "session_id": "stored-1"
+  },
+  {
+   "id": 9,
+   "role": "user",
+   "content": "Think it through briefly: use the terminal to print the current date with the date command, then tell me what weekday it is.",
+   "tool_call_id": null,
+   "tool_calls": null,
+   "tool_name": null,
+   "timestamp": 1791902849.6910815,
+   "finish_reason": null,
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": null,
+   "display_content": null,
+   "session_id": "stored-1"
+  },
+  {
+   "id": 10,
+   "role": "assistant",
+   "content": "",
+   "tool_call_id": null,
+   "tool_calls": [
+    {
+     "id": "call_fbfff207a6834b80a0e3730f0130030f",
+     "type": "function",
+     "function": {
+      "name": "terminal",
+      "arguments": "{\"command\":\"date\"}"
+     }
+    }
+   ],
+   "tool_name": null,
+   "timestamp": 1791902855.8490376,
+   "finish_reason": "tool_calls",
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": null,
+   "display_content": null,
+   "session_id": "stored-1"
+  },
+  {
+   "id": 11,
+   "role": "tool",
+   "content": "{\"output\": \"Tue Oct 13 14:47:35 UTC 2026\", \"exit_code\": 0, \"error\": null}",
+   "tool_call_id": "call_fbfff207a6834b80a0e3730f0130030f",
+   "tool_calls": null,
+   "tool_name": "terminal",
+   "timestamp": 1791902855.8881135,
+   "finish_reason": null,
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": null,
+   "display_content": null,
+   "session_id": "stored-1"
+  },
+  {
+   "id": 12,
+   "role": "assistant",
+   "content": "It is Tuesday (October 13, 2026, UTC).",
+   "tool_call_id": null,
+   "tool_calls": null,
+   "tool_name": null,
+   "timestamp": 1791902859.4397972,
+   "finish_reason": "stop",
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": null,
+   "display_content": null,
+   "session_id": "stored-1"
+  },
+  {
+   "id": 13,
+   "role": "user",
+   "content": "Use the terminal to run: sleep 30 && echo done. Then tell me the output.",
+   "tool_call_id": null,
+   "tool_calls": null,
+   "tool_name": null,
+   "timestamp": 1791902865.5148826,
+   "finish_reason": null,
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": null,
+   "display_content": null,
+   "session_id": "stored-1"
+  },
+  {
+   "id": 14,
+   "role": "assistant",
+   "content": "",
+   "tool_call_id": null,
+   "tool_calls": [
+    {
+     "id": "call_71979c82ff3c4a86b298a0a9edd3a0b1",
+     "type": "function",
+     "function": {
+      "name": "terminal",
+      "arguments": "{\"command\":\"sleep 30 && echo done\",\"timeout\":60}"
+     }
+    }
+   ],
+   "tool_name": null,
+   "timestamp": 1791902871.600685,
+   "finish_reason": "tool_calls",
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": null,
+   "display_content": null,
+   "session_id": "stored-1"
+  },
+  {
+   "id": 15,
+   "role": "tool",
+   "content": "{\"output\": \"[Command interrupted]\", \"exit_code\": 130, \"error\": null}",
+   "tool_call_id": "call_71979c82ff3c4a86b298a0a9edd3a0b1",
+   "tool_calls": null,
+   "tool_name": "terminal",
+   "timestamp": 1791902871.6995785,
+   "finish_reason": null,
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": null,
+   "display_content": null,
+   "session_id": "stored-1"
+  },
+  {
+   "id": 16,
+   "role": "assistant",
+   "content": "",
+   "tool_call_id": null,
+   "tool_calls": null,
+   "tool_name": null,
+   "timestamp": 1791902871.720065,
+   "finish_reason": null,
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": "hidden",
+   "display_content": null,
+   "session_id": "stored-1"
+  },
+  {
+   "id": 17,
+   "role": "user",
+   "content": "Use your clarify tool to ask me one question: which colour I prefer, with the choices red and blue. Then reply with my answer.",
+   "tool_call_id": null,
+   "tool_calls": null,
+   "tool_name": null,
+   "timestamp": 1791902884.045795,
+   "finish_reason": null,
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": null,
+   "display_content": null,
+   "session_id": "stored-1"
+  },
+  {
+   "id": 18,
+   "role": "assistant",
+   "content": "",
+   "tool_call_id": null,
+   "tool_calls": [
+    {
+     "id": "call_4aaa98c1697f4e55905249511ea35b04",
+     "type": "function",
+     "function": {
+      "name": "clarify",
+      "arguments": "{\"questions\":[{\"question\":\"Which colour do you prefer?\",\"choices\":[\"red\",\"blue\"]}]}"
+     }
+    }
+   ],
+   "tool_name": null,
+   "timestamp": 1791902887.9027767,
+   "finish_reason": "tool_calls",
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": null,
+   "display_content": null,
+   "session_id": "stored-1"
+  },
+  {
+   "id": 19,
+   "role": "tool",
+   "content": "{\"responses\": [{\"question\": \"Which colour do you prefer?\", \"choices_offered\": [\"red\", \"blue\"], \"status\": \"answered\", \"user_response\": \"red\"}], \"outcome\": \"submitted\"}",
+   "tool_call_id": "call_4aaa98c1697f4e55905249511ea35b04",
+   "tool_calls": null,
+   "tool_name": "clarify",
+   "timestamp": 1791902887.94905,
+   "finish_reason": null,
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": null,
+   "display_content": null,
+   "session_id": "stored-1"
+  },
+  {
+   "id": 20,
+   "role": "assistant",
+   "content": "You prefer red.",
+   "tool_call_id": null,
+   "tool_calls": null,
+   "tool_name": null,
+   "timestamp": 1791902890.856765,
+   "finish_reason": "stop",
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": null,
+   "display_content": null,
+   "session_id": "stored-1"
+  },
+  {
+   "id": 21,
+   "role": "user",
+   "content": "Use the terminal to run exactly: mkdir -p /tmp/crew-approval-test && rm -rf /tmp/crew-approval-test . Report the exit code.",
+   "tool_call_id": null,
+   "tool_calls": null,
+   "tool_name": null,
+   "timestamp": 1791902891.5745926,
+   "finish_reason": null,
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": null,
+   "display_content": null,
+   "session_id": "stored-1"
+  },
+  {
+   "id": 22,
+   "role": "assistant",
+   "content": "",
+   "tool_call_id": null,
+   "tool_calls": [
+    {
+     "id": "call_a03d90c687224aef8c0b437915146242",
+     "type": "function",
+     "function": {
+      "name": "terminal",
+      "arguments": "{\"command\":\"mkdir -p /tmp/crew-approval-test && rm -rf /tmp/crew-approval-test\"}"
+     }
+    }
+   ],
+   "tool_name": null,
+   "timestamp": 1791902897.5290263,
+   "finish_reason": "tool_calls",
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": null,
+   "display_content": null,
+   "session_id": "stored-1"
+  },
+  {
+   "id": 23,
+   "role": "tool",
+   "content": "{\"output\": \"\", \"exit_code\": 0, \"error\": null, \"approval\": \"Command was flagged (delete in root path) and auto-approved by smart approval.\"}",
+   "tool_call_id": "call_a03d90c687224aef8c0b437915146242",
+   "tool_calls": null,
+   "tool_name": "terminal",
+   "timestamp": 1791902899.5083723,
+   "finish_reason": null,
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": null,
+   "display_content": null,
+   "session_id": "stored-1"
+  },
+  {
+   "id": 24,
+   "role": "assistant",
+   "content": "Exit code: 0.",
+   "tool_call_id": null,
+   "tool_calls": null,
+   "tool_name": null,
+   "timestamp": 1791902902.8977234,
+   "finish_reason": "stop",
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": null,
+   "display_content": null,
+   "session_id": "stored-1"
+  },
+  {
+   "id": 27,
+   "role": "user",
+   "content": "Use your terminal tool to run ls in your current working directory, then tell me in one short sentence how many entries there are.",
+   "tool_call_id": null,
+   "tool_calls": null,
+   "tool_name": null,
+   "timestamp": 1791903267.644303,
+   "finish_reason": null,
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": null,
+   "display_content": null,
+   "session_id": "stored-1"
+  },
+  {
+   "id": 28,
+   "role": "assistant",
+   "content": "",
+   "tool_call_id": null,
+   "tool_calls": [
+    {
+     "id": "call_87c5a5df835947128c46df93d71152e9",
+     "type": "function",
+     "function": {
+      "name": "terminal",
+      "arguments": "{\"command\":\"ls; printf '\\\\nEntry count: '; ls -1 | wc -l\"}"
+     }
+    }
+   ],
+   "tool_name": null,
+   "timestamp": 1791903276.0231276,
+   "finish_reason": "tool_calls",
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": null,
+   "display_content": null,
+   "session_id": "stored-1"
+  },
+  {
+   "id": 29,
+   "role": "tool",
+   "content": "{\"output\": \"SOUL.md\\nassets\\naudio_cache\\nauth.lock\\nbackups\\ncache\\nconfig.yaml\\ncontext_length_cache.yaml\\ncron\\ndesktop\\nhome\\nhooks\\nimage_cache\\nlogs\\nmemories\\npairing\\nplans\\nprofile.yaml\\nprojects.db\\nruntime\\nsessions\\nskills\\nskins\\nstate.db\\nstate.db-shm\\nstate.db-wal\\nstate.db.fts_rebuild.lock\\nstate.db.quarantine.lock\\nworkspace\\n\\nEntry count: 29\", \"exit_code\": 0, \"error\": null}",
+   "tool_call_id": "call_87c5a5df835947128c46df93d71152e9",
+   "tool_calls": null,
+   "tool_name": "terminal",
+   "timestamp": 1791903276.1162117,
+   "finish_reason": null,
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": null,
+   "display_content": null,
+   "session_id": "stored-1"
+  },
+  {
+   "id": 30,
+   "role": "assistant",
+   "content": "There are 29 non-hidden entries in the current working directory.",
+   "tool_call_id": null,
+   "tool_calls": null,
+   "tool_name": null,
+   "timestamp": 1791903282.3114355,
+   "finish_reason": "stop",
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": null,
+   "display_content": null,
+   "session_id": "stored-1"
+  },
+  {
+   "id": 31,
+   "role": "user",
+   "content": "Use the terminal to run: sleep 40 && echo done. Then tell me the output.",
+   "tool_call_id": null,
+   "tool_calls": null,
+   "tool_name": null,
+   "timestamp": 1791903296.3431547,
+   "finish_reason": null,
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": null,
+   "display_content": null,
+   "session_id": "stored-1"
+  },
+  {
+   "id": 32,
+   "role": "assistant",
+   "content": "",
+   "tool_call_id": null,
+   "tool_calls": [
+    {
+     "id": "call_q6b2r0Ouq8xqFz9D6qtQLH82",
+     "type": "function",
+     "function": {
+      "name": "terminal",
+      "arguments": "{\"command\":\"sleep 40 && echo done\",\"timeout\":60}"
+     }
+    }
+   ],
+   "tool_name": null,
+   "timestamp": 1791903301.633592,
+   "finish_reason": "tool_calls",
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": null,
+   "display_content": null,
+   "session_id": "stored-1"
+  },
+  {
+   "id": 33,
+   "role": "tool",
+   "content": "{\"output\": \"[Command interrupted]\", \"exit_code\": 130, \"error\": null}",
+   "tool_call_id": "call_q6b2r0Ouq8xqFz9D6qtQLH82",
+   "tool_calls": null,
+   "tool_name": "terminal",
+   "timestamp": 1791903301.8657563,
+   "finish_reason": null,
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": null,
+   "display_content": null,
+   "session_id": "stored-1"
+  },
+  {
+   "id": 34,
+   "role": "assistant",
+   "content": "",
+   "tool_call_id": null,
+   "tool_calls": null,
+   "tool_name": null,
+   "timestamp": 1791903301.8856792,
+   "finish_reason": null,
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": "hidden",
+   "display_content": null,
+   "session_id": "stored-1"
+  },
+  {
+   "id": 35,
+   "role": "user",
+   "content": "Use the terminal to run: sleep 5 && echo first. Reply with just the output.",
+   "tool_call_id": null,
+   "tool_calls": null,
+   "tool_name": null,
+   "timestamp": 1791903302.0611947,
+   "finish_reason": null,
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": null,
+   "display_content": null,
+   "session_id": "stored-1"
+  },
+  {
+   "id": 36,
+   "role": "assistant",
+   "content": "",
+   "tool_call_id": null,
+   "tool_calls": [
+    {
+     "id": "call_DAGd8GvkI1rmoTLqa3Xcqbgv",
+     "type": "function",
+     "function": {
+      "name": "terminal",
+      "arguments": "{\"command\":\"sleep 5 && echo first\",\"timeout\":30}"
+     }
+    }
+   ],
+   "tool_name": null,
+   "timestamp": 1791903310.462947,
+   "finish_reason": "tool_calls",
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": null,
+   "display_content": null,
+   "session_id": "stored-1"
+  },
+  {
+   "id": 37,
+   "role": "tool",
+   "content": "{\"output\": \"first\", \"exit_code\": 0, \"error\": null}",
+   "tool_call_id": "call_DAGd8GvkI1rmoTLqa3Xcqbgv",
+   "tool_calls": null,
+   "tool_name": "terminal",
+   "timestamp": 1791903315.6688488,
+   "finish_reason": null,
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": null,
+   "display_content": null,
+   "session_id": "stored-1"
+  },
+  {
+   "id": 38,
+   "role": "assistant",
+   "content": "first",
+   "tool_call_id": null,
+   "tool_calls": null,
+   "tool_name": null,
+   "timestamp": 1791903322.0410352,
+   "finish_reason": "stop",
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": null,
+   "display_content": null,
+   "session_id": "stored-1"
+  },
+  {
+   "id": 39,
+   "role": "user",
+   "content": "Reply with exactly: queued-ok",
+   "tool_call_id": null,
+   "tool_calls": null,
+   "tool_name": null,
+   "timestamp": 1791903322.2713416,
+   "finish_reason": null,
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": null,
+   "display_content": null,
+   "session_id": "stored-1"
+  },
+  {
+   "id": 40,
+   "role": "assistant",
+   "content": "queued-ok",
+   "tool_call_id": null,
+   "tool_calls": null,
+   "tool_name": null,
+   "timestamp": 1791903328.2441418,
+   "finish_reason": "stop",
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": null,
+   "display_content": null,
+   "session_id": "stored-1"
+  },
+  {
+   "id": 41,
+   "role": "user",
+   "content": "Use the terminal to run: sleep 6 && echo step-one. Then reply with the output.",
+   "tool_call_id": null,
+   "tool_calls": null,
+   "tool_name": null,
+   "timestamp": 1791903338.620244,
+   "finish_reason": null,
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": null,
+   "display_content": null,
+   "session_id": "stored-1"
+  },
+  {
+   "id": 42,
+   "role": "assistant",
+   "content": "",
+   "tool_call_id": null,
+   "tool_calls": [
+    {
+     "id": "call_b6438c7ea26941b189149765a09485d6",
+     "type": "function",
+     "function": {
+      "name": "terminal",
+      "arguments": "{\"command\":\"sleep 6 && echo step-one\",\"timeout\":30}"
+     }
+    }
+   ],
+   "tool_name": null,
+   "timestamp": 1791903345.5284293,
+   "finish_reason": "tool_calls",
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": null,
+   "display_content": null,
+   "session_id": "stored-1"
+  },
+  {
+   "id": 43,
+   "role": "tool",
+   "content": "{\"output\": \"step-one\", \"exit_code\": 0, \"error\": null}",
+   "tool_call_id": "call_b6438c7ea26941b189149765a09485d6",
+   "tool_calls": null,
+   "tool_name": "terminal",
+   "timestamp": 1791903351.7305717,
+   "finish_reason": null,
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": null,
+   "display_content": null,
+   "session_id": "stored-1"
+  },
+  {
+   "id": 44,
+   "role": "user",
+   "content": "[OUT-OF-BAND USER MESSAGE — a direct message from the user, delivered once at this position; not tool output and not a new delivery when replayed from conversation history]\nAlso include the word STEERED in your final reply.\n[/OUT-OF-BAND USER MESSAGE]",
+   "tool_call_id": null,
+   "tool_calls": null,
+   "tool_name": null,
+   "timestamp": 1791903357.7493794,
+   "finish_reason": null,
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": "steer",
+   "display_content": "Also include the word STEERED in your final reply.",
+   "session_id": "stored-1"
+  },
+  {
+   "id": 45,
+   "role": "assistant",
+   "content": "step-one\nSTEERED",
+   "tool_call_id": null,
+   "tool_calls": null,
+   "tool_name": null,
+   "timestamp": 1791903357.7479842,
+   "finish_reason": "stop",
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": null,
+   "display_content": null,
+   "session_id": "stored-1"
+  },
+  {
+   "id": 46,
+   "role": "user",
+   "content": "Use your clarify tool to ask me one question: which colour I prefer, with the choices red and blue. Then reply with my answer.",
+   "tool_call_id": null,
+   "tool_calls": null,
+   "tool_name": null,
+   "timestamp": 1791903357.8941247,
+   "finish_reason": null,
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": null,
+   "display_content": null,
+   "session_id": "stored-1"
+  },
+  {
+   "id": 47,
+   "role": "assistant",
+   "content": "",
+   "tool_call_id": null,
+   "tool_calls": [
+    {
+     "id": "call_6fa24fa0810b4cb48385a4bfd7f05ef3",
+     "type": "function",
+     "function": {
+      "name": "clarify",
+      "arguments": "{\"questions\":[{\"question\":\"Which colour do you prefer?\",\"choices\":[\"red\",\"blue\"]}]}"
+     }
+    }
+   ],
+   "tool_name": null,
+   "timestamp": 1791903364.1258163,
+   "finish_reason": "tool_calls",
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": null,
+   "display_content": null,
+   "session_id": "stored-1"
+  },
+  {
+   "id": 48,
+   "role": "tool",
+   "content": "{\"responses\": [{\"question\": \"Which colour do you prefer?\", \"choices_offered\": [\"red\", \"blue\"], \"status\": \"answered\", \"user_response\": \"blue\"}], \"outcome\": \"submitted\"}",
+   "tool_call_id": "call_6fa24fa0810b4cb48385a4bfd7f05ef3",
+   "tool_calls": null,
+   "tool_name": "clarify",
+   "timestamp": 1791903364.3915362,
+   "finish_reason": null,
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": null,
+   "display_content": null,
+   "session_id": "stored-1"
+  },
+  {
+   "id": 49,
+   "role": "assistant",
+   "content": "You prefer blue.",
+   "tool_call_id": null,
+   "tool_calls": null,
+   "tool_name": null,
+   "timestamp": 1791903369.4945323,
+   "finish_reason": "stop",
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": null,
+   "display_content": null,
+   "session_id": "stored-1"
+  },
+  {
+   "id": 50,
+   "role": "user",
+   "content": "Use the terminal to run: sleep 8 && echo reconnected. Then reply with the output.",
+   "tool_call_id": null,
+   "tool_calls": null,
+   "tool_name": null,
+   "timestamp": 1791903369.6548393,
+   "finish_reason": null,
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": null,
+   "display_content": null,
+   "session_id": "stored-1"
+  },
+  {
+   "id": 51,
+   "role": "assistant",
+   "content": "",
+   "tool_call_id": null,
+   "tool_calls": [
+    {
+     "id": "call_a97c78acdf5f4edea160927146dfcffe",
+     "type": "function",
+     "function": {
+      "name": "terminal",
+      "arguments": "{\"command\":\"sleep 8 && echo reconnected\",\"timeout\":30}"
+     }
+    }
+   ],
+   "tool_name": null,
+   "timestamp": 1791903376.0973165,
+   "finish_reason": "tool_calls",
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": null,
+   "display_content": null,
+   "session_id": "stored-1"
+  },
+  {
+   "id": 52,
+   "role": "tool",
+   "content": "{\"output\": \"reconnected\", \"exit_code\": 0, \"error\": null}",
+   "tool_call_id": "call_a97c78acdf5f4edea160927146dfcffe",
+   "tool_calls": null,
+   "tool_name": "terminal",
+   "timestamp": 1791903384.3028123,
+   "finish_reason": null,
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": null,
+   "display_content": null,
+   "session_id": "stored-1"
+  },
+  {
+   "id": 53,
+   "role": "assistant",
+   "content": "reconnected",
+   "tool_call_id": null,
+   "tool_calls": null,
+   "tool_name": null,
+   "timestamp": 1791903390.815211,
+   "finish_reason": "stop",
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": null,
+   "display_content": null,
+   "session_id": "stored-1"
+  },
+  {
+   "id": 54,
+   "role": "user",
+   "content": "Use the terminal to run: sleep 6 && echo step-one. Then reply with the output.",
+   "tool_call_id": null,
+   "tool_calls": null,
+   "tool_name": null,
+   "timestamp": 1791903430.0430155,
+   "finish_reason": null,
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": null,
+   "display_content": null,
+   "session_id": "stored-1"
+  },
+  {
+   "id": 55,
+   "role": "assistant",
+   "content": "",
+   "tool_call_id": null,
+   "tool_calls": [
+    {
+     "id": "call_6c8d9dab048a44d0a1a3a12b9e39420e",
+     "type": "function",
+     "function": {
+      "name": "terminal",
+      "arguments": "{\"command\":\"sleep 6 && echo step-one\",\"timeout\":30}"
+     }
+    }
+   ],
+   "tool_name": null,
+   "timestamp": 1791903439.781564,
+   "finish_reason": "tool_calls",
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": null,
+   "display_content": null,
+   "session_id": "stored-1"
+  },
+  {
+   "id": 56,
+   "role": "tool",
+   "content": "{\"output\": \"step-one\", \"exit_code\": 0, \"error\": null}",
+   "tool_call_id": "call_6c8d9dab048a44d0a1a3a12b9e39420e",
+   "tool_calls": null,
+   "tool_name": "terminal",
+   "timestamp": 1791903445.9886303,
+   "finish_reason": null,
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": null,
+   "display_content": null,
+   "session_id": "stored-1"
+  },
+  {
+   "id": 57,
+   "role": "assistant",
+   "content": "step-one",
+   "tool_call_id": null,
+   "tool_calls": null,
+   "tool_name": null,
+   "timestamp": 1791903453.7480857,
+   "finish_reason": "stop",
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": null,
+   "display_content": null,
+   "session_id": "stored-1"
+  },
+  {
+   "id": 58,
+   "role": "user",
+   "content": "Use the terminal to run: sleep 8 && echo reconnected. Then reply with the output.",
+   "tool_call_id": null,
+   "tool_calls": null,
+   "tool_name": null,
+   "timestamp": 1791903551.8801255,
+   "finish_reason": null,
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": null,
+   "display_content": null,
+   "session_id": "stored-1"
+  },
+  {
+   "id": 59,
+   "role": "assistant",
+   "content": "",
+   "tool_call_id": null,
+   "tool_calls": [
+    {
+     "id": "call_075eb0a8fdf34d0e8e39168e34540b68",
+     "type": "function",
+     "function": {
+      "name": "terminal",
+      "arguments": "{\"command\":\"sleep 8 && echo reconnected\",\"timeout\":30}"
+     }
+    }
+   ],
+   "tool_name": null,
+   "timestamp": 1791903561.9480941,
+   "finish_reason": "tool_calls",
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": null,
+   "display_content": null,
+   "session_id": "stored-1"
+  },
+  {
+   "id": 60,
+   "role": "tool",
+   "content": "{\"output\": \"reconnected\", \"exit_code\": 0, \"error\": null}",
+   "tool_call_id": "call_075eb0a8fdf34d0e8e39168e34540b68",
+   "tool_calls": null,
+   "tool_name": "terminal",
+   "timestamp": 1791903570.1485286,
+   "finish_reason": null,
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": null,
+   "display_content": null,
+   "session_id": "stored-1"
+  },
+  {
+   "id": 61,
+   "role": "assistant",
+   "content": "reconnected",
+   "tool_call_id": null,
+   "tool_calls": null,
+   "tool_name": null,
+   "timestamp": 1791903578.0515332,
+   "finish_reason": "stop",
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": null,
+   "display_content": null,
+   "session_id": "stored-1"
+  },
+  {
+   "id": 62,
+   "role": "user",
+   "content": "Use the terminal to run: sleep 6 && echo step-one. Then reply with the output.",
+   "tool_call_id": null,
+   "tool_calls": null,
+   "tool_name": null,
+   "timestamp": 1791903832.6273975,
+   "finish_reason": null,
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": null,
+   "display_content": null,
+   "session_id": "stored-1"
+  },
+  {
+   "id": 63,
+   "role": "assistant",
+   "content": "",
+   "tool_call_id": null,
+   "tool_calls": [
+    {
+     "id": "call_04a1b3e949ad4fadbf7328555df81909",
+     "type": "function",
+     "function": {
+      "name": "terminal",
+      "arguments": "{\"command\":\"sleep 6 && echo step-one\",\"timeout\":30}"
+     }
+    }
+   ],
+   "tool_name": null,
+   "timestamp": 1791903846.9526982,
+   "finish_reason": "tool_calls",
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": null,
+   "display_content": null,
+   "session_id": "stored-1"
+  },
+  {
+   "id": 64,
+   "role": "tool",
+   "content": "{\"output\": \"step-one\", \"exit_code\": 0, \"error\": null}",
+   "tool_call_id": "call_04a1b3e949ad4fadbf7328555df81909",
+   "tool_calls": null,
+   "tool_name": "terminal",
+   "timestamp": 1791903853.1555254,
+   "finish_reason": null,
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": null,
+   "display_content": null,
+   "session_id": "stored-1"
+  },
+  {
+   "id": 65,
+   "role": "user",
+   "content": "[OUT-OF-BAND USER MESSAGE — a direct message from the user, delivered once at this position; not tool output and not a new delivery when replayed from conversation history]\nAlso include the word STEERED in your final reply.\n[/OUT-OF-BAND USER MESSAGE]",
+   "tool_call_id": null,
+   "tool_calls": null,
+   "tool_name": null,
+   "timestamp": 1791903864.9103763,
+   "finish_reason": null,
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": "steer",
+   "display_content": "Also include the word STEERED in your final reply.",
+   "session_id": "stored-1"
+  },
+  {
+   "id": 66,
+   "role": "assistant",
+   "content": "step-one\nSTEERED",
+   "tool_call_id": null,
+   "tool_calls": null,
+   "tool_name": null,
+   "timestamp": 1791903864.9075594,
+   "finish_reason": "stop",
+   "reasoning": null,
+   "reasoning_content": null,
+   "display_kind": null,
+   "display_content": null,
+   "session_id": "stored-1"
+  }
+ ],
+ "pagination": {
+  "limit": 500,
+  "offset": 0,
+  "order": "oldest",
+  "returned": 62
+ }
+}

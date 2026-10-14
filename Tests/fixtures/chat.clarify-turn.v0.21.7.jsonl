@@ -1,0 +1,20 @@
+{"payload": null, "seq": 69, "session_id": "rt-1", "type": "message.start"}
+{"payload": {"model": "gpt-6-astra", "profile_name": "crew-test", "provider": "openai-codex", "running": false, "title": "Bot Chat", "turn_started_at": null}, "seq": 70, "session_id": "rt-1", "type": "session.info"}
+{"payload": {"text": "(°ロ°) computing..."}, "seq": 71, "session_id": "rt-1", "type": "thinking.delta"}
+{"payload": {}, "type": "sessions.changed"}
+{"payload": {"text": ""}, "seq": 72, "session_id": "rt-1", "type": "thinking.delta"}
+{"payload": {"args": {"questions": [{"choices": ["red", "blue"], "question": "Which colour do you prefer?"}]}, "context": "Which colour do you prefer?", "name": "clarify", "tool_id": "call_6fa24fa0810b4cb48385a4bfd7f05ef3"}, "seq": 73, "session_id": "rt-1", "type": "tool.start"}
+{"server_request": {"id": "srq-2bf3c7ad6d6a", "method": "clarify", "params": {"questions": [{"choices": ["red (Recommended)", "blue"], "multi_select": false, "qid": "q0", "question": "Which colour do you prefer?"}], "session_id": "rt-1"}}}
+{"payload": {}, "type": "sessions.changed"}
+{"payload": {"args": {"questions": [{"choices": ["red", "blue"], "question": "Which colour do you prefer?"}]}, "duration_s": 0.2657957077026367, "name": "clarify", "result": {"outcome": "submitted", "responses": [{"choices_offered": ["red", "blue"], "question": "Which colour do you prefer?", "status": "answered", "user_response": "blue"}]}, "tool_id": "call_6fa24fa0810b4cb48385a4bfd7f05ef3"}, "seq": 74, "session_id": "rt-1", "type": "tool.complete"}
+{"payload": {"text": "(¬‿¬) ruminating..."}, "seq": 75, "session_id": "rt-1", "type": "thinking.delta"}
+{"payload": {"usage": {"active_subagents": 0, "avg_latency_s": 6.6, "avg_tps": 3.2, "cache_hit_pct": 99, "calls": 9, "completion": 188, "compressions": 0, "context_estimated": false, "context_max": 272000, "context_percent": 6, "context_source": "provider_usage", "context_used": 15477, "input": 1882, "model": "gpt-6-astra", "output": 188, "prompt": 137050, "reasoning": 0, "total": 137238}}, "seq": 76, "session_id": "rt-1", "type": "session.usage"}
+{"payload": {}, "type": "sessions.changed"}
+{"payload": {"text": ""}, "seq": 77, "session_id": "rt-1", "type": "thinking.delta"}
+{"payload": {"text": "\n\nYou"}, "seq": 78, "session_id": "rt-1", "type": "message.delta"}
+{"payload": {"text": " prefer"}, "seq": 79, "session_id": "rt-1", "type": "message.delta"}
+{"payload": {"text": " blue"}, "seq": 80, "session_id": "rt-1", "type": "message.delta"}
+{"payload": {"text": "."}, "seq": 81, "session_id": "rt-1", "type": "message.delta"}
+{"payload": {"text": ""}, "seq": 82, "session_id": "rt-1", "type": "thinking.delta"}
+{"payload": {"persisted_turn": {"complete": true, "final_assistant_row_id": 49, "row_ids": [46, 47, 48, 49], "user_row_id": 46}, "status": "complete", "text": "You prefer blue.", "usage": {"active_subagents": 0, "avg_latency_s": 6.4, "avg_tps": 3, "cache_hit_pct": 99, "calls": 10, "completion": 196, "compressions": 0, "context_estimated": false, "context_max": 272000, "context_percent": 6, "context_source": "provider_usage", "context_used": 15569, "input": 2091, "model": "gpt-6-astra", "output": 196, "prompt": 152619, "reasoning": 0, "total": 152815}}, "seq": 83, "session_id": "rt-1", "type": "message.complete"}
+{"payload": {"model": "gpt-6-astra", "profile_name": "crew-test", "provider": "openai-codex", "running": false, "title": "Bot Chat", "turn_started_at": null}, "seq": 84, "session_id": "rt-1", "type": "session.info"}

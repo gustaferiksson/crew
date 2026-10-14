@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Install Crew</title>
+<link rel="apple-touch-icon" href="icon-512.png">
+<style>
+  :root { color-scheme: light dark; --bg: #f5f5f7; --fg: #1d1d1f; --muted: #6e6e73; --accent: #e8459b; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #000; --fg: #f5f5f7; --muted: #a1a1a6; } }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: var(--bg); color: var(--fg); font: 17px/1.4 -apple-system, system-ui, sans-serif; text-align: center; }
+  main { padding: 32px 16px; max-width: 420px; }
+  img { width: 128px; height: 128px; }
+  h1 { margin: 16px 0 4px; font-size: 32px; }
+  p { color: var(--muted); }
+  a.install { display: inline-block; margin: 16px 0; padding: 12px 32px; border-radius: 999px; background: var(--accent); color: #fff; font-weight: 600; text-decoration: none; }
+</style>
+</head>
+<body>
+<main>
+  <img src="icon-512.png" alt="">
+  <h1>Crew</h1>
+  <p>Hermes Agent bots on your iPhone.</p>
+  <a class="install" href="itms-services://?action=download-manifest&amp;url=https://gustaferiksson.github.io/crew/manifest.plist">Install</a>
+  <p>Open this page in Safari on a registered device. The Mac app installs with <code>brew install --cask gustaferiksson/tap/crew</code>.</p>
+  <p><a href="https://github.com/gustaferiksson/crew">Source and releases</a></p>
+</main>
+</body>
+</html>

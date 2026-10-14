@@ -3,7 +3,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-ALL=( login login-unreachable sidebar sidebar-flat unreachable avatars avatar-picker chat chat-history chat-timestamps chat-worklog chat-question chat-offline chat-attachments chat-dictation layout layout-inspector inspector-info inspector-tasks inspector-routines inspector-look profile-skills bot-page notifications new-bot )
+ALL=( login login-unreachable sidebar sidebar-flat unreachable avatars avatar-picker chat chat-history chat-timestamps chat-worklog chat-question chat-offline chat-attachments chat-dictation chat-a2ui chat-a2ui-cards chat-a2ui-form layout layout-inspector inspector-info inspector-tasks inspector-routines inspector-look profile-skills bot-page notifications new-bot )
 SCREENS=( "${@:-${ALL[@]}}" )
 FIXTURE_ARGS=( -server hermes.example.com -username gustaf )
 MAC_APP=.build/Build/Products/Debug/Crew.app/Contents/MacOS/Crew
@@ -37,12 +37,14 @@ for appearance in light dark; do
   suffix=$([[ $appearance == dark ]] && echo "-dark" || echo "")
   for screen in "${SCREENS[@]}"; do
     xcrun simctl terminate "$DEVICE" dev.gustaf.crew 2>/dev/null || true
-    xcrun simctl launch "$DEVICE" dev.gustaf.crew -snapshot "$screen" "${FIXTURE_ARGS[@]}" >/dev/null
-    sleep 3
+    rm -f snapshots/.out
+    xcrun simctl launch --stdout="$PWD/snapshots/.out" "$DEVICE" dev.gustaf.crew -snapshot "$screen" "${FIXTURE_ARGS[@]}" >/dev/null
+    for _ in {1..40}; do grep -q ready snapshots/.out 2>/dev/null && break; sleep 0.5; done
     xcrun simctl io "$DEVICE" screenshot "snapshots/ios-${screen}${suffix}.png" >/dev/null 2>&1
     echo "▸ snapshots/ios-${screen}${suffix}.png"
   done
 done
+rm -f snapshots/.out
 xcrun simctl ui "$DEVICE" appearance light
 xcrun simctl terminate "$DEVICE" dev.gustaf.crew 2>/dev/null || true
 if [[ $WAS_BOOTED == no ]]; then xcrun simctl shutdown "$DEVICE"; fi

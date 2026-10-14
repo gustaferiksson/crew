@@ -39,6 +39,17 @@ final class ProfileDraft {
         var skills: [ProfileCapability] = []
         var toolsets: [ProfileCapability] = []
         var mcpServers: [ProfileCapability] = []
+
+        var richUI: Bool {
+            get { skills.contains { $0.name == crewUISkillName && $0.enabled } }
+            set {
+                if let index = skills.firstIndex(where: { $0.name == crewUISkillName }) {
+                    skills[index].enabled = newValue
+                } else if newValue {
+                    skills.append(ProfileCapability(name: crewUISkillName, label: nil, description: nil, transport: nil, toolCount: nil, enabled: true))
+                }
+            }
+        }
     }
 
     let name: String
@@ -112,6 +123,7 @@ final class ProfileDraft {
             if fields.toolsets == baseline.toolsets { fields.toolsets = server.toolsets }
             if fields.mcpServers == baseline.mcpServers { fields.mcpServers = server.mcpServers }
             baseline = server
+            if server.richUI { try? await installCrewUISkill(in: name, on: gateway.server, with: urlSession) }
             if photoChange == .unchanged {
                 photo = bot.hasAvatar ? await fetchPhoto(gateway) : nil
                 savedPhoto = photo
@@ -131,7 +143,7 @@ final class ProfileDraft {
         guard isDirty else { return }
         isSaving = true
         notice = nil
-        let sent = fields
+        var sent = fields
         var failed: [String] = []
         if sent.instructions != baseline.instructions {
             do {
@@ -139,6 +151,14 @@ final class ProfileDraft {
                 baseline.instructions = sent.instructions
             } catch {
                 failed.append(String(localized: "instructions"))
+            }
+        }
+        if sent.richUI, !baseline.richUI {
+            do {
+                try await installCrewUISkill(in: name, on: gateway.server, with: urlSession)
+            } catch {
+                sent.skills = sent.skills.compactMap { $0.name == crewUISkillName ? baseline.skills.first { $0.name == crewUISkillName } : $0 }
+                failed.append(String(localized: "Rich UI"))
             }
         }
         var configured = sent

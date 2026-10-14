@@ -245,6 +245,11 @@ struct BotInspector: View {
                     .controlSize(.small)
             }
         }
+        Card(title: "Rich UI", footer: "Lets this bot answer with cards, checklists and forms that Crew draws natively. Other apps show them as code.") {
+            Toggle("Cards and Forms", isOn: $draft.fields.richUI)
+                .toggleStyle(.switch)
+                .disabled(!isEditable)
+        }
         Card(title: "Soul", footer: "The bot's identity, saved as SOUL.md. Saving replaces the whole file.") {
             if isEditable {
                 TextArea(text: $draft.fields.soul, placeholder: "Who this bot is")

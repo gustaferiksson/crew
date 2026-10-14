@@ -19,7 +19,7 @@ xcodegen generate --quiet
 
 echo "▸ Building iOS for ${DEVICE}…"
 log=$(mktemp)
-if ! xcodebuild -project Crew.xcodeproj -scheme Crew -configuration Debug -derivedDataPath .build \
+if ! xcodebuild -project Crew.xcodeproj -scheme Crew -configuration Debug -derivedDataPath .build -skipPackagePluginValidation -skipMacroValidation \
   -destination 'generic/platform=iOS' "DEVELOPMENT_TEAM=${DEVELOPMENT_TEAM}" "MARKETING_VERSION=${MARKETING_VERSION}" \
   -allowProvisioningUpdates -allowProvisioningDeviceRegistration build >"$log" 2>&1; then
   grep -E 'error:' "$log" | sort -u || tail -40 "$log"

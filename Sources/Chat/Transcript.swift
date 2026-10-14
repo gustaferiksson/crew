@@ -12,6 +12,7 @@ nonisolated struct Turn: Identifiable, Codable, Sendable, Equatable {
     var id: String
     var prompt: Prompt?
     var notice: String?
+    var hiddenText: String?
     var work: [WorkItem] = []
     var reply = ""
     var status: Status
@@ -136,7 +137,8 @@ extension Transcript {
             if row.role == "user" {
                 let notice = noticeText(kind: row.displayKind, content: text)
                 let prompt = notice == nil && row.displayKind != "hidden" ? Prompt(raw: text, sentAt: date) : nil
-                turns.append(Turn(id: String(row.id), prompt: prompt, notice: notice, status: .complete, startedAt: date, finishedAt: date))
+                let hiddenText = row.displayKind == "hidden" ? row.content ?? text : nil
+                turns.append(Turn(id: String(row.id), prompt: prompt, notice: notice, hiddenText: hiddenText, status: .complete, startedAt: date, finishedAt: date))
                 continue
             }
             if row.role == "assistant" {
@@ -177,7 +179,7 @@ extension Transcript {
         let notice = noticeText(kind: displayKind, content: user)
         let prompt = Prompt(raw: user, sentAt: date)
         let isShown = notice == nil && displayKind != "hidden" && (!prompt.text.isEmpty || !prompt.attachments.isEmpty)
-        turns.append(Turn(id: UUID().uuidString, prompt: isShown ? prompt : nil, notice: notice, status: .streaming, startedAt: date))
+        turns.append(Turn(id: UUID().uuidString, prompt: isShown ? prompt : nil, notice: notice, hiddenText: displayKind == "hidden" ? user : nil, status: .streaming, startedAt: date))
     }
 
     mutating func apply(_ event: TurnEvent, at date: Date = .now) {

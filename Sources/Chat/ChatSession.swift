@@ -96,6 +96,18 @@ final class ChatSession {
         }
     }
 
+    func sendHidden(_ text: String) {
+        guard let runtime, !isRunning else { return }
+        transcript.begin(remote: text, displayKind: "hidden", at: .now)
+        Task {
+            do {
+                _ = try await gateway.call("prompt.submit", ["session_id": runtime.rawValue, "text": text, "display_kind": "hidden"], as: JSONValue.self)
+            } catch {
+                transcript.apply(.messageComplete(text: "", status: .error, error: error.localizedDescription))
+            }
+        }
+    }
+
     func stop() {
         guard let runtime else { return }
         queue.removeAll()

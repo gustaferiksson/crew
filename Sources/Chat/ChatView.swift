@@ -1,8 +1,9 @@
 import SwiftUI
 
 struct ChatActions {
-    var send: (String, [Attachment], SendMode) -> Void = { _, _, _ in }
+    var send: (String, [Attachment], [Bot], SendMode) -> Void = { _, _, _, _ in }
     var sendHidden: (String) -> Void = { _ in }
+    var completePath: (String) async -> [PathCompletion] = { _ in [] }
     var stop: () -> Void = {}
     var transcribe: (Data) async throws -> String = { _ in "" }
     var openPersona: () -> Void = {}
@@ -17,6 +18,7 @@ struct ChatPresentation {
     var expandedWork: Set<WorkItem.ID> = []
     var scrollTarget: Turn.ID?
     var attachments: [Attachment] = []
+    var draft = ""
     var dictation: Dictation?
 }
 
@@ -42,7 +44,8 @@ struct ChatView: View {
     var models: ModelSwitcher?
     var actions = ChatActions()
 
-    @State private var draft = ""
+    @Environment(BotStore.self) private var bots
+    @State private var draft: String
     @State private var tray: AttachmentTray
     @State private var position = ScrollPosition(idType: Turn.ID.self)
     @State private var isAtBottom = true
@@ -68,11 +71,16 @@ struct ChatView: View {
         _expandedTurns = State(initialValue: presentation.expandedTurns)
         _expandedWork = State(initialValue: presentation.expandedWork)
         _tray = State(initialValue: AttachmentTray(items: presentation.attachments))
+        _draft = State(initialValue: presentation.draft)
     }
 
     private var reveal: CGFloat {
         if presentation.revealsTimestamps { return -timestampWidth }
         return -min(max(0, -(dragTravel + trackpadTravel)) / 3, timestampWidth)
+    }
+
+    private var mentionable: [Bot] {
+        bots.bots.filter { $0.id != avatar.bot.id }
     }
 
     private var composerPhase: Composer.Phase {
@@ -102,6 +110,7 @@ struct ChatView: View {
                                     activity: index == transcript.turns.count - 1 ? activity : nil,
                                     reveal: reveal,
                                     timestampWidth: timestampWidth,
+                                    mentionable: mentionable,
                                     expandedTurns: $expandedTurns,
                                     expandedWork: $expandedWork,
                                     expandedRuns: $expandedRuns
@@ -171,8 +180,8 @@ struct ChatView: View {
                             .frame(maxWidth: 560)
                             .padding(.horizontal, 16)
                     }
-                    Composer(botName: botName, phase: composerPhase, draft: $draft, tray: tray, dictation: presentation.dictation, transcribe: actions.transcribe) { mode in
-                        actions.send(draft, tray.take(), mode)
+                    Composer(botName: botName, phase: composerPhase, draft: $draft, tray: tray, mentionable: mentionable, completePath: actions.completePath, dictation: presentation.dictation, transcribe: actions.transcribe) { mode in
+                        actions.send(draft, tray.take(), mentionedBots(in: draft, among: mentionable), mode)
                         draft = ""
                     } stop: {
                         actions.stop()
@@ -239,6 +248,7 @@ struct TurnView: View {
     let activity: String?
     let reveal: CGFloat
     let timestampWidth: CGFloat
+    let mentionable: [Bot]
     @Binding var expandedTurns: Set<Turn.ID>
     @Binding var expandedWork: Set<WorkItem.ID>
     @Binding var expandedRuns: Set<String>
@@ -255,6 +265,12 @@ struct TurnView: View {
             if let prompt = turn.prompt {
                 if !prompt.attachments.isEmpty {
                     PromptAttachments(attachments: prompt.attachments)
+                        .offset(x: reveal)
+                }
+                let mentioned = mentionedBots(in: prompt.text, among: mentionable)
+                if !mentioned.isEmpty {
+                    MentionChips(bots: mentioned)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
                         .offset(x: reveal)
                 }
                 if !prompt.text.isEmpty {

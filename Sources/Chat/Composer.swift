@@ -32,6 +32,8 @@ struct Composer: View {
     let phase: Phase
     @Binding var draft: String
     let tray: AttachmentTray
+    let mentionable: [Bot]
+    let completePath: (String) async -> [PathCompletion]
     let transcribe: (Data) async throws -> String
     let send: (SendMode) -> Void
     let stop: () -> Void
@@ -45,11 +47,13 @@ struct Composer: View {
     @GestureState private var hold: Hold?
     @FocusState private var isFocused: Bool
 
-    init(botName: String, phase: Phase, draft: Binding<String>, tray: AttachmentTray, dictation: Dictation? = nil, transcribe: @escaping (Data) async throws -> String, send: @escaping (SendMode) -> Void, stop: @escaping () -> Void) {
+    init(botName: String, phase: Phase, draft: Binding<String>, tray: AttachmentTray, mentionable: [Bot], completePath: @escaping (String) async -> [PathCompletion], dictation: Dictation? = nil, transcribe: @escaping (Data) async throws -> String, send: @escaping (SendMode) -> Void, stop: @escaping () -> Void) {
         self.botName = botName
         self.phase = phase
         _draft = draft
         self.tray = tray
+        self.mentionable = mentionable
+        self.completePath = completePath
         self.transcribe = transcribe
         self.send = send
         self.stop = stop
@@ -58,6 +62,7 @@ struct Composer: View {
 
     private var canSend: Bool { !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !tray.items.isEmpty }
     private var isOffline: Bool { if case .offline = phase { true } else { false } }
+    private var mentionQuery: String? { draft.firstMatch(of: /(?:^|\s)@([^\s@]*)$/).map { String($0.1) } }
 
     var body: some View {
         VStack(spacing: 8) {
@@ -74,6 +79,17 @@ struct Composer: View {
             }
             if !tray.items.isEmpty {
                 PendingAttachments(tray: tray)
+            }
+            if let mentionQuery {
+                MentionPicker(query: mentionQuery, bots: mentionable, completePath: completePath) { tag in
+                    draft = String(draft.dropLast(mentionQuery.count + 1)) + tag + " "
+                    isFocused = true
+                }
+            }
+            let mentioned = mentionedBots(in: draft, among: mentionable)
+            if !mentioned.isEmpty {
+                MentionChips(bots: mentioned)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
             GlassEffectContainer(spacing: rowSpacing) {
                 HStack(alignment: .bottom, spacing: rowSpacing) {
@@ -102,6 +118,7 @@ struct Composer: View {
         .animation(.smooth, value: phase)
         .animation(.smooth, value: dictation.phase)
         .animation(.smooth, value: tray.items)
+        .animation(.smooth, value: mentionQuery == nil)
         .animation(.smooth, value: showsHoldHint)
         .animation(.smooth, value: hold?.cancels)
         .sensoryFeedback(.start, trigger: dictation.phase) { _, phase in phase == .listening }

@@ -2,7 +2,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 enum ChatFixture {
-    case conversation, history, timestamps, workLog, question, offline, attachments, dictation, a2ui, a2uiCards, a2uiForm, a2uiTable, a2uiChart, a2uiMap
+    case conversation, history, timestamps, workLog, question, offline, attachments, dictation, mentions, a2ui, a2uiCards, a2uiForm, a2uiTable, a2uiChart, a2uiMap
 
     var presentation: ChatPresentation {
         if self == .history { return ChatPresentation(scrollTarget: "t1") }
@@ -20,6 +20,7 @@ enum ChatFixture {
                 Attachment(kind: .file, name: "Lofoten itinerary.pdf"),
             ])
         }
+        if self == .mentions { return ChatPresentation(draft: "Loop in @ada and @sc") }
         if self == .dictation {
             let levels = (0..<Dictation.levelCount).map { 0.25 + 0.6 * abs(sin(Double($0) * 0.7)) * Double($0 % 5 + 1) / 5 }
             return ChatPresentation(dictation: Dictation(fixture: levels, startedAt: .now.addingTimeInterval(-7)))
@@ -51,6 +52,7 @@ enum ChatFixture {
         if [.offline, .history, .dictation].contains(self) { return Transcript(turns: turns) }
         if [.a2ui, .a2uiCards, .a2uiForm, .a2uiTable, .a2uiChart, .a2uiMap].contains(self) { return Transcript(turns: Self.a2uiTurns(now)) }
         if self == .attachments { return Transcript(turns: [greeting(now.addingTimeInterval(-26 * 3600)), receipt(now.addingTimeInterval(-6 * 60))]) }
+        if self == .mentions { return Transcript(turns: [greeting(now.addingTimeInterval(-26 * 3600)), handoff(now.addingTimeInterval(-6 * 60))]) }
         return Transcript(turns: turns + [deploy(now.addingTimeInterval(-48))])
     }
 
@@ -187,6 +189,18 @@ enum ChatFixture {
             status: .complete,
             startedAt: start,
             finishedAt: start.addingTimeInterval(9)
+        )
+    }
+
+    private func handoff(_ start: Date) -> Turn {
+        Turn(
+            id: "t7",
+            prompt: Prompt(text: "@scout can you find flights for the Lofoten trip?", sentAt: start),
+            work: [WorkItem(id: "t7-w0", kind: .tool(ToolCall(name: "message_agent", subject: "scout", arguments: #"{"target": "scout"}"#, status: .success)), startedAt: start.addingTimeInterval(2), duration: 1)],
+            reply: "Asked Scout to look for flights to Lofoten. The results will show up in Scout's chat.",
+            status: .complete,
+            startedAt: start,
+            finishedAt: start.addingTimeInterval(5)
         )
     }
 

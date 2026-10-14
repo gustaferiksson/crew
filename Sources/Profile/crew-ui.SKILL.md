@@ -1,7 +1,7 @@
 ---
 name: crew-ui
-description: Use for any checklist, recipe, table, chart, map, form, choice or card reply.
-version: 4
+description: Use for checklists, tables, charts, maps, forms and cards.
+version: 5
 ---
 
 # Rich UI in Crew

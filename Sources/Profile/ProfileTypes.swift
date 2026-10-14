@@ -27,11 +27,10 @@ nonisolated struct ProfileDetails: Decodable, Sendable {
     let soul: String
     let model: ModelChoice?
     let skills: [ProfileCapability]
-    let toolsets: [ProfileCapability]
     let mcpServers: [ProfileCapability]
 
     private enum CodingKeys: String, CodingKey {
-        case name, description, soul, model, skills, toolsets
+        case name, description, soul, model, skills
         case mcpServers = "mcp_servers"
     }
 
@@ -40,13 +39,12 @@ nonisolated struct ProfileDetails: Decodable, Sendable {
         case model = "default"
     }
 
-    init(name: String, description: String, soul: String, model: ModelChoice?, skills: [ProfileCapability], toolsets: [ProfileCapability], mcpServers: [ProfileCapability]) {
+    init(name: String, description: String, soul: String, model: ModelChoice?, skills: [ProfileCapability], mcpServers: [ProfileCapability]) {
         self.name = name
         self.description = description
         self.soul = soul
         self.model = model
         self.skills = skills
-        self.toolsets = toolsets
         self.mcpServers = mcpServers
     }
 
@@ -60,7 +58,6 @@ nonisolated struct ProfileDetails: Decodable, Sendable {
         let identifier = try model?.decodeIfPresent(String.self, forKey: .model) ?? ""
         self.model = provider.isEmpty || identifier.isEmpty ? nil : ModelChoice(provider: provider, model: identifier)
         skills = try container.decodeIfPresent([ProfileCapability].self, forKey: .skills) ?? []
-        toolsets = try container.decodeIfPresent([ProfileCapability].self, forKey: .toolsets) ?? []
         mcpServers = try container.decodeIfPresent([ProfileCapability].self, forKey: .mcpServers) ?? []
     }
 }
@@ -138,6 +135,31 @@ nonisolated func saveInstructions(_ text: String, of profile: String, on server:
     _ = try await fetch(request, with: session, as: JSONValue.self)
 }
 
+nonisolated private struct ToolsetRow: Decodable {
+    let name: String
+    let label: String?
+    let description: String?
+    let enabled: Bool
+    let tools: [String]?
+}
+
+nonisolated func toolsets(of profile: String, on server: URL, with session: URLSession) async throws -> [ProfileCapability] {
+    var request = hermesRequest("api/tools/toolsets", on: server)
+    request.url?.append(queryItems: [URLQueryItem(name: "profile", value: profile)])
+    return try await fetch(request, with: session, as: [ToolsetRow].self).map {
+        ProfileCapability(name: $0.name, label: $0.label, description: $0.description, transport: nil, toolCount: $0.tools?.count, enabled: $0.enabled)
+    }
+}
+
+nonisolated func saveToolset(_ name: String, enabled: Bool, of profile: String, on server: URL, with session: URLSession) async throws {
+    var request = hermesRequest("api/tools/toolsets/\(name)", on: server)
+    request.url?.append(queryItems: [URLQueryItem(name: "profile", value: profile)])
+    request.httpMethod = "PUT"
+    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+    request.httpBody = try JSONEncoder().encode(["enabled": enabled])
+    _ = try await fetch(request, with: session, as: JSONValue.self)
+}
+
 nonisolated struct ProfileChanges: Encodable, Sendable {
     let name: String
     var uiMeta: [String: BotMeta]?
@@ -148,7 +170,6 @@ nonisolated struct ProfileChanges: Encodable, Sendable {
     var provider: String?
     var confirmExpensiveModel: Bool?
     var disabledSkills: [String]?
-    var enabledToolsets: [String]?
     var enabledMCPServers: [String]?
 
     private enum CodingKeys: String, CodingKey {
@@ -157,7 +178,6 @@ nonisolated struct ProfileChanges: Encodable, Sendable {
         case uiMetaExpectedRevisions = "ui_meta_expected_revisions"
         case confirmExpensiveModel = "confirm_expensive_model"
         case disabledSkills = "disabled_skills"
-        case enabledToolsets = "enabled_toolsets"
         case enabledMCPServers = "enabled_mcp_servers"
     }
 }
@@ -175,11 +195,10 @@ nonisolated struct ConfigureReply: Decodable, Sendable {
         let description: Bool?
         let model: Bool?
         let skills: Bool?
-        let toolsets: Bool?
         let mcpServers: Bool?
 
         private enum CodingKeys: String, CodingKey {
-            case soul, description, model, skills, toolsets
+            case soul, description, model, skills
             case uiMeta = "ui_meta"
             case uiMetaRevisions = "ui_meta_revisions"
             case uiMetaConflicts = "ui_meta_conflicts"

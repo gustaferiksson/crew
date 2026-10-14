@@ -79,11 +79,11 @@ final class ProfileDraft {
         baseline = fields
     }
 
-    convenience init(bot: Bot, details: ProfileDetails, instructions: String = "", photo: CGImage? = nil) {
+    convenience init(bot: Bot, details: ProfileDetails, toolsets: [ProfileCapability], instructions: String = "", photo: CGImage? = nil) {
         self.init(bot: bot)
         fields = Fields(
             identity: fields.identity, description: details.description, soul: details.soul, instructions: instructions,
-            skills: details.skills, toolsets: details.toolsets, mcpServers: details.mcpServers
+            skills: details.skills, toolsets: toolsets, mcpServers: details.mcpServers
         )
         baseline = fields
         self.photo = photo
@@ -104,15 +104,16 @@ final class ProfileDraft {
         do {
             async let details = gateway.call("profiles.describe", ["name": name], as: ProfileDetails.self)
             async let loadedInstructions = instructions(of: name, on: gateway.server, with: urlSession)
+            async let loadedToolsets = toolsets(of: name, on: gateway.server, with: urlSession)
             async let roster = gateway.call("profiles.list", [String: String](), as: ProfileRoster.self)
-            let (loadedDetails, loadedRoster, instructionsText) = try await (details, roster, loadedInstructions)
+            let (loadedDetails, loadedRoster, instructionsText, toolsetsList) = try await (details, roster, loadedInstructions, loadedToolsets)
             guard let bot = loadedRoster.profiles.first(where: { $0.name == name }) else {
                 phase = .failed(String(localized: "This bot no longer exists on the server."))
                 return
             }
             let server = Fields(
                 identity: Identity(bot: bot), description: loadedDetails.description, soul: loadedDetails.soul,
-                instructions: instructionsText, skills: loadedDetails.skills, toolsets: loadedDetails.toolsets, mcpServers: loadedDetails.mcpServers
+                instructions: instructionsText, skills: loadedDetails.skills, toolsets: toolsetsList, mcpServers: loadedDetails.mcpServers
             )
             meta = bot.meta
             revision = bot.metaRevision
@@ -146,12 +147,25 @@ final class ProfileDraft {
         notice = nil
         var sent = fields
         var failed: [String] = []
+        var reasons: [String] = []
         if sent.instructions != baseline.instructions {
             do {
                 try await saveInstructions(sent.instructions, of: name, on: gateway.server, with: urlSession)
                 baseline.instructions = sent.instructions
             } catch {
                 failed.append(String(localized: "instructions"))
+                reasons.append(error.localizedDescription)
+            }
+        }
+        if sent.toolsets != baseline.toolsets {
+            do {
+                for toolset in sent.toolsets where !baseline.toolsets.contains(toolset) {
+                    try await saveToolset(toolset.name, enabled: toolset.enabled, of: name, on: gateway.server, with: urlSession)
+                }
+                baseline.toolsets = sent.toolsets
+            } catch {
+                failed.append(String(localized: "toolsets"))
+                reasons.append(error.localizedDescription)
             }
         }
         if sent.richUI, !baseline.richUI {
@@ -160,16 +174,18 @@ final class ProfileDraft {
             } catch {
                 sent.skills = sent.skills.compactMap { $0.name == crewUISkillName ? baseline.skills.first { $0.name == crewUISkillName } : $0 }
                 failed.append(String(localized: "Rich UI"))
+                reasons.append(error.localizedDescription)
             }
         }
         var configured = sent
         configured.instructions = baseline.instructions
+        configured.toolsets = baseline.toolsets
         if configured != baseline || photoChange != .unchanged {
             failed += await send(sent, gateway)
         }
         isSaving = false
         if !failed.isEmpty, notice == nil {
-            notice = String(localized: "Couldn't save the \(failed.formatted(.list(type: .and))).")
+            notice = ([String(localized: "Couldn't save the \(failed.formatted(.list(type: .and))).")] + reasons).joined(separator: " ")
         }
         if notice == nil { savedAt = .now }
         guard resaveWanted else { return }
@@ -245,7 +261,6 @@ final class ProfileDraft {
         if sent.description != baseline.description { changes.description = sent.description.trimmingCharacters(in: .whitespacesAndNewlines) }
         if sent.soul != baseline.soul { changes.soul = sent.soul }
         if sent.skills != baseline.skills { changes.disabledSkills = sent.skills.filter { !$0.enabled }.map(\.name) }
-        if sent.toolsets != baseline.toolsets { changes.enabledToolsets = sent.toolsets.filter(\.enabled).map(\.name) }
         if sent.mcpServers != baseline.mcpServers { changes.enabledMCPServers = sent.mcpServers.filter(\.enabled).map(\.name) }
         do {
             let reply = try await gateway.call("profiles.configure", changes, as: ConfigureReply.self)
@@ -254,7 +269,6 @@ final class ProfileDraft {
                 (String(localized: "description"), changes.description != nil, applied.description, { $0.description = sent.description }),
                 (String(localized: "soul"), changes.soul != nil, applied.soul, { $0.soul = sent.soul }),
                 (String(localized: "skills"), changes.disabledSkills != nil, applied.skills, { $0.skills = sent.skills }),
-                (String(localized: "toolsets"), changes.enabledToolsets != nil, applied.toolsets, { $0.toolsets = sent.toolsets }),
                 (String(localized: "MCP servers"), changes.enabledMCPServers != nil, applied.mcpServers, { $0.mcpServers = sent.mcpServers }),
             ]
             var failed: [String] = []

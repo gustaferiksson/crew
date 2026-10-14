@@ -18,7 +18,7 @@ nonisolated func installCrewUISkill(in profile: String, on server: URL, with ses
     let installed: SkillContent?
     do {
         installed = try await fetch(lookup, with: session, as: SkillContent.self)
-    } catch HermesError.server(let code) where code == 404 {
+    } catch HermesError.server(404, _) {
         installed = nil
     }
     if let installed, crewUISkillVersion(installed.content) >= crewUISkillVersion(crewUISkill) { return }

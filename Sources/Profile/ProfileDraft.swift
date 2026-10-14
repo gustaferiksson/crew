@@ -21,9 +21,10 @@ final class ProfileDraft {
         var expression: AvatarExpression
         var custom: Bool
 
-        init(name: String, meta: BotMeta) {
-            let look = meta.look(name: name)
-            title = meta.title ?? ""
+        init(bot: Bot) {
+            let meta = bot.meta
+            let look = meta.look(name: bot.name)
+            title = bot.title
             shape = look.shape
             color = look.color
             expression = AvatarExpression.resolve(meta.expression)
@@ -73,7 +74,7 @@ final class ProfileDraft {
         fallbackTitle = bot.title
         meta = bot.meta
         revision = bot.metaRevision
-        let fields = Fields(identity: Identity(name: bot.name, meta: bot.meta))
+        let fields = Fields(identity: Identity(bot: bot))
         self.fields = fields
         baseline = fields
     }
@@ -110,7 +111,7 @@ final class ProfileDraft {
                 return
             }
             let server = Fields(
-                identity: Identity(name: bot.name, meta: bot.meta), description: loadedDetails.description, soul: loadedDetails.soul,
+                identity: Identity(bot: bot), description: loadedDetails.description, soul: loadedDetails.soul,
                 instructions: instructionsText, skills: loadedDetails.skills, toolsets: loadedDetails.toolsets, mcpServers: loadedDetails.mcpServers
             )
             meta = bot.meta
@@ -303,7 +304,7 @@ final class ProfileDraft {
         else { return }
         meta = bot.meta
         revision = bot.metaRevision
-        fields.identity = Identity(name: bot.name, meta: bot.meta)
+        fields.identity = Identity(bot: bot)
         baseline.identity = fields.identity
         photo = bot.hasAvatar ? await fetchPhoto(gateway) : nil
         savedPhoto = photo

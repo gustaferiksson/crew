@@ -25,12 +25,12 @@ private let tableSchema = try! Schema(instance: """
     {"type": "object", "required": ["component", "columns", "rows"], "properties": {
       "component": {"const": "Table"},
       "columns": {"type": "array", "items": {"type": "string"}},
-      "rows": {"type": "array", "items": {"type": "array", "items": {"type": ["string", "number", "boolean"]}}}}}
+      "rows": {"type": "array", "items": {"type": "array", "items": {"type": "string"}}}}}
     """)
 
 private let keyValueSchema = try! Schema(instance: """
     {"type": "object", "required": ["component", "items"], "properties": {
       "component": {"const": "KeyValue"},
       "items": {"type": "array", "items": {"type": "object", "required": ["key", "value"], "properties": {
-        "key": {"type": "string"}, "value": {"type": ["string", "number", "boolean"]}}}}}}
+        "key": {"type": "string"}, "value": {"type": "string"}}}}}}
     """)

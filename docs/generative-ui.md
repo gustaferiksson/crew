@@ -1,6 +1,6 @@
 # Generative UI in Crew
 
-Research date 2026-10-14. Read-only research: no app code, server config or plugins touched. Status: approved for after v0.1.0 (A2UI with the official SwiftUI renderer, per-bot opt-in, see 6.1); not implemented. Hermes refs are against the local checkout `~/.hermes/hermes-agent` (`0.21.7+302`, the server runs `v0.21.7`; none of the files cited differ in a way that matters here).
+Research date 2026-10-14. Read-only research: no app code, server config or plugins touched. Status: MVP implemented (see the Generative UI lines in `docs/PLAN.md` Decisions; Rich UI uses the Instructions overlay, not a skill). Hermes refs are against the local checkout `~/.hermes/hermes-agent` (`0.21.7+302`, the server runs `v0.21.7`; none of the files cited differ in a way that matters here).
 
 Goal: let a bot put rich native components in the chat (approval with context, recipe, checklist, table, chart, form, card with actions, map) with as little custom engineering as possible.
 

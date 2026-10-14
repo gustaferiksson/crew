@@ -101,8 +101,8 @@ nonisolated private let richUIRecipe = """
     - ChoicePicker: "label", "options": [{"label": "...", "value": "..."}], "value" (bound array of strings), "variant": "mutuallyExclusive" | "multipleSelection", "displayStyle": "checkbox" | "chips"
     - DateTimeInput: "label", "value" (bound ISO 8601 string, "" when unset), "enableDate", "enableTime"
     - Slider: "label", "min", "max", "value" (bound number)
-    - Table (Crew only): "columns": ["..."], "rows": [["...", ...], ...] with strings or numbers
-    - KeyValue (Crew only): "items": [{"key": "...", "value": "..."}]
+    - Table (Crew only): "columns": ["..."], "rows": [["...", ...], ...], every cell a string
+    - KeyValue (Crew only): "items": [{"key": "...", "value": "..."}], strings only
 
     When the user taps a button, Crew sends you a hidden message like
     <a2ui-action>{"context": {"choice": "delete"}, "name": "decide", "sourceComponentId": "delete", "surfaceId": "cleanup-previews"}</a2ui-action>

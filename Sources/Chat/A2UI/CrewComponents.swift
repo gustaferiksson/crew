@@ -72,8 +72,8 @@ struct CrewTable: View {
     let node: Node
 
     var body: some View {
-        let columns = (node.array(for: "columns") ?? []).map(cellText)
-        let rows = (node.array(for: "rows") ?? []).map { (($0 as? ResolvedArray)?.elements ?? []).map(cellText) }
+        let columns = (node.array(for: "columns") ?? []).map { $0 as? String ?? "" }
+        let rows = (node.array(for: "rows") ?? []).map { (($0 as? ResolvedArray)?.elements ?? []).map { $0 as? String ?? "" } }
         ScrollView(.horizontal) {
             Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 8) {
                 GridRow {
@@ -108,19 +108,11 @@ struct CrewKeyValue: View {
                     Divider()
                 }
                 GridRow {
-                    Text(items[index]["key"].map(cellText) ?? "")
+                    Text(items[index]["key"].map { $0 as? String ?? "" } ?? "")
                         .foregroundStyle(.secondary)
-                    Text(items[index]["value"].map(cellText) ?? "")
+                    Text(items[index]["value"].map { $0 as? String ?? "" } ?? "")
                 }
             }
         }
     }
-}
-
-private func cellText(_ value: any Resolved) -> String {
-    if let text = value as? String { return text }
-    if let number = value as? Int { return number.formatted() }
-    if let number = value as? Double { return number.formatted() }
-    if let flag = value as? Bool { return flag ? String(localized: "Yes") : String(localized: "No") }
-    return ""
 }

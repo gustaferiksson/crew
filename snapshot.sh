@@ -3,7 +3,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-ALL=( login login-unreachable sidebar sidebar-flat unreachable avatars avatar-picker chat chat-history chat-timestamps chat-worklog chat-question chat-offline chat-attachments chat-dictation layout layout-inspector inspector-info inspector-tasks inspector-routines inspector-look profile-skills bot-page notifications new-bot )
+ALL=( login login-unreachable sidebar sidebar-flat unreachable avatars avatar-picker chat chat-history chat-timestamps chat-worklog chat-question chat-offline chat-attachments chat-dictation chat-a2ui chat-a2ui-cards chat-a2ui-form layout layout-inspector inspector-info inspector-tasks inspector-routines inspector-look profile-skills bot-page notifications new-bot )
 SCREENS=( "${@:-${ALL[@]}}" )
 FIXTURE_ARGS=( -server hermes.example.com -username gustaf )
 MAC_APP=.build/Build/Products/Debug/Crew.app/Contents/MacOS/Crew

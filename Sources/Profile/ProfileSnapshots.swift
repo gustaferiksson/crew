@@ -16,6 +16,16 @@ extension Snapshot {
         let server = { (name: String, transport: String, enabled: Bool) in
             ProfileCapability(name: name, label: nil, description: nil, transport: transport, toolCount: nil, enabled: enabled)
         }
+        let toolsets = [
+            toolset("web", "🔍 Web Search & Scraping", "web_search, web_extract", true),
+            toolset("browser", "🌐 Browser Automation", "navigate, click, type, scroll", true),
+            toolset("terminal", "💻 Terminal & Processes", "terminal, process", true),
+            toolset("file", "📁 File Operations", "read, write, patch, search", true),
+            toolset("vision", "👁️ Vision / Image Analysis", "vision_analyze", false),
+            toolset("image_gen", "🎨 Image Generation", "image_generate", false),
+            toolset("memory", "🧠 Memory", "memory", true),
+            toolset("delegation", "👥 Task Delegation", "delegate_task", true),
+        ]
         let details = ProfileDetails(
             name: "ada",
             description: "Research assistant. Digs through papers, docs and the web, then writes up what it finds.",
@@ -38,19 +48,9 @@ extension Snapshot {
                 skill("jupyter", true), skill("merge-reconciler", true), skill("notion", false), skill("obsidian", true),
                 skill("plan", true), skill("webapp-testing", false), skill("youtube-transcripts", true),
             ],
-            toolsets: [
-                toolset("web", "🔍 Web Search & Scraping", "web_search, web_extract", true),
-                toolset("browser", "🌐 Browser Automation", "navigate, click, type, scroll", true),
-                toolset("terminal", "💻 Terminal & Processes", "terminal, process", true),
-                toolset("file", "📁 File Operations", "read, write, patch, search", true),
-                toolset("vision", "👁️ Vision / Image Analysis", "vision_analyze", false),
-                toolset("image_gen", "🎨 Image Generation", "image_generate", false),
-                toolset("memory", "🧠 Memory", "memory", true),
-                toolset("delegation", "👥 Task Delegation", "delegate_task", true),
-            ],
             mcpServers: [server("github", "stdio", true), server("linear", "http", false)]
         )
-        return ProfileDraft(bot: bot, details: details, instructions: "Answer in British English and keep summaries under 200 words.")
+        return ProfileDraft(bot: bot, details: details, toolsets: toolsets, instructions: "Answer in British English and keep summaries under 200 words.")
     }
 
     static var profileModels: ModelSwitcher {

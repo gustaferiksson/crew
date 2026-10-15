@@ -10,6 +10,7 @@ struct ChatActions {
     var changeModel: (ModelChoice) -> Void = { _ in }
     var respond: (ApprovalRequest.ID, ApprovalChoice) -> Void = { _, _ in }
     var retry: (String) -> Void = { _ in }
+    var openBot: (Bot.ID) -> Void = { _ in }
     var answer: (QuestionRequest.ID, [String: String]) -> Void = { _, _ in }
 }
 
@@ -116,7 +117,8 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
                                     expandedTurns: $expandedTurns,
                                     expandedWork: $expandedWork,
                                     expandedRuns: $expandedRuns,
-                                    retry: actions.retry
+                                    retry: actions.retry,
+                                    openBot: actions.openBot
                                 )
                             }
                             .id(turn.id)
@@ -260,6 +262,7 @@ struct TurnView: View {
     @Binding var expandedWork: Set<WorkItem.ID>
     @Binding var expandedRuns: Set<String>
     var retry: (String) -> Void = { _ in }
+    var openBot: (Bot.ID) -> Void = { _ in }
 
     @Environment(BotStore.self) private var bots
 
@@ -291,7 +294,7 @@ struct TurnView: View {
                     }
                     let mentioned = mentionedBots(in: prompt.text, among: mentionable)
                     if !mentioned.isEmpty {
-                        MentionChips(bots: mentioned)
+                        MentionChips(bots: mentioned) { openBot($0.id) }
                             .frame(maxWidth: .infinity, alignment: .trailing)
                             .offset(x: reveal)
                     }

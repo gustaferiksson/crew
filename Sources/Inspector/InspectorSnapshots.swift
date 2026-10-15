@@ -96,6 +96,6 @@ struct BotPageFixtureScreen: View {
     }
 
     private var chat: some View {
-        ChatScreen(bot: ada, models: models, showsBot: $showsBot)
+        ChatScreen(bot: ada, models: models, showsBot: $showsBot) { _ in }
     }
 }

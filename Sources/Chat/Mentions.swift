@@ -8,13 +8,21 @@ nonisolated struct PathCompletion: Decodable, Sendable, Hashable {
 
 extension Bot {
     var handle: String { name.lowercased() == "default" ? "hermes" : name }
+
+    var mentionTags: Set<String> {
+        let slug = (meta.title ?? "").lowercased().replacing(/[^a-z0-9_-]+/, with: "-").trimmingCharacters(in: CharacterSet(charactersIn: "-"))
+        return [handle.lowercased(), slug]
+    }
 }
 
 func mentionedBots(in text: String, among bots: [Bot]) -> [Bot] {
     let tags = Set(text.matches(of: /(?:^|\s)@([A-Za-z0-9][A-Za-z0-9_-]*)/).map { $0.1.lowercased() })
-    return bots.filter { bot in
-        let slug = (bot.meta.title ?? "").lowercased().replacing(/[^a-z0-9_-]+/, with: "-").trimmingCharacters(in: CharacterSet(charactersIn: "-"))
-        return tags.contains(bot.handle.lowercased()) || tags.contains(slug)
+    return bots.filter { !$0.mentionTags.isDisjoint(with: tags) }
+}
+
+func removingMention(of bot: Bot, from text: String) -> String {
+    text.replacing(/(?:^|\s)@([A-Za-z0-9][A-Za-z0-9_-]*)/) { match in
+        bot.mentionTags.contains(match.1.lowercased()) ? "" : match.0
     }
 }
 
@@ -105,22 +113,30 @@ struct MentionPicker: View {
 
 struct MentionChips: View {
     let bots: [Bot]
+    let tap: (Bot) -> Void
 
     @Environment(BotStore.self) private var roster
 
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 8) {
             ForEach(bots) { bot in
-                HStack(spacing: 4) {
-                    BotAvatar(bot: bot, status: .idle, photo: roster.photos[bot.id], size: 20)
-                    Text(bot.title)
-                        .font(.subheadline)
-                        .lineLimit(1)
+                Button {
+                    tap(bot)
+                } label: {
+                    HStack(spacing: 4) {
+                        BotAvatar(bot: bot, status: .idle, photo: roster.photos[bot.id], size: 20)
+                        Text(verbatim: "@\(bot.handle)")
+                            .font(.subheadline.weight(.medium))
+                            .lineLimit(1)
+                    }
+                    .padding(.leading, 4)
+                    .padding(.trailing, 8)
+                    .padding(.vertical, 4)
+                    .contentShape(.capsule)
                 }
-                .padding(.leading, 4)
-                .padding(.trailing, 8)
-                .padding(.vertical, 4)
-                .glassEffect(in: .capsule)
+                .buttonStyle(.plain)
+                .glassEffect(.regular.tint(.accentColor.opacity(0.12)).interactive(), in: .capsule)
+                .overlay(Capsule().strokeBorder(Color.accentColor.opacity(0.35), lineWidth: 1))
             }
         }
     }

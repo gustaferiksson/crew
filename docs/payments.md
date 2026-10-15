@@ -26,9 +26,9 @@ Plan for [#9](https://github.com/gustaferiksson/crew/issues/9). Researched again
 **Protected**
 
 - The card number never reaches the model, the transcript, Crew or the push.
-- No fill without a tap on Approve in Crew. No "allow for session", no "always".
+- No fill without a tap on Approve in Crew. No "allow for session", no "always". Until step 5, another client attached to the same session (TUI, Desktop) could still answer with `session` or `/approve`.
 - A fill only runs on the exact origin the user added, and only from the bot's Bot Chat in Crew (step 2), so a typed reply on another platform cannot pay.
-- A bot cannot add shops: the copy route sits behind the dashboard login.
+- A bot cannot add shops: the copy route sits behind the dashboard login (only true under `docker`, see the shell below).
 
 **Not protected**
 
@@ -42,13 +42,13 @@ Plan for [#9](https://github.com/gustaferiksson/crew/issues/9). Researched again
 
 ## Server commands
 
-Hermes runs in a podman container on mainframe (quadlet `hermes.service`). Data is `/root/hermes/data` on the host and `/opt/data` (`HERMES_HOME`) inside the container. `<ctr>` below is the container name from `podman ps` (a quadlet without `ContainerName=` uses `systemd-hermes`). Note that `docs/push.md` still says `~/.hermes`; the paths here are the ones for mainframe.
+Hermes runs in a podman container on mainframe (quadlet `hermes.service`). Data is `/root/hermes/data` on the host and `/opt/data` (`HERMES_HOME`) inside the container. `mainframe` below is your ssh target and `<ctr>` the container name from `podman ps` (a quadlet without `ContainerName=` uses `systemd-hermes`). Note that `docs/push.md` still says `~/.hermes`; the paths here are the ones for mainframe.
 
 Deploy crew-push (steps 2 and 4):
 
 ```sh
-rsync -a --delete server/crew-push/ root@mainframe:/root/hermes/data/plugins/crew-push/
-ssh root@mainframe systemctl restart hermes.service
+rsync -a --delete server/crew-push/ mainframe:/root/hermes/data/plugins/crew-push/
+ssh mainframe systemctl restart hermes.service
 ```
 
 ## Steps
@@ -59,7 +59,7 @@ ssh root@mainframe systemctl restart hermes.service
 - **Files:** `pages/checkout-test.html`, `docs/payments.md`.
 - **Server:** Pages deploys only on a `v*` tag, so the page is live at `https://gustaferiksson.github.io/crew/checkout-test.html` after the next release. Then add the test card to crew-test by hand (the only time a card is added by hand):
   ```sh
-  ssh -t root@mainframe podman exec -it <ctr> hermes -p crew-test vault add
+  ssh -t mainframe podman exec -it <ctr> hermes -p crew-test vault add
   # kind payment, label Test 4242, origin https://gustaferiksson.github.io
   # card 4242424242424242, exp 12 / 2030, cvc 123
   ```
@@ -77,10 +77,10 @@ ssh root@mainframe systemctl restart hermes.service
 
 ### 3. Crew: payment card (M, about 150 lines)
 
-- **Changes:** an approval with `pattern_key == "mcp_elicitation"` whose command starts with `Fill payment card '` is a payment. `PaymentCard` shows "Pay at <host>?", the card label, and amount, merchant and reason taken from the latest `browser_vault` `tool.start` arguments in the transcript (hidden if missing). Buttons: **Deny** and **Approve Once** (sends `once`). Used in bot chats and group rooms.
+- **Changes:** an approval with `pattern_key == "mcp_elicitation"` whose command starts with `Fill payment card '` is a payment. `PaymentCard` shows "Pay at <host>?", the card label, and amount, merchant and reason taken from the latest `browser_vault` `tool.start` arguments in the transcript (hidden if missing). Buttons: **Deny** and **Approve Once** (sends `once`). Rendered wherever approvals render (bot chats and group rooms), though step 2 only lets payments run in Bot Chat.
 - **Files:** `Sources/Chat/RequestCards.swift`, `Sources/Chat/ChatSession.swift` (`ApprovalParams.patternKey`), `Sources/Groups/GroupSession.swift`, `Sources/Chat/ChatFixtures.swift` (snapshot `chat-payment`), a parser test in `Tests/`, a Decisions line in `docs/PLAN.md`.
 - **Server:** none.
-- **Verify:** `./build.sh` with no warnings; `./snapshot.sh chat-payment` light and dark; the step 1 flow on crew-test shows the payment card with the amount; `./device.sh`.
+- **Verify:** `./build.sh` with no warnings; `./snapshot.sh chat-payment` light and dark; the step 1 flow on crew-test shows the payment card with the amount, also when Crew is opened cold from the push (if the in-flight `tool.start` is not replayed, the amount is hidden); `./device.sh`.
 
 ### 4. One card per shop (M, about 80 Python and 150 Swift lines)
 
@@ -90,11 +90,13 @@ ssh root@mainframe systemctl restart hermes.service
 - **Files:** `server/crew-push/dashboard/plugin_api.py`, `tests/test_routes.py`, version files; `Sources/Inspector/BotInspector.swift`, new `Sources/Inspector/Shops.swift`, `Sources/Inspector/InspectorSnapshots.swift`, a Decisions line in `docs/PLAN.md`.
 - **Server:** add the master card once, to the launch profile's vault, with no origin. Use the 4242 test card until step 4 is verified, then replace it with the real virtual card. Remove the step 1 card. Deploy crew-push.
   ```sh
-  ssh -t root@mainframe podman exec -it <ctr> hermes vault add      # kind payment, label Shopping card, origin empty
-  ssh -t root@mainframe podman exec -it <ctr> hermes vault list
-  ssh -t root@mainframe podman exec -it <ctr> hermes -p crew-test vault list
-  ssh -t root@mainframe podman exec -it <ctr> hermes -p crew-test vault rm <id of Test 4242>
+  ssh -t mainframe podman exec -it <ctr> hermes vault add      # kind payment, label Shopping card, origin empty
+  ssh -t mainframe podman exec -it <ctr> hermes vault list
+  ssh -t mainframe podman exec -it <ctr> hermes -p crew-test vault list
+  ssh -t mainframe podman exec -it <ctr> hermes -p crew-test vault rm <id of Test 4242>
   ```
+  `hermes vault add` is interactive only (`getpass`). The non-interactive path, for the planned 1Password export CLI, is `VaultStore(Path("/opt/data/vault")).add_item(kind="payment", label=..., secret={"card_number", "exp_month", "exp_year", "cvc", "cardholder_name"})` from `agent.vault_store`, run with `/opt/hermes/.venv/bin/python` in `/opt/hermes` inside the container, without `origin` for the master.
+
   If the default profile is a bot, it sees "Shopping card" in `browser_vault list` but cannot fill it (`no_origin`).
 - **Verify on crew-test:** add `gustaferiksson.github.io` in the inspector, then the step 1 purchase works end to end; adding it twice, `http://` or an IP is refused; POST without a login gives 401; `hermes -p crew-test vault list` shows the copy with its origin.
 

@@ -190,13 +190,7 @@ struct CrewMap: View {
             guard let result = try? await MKMapSnapshotter(options: options).start() else { return }
             var pins: [MapPin] = []
             for marker in markers {
-                let projected = result.point(for: marker.coordinate)
-                #if os(macOS)
-                // AppKit snapshots project with a bottom-left origin.
-                let point = CGPoint(x: projected.x, y: size.height - projected.y)
-                #else
-                let point = projected
-                #endif
+                let point = pinPoint(result.point(for: marker.coordinate), in: size)
                 if let near = pins.firstIndex(where: { hypot($0.point.x - point.x, $0.point.y - point.y) < 24 }) {
                     pins[near].titles.append(marker.title)
                 } else {

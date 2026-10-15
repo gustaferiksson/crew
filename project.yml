@@ -1,6 +1,7 @@
 name: Crew
 options:
   bundleIdPrefix: dev.gustaf
+  createIntermediateGroups: true
   deploymentTarget:
     iOS: "27.0"
     macOS: "27.0"
@@ -18,6 +19,13 @@ settings:
     CURRENT_PROJECT_VERSION: "1"
     DEVELOPMENT_TEAM: ""
     CODE_SIGN_STYLE: Automatic
+schemes:
+  CrewTests:
+    build:
+      targets:
+        CrewTests: [test]
+    test:
+      targets: [CrewTests]
 targets:
   Crew:
     type: application
@@ -67,3 +75,31 @@ targets:
           OTHER_CODE_SIGN_FLAGS[sdk=macosx*]: --timestamp
           CODE_SIGN_IDENTITY[sdk=iphoneos*]: Apple Distribution
           PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]: Crew Ad Hoc
+  CrewTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - Sources/Gateway.swift
+      - Sources/GatewayTypes.swift
+      - Sources/Hermes.swift
+      - Sources/BotStore.swift
+      - Sources/Profile/ProfileTypes.swift
+      - Sources/Chat/Transcript.swift
+      - Sources/Chat/Attachments.swift
+      - Sources/Chat/AttachmentViews.swift
+      - Sources/Chat/ChatSession.swift
+      - Sources/Chat/Composer.swift
+      - Sources/Chat/Dictation.swift
+      - Sources/Chat/RequestCards.swift
+      - Sources/Chat/Mentions.swift
+      - Sources/Profile/ProfileDraft.swift
+      - Sources/Profile/CrewUISkill.swift
+      - Sources/AvatarShape.swift
+      - Sources/BotAvatar.swift
+      - Sources/AvatarView.swift
+      - Sources/Chat/A2UI/MapPinPoint.swift
+      - Tests/CrewTests
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.gustaf.crew-tests
+        GENERATE_INFOPLIST_FILE: YES

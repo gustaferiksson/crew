@@ -141,7 +141,7 @@ struct BotsView: View {
             NavigationStack {
                 Group {
                     if let selected {
-                        ChatScreen(bot: selected, models: models, showsBot: $showsBot)
+                        ChatScreen(bot: selected, models: models, showsBot: $showsBot) { selection = $0 }
                     } else if let selectedRoom {
                         GroupChatScreen(room: selectedRoom, showsInspector: $showsBot) { selection = $0 }
                     } else {

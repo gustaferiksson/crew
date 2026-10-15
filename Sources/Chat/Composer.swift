@@ -98,7 +98,7 @@ struct Composer: View {
             }
             let mentioned = mentionedBots(in: draft, among: mentionable)
             if !mentioned.isEmpty {
-                MentionChips(bots: mentioned)
+                MentionChips(bots: mentioned) { draft = removingMention(of: $0, from: draft) }
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             GlassEffectContainer(spacing: rowSpacing) {

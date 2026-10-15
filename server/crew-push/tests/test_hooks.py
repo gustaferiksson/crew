@@ -36,9 +36,9 @@ def hermes_helpers(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def turn(push: CrewPush, reply: str = "**Done.** See `out.txt`.", platform: str = "tui",
-         session_id: str = SESSION, **end: Any) -> None:
-    push.pre_llm_call(session_id=session_id, platform=platform, telemetry_schema_version=1)
-    push.post_llm_call(session_id=session_id, assistant_response=reply, user_message="hi")
+         session_id: str = SESSION, user_message: str = "hi", **end: Any) -> None:
+    push.pre_llm_call(session_id=session_id, platform=platform, user_message=user_message, telemetry_schema_version=1)
+    push.post_llm_call(session_id=session_id, assistant_response=reply, user_message=user_message)
     push.on_session_end(**{"session_id": session_id, "turn_id": "t1", "completed": True, "failed": False,
                            "interrupted": False, "platform": platform, **end})
 
@@ -165,6 +165,35 @@ def test_subagent_turns_are_muted(push: CrewPush, enqueued: list) -> None:
     push.subagent_start(parent_session_id=SESSION, child_session_id="child-1")
     turn(push, session_id="child-1")
     assert enqueued == []
+
+
+AGENT_MESSAGES = [
+    "Message from 🤖 Crew Test (@crew-test): The user is greeting you—please say hello back.",
+    "Message from Ada (@ada@studio):\nMultiline\nbody",
+    "[Message from agent 'scout'] Done.",
+]
+
+
+@pytest.mark.parametrize("message", AGENT_MESSAGES)
+@pytest.mark.parametrize("end", [{}, {"completed": False, "failed": True}])
+def test_turns_answering_another_bot_are_muted(push: CrewPush, enqueued: list, message: str, end: dict) -> None:
+    turn(push, user_message=message, **end)
+    assert enqueued == []
+
+
+def test_turn_answering_another_bot_still_asks_the_user(push: CrewPush, enqueued: list) -> None:
+    push.pre_llm_call(session_id=SESSION, platform="tui", user_message=AGENT_MESSAGES[0])
+    push.pre_approval_request(command="ls", session_id=SESSION, session_key=SESSION, surface="gateway",
+                              tool_call_id="call-1")
+    push.pre_tool_call(tool_name="clarify", args={"question": "Which day?"}, session_id=SESSION, tool_call_id="c1")
+    push.on_session_end(session_id=SESSION, turn_id="t1", completed=True, platform="tui")
+    assert [p["crew"]["kind"] for _, _, p in enqueued] == ["approval", "clarify"]
+
+
+def test_next_human_turn_pushes_again(push: CrewPush, enqueued: list) -> None:
+    turn(push, user_message=AGENT_MESSAGES[0])
+    turn(push, user_message="Message from the team was great", turn_id="t2")
+    assert [p["crew"]["kind"] for _, _, p in enqueued] == ["reply"]
 
 
 def test_smart_approvals_are_skipped(push: CrewPush, enqueued: list) -> None:

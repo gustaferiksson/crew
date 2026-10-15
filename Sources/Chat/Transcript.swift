@@ -140,11 +140,14 @@ nonisolated func noticeText(kind: String?, content: String) -> String? {
     if kind == "auto_continue" { return String(localized: "Resumed interrupted turn") }
     if kind == "async_delegation_complete" { return String(localized: "Background work finished") }
     if kind == "process_complete" { return String(localized: "Background process finished") }
-    if let message = AgentMessage(content) { return String(localized: "Message from \(message.sender)") }
     return nil
 }
 
 extension Transcript {
+    var visible: Transcript {
+        Transcript(turns: turns.filter { $0.agentMessage == nil })
+    }
+
     init(history rows: [HistoryRow]) {
         self.init()
         for row in rows.sorted(by: { $0.id < $1.id }) {

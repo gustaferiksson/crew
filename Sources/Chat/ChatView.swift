@@ -280,7 +280,9 @@ struct TurnView: View {
                 }
             }
             VStack(alignment: .leading, spacing: 16) {
-                if let notice = turn.notice {
+                if let message = turn.agentMessage {
+                    AgentMessageNotice(message: message)
+                } else if let notice = turn.notice {
                     Text(notice)
                         .font(.caption)
                         .foregroundStyle(.secondary)

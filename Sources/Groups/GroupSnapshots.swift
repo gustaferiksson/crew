@@ -34,13 +34,19 @@ struct GroupChatFixtureScreen: View {
             RoomEvent(seq: seq, eventID: "e\(seq)", kind: kind, actor: RoomEvent.Actor(profile: profile), payload: payload, createdAt: start.addingTimeInterval(Double(seq * 40)))
         }
         let events = [
-            event(1, "message.user", nil, RoomEvent.Payload(text: "Can we ship 0.4.2 today? @forge can you check the publish?")),
-            event(2, "message.member", "ada", RoomEvent.Payload(text: "The migration dry run passed on staging, so the database side is ready.")),
-            event(3, "message.member", "scout", RoomEvent.Payload(text: "No open regressions in the tracker since Monday.")),
+            event(1, "message.user", nil, RoomEvent.Payload(text: "Can we ship 0.4.2 today? @forge can you check the publish?", threadID: "main")),
+            event(2, "message.member", "ada", RoomEvent.Payload(text: "The migration dry run passed on staging, so the database side is ready.", memberID: "ada", threadID: "main", taskID: "t-ada")),
+            event(3, "turn.deferred", nil, RoomEvent.Payload(memberID: "scout", threadID: "main", taskID: "t-scout")),
         ]
         let approval = ApprovalParams(command: "npm publish --tag latest", description: "Publishes crew-api 0.4.2 to the public registry.", choices: ["once", "deny"], toolName: "terminal")
-        let action = RoomAction(kind: "approval", memberID: "forge", taskID: "t1", executionGeneration: 1, requestID: "r1", approval: approval)
-        return GroupChatScreen(room: room, showsInspector: .constant(false), session: GroupSession(fixture: room, events: events, actions: [action], isWorking: true)) { _ in }
+        let actions = [
+            RoomAction(kind: "approval", memberID: "forge", taskID: "t-forge", executionGeneration: 1, requestID: "r1", approval: approval),
+            RoomAction(kind: "retry", memberID: nil, taskID: "t-scout", executionGeneration: nil, requestID: nil, approval: nil),
+        ]
+        let session = Snapshot.requested == .groupWelcome
+            ? GroupSession(fixture: room, events: [], actions: [], isWorking: false)
+            : GroupSession(fixture: room, events: events, actions: actions, isWorking: true)
+        return GroupChatScreen(room: room, showsInspector: .constant(false), session: session) { _ in }
     }
 }
 

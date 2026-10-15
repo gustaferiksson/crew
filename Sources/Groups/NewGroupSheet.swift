@@ -71,7 +71,12 @@ struct NewGroupSheet: View {
                 } header: {
                     Text("Members")
                 } footer: {
-                    Text("Pick 2 to 6 bots. Members can't change after the group is created.")
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Pick 2 to 6 bots. Members can't change after the group is created.")
+                        if store.bots.contains(where: { $0.meta.hidden != true && $0.name.contains("_") }) {
+                            Text("Bots with “_” in their profile id can't join: group member ids don't allow it.")
+                        }
+                    }
                 }
             }
             .formStyle(.grouped)

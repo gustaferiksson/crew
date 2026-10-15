@@ -42,7 +42,7 @@ nonisolated private struct RoomList: Decodable, Sendable {
     let rooms: [Room]
 }
 
-nonisolated private struct CreatedRoom: Decodable, Sendable {
+nonisolated private struct RoomReply: Decodable, Sendable {
     let room: Room
 }
 
@@ -53,6 +53,26 @@ nonisolated private struct CreateRoomParams: Encodable, Sendable {
 
     private enum CodingKeys: String, CodingKey {
         case name, members
+        case roomID = "room_id"
+    }
+}
+
+nonisolated private struct RenameRoomParams: Encodable, Sendable {
+    let roomID: String
+    let eventID: String
+    let name: String
+
+    private enum CodingKeys: String, CodingKey {
+        case name
+        case roomID = "room_id"
+        case eventID = "event_id"
+    }
+}
+
+nonisolated private struct DisbandRoomParams: Encodable, Sendable {
+    let roomID: String
+
+    private enum CodingKeys: String, CodingKey {
         case roomID = "room_id"
     }
 }
@@ -90,9 +110,20 @@ final class GroupStore {
     func create(named name: String, with bots: [Bot], via gateway: Gateway) async throws -> Room {
         let members = bots.map { RoomMember(memberID: $0.name, profile: $0.name, handle: $0.handle, displayName: $0.title) }
         let params = CreateRoomParams(roomID: "room-\(UUID().uuidString.lowercased())", name: name, members: members)
-        let room = try await gateway.call("groups.create", params, as: CreatedRoom.self).room
+        let room = try await gateway.call("groups.create", params, as: RoomReply.self).room
         rooms.insert(room, at: 0)
         return room
+    }
+
+    func rename(_ room: Room, to name: String, via gateway: Gateway) async throws {
+        let params = RenameRoomParams(roomID: room.id, eventID: "crew-rename-\(UUID().uuidString.lowercased())", name: name)
+        let renamed = try await gateway.call("groups.rename", params, as: RoomReply.self).room
+        if let index = rooms.firstIndex(where: { $0.id == renamed.id }) { rooms[index] = renamed }
+    }
+
+    func disband(_ room: Room, via gateway: Gateway) async throws {
+        _ = try await gateway.call("groups.disband", DisbandRoomParams(roomID: room.id), as: JSONValue.self)
+        rooms.removeAll { $0.id == room.id }
     }
 
     func reset() {

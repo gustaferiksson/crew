@@ -34,6 +34,7 @@ enum Snapshot: String {
     case notifications
     case newBot = "new-bot"
     case groupChat = "group-chat"
+    case groupInspector = "group-inspector"
 
     static let requested = UserDefaults.standard.string(forKey: "snapshot").flatMap(Snapshot.init(rawValue:))
 
@@ -50,7 +51,7 @@ enum Snapshot: String {
         if self == .loginUnreachable {
             return Connection(fixture: .signedOut, server: server, signInError: .unreachable(host: "hermes.example.com"))
         }
-        if [.sidebar, .sidebarFlat, .layout, .layoutInspector, .inspectorLook, .profileSkills, .botPage, .notifications, .newBot, .groupChat].contains(self) || chatFixture != nil || inspectorTab != nil { return Connection(fixture: .connected, server: server) }
+        if [.sidebar, .sidebarFlat, .layout, .layoutInspector, .inspectorLook, .profileSkills, .botPage, .notifications, .newBot, .groupChat, .groupInspector].contains(self) || chatFixture != nil || inspectorTab != nil { return Connection(fixture: .connected, server: server) }
         if self == .unreachable { return Connection(fixture: .unreachable, server: server) }
         return Connection(fixture: .signedOut, server: server)
     }

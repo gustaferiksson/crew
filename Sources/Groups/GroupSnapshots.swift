@@ -40,6 +40,29 @@ struct GroupChatFixtureScreen: View {
         ]
         let approval = ApprovalParams(command: "npm publish --tag latest", description: "Publishes crew-api 0.4.2 to the public registry.", choices: ["once", "deny"], toolName: "terminal")
         let action = RoomAction(kind: "approval", memberID: "forge", taskID: "t1", executionGeneration: 1, requestID: "r1", approval: approval)
-        return GroupChatScreen(room: room, session: GroupSession(fixture: room, events: events, actions: [action], isWorking: true))
+        return GroupChatScreen(room: room, showsInspector: .constant(false), session: GroupSession(fixture: room, events: events, actions: [action], isWorking: true)) { _ in }
+    }
+}
+
+struct GroupInspectorFixtureScreen: View {
+    var body: some View {
+        #if os(macOS)
+        NavigationStack {
+            ContentUnavailableView("Chat", systemImage: "bubble.left.and.bubble.right")
+                .inspector(isPresented: .constant(true)) {
+                    NavigationStack { inspector }
+                        .inspectorColumnWidth(min: inspectorWidth.min, ideal: inspectorWidth.ideal, max: inspectorWidth.max)
+                }
+        }
+        #else
+        NavigationStack(path: .constant([0])) {
+            Text("Crew")
+                .navigationDestination(for: Int.self) { _ in inspector }
+        }
+        #endif
+    }
+
+    private var inspector: some View {
+        GroupInspector(room: Snapshot.fixtureRoom, isPresented: .constant(true)) { _ in }
     }
 }

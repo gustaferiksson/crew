@@ -29,6 +29,8 @@ struct RootView: View {
                 NewBotFixture()
             } else if Snapshot.requested == .groupChat {
                 GroupChatFixtureScreen()
+            } else if Snapshot.requested == .groupInspector {
+                GroupInspectorFixtureScreen()
             } else if connection.state == .signedOut {
                 LoginView()
             } else {

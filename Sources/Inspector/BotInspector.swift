@@ -487,7 +487,7 @@ private struct BotInfo: View {
     }
 }
 
-private struct Card<Content: View>: View {
+struct Card<Content: View>: View {
     let title: LocalizedStringKey
     var footer: LocalizedStringKey?
     @ViewBuilder let content: Content

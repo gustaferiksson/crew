@@ -12,6 +12,7 @@ nonisolated struct Turn: Identifiable, Codable, Sendable, Equatable {
     var id: String
     var prompt: Prompt?
     var notice: String?
+    var agentMessage: AgentMessage?
     var hiddenText: String?
     var work: [WorkItem] = []
     var reply = ""
@@ -28,6 +29,21 @@ nonisolated struct Prompt: Codable, Sendable, Equatable {
     var sentAt: Date
     var attachments: [Attachment] = []
     var mentionNote = ""
+}
+
+nonisolated struct AgentMessage: Codable, Sendable, Equatable {
+    var sender: String
+    var handle: String
+    var body: String
+
+    init?(_ text: String) {
+        let pattern = /(?s)(?:Message from (?:🤖\s*)?([^:\n(]{1,64}?)(?:\s*\(@([a-z0-9][a-z0-9_-]{0,63})(?:@[a-zA-Z0-9][a-zA-Z0-9_-]{0,63})?\))?:\s*|\[Message from agent '([^']{1,64})'\]\s*)(.*)/
+        guard let match = text.trimmingCharacters(in: .whitespacesAndNewlines).wholeMatch(of: pattern) else { return nil }
+        sender = String(match.1 ?? match.3 ?? "agent").trimmingCharacters(in: .whitespaces)
+        let handle = String(match.2 ?? match.3 ?? Substring(sender)).trimmingCharacters(in: .whitespaces).lowercased()
+        self.handle = handle == "hermes" ? "default" : handle
+        body = match.4.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
 }
 
 nonisolated struct WorkItem: Identifiable, Codable, Sendable, Equatable {
@@ -124,6 +140,7 @@ nonisolated func noticeText(kind: String?, content: String) -> String? {
     if kind == "auto_continue" { return String(localized: "Resumed interrupted turn") }
     if kind == "async_delegation_complete" { return String(localized: "Background work finished") }
     if kind == "process_complete" { return String(localized: "Background process finished") }
+    if let message = AgentMessage(content) { return String(localized: "Message from \(message.sender)") }
     return nil
 }
 
@@ -141,7 +158,7 @@ extension Transcript {
                 let notice = noticeText(kind: row.displayKind, content: text)
                 let prompt = notice == nil && row.displayKind != "hidden" ? Prompt(raw: text, sentAt: date) : nil
                 let hiddenText = row.displayKind == "hidden" ? row.content ?? text : nil
-                turns.append(Turn(id: String(row.id), prompt: prompt, notice: notice, hiddenText: hiddenText, status: .complete, startedAt: date, finishedAt: date))
+                turns.append(Turn(id: String(row.id), prompt: prompt, notice: notice, agentMessage: AgentMessage(text), hiddenText: hiddenText, status: .complete, startedAt: date, finishedAt: date))
                 continue
             }
             if row.role == "assistant" {
@@ -182,7 +199,7 @@ extension Transcript {
         let notice = noticeText(kind: displayKind, content: user)
         let prompt = Prompt(raw: user, sentAt: date)
         let isShown = notice == nil && displayKind != "hidden" && (!prompt.text.isEmpty || !prompt.attachments.isEmpty)
-        turns.append(Turn(id: UUID().uuidString, prompt: isShown ? prompt : nil, notice: notice, hiddenText: displayKind == "hidden" ? user : nil, status: .streaming, startedAt: date))
+        turns.append(Turn(id: UUID().uuidString, prompt: isShown ? prompt : nil, notice: notice, agentMessage: AgentMessage(user), hiddenText: displayKind == "hidden" ? user : nil, status: .streaming, startedAt: date))
     }
 
     mutating func apply(_ event: TurnEvent, at date: Date = .now) {

@@ -2,7 +2,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 enum ChatFixture {
-    case conversation, history, timestamps, workLog, question, offline, attachments, dictation, mentions, a2ui, a2uiCards, a2uiForm, a2uiTable, a2uiChart, a2uiMap
+    case conversation, history, timestamps, workLog, question, offline, attachments, dictation, mentions, agentMessage, a2ui, a2uiCards, a2uiForm, a2uiTable, a2uiChart, a2uiMap
 
     var presentation: ChatPresentation {
         if self == .history { return ChatPresentation(scrollTarget: "t1") }
@@ -53,6 +53,7 @@ enum ChatFixture {
         if [.a2ui, .a2uiCards, .a2uiForm, .a2uiTable, .a2uiChart, .a2uiMap].contains(self) { return Transcript(turns: Self.a2uiTurns(now)) }
         if self == .attachments { return Transcript(turns: [greeting(now.addingTimeInterval(-26 * 3600)), receipt(now.addingTimeInterval(-6 * 60))]) }
         if self == .mentions { return Transcript(turns: [greeting(now.addingTimeInterval(-26 * 3600)), handoff(now.addingTimeInterval(-6 * 60))]) }
+        if self == .agentMessage { return Transcript(turns: [greeting(now.addingTimeInterval(-26 * 3600)), relay(now.addingTimeInterval(-4 * 60))]) }
         return Transcript(turns: turns + [deploy(now.addingTimeInterval(-48))])
     }
 
@@ -201,6 +202,19 @@ enum ChatFixture {
             status: .complete,
             startedAt: start,
             finishedAt: start.addingTimeInterval(5)
+        )
+    }
+
+    private func relay(_ start: Date) -> Turn {
+        let text = "Message from 🤖 Scout (@scout): Found three flights to Lofoten under 2 000 kr for the weekend. Can you check them against the calendar?"
+        return Turn(
+            id: "t8",
+            notice: noticeText(kind: "internal_notification", content: text),
+            agentMessage: AgentMessage(text),
+            reply: "Friday's 07:10 departure fits: the calendar is clear from Thursday evening. I'll let Scout know.",
+            status: .complete,
+            startedAt: start,
+            finishedAt: start.addingTimeInterval(6)
         )
     }
 

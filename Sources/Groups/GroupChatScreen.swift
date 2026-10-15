@@ -28,14 +28,18 @@ struct GroupAvatar: View {
 
 struct GroupChatScreen: View {
     let room: Room
+    @Binding var showsInspector: Bool
+    let select: (Bot.ID) -> Void
 
     @Environment(Connection.self) private var connection
     @Environment(BotStore.self) private var bots
     @State private var session: GroupSession?
     @State private var showsOffline = false
 
-    init(room: Room, session: GroupSession? = nil) {
+    init(room: Room, showsInspector: Binding<Bool>, session: GroupSession? = nil, select: @escaping (Bot.ID) -> Void) {
         self.room = room
+        _showsInspector = showsInspector
+        self.select = select
         _session = State(initialValue: session)
     }
 
@@ -61,9 +65,15 @@ struct GroupChatScreen: View {
             actions: ChatActions(
                 send: { text, _, _, _ in session?.send(text) },
                 stop: { session?.stop() },
+                openPersona: { showsInspector.toggle() },
                 respond: { session?.respond(to: $0, with: $1) }
             )
         )
+        #if os(iOS)
+        .navigationDestination(isPresented: $showsInspector) {
+            GroupInspector(room: room, isPresented: $showsInspector, select: select)
+        }
+        #endif
         .task(id: connection.gateway.map(ObjectIdentifier.init)) {
             guard let gateway = connection.gateway else { return }
             let session = GroupSession(room: room, gateway: gateway)

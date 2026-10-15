@@ -143,7 +143,7 @@ struct BotsView: View {
                     if let selected {
                         ChatScreen(bot: selected, models: models, showsBot: $showsBot)
                     } else if let selectedRoom {
-                        GroupChatScreen(room: selectedRoom)
+                        GroupChatScreen(room: selectedRoom, showsInspector: $showsBot) { selection = $0 }
                     } else {
                         ContentUnavailableView("No Bot Selected", systemImage: "bubble.left.and.bubble.right", description: Text("Choose a bot to start chatting."))
                     }
@@ -157,12 +157,17 @@ struct BotsView: View {
             .navigationSplitViewColumnWidth(min: 320, ideal: 640)
         }
         #if os(macOS)
-        .inspector(isPresented: Binding(get: { showsBot && selected != nil }, set: { showsBot = $0 })) {
-            if let selected {
-                BotInspector(bot: selected, models: models, isPresented: $showsBot)
-                    .id(selected.id)
-                    .inspectorColumnWidth(min: inspectorWidth.min, ideal: inspectorWidth.ideal, max: inspectorWidth.max)
+        .inspector(isPresented: Binding(get: { showsBot && (selected != nil || selectedRoom != nil) }, set: { showsBot = $0 })) {
+            Group {
+                if let selected {
+                    BotInspector(bot: selected, models: models, isPresented: $showsBot)
+                        .id(selected.id)
+                } else if let selectedRoom {
+                    GroupInspector(room: selectedRoom, isPresented: $showsBot) { selection = $0 }
+                        .id(selectedRoom.id)
+                }
             }
+            .inspectorColumnWidth(min: inspectorWidth.min, ideal: inspectorWidth.ideal, max: inspectorWidth.max)
         }
         .onReceive(NotificationCenter.default.publisher(for: .measureInspector)) { showsBot = $0.object as? Bool ?? false }
         #endif
@@ -201,6 +206,9 @@ struct BotsView: View {
         #endif
         .onChange(of: store.bots.map(\.id)) { _, ids in
             if store.isLoaded, let selection, !ids.contains(selection), selectedRoom == nil { self.selection = nil }
+        }
+        .onChange(of: groups.rooms.map(\.selectionID)) { _, ids in
+            if let selection, selection.hasPrefix("group:"), !ids.contains(selection) { self.selection = nil }
         }
         .onChange(of: selected) { _, bot in
             if let bot { store.markSeen(bot) }

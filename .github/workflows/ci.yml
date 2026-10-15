@@ -18,6 +18,9 @@ jobs:
       - name: Build (fails on any warning)
         run: ./build.sh
 
+      - name: Test
+        run: xcodebuild test -project Crew.xcodeproj -scheme CrewTests -derivedDataPath .build -destination 'platform=macOS,arch=arm64' -skipPackagePluginValidation -skipMacroValidation
+
   plugin:
     name: crew-push tests
     runs-on: ubuntu-latest
@@ -41,6 +44,17 @@ jobs:
             "$(python -c 'import json; print(json.load(open("dashboard/manifest.json"))["version"])')")
           echo "$versions"
           [ "$(echo "$versions" | grep -c .)" = 4 ] && [ "$(echo "$versions" | sort -u | grep -c .)" = 1 ]
+
+      - name: crew-ui skill frontmatter
+        working-directory: .
+        run: |
+          set -euo pipefail
+          frontmatter=$(awk 'NR == 1 && $0 == "---" { next } $0 == "---" { exit } { print }' Sources/Profile/crew-ui.SKILL.md)
+          name=$(echo "$frontmatter" | sed -nE 's/^name: *(.*)$/\1/p')
+          version=$(echo "$frontmatter" | sed -nE 's/^version: *(.*)$/\1/p')
+          description=$(echo "$frontmatter" | sed -nE 's/^description: *(.*)$/\1/p')
+          echo "name=$name version=$version description(${#description})=$description"
+          [ -n "$name" ] && [ -n "$version" ] && [ -n "$description" ] && [ "${#description}" -le 60 ]
 
       - name: Install test dependencies
         run: pip install pytest httpx h2 'PyJWT[crypto]' fastapi

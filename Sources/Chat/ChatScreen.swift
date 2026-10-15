@@ -35,12 +35,12 @@ struct ChatScreen: View {
         ChatView(
             botName: live.title,
             avatar: BotAvatar(bot: live, status: status, photo: bots.photos[bot.id], size: 28),
-            transcript: session?.transcript ?? Transcript(),
+            transcript: session?.transcript.visible ?? Transcript(),
             emptyState: EmptyView(),
             mentionable: bots.bots.filter { $0.id != bot.id },
             request: session?.request,
             offlineReason: offlineReason,
-            activity: session?.statusLine ?? session?.generatingTool.map { String(localized: "Preparing \($0.replacing("_", with: " "))") },
+            activity: session?.transcript.turns.last?.agentMessage != nil ? nil : session?.statusLine ?? session?.generatingTool.map { String(localized: "Preparing \($0.replacing("_", with: " "))") },
             models: models,
             presentation: Snapshot.requested == .layoutInspector ? ChatPresentation(scrollTarget: "t1") : ChatPresentation(),
             actions: ChatActions(

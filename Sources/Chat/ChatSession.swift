@@ -85,7 +85,7 @@ final class ChatSession {
         let prompt = Prompt(text: text.trimmingCharacters(in: .whitespacesAndNewlines), sentAt: .now, attachments: attachments, mentionNote: mentionNote(for: bots))
         guard !prompt.text.isEmpty || !attachments.isEmpty, let runtime else { return }
         guard isRunning else { return submit(prompt) }
-        if mode == .queue || !attachments.isEmpty { return queue.append(prompt) }
+        if mode == .queue || !attachments.isEmpty || transcript.turns.last?.agentMessage != nil { return queue.append(prompt) }
         Task {
             do {
                 _ = try await gateway.call("session.steer", ["session_id": runtime.rawValue, "text": prompt.text], as: JSONValue.self)

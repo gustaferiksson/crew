@@ -44,6 +44,10 @@ MARKDOWN = (
 )
 
 
+AGENT_MESSAGE = re.compile(r"Message from (?:🤖\s*)?[^:\n(]{1,64}?(?:\s*\(@[a-z0-9][a-z0-9_-]{0,63}"
+                           r"(?:@[a-zA-Z0-9][a-zA-Z0-9_-]{0,63})?\))?:|\[Message from agent '[^']{1,64}'\]")
+
+
 def plain(markdown: str) -> str:
     text = markdown
     for pattern, replacement in MARKDOWN:
@@ -184,11 +188,15 @@ class CrewPush:
         self.subagents = Recent()
         self.sent = Recent()
         self.bot_chats = Recent()
+        self.agent_turns = Recent()
 
     @quiet
-    def pre_llm_call(self, *, session_id: str = "", platform: str = "", **_: Any) -> None:
-        if session_id and platform:
-            with self.lock:
+    def pre_llm_call(self, *, session_id: str = "", platform: str = "", user_message: Any = "", **_: Any) -> None:
+        if not session_id:
+            return
+        with self.lock:
+            self.agent_turns.remember(session_id, bool(AGENT_MESSAGE.match(str(user_message or "").strip())))
+            if platform:
                 self.platforms.remember(session_id, platform.lower())
 
     @quiet
@@ -208,10 +216,11 @@ class CrewPush:
                        platform: str = "", **_: Any) -> None:
         with self.lock:
             reply = self.replies.pop(session_id, "")
+            from_agent = self.agent_turns.pop(session_id, False)
             if session_id and platform:
                 self.platforms.remember(session_id, platform.lower())
         ref = turn_id or str(int(time.time()))
-        if interrupted or session_id in self.subagents:
+        if interrupted or from_agent or session_id in self.subagents:
             return
         if self.platforms.get(session_id) == "cron":
             body = plain(reply) or ("The routine failed." if failed else "The routine finished.")

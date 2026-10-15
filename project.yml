@@ -98,6 +98,8 @@ targets:
       - Sources/BotAvatar.swift
       - Sources/AvatarView.swift
       - Sources/Chat/A2UI/MapPinPoint.swift
+      - Sources/Groups/GroupStore.swift
+      - Sources/Groups/GroupSession.swift
       - Tests/CrewTests
     settings:
       base:

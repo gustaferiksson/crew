@@ -35,6 +35,7 @@ struct ChatScreen: View {
             botName: live.title,
             avatar: BotAvatar(bot: live, status: status, photo: bots.photos[bot.id], size: 28),
             transcript: session?.transcript ?? Transcript(),
+            emptyState: EmptyView(),
             mentionable: bots.bots.filter { $0.id != bot.id },
             request: session?.request,
             offlineReason: offlineReason,

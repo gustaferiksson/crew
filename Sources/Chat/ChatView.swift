@@ -9,6 +9,7 @@ struct ChatActions {
     var openPersona: () -> Void = {}
     var changeModel: (ModelChoice) -> Void = { _ in }
     var respond: (ApprovalRequest.ID, ApprovalChoice) -> Void = { _, _ in }
+    var retry: (String) -> Void = { _ in }
     var answer: (QuestionRequest.ID, [String: String]) -> Void = { _, _ in }
 }
 
@@ -34,10 +35,11 @@ private let separatorFormatter = {
     return formatter
 }()
 
-struct ChatView<Avatar: View>: View {
+struct ChatView<Avatar: View, EmptyState: View>: View {
     let botName: String
     let avatar: Avatar
     let transcript: Transcript
+    let emptyState: EmptyState
     let mentionable: [Bot]
     var features: ComposerFeatures
     var request: PendingRequest?
@@ -59,10 +61,11 @@ struct ChatView<Avatar: View>: View {
     @State private var surfaces = SurfaceStore()
     private let presentation: ChatPresentation
 
-    init(botName: String, avatar: Avatar, transcript: Transcript, mentionable: [Bot], features: ComposerFeatures = .all, request: PendingRequest? = nil, offlineReason: String? = nil, activity: String? = nil, models: ModelSwitcher? = nil, presentation: ChatPresentation = ChatPresentation(), actions: ChatActions = ChatActions()) {
+    init(botName: String, avatar: Avatar, transcript: Transcript, emptyState: EmptyState, mentionable: [Bot], features: ComposerFeatures = .all, request: PendingRequest? = nil, offlineReason: String? = nil, activity: String? = nil, models: ModelSwitcher? = nil, presentation: ChatPresentation = ChatPresentation(), actions: ChatActions = ChatActions()) {
         self.botName = botName
         self.avatar = avatar
         self.transcript = transcript
+        self.emptyState = emptyState
         self.mentionable = mentionable
         self.features = features
         self.request = request
@@ -112,7 +115,8 @@ struct ChatView<Avatar: View>: View {
                                     mentionable: mentionable,
                                     expandedTurns: $expandedTurns,
                                     expandedWork: $expandedWork,
-                                    expandedRuns: $expandedRuns
+                                    expandedRuns: $expandedRuns,
+                                    retry: actions.retry
                                 )
                             }
                             .id(turn.id)
@@ -167,6 +171,9 @@ struct ChatView<Avatar: View>: View {
                 guard features.contains(.attachments) else { return false }
                 tray.add(urls)
                 return true
+            }
+            .overlay {
+                if transcript.turns.isEmpty { emptyState }
             }
             .safeAreaBar(edge: .bottom) {
                 VStack(spacing: 8) {
@@ -252,6 +259,7 @@ struct TurnView: View {
     @Binding var expandedTurns: Set<Turn.ID>
     @Binding var expandedWork: Set<WorkItem.ID>
     @Binding var expandedRuns: Set<String>
+    var retry: (String) -> Void = { _ in }
 
     @Environment(BotStore.self) private var bots
 
@@ -309,9 +317,15 @@ struct TurnView: View {
                         .modifier(Timestamp(date: turn.finishedAt ?? turn.startedAt, reveal: reveal, width: timestampWidth))
                 }
                 if turn.status == .error {
-                    Label(turn.failure ?? "Something went wrong.", systemImage: "exclamationmark.triangle.fill")
-                        .font(.footnote)
-                        .foregroundStyle(.red)
+                    HStack(spacing: 8) {
+                        Label(turn.failure ?? "Something went wrong.", systemImage: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.red)
+                        if let retryID = turn.retryID {
+                            Button("Retry") { retry(retryID) }
+                                .buttonStyle(.borderless)
+                        }
+                    }
+                    .font(.footnote)
                 }
                 if turn.status == .interrupted {
                     Label("Stopped", systemImage: "stop.circle")

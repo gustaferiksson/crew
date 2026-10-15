@@ -265,6 +265,7 @@ struct ChatFixtureScreen: View {
                 size: 28
             ),
             transcript: fixture.transcript,
+            emptyState: EmptyView(),
             mentionable: bots.bots.filter { $0.id != "default" },
             request: fixture.request,
             offlineReason: fixture == .offline ? "Can't reach hermes.example.com" : nil,

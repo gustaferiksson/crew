@@ -10,6 +10,7 @@ struct CrewApp: App {
     @State private var connection = Snapshot.requested?.connection ?? Connection()
     @State private var bots = Snapshot.requested?.bots ?? BotStore()
     @State private var chats = Snapshot.requested?.chats ?? ChatSessions()
+    @State private var groups = Snapshot.requested == .groupChat ? GroupStore(fixture: [Snapshot.fixtureRoom]) : GroupStore()
     #if os(iOS)
     @State private var updates = UpdateCheck()
     #endif
@@ -27,6 +28,7 @@ struct CrewApp: App {
                 .environment(connection)
                 .environment(bots)
                 .environment(chats)
+                .environment(groups)
                 .environment(appDelegate.push)
                 #if os(macOS)
                 .environment(appDelegate.updater)

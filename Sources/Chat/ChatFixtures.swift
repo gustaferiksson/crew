@@ -238,6 +238,8 @@ enum ChatFixture {
 struct ChatFixtureScreen: View {
     let fixture: ChatFixture
 
+    @Environment(BotStore.self) private var bots
+
     var body: some View {
         #if os(iOS)
         NavigationStack(path: .constant([0])) {
@@ -263,6 +265,7 @@ struct ChatFixtureScreen: View {
                 size: 28
             ),
             transcript: fixture.transcript,
+            mentionable: bots.bots.filter { $0.id != "default" },
             request: fixture.request,
             offlineReason: fixture == .offline ? "Can't reach hermes.example.com" : nil,
             activity: fixture == .conversation ? "Preparing terminal" : nil,

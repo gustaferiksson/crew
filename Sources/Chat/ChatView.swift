@@ -34,17 +34,18 @@ private let separatorFormatter = {
     return formatter
 }()
 
-struct ChatView: View {
+struct ChatView<Avatar: View>: View {
     let botName: String
-    let avatar: BotAvatar
+    let avatar: Avatar
     let transcript: Transcript
+    let mentionable: [Bot]
+    var features: ComposerFeatures
     var request: PendingRequest?
     var offlineReason: String?
     var activity: String?
     var models: ModelSwitcher?
     var actions = ChatActions()
 
-    @Environment(BotStore.self) private var bots
     @State private var draft: String
     @State private var tray: AttachmentTray
     @State private var position = ScrollPosition(idType: Turn.ID.self)
@@ -58,10 +59,12 @@ struct ChatView: View {
     @State private var surfaces = SurfaceStore()
     private let presentation: ChatPresentation
 
-    init(botName: String, avatar: BotAvatar, transcript: Transcript, request: PendingRequest? = nil, offlineReason: String? = nil, activity: String? = nil, models: ModelSwitcher? = nil, presentation: ChatPresentation = ChatPresentation(), actions: ChatActions = ChatActions()) {
+    init(botName: String, avatar: Avatar, transcript: Transcript, mentionable: [Bot], features: ComposerFeatures = .all, request: PendingRequest? = nil, offlineReason: String? = nil, activity: String? = nil, models: ModelSwitcher? = nil, presentation: ChatPresentation = ChatPresentation(), actions: ChatActions = ChatActions()) {
         self.botName = botName
         self.avatar = avatar
         self.transcript = transcript
+        self.mentionable = mentionable
+        self.features = features
         self.request = request
         self.offlineReason = offlineReason
         self.activity = activity
@@ -77,10 +80,6 @@ struct ChatView: View {
     private var reveal: CGFloat {
         if presentation.revealsTimestamps { return -timestampWidth }
         return -min(max(0, -(dragTravel + trackpadTravel)) / 3, timestampWidth)
-    }
-
-    private var mentionable: [Bot] {
-        bots.bots.filter { $0.id != avatar.bot.id }
     }
 
     private var composerPhase: Composer.Phase {
@@ -165,6 +164,7 @@ struct ChatView: View {
                 surfaces.sync(transcript)
             }
             .dropDestination(for: URL.self) { urls, _ in
+                guard features.contains(.attachments) else { return false }
                 tray.add(urls)
                 return true
             }
@@ -180,7 +180,7 @@ struct ChatView: View {
                             .frame(maxWidth: 560)
                             .padding(.horizontal, 16)
                     }
-                    Composer(botName: botName, phase: composerPhase, draft: $draft, tray: tray, mentionable: mentionable, completePath: actions.completePath, dictation: presentation.dictation, transcribe: actions.transcribe) { mode in
+                    Composer(botName: botName, phase: composerPhase, draft: $draft, tray: tray, mentionable: mentionable, features: features, completePath: actions.completePath, dictation: presentation.dictation, transcribe: actions.transcribe) { mode in
                         actions.send(draft, tray.take(), mentionedBots(in: draft, among: mentionable), mode)
                         draft = ""
                     } stop: {
@@ -253,56 +253,71 @@ struct TurnView: View {
     @Binding var expandedWork: Set<WorkItem.ID>
     @Binding var expandedRuns: Set<String>
 
+    @Environment(BotStore.self) private var bots
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            if let notice = turn.notice {
-                Text(notice)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: .infinity)
-            }
-            if let prompt = turn.prompt {
-                if !prompt.attachments.isEmpty {
-                    PromptAttachments(attachments: prompt.attachments)
-                        .offset(x: reveal)
-                }
-                let mentioned = mentionedBots(in: prompt.text, among: mentionable)
-                if !mentioned.isEmpty {
-                    MentionChips(bots: mentioned)
-                        .frame(maxWidth: .infinity, alignment: .trailing)
-                        .offset(x: reveal)
-                }
-                if !prompt.text.isEmpty {
-                    UserBubble(text: prompt.text)
-                        .offset(x: reveal)
-                        .modifier(Timestamp(date: prompt.sentAt, reveal: reveal, width: timestampWidth))
+        VStack(alignment: .leading, spacing: 8) {
+            if let speaker = turn.speaker {
+                let bot = bots.bots.first { $0.name == speaker }
+                HStack(spacing: 8) {
+                    if let bot {
+                        BotAvatar(bot: bot, status: .idle, photo: bots.photos[bot.id], size: 24)
+                    }
+                    Text(bot?.title ?? speaker)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.secondary)
                 }
             }
-            if !turn.work.isEmpty || turn.status == .streaming {
-                WorkLog(turn: turn, activity: activity, expandedTurns: $expandedTurns, expandedWork: $expandedWork, expandedRuns: $expandedRuns)
-                    .modifier(Timestamp(date: turn.startedAt, reveal: reveal, width: timestampWidth))
-            }
-            if !turn.reply.isEmpty {
-                MarkdownText(source: a2uiFenced(turn.reply))
-                    .environment(\.surfaces, surfaces)
-                    #if os(macOS)
-                    .textSelection(.enabled)
-                    #endif
-                    .padding(12)
-                    .modifier(MessageMenu(text: turn.reply, shape: .rect(cornerRadius: 18)))
-                    .padding(-12)
-                    .modifier(Timestamp(date: turn.finishedAt ?? turn.startedAt, reveal: reveal, width: timestampWidth))
-            }
-            if turn.status == .error {
-                Label(turn.failure ?? "Something went wrong.", systemImage: "exclamationmark.triangle.fill")
-                    .font(.footnote)
-                    .foregroundStyle(.red)
-            }
-            if turn.status == .interrupted {
-                Label("Stopped", systemImage: "stop.circle")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 16) {
+                if let notice = turn.notice {
+                    Text(notice)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
+                }
+                if let prompt = turn.prompt {
+                    if !prompt.attachments.isEmpty {
+                        PromptAttachments(attachments: prompt.attachments)
+                            .offset(x: reveal)
+                    }
+                    let mentioned = mentionedBots(in: prompt.text, among: mentionable)
+                    if !mentioned.isEmpty {
+                        MentionChips(bots: mentioned)
+                            .frame(maxWidth: .infinity, alignment: .trailing)
+                            .offset(x: reveal)
+                    }
+                    if !prompt.text.isEmpty {
+                        UserBubble(text: prompt.text)
+                            .offset(x: reveal)
+                            .modifier(Timestamp(date: prompt.sentAt, reveal: reveal, width: timestampWidth))
+                    }
+                }
+                if !turn.work.isEmpty || turn.status == .streaming {
+                    WorkLog(turn: turn, activity: activity, expandedTurns: $expandedTurns, expandedWork: $expandedWork, expandedRuns: $expandedRuns)
+                        .modifier(Timestamp(date: turn.startedAt, reveal: reveal, width: timestampWidth))
+                }
+                if !turn.reply.isEmpty {
+                    MarkdownText(source: a2uiFenced(turn.reply))
+                        .environment(\.surfaces, surfaces)
+                        #if os(macOS)
+                        .textSelection(.enabled)
+                        #endif
+                        .padding(12)
+                        .modifier(MessageMenu(text: turn.reply, shape: .rect(cornerRadius: 18)))
+                        .padding(-12)
+                        .modifier(Timestamp(date: turn.finishedAt ?? turn.startedAt, reveal: reveal, width: timestampWidth))
+                }
+                if turn.status == .error {
+                    Label(turn.failure ?? "Something went wrong.", systemImage: "exclamationmark.triangle.fill")
+                        .font(.footnote)
+                        .foregroundStyle(.red)
+                }
+                if turn.status == .interrupted {
+                    Label("Stopped", systemImage: "stop.circle")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
     }
@@ -337,9 +352,9 @@ private struct Timestamp: ViewModifier {
     }
 }
 
-private struct PersonaPill: View {
+private struct PersonaPill<Avatar: View>: View {
     let botName: String
-    let avatar: BotAvatar
+    let avatar: Avatar
     let action: () -> Void
 
     var body: some View {

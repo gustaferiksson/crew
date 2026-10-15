@@ -371,7 +371,7 @@ extension PendingRequest {
     }
 }
 
-nonisolated private struct ApprovalParams: Decodable {
+nonisolated struct ApprovalParams: Decodable, Sendable {
     let command: String?
     let description: String?
     let choices: [String]?

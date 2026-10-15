@@ -16,6 +16,14 @@ nonisolated enum SendMode: Sendable {
     case send, steer, queue
 }
 
+struct ComposerFeatures: OptionSet {
+    let rawValue: Int
+
+    static let attachments = ComposerFeatures(rawValue: 1 << 0)
+    static let steering = ComposerFeatures(rawValue: 1 << 1)
+    static let all: ComposerFeatures = [.attachments, .steering]
+}
+
 struct Composer: View {
     private struct Hold: Equatable {
         let began: Date
@@ -33,6 +41,7 @@ struct Composer: View {
     @Binding var draft: String
     let tray: AttachmentTray
     let mentionable: [Bot]
+    let features: ComposerFeatures
     let completePath: (String) async -> [PathCompletion]
     let transcribe: (Data) async throws -> String
     let send: (SendMode) -> Void
@@ -47,12 +56,13 @@ struct Composer: View {
     @GestureState private var hold: Hold?
     @FocusState private var isFocused: Bool
 
-    init(botName: String, phase: Phase, draft: Binding<String>, tray: AttachmentTray, mentionable: [Bot], completePath: @escaping (String) async -> [PathCompletion], dictation: Dictation? = nil, transcribe: @escaping (Data) async throws -> String, send: @escaping (SendMode) -> Void, stop: @escaping () -> Void) {
+    init(botName: String, phase: Phase, draft: Binding<String>, tray: AttachmentTray, mentionable: [Bot], features: ComposerFeatures = .all, completePath: @escaping (String) async -> [PathCompletion], dictation: Dictation? = nil, transcribe: @escaping (Data) async throws -> String, send: @escaping (SendMode) -> Void, stop: @escaping () -> Void) {
         self.botName = botName
         self.phase = phase
         _draft = draft
         self.tray = tray
         self.mentionable = mentionable
+        self.features = features
         self.completePath = completePath
         self.transcribe = transcribe
         self.send = send
@@ -93,7 +103,9 @@ struct Composer: View {
             }
             GlassEffectContainer(spacing: rowSpacing) {
                 HStack(alignment: .bottom, spacing: rowSpacing) {
-                    attachMenu
+                    if features.contains(.attachments) {
+                        attachMenu
+                    }
                     field
                         .frame(minHeight: fieldHeight)
                         .glassEffect(.regular.interactive(), in: .rect(cornerRadius: fieldHeight / 2))
@@ -145,7 +157,9 @@ struct Composer: View {
             }
         }
         #if os(macOS)
-        .onPasteCommand(of: [.fileURL, .png, .tiff]) { _ in tray.paste() }
+        .onPasteCommand(of: [.fileURL, .png, .tiff]) { _ in
+            if features.contains(.attachments) { tray.paste() }
+        }
         #endif
         .alert("Can't Attach", isPresented: Binding(get: { tray.failure != nil }, set: { if !$0 { tray.failure = nil } })) {
             Button("OK", role: .cancel) {}
@@ -229,7 +243,7 @@ struct Composer: View {
                     .focused($isFocused)
                     .onKeyPress(.return, phases: .down) { press in
                         guard !press.modifiers.contains(.shift), canSend else { return .ignored }
-                        send(phase == .running ? .steer : .send)
+                        send(phase == .running && features.contains(.steering) ? .steer : .send)
                         return .handled
                     }
             }
@@ -292,7 +306,7 @@ struct Composer: View {
                 .composerCircle(.regular.tint(.accentColor).interactive())
                 .foregroundStyle(.white)
                 .glassEffectID("action", in: glass)
-        } else if canSend && phase == .running {
+        } else if canSend && phase == .running && features.contains(.steering) {
             Menu {
                 Button("Steer", systemImage: "arrow.turn.down.right") { send(.steer) }
                 Button("Queue", systemImage: "text.line.last.and.arrowtriangle.forward") { send(.queue) }

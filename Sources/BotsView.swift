@@ -15,6 +15,7 @@ private let dotGutter: CGFloat = 12
 struct BotsView: View {
     @Environment(Connection.self) private var connection
     @Environment(BotStore.self) private var store
+    @Environment(GroupStore.self) private var groups
     @Environment(PushCenter.self) private var push
     #if os(macOS)
     @Environment(AppUpdater.self) private var updater
@@ -25,6 +26,7 @@ struct BotsView: View {
     @State private var showsNotifications = false
     @State private var query = ""
     @State private var isCreating = Snapshot.requested == .newBot
+    @State private var isCreatingGroup = false
     @State private var deleting: Bot?
     @State private var filing: Bot?
     @State private var sectionName = ""
@@ -35,6 +37,7 @@ struct BotsView: View {
 
     var body: some View {
         let selected = store.bots.first { $0.id == selection }
+        let selectedRoom = groups.rooms.first { $0.selectionID == selection }
         NavigationSplitView {
             List(selection: $selection) {
                 if query.isEmpty {
@@ -43,11 +46,23 @@ struct BotsView: View {
                     }
                     ForEach(store.sections) { section in
                         Section {
-                            ForEach(section.bots) { bot in
-                                row(for: bot)
+                            ForEach(rows(in: section)) { row in
+                                if case .bot(let bot) = row {
+                                    self.row(for: bot)
+                                } else if case .group(let room) = row {
+                                    groupRow(for: room)
+                                }
                             }
                         } header: {
                             if let name = section.name { Text(name) }
+                        }
+                        .listSectionSeparator(.hidden, edges: .top)
+                    }
+                    if !store.sections.contains(where: { $0.id.isEmpty }) && !groups.rooms.isEmpty {
+                        Section {
+                            ForEach(groups.rooms) { groupRow(for: $0) }
+                        } header: {
+                            if !store.sections.isEmpty { Text("Other") }
                         }
                         .listSectionSeparator(.hidden, edges: .top)
                     }
@@ -58,6 +73,7 @@ struct BotsView: View {
                     }) { bot in
                         row(for: bot)
                     }
+                    ForEach(groups.rooms.filter { $0.name.localizedStandardContains(query) }) { groupRow(for: $0) }
                 }
             }
             .overlay {
@@ -96,7 +112,7 @@ struct BotsView: View {
             .navigationSplitViewColumnWidth(min: 240, ideal: 320, max: 400)
             .toolbar {
                 #if os(iOS)
-                ToolbarItem(placement: .primaryAction) { newBotButton }
+                ToolbarItem(placement: .primaryAction) { newChatButton }
                 #endif
                 ToolbarItem(placement: .primaryAction) {
                     Menu("Account", systemImage: "person.crop.circle") {
@@ -126,13 +142,15 @@ struct BotsView: View {
                 Group {
                     if let selected {
                         ChatScreen(bot: selected, models: models, showsBot: $showsBot)
+                    } else if let selectedRoom {
+                        GroupChatScreen(room: selectedRoom)
                     } else {
                         ContentUnavailableView("No Bot Selected", systemImage: "bubble.left.and.bubble.right", description: Text("Choose a bot to start chatting."))
                     }
                 }
                 #if os(macOS)
                 .toolbar {
-                    ToolbarItem(placement: .navigation) { newBotButton }
+                    ToolbarItem(placement: .navigation) { newChatButton }
                 }
                 #endif
             }
@@ -150,6 +168,9 @@ struct BotsView: View {
         #endif
         .sheet(isPresented: $isCreating) {
             NewBotSheet { selection = $0 }
+        }
+        .sheet(isPresented: $isCreatingGroup) {
+            NewGroupSheet { selection = $0.selectionID }
         }
         .modifier(BotDeletion(bot: $deleting) { id in
             if selection == id { selection = nil }
@@ -179,7 +200,7 @@ struct BotsView: View {
         }
         #endif
         .onChange(of: store.bots.map(\.id)) { _, ids in
-            if store.isLoaded, let selection, !ids.contains(selection) { self.selection = nil }
+            if store.isLoaded, let selection, !ids.contains(selection), selectedRoom == nil { self.selection = nil }
         }
         .onChange(of: selected) { _, bot in
             if let bot { store.markSeen(bot) }
@@ -199,6 +220,10 @@ struct BotsView: View {
             guard let gateway = connection.gateway else { return }
             await store.run(gateway)
         }
+        .task(id: connection.gateway.map(ObjectIdentifier.init)) {
+            guard let gateway = connection.gateway else { return }
+            await groups.run(gateway)
+        }
         .task(id: [selected?.id, connection.gateway.map { "\(ObjectIdentifier($0))" }]) {
             let switcher = ModelSwitcher()
             models = switcher
@@ -207,9 +232,37 @@ struct BotsView: View {
         }
     }
 
-    private var newBotButton: some View {
-        Button("New Bot", systemImage: "square.and.pencil") { isCreating = true }
+    @ViewBuilder
+    private var newChatButton: some View {
+        if groups.isSupported {
+            Menu("New Chat", systemImage: "square.and.pencil") {
+                Button("New Bot", systemImage: "person.crop.circle.badge.plus") { isCreating = true }
+                Button("New Group", systemImage: "person.2") { isCreatingGroup = true }
+            }
             .disabled(connection.state != .connected)
+        } else {
+            Button("New Bot", systemImage: "square.and.pencil") { isCreating = true }
+                .disabled(connection.state != .connected)
+        }
+    }
+
+    private func rows(in section: BotSection) -> [ListRow] {
+        var rows = section.bots.map(ListRow.bot)
+        guard section.id.isEmpty else { return rows }
+        for room in groups.rooms {
+            let index = rows.firstIndex { row in
+                guard case .bot(let bot) = row else { return false }
+                return [BotStatus.idle, .failed].contains(store.statuses[bot.id] ?? .idle) && (bot.canonicalSession?.lastActive ?? .distantPast) < room.updatedAt
+            }
+            rows.insert(.group(room), at: index ?? rows.endIndex)
+        }
+        return rows
+    }
+
+    private func groupRow(for room: Room) -> some View {
+        GroupRow(room: room)
+            .tag(room.selectionID)
+            .listRowInsets(EdgeInsets(top: rowPadding, leading: 0, bottom: rowPadding, trailing: 12))
     }
 
     private var favourites: some View {
@@ -358,21 +411,75 @@ private struct BotRow: View {
         } else if status == .failed {
             Text("Failed")
                 .foregroundStyle(.red)
-        } else if let timeLabel {
-            Text(timeLabel)
+        } else if let date = bot.canonicalSession?.lastActive {
+            Text(date.rowLabel)
                 .foregroundStyle(.secondary)
         }
     }
+}
 
-    private var timeLabel: String? {
-        guard let date = bot.canonicalSession?.lastActive else { return nil }
+private enum ListRow: Identifiable {
+    case bot(Bot)
+    case group(Room)
+
+    var id: String {
+        switch self {
+        case .bot(let bot): bot.id
+        case .group(let room): room.selectionID
+        }
+    }
+}
+
+private struct GroupRow: View {
+    let room: Room
+    @Environment(\.displayScale) private var displayScale
+    @Environment(BotStore.self) private var store
+
+    var body: some View {
+        HStack(spacing: 0) {
+            Color.clear
+                .frame(width: dotGutter, height: 8)
+            GroupAvatar(members: room.members.compactMap { member in store.bots.first { $0.name == member.profile } }, size: rowAvatarSize)
+                .padding(.trailing, 12)
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    Text(room.name)
+                        .font(.headline)
+                        .lineLimit(1)
+                    Spacer(minLength: 4)
+                    Text(room.updatedAt.rowLabel)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                Text(room.members.map { $0.displayName ?? $0.memberID }.formatted(.list(type: .and)))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2, reservesSpace: true)
+            }
+            .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
+            #if os(macOS)
+            .overlay(alignment: .bottom) {
+                Rectangle()
+                    .fill(.separator)
+                    .frame(height: 1 / displayScale)
+                    .padding(.trailing, -12)
+                    .offset(y: rowPadding)
+            }
+            #endif
+        }
+    }
+}
+
+private extension Date {
+    var rowLabel: String {
         let calendar = Calendar.current
-        if calendar.isDateInToday(date) { return date.formatted(date: .omitted, time: .shortened) }
-        if calendar.isDateInYesterday(date) { return String(localized: "Yesterday") }
-        let days = calendar.dateComponents([.day], from: calendar.startOfDay(for: date), to: calendar.startOfDay(for: .now)).day ?? .max
-        if days < 7 { return date.formatted(.dateTime.weekday(.wide)) }
-        if calendar.isDate(date, equalTo: .now, toGranularity: .year) { return date.formatted(.dateTime.day().month(.abbreviated)) }
-        return date.formatted(.dateTime.day().month(.abbreviated).year())
+        if calendar.isDateInToday(self) { return formatted(date: .omitted, time: .shortened) }
+        if calendar.isDateInYesterday(self) { return String(localized: "Yesterday") }
+        let days = calendar.dateComponents([.day], from: calendar.startOfDay(for: self), to: calendar.startOfDay(for: .now)).day ?? .max
+        if days < 7 { return formatted(.dateTime.weekday(.wide)) }
+        if calendar.isDate(self, equalTo: .now, toGranularity: .year) { return formatted(.dateTime.day().month(.abbreviated)) }
+        return formatted(.dateTime.day().month(.abbreviated).year())
     }
 }
 

@@ -35,7 +35,7 @@ def test_profile_without_own_copy_is_served(device, enqueued: list) -> None:
     try:
         manager = Manager()
         assert manager.has_hook("on_session_end")
-        assert manager.has_hook("transform_tool_result") is False
+        assert manager.has_hook("transform_llm_output") is False
         turn(manager)
         [(_, _, payload)] = enqueued
         assert payload["crew"]["profile"] == "beta"

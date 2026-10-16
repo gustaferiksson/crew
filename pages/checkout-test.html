@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
+<title>Crew Test Checkout</title>
+<style>
+  :root { color-scheme: light dark; --bg: #f5f5f7; --fg: #1d1d1f; --muted: #6e6e73; --card: #fff; --line: #d2d2d7; --accent: #e8459b; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #000; --fg: #f5f5f7; --muted: #a1a1a6; --card: #1c1c1e; --line: #3a3a3c; } }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 17px/1.4 -apple-system, system-ui, sans-serif; }
+  main { max-width: 420px; margin: 0 auto; padding: 32px 16px; }
+  h1 { font-size: 28px; margin: 0 0 4px; }
+  p { color: var(--muted); margin: 0 0 24px; }
+  section { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; display: grid; gap: 12px; }
+  label { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
+  input { box-sizing: border-box; width: 100%; min-width: 0; font: inherit; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); }
+  .row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .check input { width: auto; }
+  .check { display: flex; align-items: center; gap: 8px; font-size: 15px; color: var(--fg); }
+  .total { display: flex; justify-content: space-between; font-size: 20px; font-weight: 600; margin: 16px 0; }
+  button { width: 100%; font: inherit; font-weight: 600; padding: 12px; border: 0; border-radius: 999px; background: var(--accent); color: #fff; }
+  output { display: block; margin-top: 16px; text-align: center; font-weight: 600; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Test Checkout</h1>
+  <p>A static checkout for testing Crew payments. Nothing is sent anywhere.</p>
+  <section>
+    <label>Name on card <input id="cc-name" name="cc-name" autocomplete="cc-name"></label>
+    <label>Card number <input id="cc-number" name="cc-number" autocomplete="cc-number" inputmode="numeric"></label>
+    <div class="row">
+      <label>Month <input id="cc-exp-month" name="cc-exp-month" autocomplete="cc-exp-month" inputmode="numeric"></label>
+      <label>Year <input id="cc-exp-year" name="cc-exp-year" autocomplete="cc-exp-year" inputmode="numeric"></label>
+      <label>CVC <input id="cc-csc" name="cc-csc" autocomplete="cc-csc" inputmode="numeric"></label>
+    </div>
+    <label>Postal code <input id="postal-code" name="postal-code" autocomplete="postal-code"></label>
+    <label class="check"><input type="checkbox" id="save-card"> Save card for next time</label>
+  </section>
+  <div class="total"><span>Total</span><span>499 kr</span></div>
+  <button type="button" id="pay">Pay 499 kr</button>
+  <output id="result" aria-live="polite"></output>
+</main>
+<script>
+  document.getElementById("pay").addEventListener("click", () => {
+    const digits = document.getElementById("cc-number").value.replace(/\D/g, "");
+    document.getElementById("result").textContent =
+      digits.length >= 12 ? `Paid with card ending ${digits.slice(-4)}` : "Enter a card number first.";
+  });
+</script>
+</body>
+</html>

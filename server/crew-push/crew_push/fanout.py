@@ -2,6 +2,7 @@ import logging
 import threading
 from typing import Any, Callable
 
+from . import payments
 from .hooks import HOOK_NAMES, CrewPush
 
 log = logging.getLogger("crew_push")
@@ -40,10 +41,14 @@ def serve_every_profile(manager_class: type, active_profile: Callable[[], str]) 
             results = invoke(self, hook_name, **kwargs)
             try:
                 if hook_name in HOOK_NAMES and not has_own_copy(self, hook_name):
-                    getattr(push_for_active_profile(), hook_name)(**kwargs)
+                    result = getattr(push_for_active_profile(), hook_name)(**kwargs)
+                    if result is not None:
+                        results.append(result)
             except Exception:
                 log.warning("crew-push: serving %s for a profile without its own copy failed", hook_name,
                             exc_info=True)
+                if hook_name == "pre_tool_call":
+                    results.append(payments.block("crew_check_failed"))
             return results
 
         def has_hook(self: Any, hook_name: str) -> bool:

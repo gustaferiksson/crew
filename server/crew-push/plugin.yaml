@@ -1,8 +1,8 @@
 name: crew-push
 label: Crew Push
 kind: standalone
-version: 0.3.2
-description: APNs notifications for the Crew app (finished turns, approvals, questions, routines).
+version: 0.4.0
+description: APNs notifications and payment approvals for the Crew app (finished turns, approvals, questions, routines, payments).
 author: Gustaf Eriksson
 requires_hermes: ">=0.21.7"
 provides_hooks:
@@ -10,5 +10,8 @@ provides_hooks:
   - post_llm_call
   - on_session_end
   - pre_tool_call
+  - post_tool_call
   - pre_approval_request
+  - post_approval_response
+  - transform_tool_result
   - subagent_start

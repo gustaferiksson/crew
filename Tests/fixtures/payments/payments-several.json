@@ -11,7 +11,7 @@
       "host": "www.zalando.se",
       "created_at": 1760600000.0,
       "last_paid_at": 1760610000.0,
-      "stale": true,
+      "stale": false,
       "punycode": false
     }
   ],

@@ -19,7 +19,7 @@ A bot (the sender) calls `message_agent`; the other bot (the target) answers in 
 - Preview: the last visible turn, so a target whose latest activity is an exchange reads "Message from Crew Test", matching its time label. The sender reads the relay line, or "Message from <target>" when the target also sent something of its own afterwards. Both on iPhone and Mac, from the open `ChatSession` or from `BotStore`'s 20-row fetch.
 - Time and unread: unchanged (`last_active`, `message_count`); now they always point at something visible.
 - Working: shown only for `working` and `waiting` from `session.active_list`. During an exchange the server reports the target `working` and it is; the collapsed row with its pulsing title is what the badge refers to. `starting` (an agent build after a resume, no turn) is not Working.
-- Push: unchanged, crew-push 0.3.1 sends no reply or failure push for agent-initiated turns. The local "Replied" alert (push off) still fires on the unread edge, as before; it now matches a visible row, and muting it would need the preview fetch before the alert, so it stays a known gap.
+- Push: crew-push 0.3.2 sends no reply or failure push for an exchange turn or its delivery follow-up in the target; the sender's relay reply (its delivery turn) still pushes; approvals and questions always push. The local "Replied" alert (push off) still fires on the unread edge, as before; it now matches a visible row, and muting it would need the preview fetch before the alert, so it stays a known gap.
 - Inspector: no change.
 
 ## States

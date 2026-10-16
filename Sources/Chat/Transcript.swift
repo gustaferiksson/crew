@@ -191,6 +191,7 @@ extension Transcript {
             let origin = turns.last { origin in
                 origin.work.contains { item in if case .tool(let call) = item.kind { call.name == "message_agent" && call.result?.contains(delivery) == true } else { false } }
             }
+            awaited.removeAll { $0.origin == origin?.id }
             if let origin, answered.contains(origin.id) { continue }
             if let origin, let index = exchanges[origin.id] {
                 shown[index].work += log(turn)

@@ -45,10 +45,14 @@ final class ChatSession {
     private var epoch: String?
     private var appliedSeq = 0
     private var todoRevision = -1
+    private var syncedPosition: ReadPosition?
+    private var serverPosition: ReadPosition?
+    private var isSyncing = false
 
     init(bot: Bot, gateway: Gateway, urlSession: URLSession) {
         self.profile = bot.name
         self.stored = bot.canonicalSession?.id
+        self.syncedPosition = bot.canonicalSession?.position
         self.gateway = gateway
         self.urlSession = urlSession
     }
@@ -78,6 +82,27 @@ final class ChatSession {
                 if await self.gateway.status == .connected { await self.attach() }
                 for await event in events { await self.handle(event) }
             }
+        }
+    }
+
+    func sync(to position: ReadPosition?) {
+        serverPosition = position
+        guard !isSyncing else { return }
+        isSyncing = true
+        Task {
+            while let position = serverPosition, position != syncedPosition, !isRunning {
+                syncedPosition = position
+                let shown = transcript
+                guard let rows = try? await history(of: StoredSessionID(rawValue: position.session), profile: profile, on: gateway.server, with: urlSession) else {
+                    syncedPosition = nil
+                    break
+                }
+                guard transcript == shown else { continue }
+                var reloaded = Transcript(history: rows)
+                reloaded.adoptIDs(from: shown)
+                transcript = reloaded
+            }
+            isSyncing = false
         }
     }
 

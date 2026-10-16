@@ -1,0 +1,164 @@
+[
+  {
+    "content": "@test-bot what time is it?\n\n[@mentions resolved from the Bot Mode roster — the user is referring to: @test-bot = agent profile \"test-bot\" (\"Test bot\"). If they want one of these agents contacted, compose your own message and send it with your message_agent tool (agents on other connected machines are reachable too — the Desktop relays it); never forward the user’s text verbatim. If this session has no message_agent tool, agent messaging is unavailable here — say so. Keep it brief: never narrate queueing or delivery, say at most one short line after message_agent, and relay the reply in one line when it arrives.]",
+    "display_kind": null,
+    "id": 380,
+    "reasoning": null,
+    "reasoning_content": null,
+    "role": "user",
+    "session_id": "20261013_144627_bb3f2e",
+    "timestamp": 1792153323.9208713,
+    "tool_call_id": null,
+    "tool_calls": null
+  },
+  {
+    "content": "",
+    "display_kind": null,
+    "id": 381,
+    "reasoning": null,
+    "reasoning_content": null,
+    "role": "assistant",
+    "session_id": "20261013_144627_bb3f2e",
+    "timestamp": 1792153330.723032,
+    "tool_call_id": null,
+    "tool_calls": [
+      {
+        "function": {
+          "arguments": "{\"target\":\"test-bot\",\"message\":\"Please check the current time with your terminal and report it briefly, including the timezone, for the user.\"}",
+          "name": "message_agent"
+        },
+        "id": "call_7fe951309d304f90a61fa77301e61f32",
+        "type": "function"
+      }
+    ]
+  },
+  {
+    "content": "{\"status\": \"queued\", \"delivery_id\": \"f51341f0c82d9c7bf39b3e430a42c65af8e7dec0755af1d850f57a03fde7d8e0\", \"to\": \"@test-bot\", \"reply_delivery\": \"notification\", \"detail\": \"Message queued for @test-bot: this acknowledges the hand-off to a background delivery process, not a delivery receipt \\u2014 do NOT wait or poll. Finish your turn now; that process's completion notification carries the delivery outcome \\u2014 the reply (relay it then, attributed to that agent) or the delivery failure (report it; the message was NOT delivered).\", \"process_id\": \"proc_815f054e4f29\", \"queued_at\": 1792153330}",
+    "display_kind": null,
+    "id": 382,
+    "reasoning": null,
+    "reasoning_content": null,
+    "role": "tool",
+    "session_id": "20261013_144627_bb3f2e",
+    "timestamp": 1792153330.9647465,
+    "tool_call_id": "call_7fe951309d304f90a61fa77301e61f32",
+    "tool_calls": null
+  },
+  {
+    "content": "🕒",
+    "display_kind": null,
+    "id": 383,
+    "reasoning": null,
+    "reasoning_content": null,
+    "role": "assistant",
+    "session_id": "20261013_144627_bb3f2e",
+    "timestamp": 1792153333.889715,
+    "tool_call_id": null,
+    "tool_calls": null
+  },
+  {
+    "content": "@test-bot hi\n\n[@mentions resolved from the Bot Mode roster — the user is referring to: @test-bot = agent profile \"test-bot\" (\"Test bot\"). If they want one of these agents contacted, compose your own message and send it with your message_agent tool (agents on other connected machines are reachable too — the Desktop relays it); never forward the user’s text verbatim. If this session has no message_agent tool, agent messaging is unavailable here — say so. Keep it brief: never narrate queueing or delivery, say at most one short line after message_agent, and relay the reply in one line when it arrives.]",
+    "display_kind": null,
+    "id": 388,
+    "reasoning": null,
+    "reasoning_content": null,
+    "role": "user",
+    "session_id": "20261013_144627_bb3f2e",
+    "timestamp": 1792180377.7032773,
+    "tool_call_id": null,
+    "tool_calls": null
+  },
+  {
+    "content": "",
+    "display_kind": null,
+    "id": 389,
+    "reasoning": null,
+    "reasoning_content": null,
+    "role": "assistant",
+    "session_id": "20261013_144627_bb3f2e",
+    "timestamp": 1792180383.5400817,
+    "tool_call_id": null,
+    "tool_calls": [
+      {
+        "function": {
+          "arguments": "{\"target\":\"test-bot\",\"message\":\"The user sends you a friendly greeting; please say hello back.\"}",
+          "name": "message_agent"
+        },
+        "id": "call_7374c5d92e874312be6ac3bfac09dfec",
+        "type": "function"
+      }
+    ]
+  },
+  {
+    "content": "{\"status\": \"queued\", \"delivery_id\": \"ae67be6fa1a3c642bb830394ca1c3e85bd208dceba79189095105d48b2bd29c3\", \"to\": \"@test-bot\", \"reply_delivery\": \"notification\", \"detail\": \"Message queued for @test-bot: this acknowledges the hand-off to a background delivery process, not a delivery receipt \\u2014 do NOT wait or poll. Finish your turn now; that process's completion notification carries the delivery outcome \\u2014 the reply (relay it then, attributed to that agent) or the delivery failure (report it; the message was NOT delivered).\", \"process_id\": \"proc_d30c12140f56\", \"queued_at\": 1792180383}",
+    "display_kind": null,
+    "id": 390,
+    "reasoning": null,
+    "reasoning_content": null,
+    "role": "tool",
+    "session_id": "20261013_144627_bb3f2e",
+    "timestamp": 1792180383.6027448,
+    "tool_call_id": "call_7374c5d92e874312be6ac3bfac09dfec",
+    "tool_calls": null
+  },
+  {
+    "content": "@test-bot hasn’t replied here yet.",
+    "display_kind": null,
+    "id": 391,
+    "reasoning": null,
+    "reasoning_content": null,
+    "role": "assistant",
+    "session_id": "20261013_144627_bb3f2e",
+    "timestamp": 1792180388.3798158,
+    "tool_call_id": null,
+    "tool_calls": null
+  },
+  {
+    "content": "Message from 🤖 Test bot (@test-bot): Hello! 👋",
+    "display_kind": null,
+    "id": 392,
+    "reasoning": null,
+    "reasoning_content": null,
+    "role": "user",
+    "session_id": "20261013_144627_bb3f2e",
+    "timestamp": 1792180401.391776,
+    "tool_call_id": null,
+    "tool_calls": null
+  },
+  {
+    "content": "@test-bot: “Hello! 👋”",
+    "display_kind": null,
+    "id": 393,
+    "reasoning": null,
+    "reasoning_content": null,
+    "role": "assistant",
+    "session_id": "20261013_144627_bb3f2e",
+    "timestamp": 1792180404.0818565,
+    "tool_call_id": null,
+    "tool_calls": null
+  },
+  {
+    "content": "[IMPORTANT: Background process proc_d30c12140f56 completed normally (exit code 0).\nCommand: /opt/hermes/.venv/bin/python /opt/hermes/tools/bot_mode_dm.py --run-delivery --author '{\"id\":\"bot:crew-test\",\"name\":\"crew-test\",\"is_bot\":true}' query-file /opt/data/cache/scratch/hermes-dm-10000/dm-gh882uwo.txt --profile-home /opt/data/profiles/test-bot /opt/hermes/.venv/bin/hermes -p test-bot chat --in '~' -c 'Bot Chat' --create-if-missing -Q\nOutput:\nCrew Test received my greeting.\n↻ Resumed session local-2f019da0d42e7edb4df0ce4f8deecfcd9b642a429ec33508ac38d156e26d39b8 \"Bot Chat\" (6 user messages, 21 total messages)\n↻ Working directory: /opt/data/profiles/test-bot\n\nsession_id: local-2f019da0d42e7edb4df0ce4f8deecfcd9b642a429ec33508ac38d156e26d39b8\n]",
+    "display_kind": "process_complete",
+    "id": 394,
+    "reasoning": null,
+    "reasoning_content": null,
+    "role": "user",
+    "session_id": "20261013_144627_bb3f2e",
+    "timestamp": 1792180407.5626235,
+    "tool_call_id": null,
+    "tool_calls": null
+  },
+  {
+    "content": "@test-bot’s greeting was delivered successfully: “Hello! 👋”",
+    "display_kind": null,
+    "id": 395,
+    "reasoning": null,
+    "reasoning_content": null,
+    "role": "assistant",
+    "session_id": "20261013_144627_bb3f2e",
+    "timestamp": 1792180414.714655,
+    "tool_call_id": null,
+    "tool_calls": null
+  }
+]

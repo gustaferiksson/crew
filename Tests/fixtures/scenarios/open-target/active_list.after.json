@@ -1,0 +1,16 @@
+{
+  "sessions" : [
+    {
+      "current" : false,
+      "id" : "b0fc4970",
+      "last_active" : 1792183058.225247,
+      "message_count" : 373,
+      "model" : "gpt-6-astra",
+      "preview" : "@crew-test-peer replied: “Hello! Nice to hear from you.”",
+      "session_key" : "20261013_144627_bb3f2e",
+      "started_at" : 1792153561.4825857,
+      "status" : "idle",
+      "title" : "Bot Chat"
+    }
+  ]
+}

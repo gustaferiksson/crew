@@ -369,7 +369,7 @@ private struct BotRow: View {
     }
 
     private var preview: String {
-        chats.sessions[bot.id].map { $0.transcript.preview ?? "" } ?? store.previews[bot.id] ?? bot.canonicalSession?.preview ?? ""
+        chats.sessions[bot.id]?.transcript.preview ?? store.previews[bot.id] ?? bot.canonicalSession?.preview ?? ""
     }
 
     var body: some View {

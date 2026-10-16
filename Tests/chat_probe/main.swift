@@ -429,7 +429,7 @@ if phases.contains("mention") {
 
 if phases.contains("record") {
     let scenario = CommandLine.arguments.last ?? ""
-    guard scenario == "bot-mention" else { print("unknown scenario \(scenario)"); exit(1) }
+    guard ["bot-mention", "open-target"].contains(scenario) else { print("unknown scenario \(scenario)"); exit(1) }
     let folder = URL(fileURLWithPath: #filePath).appending(path: "../../fixtures/scenarios/\(scenario)").standardized
     try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
     let peerName = "crew-test-\(UUID().uuidString.prefix(6).lowercased())"
@@ -480,6 +480,12 @@ if phases.contains("record") {
         let before = try await roster()
         try save("profiles.before", before.raw)
         let firstRow = try await history(of: senderSession.resolvedID, profile: sender.name, on: server, with: urlSession, limit: 1).map(\.id).max() ?? 0
+        let peerChats = ChatSessions()
+        if scenario == "open-target" {
+            peerChats.open(peer, on: gateway, urlSession: urlSession)
+            try await Task.sleep(for: .seconds(3))
+        }
+        var peerState = ""
 
         chat.send("@\(peerName) hi", mentioning: [peer], mode: .send)
         var duringSaved = false
@@ -489,6 +495,12 @@ if phases.contains("record") {
             try await Task.sleep(for: .milliseconds(250))
             let current = try await roster()
             let active = try await live(of: current.bots)
+            peerChats.sync(with: current.bots)
+            if let peerChat = peerChats.sessions[peerName] {
+                let state = "open peer chat: \(peerChat.transcript.visible.turns.count) rows, running \(peerChat.isRunning), roster \(current.bots.first { $0.name == peerName }?.canonicalSession?.messageCount ?? 0) messages, \(active.sessions.first { $0.sessionKey == current.bots.first { $0.name == peerName }?.canonicalSession?.resolvedID }?.status ?? "-")"
+                if state != peerState { print(String(format: "+%.1fs ", Date.now.timeIntervalSince(started)) + state) }
+                peerState = state
+            }
             let inHiddenTurn = chat.isRunning && chat.transcript.turns.last.map({ $0.agentMessage != nil || $0.delivery != nil }) == true
             if !duringSaved, inHiddenTurn, active.sessions.contains(where: { $0.status != "idle" }) {
                 try save("profiles.during", current.raw)
@@ -511,6 +523,10 @@ if phases.contains("record") {
             let file = bot.name == peerName ? "crew-test-peer" : bot.name
             try save("\(file).history", .array(history))
             try save("\(file).preview", .array(try await rows(of: bot, limit: 20)))
+        }
+        if let peerChat = peerChats.sessions[peerName], let session = after.bots.first(where: { $0.name == peerName })?.canonicalSession {
+            let fresh = Transcript(history: try await history(of: session.resolvedID, profile: peerName, on: server, with: urlSession))
+            print(peerChat.transcript.visible.turns.map(\.work.count) == fresh.visible.turns.map(\.work.count) ? "OPEN PEER CHAT MATCHES HISTORY" : "OPEN PEER CHAT STALE")
         }
         for turn in chat.transcript.turns.suffix(4) {
             print(chat.transcript.visible.turns.contains { $0.id == turn.id } ? "SHOWN  " : "HIDDEN ", turn.prompt?.text ?? turn.delivery ?? "-", "|", turn.reply)

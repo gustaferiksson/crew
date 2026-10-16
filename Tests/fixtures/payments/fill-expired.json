@@ -1,0 +1,11 @@
+{
+  "success": false,
+  "error_type": "payment_declined",
+  "error": "Nobody answered within 5 minutes. Tell the user it expired and wait until they ask again.",
+  "crew_payment": {
+    "request_id": "5f0c3e9a2b7d4c18a6e1f20b9d3c7a54",
+    "state": "expired",
+    "fill": null,
+    "fill_error": null
+  }
+}

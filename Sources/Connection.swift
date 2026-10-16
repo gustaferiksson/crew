@@ -27,6 +27,7 @@ final class Connection {
     private(set) var session: StoredSession?
     private(set) var gateway: Gateway?
     private(set) var signInError: HermesError?
+    private(set) var crewPush: PluginStatus?
 
     let urlSession: URLSession
     private let cookieJar: HTTPCookieStorage
@@ -52,12 +53,17 @@ final class Connection {
         if let session { startGateway(for: session) }
     }
 
-    init(fixture state: State, server: URL, signInError: HermesError? = nil) {
+    init(fixture state: State, server: URL, signInError: HermesError? = nil, crewPush: PluginStatus? = nil) {
         self.urlSession = URLSession(configuration: .ephemeral)
         self.cookieJar = HTTPCookieStorage.shared
         self.session = state == .signedOut ? nil : StoredSession(server: server, installID: "fixture", cookies: [])
         self.state = state
         self.signInError = signInError
+        self.crewPush = crewPush
+    }
+
+    var supportsPayments: Bool {
+        crewPush?.supportsPayments == true
     }
 
     func monitorNetwork() async {
@@ -132,13 +138,25 @@ final class Connection {
         let statuses = gateway.statuses()
         statusTask = Task {
             for await status in statuses {
-                if status == .connected { state = .connected }
+                if status == .connected {
+                    state = .connected
+                    Task { await refreshCrewPush() }
+                }
                 if status == .connecting, state != .unreachable { state = .connecting }
                 if case .retrying = status { state = .unreachable }
                 if case .stopped(let error) = status { endSession(error) }
             }
         }
         self.gateway = gateway
+    }
+
+    private func refreshCrewPush() async {
+        guard let server = session?.server else { return }
+        do {
+            crewPush = try await paymentsCall("status", on: server, with: urlSession, as: PluginStatus.self)
+        } catch HermesError.server(404, _) {
+            crewPush = nil
+        } catch {}
     }
 
     private func mintTicket() async throws -> String {

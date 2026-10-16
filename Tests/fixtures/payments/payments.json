@@ -1,0 +1,20 @@
+{
+  "card": {
+    "label": "Shopping card",
+    "last4": "4242",
+    "problem": null
+  },
+  "shops": [
+    {
+      "id": "vault_3f9a1c2b7d4e",
+      "origin": "https://www.zalando.se",
+      "host": "www.zalando.se",
+      "created_at": 1760600000.0,
+      "last_paid_at": 1760610000.0,
+      "stale": false,
+      "punycode": false
+    }
+  ],
+  "terminal_backend": "local",
+  "gate": true
+}

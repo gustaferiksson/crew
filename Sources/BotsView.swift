@@ -414,7 +414,7 @@ private struct BotRow: View {
     @ViewBuilder
     private var trailingLabel: some View {
         if case .waiting(let kind) = status {
-            Text(kind == .approval ? "Needs approval" : "Waiting for you")
+            Text(kind == .payment ? "Wants to pay" : kind == .approval ? "Needs approval" : "Waiting for you")
                 .foregroundStyle(.orange)
         } else if status == .working {
             Label("Working", systemImage: "ellipsis")

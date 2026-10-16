@@ -156,7 +156,15 @@ nonisolated struct ReadPosition: Codable, Hashable, Comparable, Sendable {
 }
 
 nonisolated enum WaitingKind: String, Sendable {
-    case approval, question
+    case approval, question, payment
+
+    init(_ request: ServerRequest) {
+        if PendingRequest(request)?.isPayment == true {
+            self = .payment
+        } else {
+            self = request.method == "approval" ? .approval : .question
+        }
+    }
 }
 
 nonisolated enum BotStatus: Hashable, Sendable {
@@ -600,7 +608,7 @@ final class BotStore {
 
     private func note(_ request: ServerRequest, gateway: Gateway) async {
         guard let session = request.sessionID else { return }
-        waitingKinds[session] = request.method == "approval" ? .approval : .question
+        waitingKinds[session] = WaitingKind(request)
         await poll(gateway)
     }
 

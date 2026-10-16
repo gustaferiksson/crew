@@ -1,0 +1,10 @@
+{
+  "card": {
+    "label": null,
+    "last4": null,
+    "problem": "missing"
+  },
+  "shops": [],
+  "terminal_backend": "local",
+  "gate": true
+}

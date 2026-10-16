@@ -1,0 +1,13 @@
+{
+  "aps": {
+    "content-available": 1
+  },
+  "crew": {
+    "v": 1,
+    "kind": "payment_resolved",
+    "install_id": "9f2c41d07ab35e11",
+    "profile": "scout",
+    "request_id": "5f0c3e9a2b7d4c18a6e1f20b9d3c7a54",
+    "state": "approved"
+  }
+}

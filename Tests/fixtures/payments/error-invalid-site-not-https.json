@@ -1,0 +1,7 @@
+{
+  "detail": {
+    "code": "invalid_site",
+    "message": "invalid_site (log line)",
+    "reason": "not_https"
+  }
+}

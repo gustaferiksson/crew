@@ -1,0 +1,18 @@
+{
+  "request_id": "5f0c3e9a2b7d4c18a6e1f20b9d3c7a54",
+  "profile": "scout",
+  "session_id": "20261016_101512_ab12cd",
+  "origin": "https://www.zalando.se",
+  "host": "www.zalando.se",
+  "card_label": "Shopping card •••• 4242",
+  "amount": "499 kr",
+  "merchant": "Zalando",
+  "reason": "Winter boots, size 43",
+  "state": "approved",
+  "fill": "filled",
+  "fill_error": null,
+  "created_at": 1760609940.0,
+  "expires_at": 1760610240.0,
+  "decided_at": 1760609990.0,
+  "now": 1760609995.0
+}

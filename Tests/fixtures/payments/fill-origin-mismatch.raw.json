@@ -1,0 +1,6 @@
+{
+  "success": false,
+  "error_type": "origin_mismatch",
+  "kind": "payment",
+  "origin": "https://www.zalando.se"
+}

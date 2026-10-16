@@ -7,21 +7,6 @@ import UIKit
 import AppKit
 #endif
 
-nonisolated struct PushRoute: Equatable, Sendable {
-    let profile: String
-    let sessionID: String
-    let installID: String?
-    let kind: String?
-
-    init?(userInfo: [AnyHashable: Any]) {
-        guard let crew = userInfo["crew"] as? [String: Any], let profile = crew["profile"] as? String, !profile.isEmpty else { return nil }
-        self.profile = profile
-        self.sessionID = crew["session_id"] as? String ?? ""
-        self.installID = crew["install_id"] as? String
-        self.kind = crew["kind"] as? String
-    }
-}
-
 nonisolated struct PushPrefs: Codable, Equatable, Sendable {
     var replies = true
     var approvals = true
@@ -62,14 +47,6 @@ nonisolated private struct ReadAnnouncement: Encodable, Sendable {
 nonisolated private struct RegistrationReply: Decodable, Sendable {
     let installId: String
     let apnsConfigured: Bool
-}
-
-nonisolated struct PluginStatus: Decodable, Equatable, Sendable {
-    let pluginVersion: String
-    let installId: String
-    let apnsConfigured: Bool
-    let http2: Bool
-    let devices: Int
 }
 
 @Observable
@@ -245,11 +222,15 @@ final class PushCenter: NSObject {
             content.threadIdentifier = "profile.\(bot.id)"
             content.sound = .default
             content.userInfo = ["crew": ["profile": bot.id, "session_id": ""]]
-            if new[bot.id] == .waiting(.approval), prefs.approvals {
+            if new[bot.id] == .waiting(.payment), prefs.approvals {
+                content.body = String(localized: "Wants to pay")
+                content.categoryIdentifier = "CREW_APPROVAL"
+                content.interruptionLevel = .timeSensitive
+            } else if new[bot.id] == .waiting(.approval), prefs.approvals {
                 content.body = String(localized: "Needs approval")
                 content.categoryIdentifier = "CREW_APPROVAL"
                 content.interruptionLevel = .timeSensitive
-            } else if case .waiting(let kind) = new[bot.id], kind != .approval, prefs.questions {
+            } else if case .waiting(let kind) = new[bot.id], kind != .approval, kind != .payment, prefs.questions {
                 content.body = String(localized: "Has a question")
                 content.categoryIdentifier = "CREW_QUESTION"
                 content.interruptionLevel = .timeSensitive

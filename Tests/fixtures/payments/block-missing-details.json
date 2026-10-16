@@ -1,0 +1,3 @@
+{
+  "error": "{\"success\": false, \"error_type\": \"crew_missing_details\", \"error\": \"Call browser_vault fill again with amount, merchant and reason, for example amount \\\"499 kr\\\", merchant \\\"Zalando\\\", reason \\\"Winter boots, size 43\\\".\"}"
+}

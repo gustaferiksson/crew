@@ -1,0 +1,14 @@
+{
+  "success": true,
+  "filled_fields": 5,
+  "backend": "local",
+  "kind": "payment",
+  "origin": "https://www.zalando.se",
+  "fields": [
+    "cc-csc",
+    "cc-exp-month",
+    "cc-exp-year",
+    "cc-name",
+    "cc-number"
+  ]
+}

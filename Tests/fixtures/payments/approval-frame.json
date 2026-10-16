@@ -1,0 +1,18 @@
+{
+  "jsonrpc": "2.0",
+  "id": "srq-7c1e0b2a9d4f",
+  "method": "approval",
+  "params": {
+    "session_id": "rt-4b8e2f",
+    "command": "Fill payment card 'Shopping card •••• 4242 · www.zalando.se' on https://www.zalando.se",
+    "description": "Fill the payment card on www.zalando.se",
+    "pattern_key": "mcp_elicitation",
+    "request_id": "5f0c3e9a2b7d4c18a6e1f20b9d3c7a54",
+    "choices": [
+      "once",
+      "session",
+      "always",
+      "deny"
+    ]
+  }
+}

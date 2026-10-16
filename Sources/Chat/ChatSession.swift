@@ -30,14 +30,18 @@ nonisolated extension TodoItem: Decodable {
 @Observable
 final class ChatSession {
     private(set) var transcript = Transcript()
-    private(set) var openRequests: [ServerRequest] = []
+    private(set) var openRequests: [ServerRequest] = [] {
+        didSet { payments = payments.filter { payment in openRequests.contains { $0.id == payment.key } } }
+    }
+    private(set) var payments: [ServerRequest.ID: PaymentCardState] = [:]
+    private(set) var endedPayment: String?
     private(set) var todos: [TodoItem] = []
     private(set) var queue: [Prompt] = []
     private(set) var generatingTool: String?
     private(set) var statusLine: String?
     private(set) var failure: String?
 
-    private let profile: String
+    let profile: String
     private let gateway: Gateway
     private let urlSession: URLSession
     private var stored: StoredSessionID?
@@ -45,6 +49,7 @@ final class ChatSession {
     private var epoch: String?
     private var appliedSeq = 0
     private var todoRevision = -1
+    private var awaitedPayment: String?
 
     init(bot: Bot, gateway: Gateway, urlSession: URLSession) {
         self.profile = bot.name
@@ -53,14 +58,17 @@ final class ChatSession {
         self.urlSession = urlSession
     }
 
-    convenience init(fixture bot: Bot, transcript: Transcript, todos: [TodoItem]) {
+    convenience init(fixture bot: Bot, transcript: Transcript, todos: [TodoItem], requests: [ServerRequest] = [], payments: [ServerRequest.ID: PaymentCardState] = [:]) {
         self.init(bot: bot, gateway: Gateway(server: URL(filePath: "/"), urlSession: .shared) { throw CancellationError() }, urlSession: .shared)
         self.transcript = transcript
         self.todos = todos
+        self.openRequests = requests
+        self.payments = payments
     }
 
     var request: PendingRequest? {
-        openRequests.lazy.compactMap(PendingRequest.init).first
+        let pending = openRequests.compactMap(PendingRequest.init)
+        return pending.first(where: \.isPayment) ?? pending.first
     }
 
     var isRunning: Bool {
@@ -121,7 +129,74 @@ final class ChatSession {
     }
 
     func respond(to id: ApprovalRequest.ID, with choice: ApprovalChoice) {
-        reply(to: id, with: ["choice": choice.rawValue])
+        guard let request = openRequests.first(where: { $0.id == id }), case .approval(let approval) = PendingRequest(request), approval.isPayment else {
+            return reply(to: id, with: ["choice": choice.rawValue])
+        }
+        guard choice == .deny || choice == .once else { return }
+        guard let runtime, let requestID = approval.requestID else {
+            return choice == .deny ? reply(to: id, with: ["choice": choice.rawValue]) : ()
+        }
+        if choice == .deny {
+            openRequests.removeAll { $0.id == id }
+        } else {
+            payments[id]?.isApproved = true
+        }
+        payments[id]?.failure = nil
+        Task {
+            do {
+                _ = try await gateway.call("approval.respond", ApprovalRespondParams(sessionID: runtime, choice: choice.rawValue, requestID: requestID), as: JSONValue.self)
+                if choice == .once { try? await Task.sleep(for: .seconds(0.8)) }
+                openRequests.removeAll { $0.id == id }
+            } catch GatewayError.rpc(code: 4001, _) {
+                openRequests.removeAll { $0.id == id }
+            } catch {
+                if !openRequests.contains(where: { $0.id == id }) { openRequests.insert(request, at: 0) }
+                payments[id, default: PaymentCardState()].isApproved = false
+                payments[id]?.failure = String(localized: "Couldn't reach Hermes. Try again.")
+                if payments[id]?.lookup == .loading { lookUp(request) }
+            }
+        }
+    }
+
+    func retryPayment(_ id: ApprovalRequest.ID) {
+        guard let request = openRequests.first(where: { $0.id == id }) else { return }
+        lookUp(request)
+    }
+
+    func expirePayment(_ id: ApprovalRequest.ID) {
+        openRequests.removeAll { $0.id == id }
+    }
+
+    func expectPayment(_ requestID: String) {
+        awaitedPayment = requestID
+        endedPayment = nil
+        guard runtime != nil else { return }
+        Task { await checkAwaitedPayment() }
+    }
+
+    func dismissEndedPayment() {
+        endedPayment = nil
+    }
+
+    private func lookUp(_ request: ServerRequest) {
+        guard case .approval(let approval) = PendingRequest(request) else { return }
+        payments[request.id, default: PaymentCardState()].lookup = .loading
+        Task {
+            let lookup = await lookUpPayment(approval, on: gateway.server, with: urlSession)
+            guard openRequests.contains(where: { $0.id == request.id }) else { return }
+            payments[request.id, default: PaymentCardState()].lookup = lookup
+        }
+    }
+
+    private func checkAwaitedPayment() async {
+        guard let requestID = awaitedPayment else { return }
+        awaitedPayment = nil
+        let isOpen = openRequests.contains { request in
+            guard case .approval(let approval) = PendingRequest(request) else { return false }
+            return approval.requestID == requestID
+        }
+        guard !isOpen, let details = try? await paymentsCall("payments/requests/\(requestID)", on: gateway.server, with: urlSession, as: PaymentDetails.self) else { return }
+        endedPayment = endedPaymentNotice(details)
     }
 
     func answer(_ id: QuestionRequest.ID, with answers: [String: String]) {
@@ -257,6 +332,7 @@ final class ChatSession {
         let incoming = (snapshot.openRequests ?? []) + replay.openRequests
         openRequests.removeAll { request in request.sessionID != snapshot.sessionID || !incoming.contains { $0.id == request.id } }
         for request in incoming { await receive(request) }
+        await checkAwaitedPayment()
     }
 
     private func receive(_ request: ServerRequest) async {
@@ -266,6 +342,7 @@ final class ChatSession {
             return
         }
         openRequests.append(request)
+        if PendingRequest(request)?.isPayment == true { lookUp(request) }
     }
 
     private func handle(_ event: GatewayEvent) async {
@@ -286,7 +363,7 @@ final class ChatSession {
         transcript.begin(remote: snapshot?.inflight?.user ?? "", displayKind: snapshot?.inflight?.displayKind, at: startedAt)
     }
 
-    private func apply(_ event: GatewayEvent) {
+    func apply(_ event: GatewayEvent) {
         if let seq = event.seq {
             guard seq > appliedSeq else { return }
             appliedSeq = seq
@@ -315,6 +392,11 @@ final class ChatSession {
             return transcript.apply(.toolStart(id: id, name: payload.name ?? "tool", context: payload.context, arguments: payload.arguments ?? ""))
         }
         if type == "tool.complete", let id = payload.toolID {
+            let isVault = transcript.turns.last?.work.contains { item in
+                guard item.id == id, case .tool(let call) = item.kind else { return false }
+                return call.name == "browser_vault"
+            } ?? false
+            if isVault { openRequests.removeAll { PendingRequest($0)?.isPayment == true } }
             return transcript.apply(.toolComplete(id: id, duration: payload.duration, summary: payload.summary, result: payload.result ?? ""))
         }
         if type == "message.complete" {
@@ -324,6 +406,7 @@ final class ChatSession {
             }
             let status = payload.status.flatMap(Turn.Status.init(rawValue:)) ?? .complete
             transcript.apply(.messageComplete(text: payload.text ?? "", status: status, error: payload.error ?? payload.failureReason))
+            openRequests.removeAll { PendingRequest($0)?.isPayment == true }
             generatingTool = nil
             statusLine = nil
             guard !queue.isEmpty else { return }
@@ -357,7 +440,8 @@ extension PendingRequest {
                 command: params.command ?? "",
                 description: params.description ?? "",
                 toolName: params.toolName,
-                choices: (params.choices ?? []).compactMap(ApprovalChoice.init(rawValue:))
+                choices: (params.choices ?? []).compactMap(ApprovalChoice.init(rawValue:)),
+                requestID: params.requestID
             ))
             return
         }
@@ -376,10 +460,24 @@ nonisolated struct ApprovalParams: Decodable, Sendable {
     let description: String?
     let choices: [String]?
     let toolName: String?
+    let requestID: String?
 
     private enum CodingKeys: String, CodingKey {
         case command, description, choices
         case toolName = "tool_name"
+        case requestID = "request_id"
+    }
+}
+
+nonisolated private struct ApprovalRespondParams: Encodable, Sendable {
+    let sessionID: RuntimeSessionID
+    let choice: String
+    let requestID: String
+
+    private enum CodingKeys: String, CodingKey {
+        case choice
+        case sessionID = "session_id"
+        case requestID = "request_id"
     }
 }
 

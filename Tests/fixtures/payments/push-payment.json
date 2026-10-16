@@ -1,0 +1,23 @@
+{
+  "aps": {
+    "alert": {
+      "title": "Scout",
+      "subtitle": "Pay at www.zalando.se?",
+      "body": "499 kr · Zalando · Winter boots, size 43"
+    },
+    "sound": "default",
+    "thread-id": "profile.scout",
+    "category": "CREW_PAYMENT",
+    "interruption-level": "time-sensitive"
+  },
+  "crew": {
+    "v": 1,
+    "kind": "payment",
+    "install_id": "9f2c41d07ab35e11",
+    "profile": "scout",
+    "session_id": "20261016_101512_ab12cd",
+    "event_id": "5be0c2a91f7d3e44",
+    "request_id": "5f0c3e9a2b7d4c18a6e1f20b9d3c7a54",
+    "expires_at": 1760610240.0
+  }
+}

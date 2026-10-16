@@ -81,7 +81,7 @@ struct MentionPeek: View {
     private var statusText: Text {
         let handle = Text(verbatim: "@\(live.handle)")
         if case .waiting(let kind) = status {
-            return Text("\(handle) · \(Text(kind == .approval ? "Needs approval" : "Waiting for you").foregroundStyle(.orange))")
+            return Text("\(handle) · \(Text(kind == .payment ? "Wants to pay" : kind == .approval ? "Needs approval" : "Waiting for you").foregroundStyle(.orange))")
         }
         if status == .working {
             return Text("\(handle) · \(Text(chats.sessions[live.id]?.statusLine ?? String(localized: "Working")).foregroundStyle(.green))")

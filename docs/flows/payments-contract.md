@@ -91,7 +91,7 @@ On `browser_vault` with `action == "fill"` and a handle whose item is `payment`.
 
 | Code | Rule |
 |---|---|
-| `crew_gate_off` | `gate.json` does not say `auth_required: true`. Every crew-push route request writes `request.app.state.auth_required` there; Crew calls `/status` on every connect. |
+| `crew_gate_off` | `gate.json` does not say `auth_required: true`. Every crew-push route request writes `request.app.state.auth_required` there; Crew calls `/status` on every authenticated connect, whether or not notifications are allowed. |
 | `crew_not_bot_chat` | `session_id` is empty or not the profile's Bot Chat (`is_bot_chat`). |
 | `crew_one_at_a_time` | A payment for this session is `pending` in the log, or any pending approval in the session (`list_gateway_approvals(session_key)`, key from `tools.approval_context.get_current_session_key()`) has the same `command` this fill will raise. |
 | `crew_after_decline` | This session's newest payment is `denied` or `expired`, and no user turn has started since its `decided_at`. A user turn is a `pre_llm_call` whose message is not agent-shaped, delivery-shaped or a bracketed system note. |

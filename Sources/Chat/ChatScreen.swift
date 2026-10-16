@@ -40,7 +40,7 @@ struct ChatScreen: View {
             mentionable: bots.bots.filter { $0.id != bot.id },
             request: session?.request,
             offlineReason: offlineReason,
-            activity: session.flatMap { $0.transcript.turns.last.map($0.transcript.hides) } == true ? nil : session?.statusLine ?? session?.generatingTool.map { String(localized: "Preparing \($0.replacing("_", with: " "))") },
+            activity: session?.statusLine ?? session?.generatingTool.map { String(localized: "Preparing \($0.replacing("_", with: " "))") },
             models: models,
             presentation: Snapshot.requested == .layoutInspector ? ChatPresentation(scrollTarget: "t1") : ChatPresentation(),
             actions: ChatActions(

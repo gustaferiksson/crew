@@ -41,12 +41,14 @@ private func transcript(_ json: String) throws -> Transcript {
     #expect(try transcript(senderRows).preview == "@test-bot replied, “Hello again! 👋”; the background delivery process has now finished successfully.")
 }
 
-@Test func targetHidesTheDeliveryTurnOfItsHiddenExchange() throws {
+@Test func targetFoldsItsExchangeAndDeliveryIntoOneRow() throws {
     let target = try transcript(targetRows)
     #expect(target.turns.map(\.delivery) == [nil, "proc_747c697fd2e6"])
     #expect(target.turns[1].prompt == nil)
-    #expect(target.visible.turns.isEmpty)
-    #expect(target.preview == nil)
+    #expect(target.visible.turns.map(\.id) == ["5"])
+    #expect(notes(target.visible.turns[0]) == ["The user sends another greeting; please say hello back.", nil, "Hello again! 👋", "Crew Test confirmed receipt of my greeting."])
+    #expect(target.visible.turns[0].finishedAt == Date(timeIntervalSince1970: 1792127292.1401896))
+    #expect(target.preview == "Message from Crew Test")
 }
 
 @Test func otherBackgroundProcessesKeepTheirNotice() throws {
@@ -69,7 +71,9 @@ private func transcript(_ json: String) throws -> Transcript {
     #expect(transcript.visible.turns.map(\.reply) == ["Sent.", "@test-bot replied: Hello!"])
     #expect(transcript.visible.turns.last?.notice == nil)
     transcript.turns[0].agentMessage = AgentMessage("Message from Scout (@scout): hi")
-    #expect(transcript.visible.turns.isEmpty)
+    #expect(transcript.visible.turns.count == 1)
+    #expect(transcript.visible.turns[0].status == .streaming)
+    #expect(notes(transcript.visible.turns[0]).last == "@test-bot replied: Hello!")
 }
 
 @Test func historyDropsTheWholeMentionNote() {
@@ -90,7 +94,7 @@ private func transcript(_ json: String) throws -> Transcript {
     #expect(visible.turns[1].prompt == nil)
 }
 
-@Test func targetWindowCutAtADeliveryHasNoPreview() throws {
+@Test func targetWindowCutAtADeliveryPreviewsTheLaterExchange() throws {
     let rows = #"""
     [
      {"id": 9, "role": "user", "content": "[IMPORTANT: Background process proc_747c697fd2e6 completed normally (exit code 0).\nCommand: /opt/hermes/.venv/bin/python /opt/hermes/tools/bot_mode_dm.py --run-delivery --author '{\"id\":\"bot:test-bot\",\"name\":\"test-bot\",\"is_bot\":true}' query-file /opt/data/profiles/test-bot/cache/scratch/hermes-dm-10000/dm-64as2zv6.txt --profile-home /opt/data/profiles/crew-test /opt/hermes/.venv/bin/hermes -p crew-test chat --in '~' -c 'Bot Chat' --create-if-missing -Q\nOutput:\n{\"reply\": \"@test-bot replied: \\u201cHello again! \\ud83d\\udc4b\\u201d\", \"status\": \"settled\", \"delivery_id\": \"27a55319beabddaa4793da7d10dc769533227db9af9ca5ae10e902033595032c\"}\n]", "timestamp": 1792127287.7407491, "display_kind": null},
@@ -103,6 +107,13 @@ private func transcript(_ json: String) throws -> Transcript {
      {"id": 16, "role": "assistant", "content": "Crew Test received my greeting.", "timestamp": 1792128789.9351559, "display_kind": null}
     ]
     """#
-    #expect(try transcript(rows).visible.turns.isEmpty)
-    #expect(try transcript(rows).preview == nil)
+    #expect(try transcript(rows).visible.turns.map(\.id) == ["11"])
+    #expect(try transcript(rows).preview == "Message from Crew Test")
+}
+
+@Test func onlyWorkingAndWaitingCountAsBusy() {
+    #expect(BotStatus(live: "idle", waiting: nil) == nil)
+    #expect(BotStatus(live: "starting", waiting: nil) == nil)
+    #expect(BotStatus(live: "working", waiting: nil) == .working)
+    #expect(BotStatus(live: "waiting", waiting: .approval) == .waiting(.approval))
 }

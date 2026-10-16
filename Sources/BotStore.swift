@@ -232,11 +232,13 @@ final class BotStore {
     private(set) var statuses: [Bot.ID: BotStatus]
     private(set) var isLoaded: Bool
     private(set) var photos: [Bot.ID: Image]
+    private(set) var previews: [Bot.ID: String] = [:]
     var isForeground = true
 
     private let cacheURL: URL?
     private let photoDirectory: URL?
     private var photoRevisions: [Bot.ID: Int] = [:]
+    private var previewPositions: [Bot.ID: ReadPosition] = [:]
     private var liveSessions: [LiveSession] = []
     private var waitingKinds: [RuntimeSessionID: WaitingKind] = [:]
     private var seenActivity: [Bot.ID: ReadPosition] = [:]
@@ -245,6 +247,7 @@ final class BotStore {
     private var clearingUnread: Set<Bot.ID> = []
     let unreadCleared = AsyncStream.makeStream(of: Bot.self)
     private var gateway: Gateway?
+    private var urlSession: URLSession?
     private var reloadTask: Task<Void, Never>?
 
     init() {
@@ -303,8 +306,9 @@ final class BotStore {
             }
     }
 
-    func run(_ gateway: Gateway) async {
+    func run(_ gateway: Gateway, urlSession: URLSession) async {
         self.gateway = gateway
+        self.urlSession = urlSession
         let events = gateway.events()
         let requests = gateway.serverRequests()
         if await gateway.status == .connected { await reload(gateway) }
@@ -461,6 +465,8 @@ final class BotStore {
         statuses = [:]
         photos = [:]
         photoRevisions = [:]
+        previews = [:]
+        previewPositions = [:]
         liveSessions = []
         waitingKinds = [:]
         for write in readWrites.values { write.cancel() }
@@ -469,6 +475,7 @@ final class BotStore {
         seenActivity = [:]
         firstSeenActivity = [:]
         gateway = nil
+        urlSession = nil
         isLoaded = false
         guard let cacheURL, let photoDirectory else { return }
         try? FileManager.default.removeItem(at: cacheURL)
@@ -499,6 +506,7 @@ final class BotStore {
         sendReadMarkers()
         await poll(gateway)
         await refreshPhotos(gateway)
+        await refreshPreviews(gateway)
     }
 
     private func saveCache() {
@@ -531,6 +539,19 @@ final class BotStore {
             photos[bot.id] = photo
             try? FileManager.default.createDirectory(at: photoDirectory, withIntermediateDirectories: true)
             try? data.write(to: file, options: .atomic)
+        }
+    }
+
+    private func refreshPreviews(_ gateway: Gateway) async {
+        guard let urlSession else { return }
+        for bot in bots {
+            guard let session = bot.canonicalSession, let position = session.position, previewPositions[bot.id] != position else { continue }
+            previewPositions[bot.id] = position
+            guard let rows = try? await history(of: session.resolvedID, profile: bot.name, on: gateway.server, with: urlSession, limit: 20) else {
+                previewPositions[bot.id] = nil
+                continue
+            }
+            previews[bot.id] = Transcript(history: Array(rows.sorted { $0.id < $1.id }.drop { $0.role != "user" })).preview ?? ""
         }
     }
 

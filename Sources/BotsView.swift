@@ -226,7 +226,7 @@ struct BotsView: View {
         }
         .task(id: connection.gateway.map(ObjectIdentifier.init)) {
             guard let gateway = connection.gateway else { return }
-            await store.run(gateway)
+            await store.run(gateway, urlSession: connection.urlSession)
         }
         .task(id: connection.gateway.map(ObjectIdentifier.init)) {
             guard let gateway = connection.gateway else { return }
@@ -368,6 +368,10 @@ private struct BotRow: View {
         chats.status(of: bot.id, in: store)
     }
 
+    private var preview: String {
+        chats.sessions[bot.id].map { $0.transcript.preview ?? "" } ?? store.previews[bot.id] ?? bot.canonicalSession?.preview ?? ""
+    }
+
     var body: some View {
         HStack(spacing: 0) {
             Circle()
@@ -389,7 +393,7 @@ private struct BotRow: View {
                         .font(.subheadline)
                         .lineLimit(1)
                 }
-                Text(bot.canonicalSession?.preview.flatMap { $0.isEmpty ? nil : $0 } ?? bot.description ?? "")
+                Text(preview.isEmpty ? bot.description ?? "" : preview)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .lineLimit(2, reservesSpace: true)

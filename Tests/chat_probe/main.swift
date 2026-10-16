@@ -284,8 +284,8 @@ if phases.contains("sync") {
     let peerGateway = try await connectedPeer()
     let storeA = BotStore(fixture: [], statuses: [:])
     let storeB = BotStore(fixture: [], statuses: [:])
-    Task { await storeA.run(gateway) }
-    Task { await storeB.run(peerGateway) }
+    Task { await storeA.run(gateway, urlSession: urlSession) }
+    Task { await storeB.run(peerGateway, urlSession: urlSession) }
     try await Task.sleep(for: .seconds(3))
     func measure(_ label: String, _ change: () async throws -> Void, until done: (Bot) -> Bool) async throws {
         let started = Date.now
@@ -313,8 +313,8 @@ if phases.contains("read") {
     let peerGateway = try await connectedPeer()
     let storeA = BotStore(fixture: [], statuses: [:])
     let storeB = BotStore(fixture: [], statuses: [:])
-    Task { await storeA.run(gateway) }
-    Task { await storeB.run(peerGateway) }
+    Task { await storeA.run(gateway, urlSession: urlSession) }
+    Task { await storeB.run(peerGateway, urlSession: urlSession) }
     var writes = 0
     Task { for await _ in storeA.unreadCleared.stream { writes += 1 } }
     try await Task.sleep(for: .seconds(3))
@@ -413,6 +413,18 @@ if phases.contains("a2ui") {
     let reply = outDir.appending(path: "a2ui-reply.md")
     try (chat.transcript.turns.last?.reply ?? "").write(to: reply, atomically: true, encoding: .utf8)
     print("REPLY", reply.path)
+}
+
+if phases.contains("mention") {
+    record("mention-turn")
+    let roster = try await gateway.call("profiles.list", ["include_sessions": true], as: BotRoster.self).profiles
+    let start = chat.transcript.turns.count
+    chat.send("@test-bot hi", mentioning: roster.filter { $0.name == "test-bot" }, mode: .send)
+    try await waitIdle(chat)
+    try await waitIdle(chat, timeout: 180) { !$0.isRunning && $0.transcript.turns.last?.delivery != nil }
+    for turn in chat.transcript.turns.dropFirst(start) {
+        print(chat.transcript.hides(turn) ? "HIDDEN " : "SHOWN  ", turn.prompt?.text ?? turn.notice ?? turn.delivery ?? "-", "|", turn.reply)
+    }
 }
 
 if phases.contains("history") {

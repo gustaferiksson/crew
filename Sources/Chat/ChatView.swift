@@ -260,9 +260,13 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
             #endif
             .task(id: [focus?.id.uuidString, "\(transcript.turns.count)"]) {
                 guard let focus, focus.id != handledFocus, let target = transcript.turn(matching: focus.snippet) else { return }
+                for delay in [400, 150] {
+                    try? await Task.sleep(for: .milliseconds(delay))
+                    guard !Task.isCancelled else { return }
+                    isAtBottom = false
+                    proxy.scrollTo(target.id, anchor: .center)
+                }
                 handledFocus = focus.id
-                isAtBottom = false
-                position.scrollTo(id: target.id, anchor: .center)
                 highlighted = target.id
             }
             .task(id: highlighted) {

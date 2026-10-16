@@ -190,11 +190,11 @@ struct BotSection: Identifiable {
     let bots: [Bot]
 }
 
-nonisolated private struct Roster: Decodable {
+nonisolated struct Roster: Decodable {
     let profiles: [Bot]
 }
 
-nonisolated private struct LiveSession: Decodable {
+nonisolated struct LiveSession: Decodable {
     let id: RuntimeSessionID
     let sessionKey: StoredSessionID
     let status: String
@@ -205,7 +205,7 @@ nonisolated private struct LiveSession: Decodable {
     }
 }
 
-nonisolated private struct ActiveList: Decodable {
+nonisolated struct ActiveList: Decodable {
     let sessions: [LiveSession]
 }
 
@@ -493,9 +493,16 @@ final class BotStore {
 
     func reload(_ gateway: Gateway) async {
         guard let roster = try? await gateway.call("profiles.list", ["include_sessions": true], as: Roster.self) else { return }
+        apply(roster: roster.profiles)
+        await poll(gateway)
+        await refreshPhotos(gateway)
+        await refreshPreviews(gateway)
+    }
+
+    func apply(roster: [Bot]) {
         if !isLoaded { isLoaded = true }
-        if roster.profiles != bots {
-            bots = roster.profiles
+        if roster != bots {
+            bots = roster
             saveCache()
         }
         seenActivity = seenActivity.filter { seen in bots.contains { $0.id == seen.key && $0.readPosition.map { seen.value > $0 } ?? true } }
@@ -504,9 +511,6 @@ final class BotStore {
             firstSeenActivity[bot.id] = bot.canonicalSession?.position
         }
         sendReadMarkers()
-        await poll(gateway)
-        await refreshPhotos(gateway)
-        await refreshPreviews(gateway)
     }
 
     private func saveCache() {
@@ -551,8 +555,12 @@ final class BotStore {
                 previewPositions[bot.id] = nil
                 continue
             }
-            previews[bot.id] = Transcript(history: Array(rows.sorted { $0.id < $1.id }.drop { $0.role != "user" })).preview ?? ""
+            showPreview(of: bot.id, from: rows)
         }
+    }
+
+    func showPreview(of id: Bot.ID, from rows: [HistoryRow]) {
+        previews[id] = Transcript(history: Array(rows.sorted { $0.id < $1.id }.drop { $0.role != "user" })).preview ?? ""
     }
 
     private static func photo(from data: Data) -> Image? {
@@ -571,10 +579,14 @@ final class BotStore {
     private func poll(_ gateway: Gateway) async {
         guard let list = try? await gateway.call("session.active_list", [String: String](), as: ActiveList.self) else { return }
         let wasBusy = statuses.values.contains { $0 != .unread }
-        liveSessions = list.sessions
-        waitingKinds = waitingKinds.filter { kind in list.sessions.contains { $0.id == kind.key && $0.status == "waiting" } }
-        updateStatuses()
+        apply(live: list.sessions)
         if wasBusy && !statuses.values.contains(where: { $0 != .unread }) { scheduleReload(gateway) }
+    }
+
+    func apply(live sessions: [LiveSession]) {
+        liveSessions = sessions
+        waitingKinds = waitingKinds.filter { kind in sessions.contains { $0.id == kind.key && $0.status == "waiting" } }
+        updateStatuses()
     }
 
     private func note(_ request: ServerRequest, gateway: Gateway) async {

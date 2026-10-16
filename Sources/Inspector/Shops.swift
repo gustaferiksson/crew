@@ -106,6 +106,9 @@ struct ShopsCard: View {
         } else {
             VStack(alignment: .leading, spacing: 12) {
                 ForEach(shops) { shop in
+                    if shop.id != shops.first?.id {
+                        Divider()
+                    }
                     ShopRow(shop: shop, isRemoving: removing.contains(shop.id), failure: removeFailures[shop.id], isHighlighted: highlighted == shop.id)
                         .contextMenu {
                             Button("Remove Shop", systemImage: "trash", role: .destructive) { remove(shop) }
@@ -291,13 +294,13 @@ struct AddShopSheet: View {
             #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel", role: .cancel) { dismiss() }
+                    Button("Cancel", systemImage: "xmark", role: .cancel) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     if isSaving {
                         ProgressView()
                     } else {
-                        Button("Add", action: add)
+                        Button("Add", systemImage: "checkmark", role: .confirm, action: add)
                             .disabled(host == nil || connection.state != .connected)
                     }
                 }

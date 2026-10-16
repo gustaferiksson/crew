@@ -37,7 +37,7 @@ extension ChatFixture {
 
     var paymentNotice: String? {
         guard self == .paymentNotice else { return nil }
-        let expiry = Calendar.current.date(bySettingHour: 14, minute: 7, second: 0, of: .now) ?? .now
+        let expiry = Date.now.addingTimeInterval(-60)
         return String(localized: "This payment request expired at \(expiry.formatted(date: .omitted, time: .shortened)).")
     }
 

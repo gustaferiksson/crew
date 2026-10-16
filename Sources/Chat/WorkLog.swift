@@ -296,9 +296,8 @@ private struct WorkRow: View {
 
     private func vaultSubject(_ call: ToolCall) -> String {
         guard vaultAction(call) == "fill" else { return "" }
-        let arguments = (try? JSONSerialization.jsonObject(with: Data(call.arguments.utf8))) as? [String: Any]
-        let place = call.result.flatMap(VaultResult.init)?.origin.flatMap { URLComponents(string: $0)?.encodedHost } ?? arguments?["merchant"] as? String
-        return place.map { String(localized: "at \($0)") } ?? ""
+        let host = call.result.flatMap(VaultResult.init)?.origin.flatMap { URLComponents(string: $0)?.encodedHost }
+        return host.map { String(localized: "at \($0)") } ?? ""
     }
 }
 

@@ -285,7 +285,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
             .toolbar(removing: .title)
             #endif
             .task(id: surfaces.blocks.count) {
-                guard let target = presentation.scrollTarget else { return }
+                guard let target = presentation.scrollTarget else { return isAtBottom ? position.scrollTo(edge: .bottom) : () }
                 position.scrollTo(id: target, anchor: .top)
             }
         }

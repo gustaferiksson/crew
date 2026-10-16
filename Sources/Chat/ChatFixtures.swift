@@ -63,7 +63,9 @@ enum ChatFixture {
             return Transcript(turns: turns)
         }
         if self == .paymentNotice {
-            return Transcript(turns: Self.shoppingTurns(now, fill: #"{"success": false, "error_type": "payment_declined", "crew_payment": {"request_id": "x", "state": "expired", "fill": null, "fill_error": null}}"#))
+            var turns = Self.shoppingTurns(now, fill: #"{"success": false, "error_type": "payment_declined", "crew_payment": {"request_id": "x", "state": "expired", "fill": null, "fill_error": null}}"#)
+            turns[1].reply = "Nobody answered within 5 minutes, so the payment request expired. Tell me when you want to try again."
+            return Transcript(turns: turns)
         }
         if isPayment { return Transcript(turns: Self.shoppingTurns(now, fill: nil)) }
         if self == .attachments { return Transcript(turns: [greeting(now.addingTimeInterval(-26 * 3600)), receipt(now.addingTimeInterval(-6 * 60))]) }

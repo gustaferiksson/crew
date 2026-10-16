@@ -38,12 +38,15 @@ struct PaymentCard<Avatar: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            header
-            merchantLine
-            if !isUnverified {
-                detailRows
+            if typeSize.isAccessibilitySize {
+                ScrollView {
+                    content
+                }
+                .scrollBounceBehavior(.basedOnSize)
+                .frame(maxHeight: 280)
+            } else {
+                content
             }
-            status
             buttons
         }
         .padding(16)
@@ -51,6 +54,17 @@ struct PaymentCard<Avatar: View>: View {
         .accessibilityElement(children: .contain)
         .accessibilityLabel(summary)
         .task(id: deadline) { await countDown() }
+    }
+
+    private var content: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            header
+            merchantLine
+            if !isUnverified {
+                detailRows
+            }
+            status
+        }
     }
 
     private var header: some View {
@@ -76,9 +90,10 @@ struct PaymentCard<Avatar: View>: View {
                 Text("Pay")
                     .font(.title3)
                     .foregroundStyle(.secondary)
-                Text(host)
+                Text(host.map(String.init).joined(separator: "\u{200B}"))
                     .font(.title2.weight(.semibold))
                     .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityLabel(host)
             }
             .accessibilityElement(children: .combine)
             if isPunycode(host) {
@@ -96,11 +111,13 @@ struct PaymentCard<Avatar: View>: View {
                 HStack(spacing: 8) {
                     CardArt(width: 24, height: 16)
                     Text(details?.cardLabel ?? command?.cardLabel ?? "Shopping card •••• 4242")
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
             detailRow("FOR") {
                 Text(details.map { "\($0.merchant) · \($0.reason)" } ?? "Shop · Something you asked for")
                     .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             Divider()
             detailRow("TOTAL") {
@@ -165,11 +182,13 @@ struct PaymentCard<Avatar: View>: View {
     }
 
     private var buttons: some View {
-        HStack(spacing: 8) {
+        let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 8)) : AnyLayout(HStackLayout(spacing: 8))
+        return layout {
             Button(role: .destructive) {
                 respond(.deny)
             } label: {
                 Text("Deny")
+                    .foregroundStyle(.red)
             }
             .buttonStyle(.glass)
             .accessibilityLabel("Deny payment")
@@ -192,7 +211,7 @@ struct PaymentCard<Avatar: View>: View {
 
     private var summary: Text {
         guard let details else { return Text("Payment request from \(request.requester ?? botName). Pay at \(host).") }
-        let card = command?.last4.map { String(localized: "Card ending \($0).") } ?? ""
+        let card = command?.last4.map { String(localized: "Card ending \($0).") } ?? "\(details.cardLabel)." 
         return Text("Payment request from \(request.requester ?? botName). Pay at \(host). \(details.merchant), \(details.reason). \(card) Total \(details.amount), as stated by \(request.requester ?? botName).")
     }
 
@@ -304,9 +323,16 @@ private struct HoldToPayButton: View {
         guard let pressedAt, !isApproved else { return }
         self.pressedAt = nil
         let held = Date.now.timeIntervalSince(pressedAt)
-        guard held < 0.95 else { return }
+        guard held >= 0.95 else { return springBack(confirming: held < 0.3) }
+        Task {
+            try? await Task.sleep(for: .milliseconds(200))
+            if !isApproved { springBack(confirming: false) }
+        }
+    }
+
+    private func springBack(confirming: Bool) {
         withAnimation(reduceMotion ? .linear(duration: 0.25) : .spring(duration: 0.25)) { progress = 0 }
-        if held < 0.3 { confirming = true }
+        if confirming { self.confirming = true }
     }
 
     private func complete() {
@@ -402,15 +428,11 @@ struct PaymentReceiptRow: View {
     let receipt: PaymentReceipt
 
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(alignment: .firstTextBaseline, spacing: 4) {
             Image(systemName: "creditcard")
                 .foregroundStyle(tint)
             Text(receipt.text)
                 .foregroundStyle(.secondary)
-            if let symbol {
-                Image(systemName: symbol)
-                    .foregroundStyle(tint)
-            }
         }
         .font(.footnote)
         .multilineTextAlignment(.center)
@@ -426,10 +448,4 @@ struct PaymentReceiptRow: View {
         return AnyShapeStyle(.secondary)
     }
 
-    private var symbol: String? {
-        if receipt.tone == .approved { return "checkmark.circle.fill" }
-        if receipt.tone == .denied { return "xmark.circle.fill" }
-        if receipt.tone == .warning { return "exclamationmark.triangle.fill" }
-        return nil
-    }
 }

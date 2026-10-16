@@ -144,8 +144,12 @@ final class ChatSession {
         payments[id]?.failure = nil
         Task {
             do {
-                _ = try await gateway.call("approval.respond", ApprovalRespondParams(sessionID: runtime, choice: choice.rawValue, requestID: requestID), as: JSONValue.self)
-                if choice == .once { try? await Task.sleep(for: .seconds(0.8)) }
+                let reply = try await gateway.call("approval.respond", ApprovalRespondParams(sessionID: runtime, choice: choice.rawValue, requestID: requestID), as: ApprovalRespondReply.self)
+                if choice == .once, reply.resolved == 0 {
+                    let details = try? await paymentsCall("payments/requests/\(requestID)", on: gateway.server, with: urlSession, as: PaymentDetails.self)
+                    if details?.state != .approved { payments[id]?.isApproved = false }
+                }
+                if choice == .once, payments[id]?.isApproved == true { try? await Task.sleep(for: .seconds(0.8)) }
                 openRequests.removeAll { $0.id == id }
             } catch GatewayError.rpc(code: 4001, _) {
                 openRequests.removeAll { $0.id == id }
@@ -467,6 +471,10 @@ nonisolated struct ApprovalParams: Decodable, Sendable {
         case toolName = "tool_name"
         case requestID = "request_id"
     }
+}
+
+nonisolated private struct ApprovalRespondReply: Decodable, Sendable {
+    let resolved: Int?
 }
 
 nonisolated private struct ApprovalRespondParams: Encodable, Sendable {

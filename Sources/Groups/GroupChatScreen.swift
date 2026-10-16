@@ -58,6 +58,7 @@ struct GroupChatScreen: View {
             botName: room.name,
             avatar: GroupAvatar(members: members, size: 28),
             transcript: session?.transcript ?? Transcript(),
+            emptyState: welcome,
             mentionable: members,
             features: [],
             request: session?.request,
@@ -66,9 +67,23 @@ struct GroupChatScreen: View {
                 send: { text, _, _, _ in session?.send(text) },
                 stop: { session?.stop() },
                 openPersona: { showsInspector.toggle() },
-                respond: { session?.respond(to: $0, with: $1) }
+                respond: { session?.respond(to: $0, with: $1) },
+                retry: { session?.retry($0) }
             )
         )
+        .toolbar {
+            if let session {
+                ToolbarItem(placement: .primaryAction) {
+                    Menu("Threads", systemImage: "bubble.left.and.text.bubble.right") {
+                        Picker("Thread", selection: Binding(get: { session.threadID }, set: { session.threadID = $0 })) {
+                            ForEach(session.threads) { Text($0.title).tag($0.id) }
+                        }
+                        .pickerStyle(.inline)
+                        Button("New Thread", systemImage: "plus") { session.startThread() }
+                    }
+                }
+            }
+        }
         #if os(iOS)
         .navigationDestination(isPresented: $showsInspector) {
             GroupInspector(room: room, isPresented: $showsInspector, select: select)
@@ -92,5 +107,38 @@ struct GroupChatScreen: View {
             Text(session?.failure ?? "")
         }
         .id(room.id)
+    }
+
+    private var welcome: some View {
+        VStack(spacing: 16) {
+            HStack(alignment: .top, spacing: 8) {
+                ForEach(room.members, id: \.memberID) { member in
+                    let bot = bots.bots.first { $0.name == member.profile }
+                    VStack(spacing: 8) {
+                        if let bot {
+                            BotAvatar(bot: bot, status: .idle, photo: bots.photos[bot.id], size: 48)
+                        } else {
+                            Image(systemName: "person.crop.circle.fill")
+                                .font(.system(size: 48))
+                                .foregroundStyle(.secondary)
+                                .frame(width: 48, height: 48)
+                        }
+                        Text(bot?.title ?? member.displayName ?? member.memberID)
+                            .font(.caption)
+                            .lineLimit(1)
+                    }
+                    .frame(width: 52)
+                }
+            }
+            VStack(spacing: 4) {
+                Text(room.name)
+                    .font(.title3.bold())
+                Text("Say hello to start the conversation.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .multilineTextAlignment(.center)
+        .padding(16)
     }
 }

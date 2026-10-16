@@ -9,6 +9,7 @@ struct ChatActions {
     var openPersona: () -> Void = {}
     var changeModel: (ModelChoice) -> Void = { _ in }
     var respond: (ApprovalRequest.ID, ApprovalChoice) -> Void = { _, _ in }
+    var retry: (String) -> Void = { _ in }
     var answer: (QuestionRequest.ID, [String: String]) -> Void = { _, _ in }
 }
 
@@ -26,6 +27,11 @@ private let separatorGap: TimeInterval = 60 * 60
 
 private let bottomID = "bottom"
 
+private struct BottomEdge: Equatable {
+    let distance: CGFloat
+    let inset: CGFloat
+}
+
 private let separatorFormatter = {
     let formatter = DateFormatter()
     formatter.dateStyle = .medium
@@ -34,10 +40,11 @@ private let separatorFormatter = {
     return formatter
 }()
 
-struct ChatView<Avatar: View>: View {
+struct ChatView<Avatar: View, EmptyState: View>: View {
     let botName: String
     let avatar: Avatar
     let transcript: Transcript
+    let emptyState: EmptyState
     let mentionable: [Bot]
     var features: ComposerFeatures
     var request: PendingRequest?
@@ -59,10 +66,11 @@ struct ChatView<Avatar: View>: View {
     @State private var surfaces = SurfaceStore()
     private let presentation: ChatPresentation
 
-    init(botName: String, avatar: Avatar, transcript: Transcript, mentionable: [Bot], features: ComposerFeatures = .all, request: PendingRequest? = nil, offlineReason: String? = nil, activity: String? = nil, models: ModelSwitcher? = nil, presentation: ChatPresentation = ChatPresentation(), actions: ChatActions = ChatActions()) {
+    init(botName: String, avatar: Avatar, transcript: Transcript, emptyState: EmptyState, mentionable: [Bot], features: ComposerFeatures = .all, request: PendingRequest? = nil, offlineReason: String? = nil, activity: String? = nil, models: ModelSwitcher? = nil, presentation: ChatPresentation = ChatPresentation(), actions: ChatActions = ChatActions()) {
         self.botName = botName
         self.avatar = avatar
         self.transcript = transcript
+        self.emptyState = emptyState
         self.mentionable = mentionable
         self.features = features
         self.request = request
@@ -112,7 +120,8 @@ struct ChatView<Avatar: View>: View {
                                     mentionable: mentionable,
                                     expandedTurns: $expandedTurns,
                                     expandedWork: $expandedWork,
-                                    expandedRuns: $expandedRuns
+                                    expandedRuns: $expandedRuns,
+                                    retry: actions.retry
                                 )
                             }
                             .id(turn.id)
@@ -131,10 +140,11 @@ struct ChatView<Avatar: View>: View {
             #if os(iOS)
             .scrollDismissesKeyboard(.interactively)
             #endif
-            .onScrollGeometryChange(for: CGFloat.self) { geometry in
-                geometry.contentSize.height - geometry.visibleRect.maxY + geometry.contentInsets.bottom
-            } action: { _, distance in
-                isAtBottom = distance < 40
+            .onScrollGeometryChange(for: BottomEdge.self) { geometry in
+                BottomEdge(distance: geometry.contentSize.height - geometry.visibleRect.maxY + geometry.contentInsets.bottom, inset: geometry.contentInsets.bottom)
+            } action: { old, new in
+                isAtBottom = new.distance < 40
+                if new.inset > old.inset, old.distance < 40 { position.scrollTo(edge: .bottom) }
             }
             .simultaneousGesture(
                 DragGesture(minimumDistance: 16, inputKinds: [.directTouch, .indirectTouch])
@@ -167,6 +177,9 @@ struct ChatView<Avatar: View>: View {
                 guard features.contains(.attachments) else { return false }
                 tray.add(urls)
                 return true
+            }
+            .overlay {
+                if transcript.turns.isEmpty { emptyState }
             }
             .safeAreaBar(edge: .bottom) {
                 VStack(spacing: 8) {
@@ -252,6 +265,7 @@ struct TurnView: View {
     @Binding var expandedTurns: Set<Turn.ID>
     @Binding var expandedWork: Set<WorkItem.ID>
     @Binding var expandedRuns: Set<String>
+    var retry: (String) -> Void = { _ in }
 
     @Environment(BotStore.self) private var bots
 
@@ -281,14 +295,8 @@ struct TurnView: View {
                         PromptAttachments(attachments: prompt.attachments)
                             .offset(x: reveal)
                     }
-                    let mentioned = mentionedBots(in: prompt.text, among: mentionable)
-                    if !mentioned.isEmpty {
-                        MentionChips(bots: mentioned)
-                            .frame(maxWidth: .infinity, alignment: .trailing)
-                            .offset(x: reveal)
-                    }
                     if !prompt.text.isEmpty {
-                        UserBubble(text: prompt.text)
+                        UserBubble(text: prompt.text, mentionable: mentionable, turnID: turn.id)
                             .offset(x: reveal)
                             .modifier(Timestamp(date: prompt.sentAt, reveal: reveal, width: timestampWidth))
                     }
@@ -309,9 +317,15 @@ struct TurnView: View {
                         .modifier(Timestamp(date: turn.finishedAt ?? turn.startedAt, reveal: reveal, width: timestampWidth))
                 }
                 if turn.status == .error {
-                    Label(turn.failure ?? "Something went wrong.", systemImage: "exclamationmark.triangle.fill")
-                        .font(.footnote)
-                        .foregroundStyle(.red)
+                    HStack(spacing: 8) {
+                        Label(turn.failure ?? "Something went wrong.", systemImage: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.red)
+                        if let retryID = turn.retryID {
+                            Button("Retry") { retry(retryID) }
+                                .buttonStyle(.borderless)
+                        }
+                    }
+                    .font(.footnote)
                 }
                 if turn.status == .interrupted {
                     Label("Stopped", systemImage: "stop.circle")

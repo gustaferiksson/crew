@@ -24,7 +24,7 @@ def register(client: TestClient, **overrides: object) -> dict:
 
 def test_status_reports_unconfigured_host(client: TestClient) -> None:
     body = client.get("/api/plugins/crew-push/status").json()
-    assert body["plugin_version"] == "0.3.0"
+    assert body["plugin_version"] == "0.3.2"
     assert body["apns_configured"] is False
     assert body["http2"] is True
     assert body["devices"] == 0

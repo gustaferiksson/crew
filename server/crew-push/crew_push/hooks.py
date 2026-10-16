@@ -14,8 +14,8 @@ log = logging.getLogger("crew_push")
 
 Kind = Literal["reply", "turn_error", "approval", "clarify", "routine"]
 
-HOOK_NAMES = ("pre_llm_call", "post_llm_call", "on_session_end", "pre_tool_call", "pre_approval_request",
-              "subagent_start")
+HOOK_NAMES = ("pre_llm_call", "post_llm_call", "on_session_end", "pre_tool_call", "post_tool_call",
+              "pre_approval_request", "subagent_start")
 BOT_CHAT_TITLE = "Bot Chat"
 
 
@@ -42,6 +42,12 @@ MARKDOWN = (
     (re.compile(r"^[ \t]*(?:#{1,6}|>|[-*+]|\d+\.)[ \t]+", re.MULTILINE), ""),
     (re.compile(r"\*\*|__|~~|`|(?<!\w)\*|\*(?!\w)"), ""),
 )
+
+
+AGENT_MESSAGE = re.compile(r"Message from (?:🤖\s*)?[^:\n(]{1,64}?(?:\s*\(@[a-z0-9][a-z0-9_-]{0,63}"
+                           r"(?:@[a-zA-Z0-9][a-zA-Z0-9_-]{0,63})?\))?:|\[Message from agent '[^']{1,64}'\]")
+DELIVERY = re.compile(r"\[IMPORTANT: Background process (proc_[0-9a-f]+)\b.*bot_mode_dm\.py --run-delivery", re.DOTALL)
+PROCESS_ID = re.compile(r'"process_id":\s*"(proc_[0-9a-f]+)"')
 
 
 def plain(markdown: str) -> str:
@@ -184,11 +190,19 @@ class CrewPush:
         self.subagents = Recent()
         self.sent = Recent()
         self.bot_chats = Recent()
+        self.agent_turns = Recent()
+        self.agent_processes = Recent()
 
     @quiet
-    def pre_llm_call(self, *, session_id: str = "", platform: str = "", **_: Any) -> None:
-        if session_id and platform:
-            with self.lock:
+    def pre_llm_call(self, *, session_id: str = "", platform: str = "", user_message: Any = "", **_: Any) -> None:
+        if not session_id:
+            return
+        text = str(user_message or "").strip()
+        delivery = DELIVERY.match(text)
+        with self.lock:
+            self.agent_turns.remember(session_id, bool(AGENT_MESSAGE.match(text))
+                                      or bool(delivery and delivery[1] in self.agent_processes))
+            if platform:
                 self.platforms.remember(session_id, platform.lower())
 
     @quiet
@@ -208,10 +222,11 @@ class CrewPush:
                        platform: str = "", **_: Any) -> None:
         with self.lock:
             reply = self.replies.pop(session_id, "")
+            from_agent = self.agent_turns.pop(session_id, False)
             if session_id and platform:
                 self.platforms.remember(session_id, platform.lower())
         ref = turn_id or str(int(time.time()))
-        if interrupted or session_id in self.subagents:
+        if interrupted or from_agent or session_id in self.subagents:
             return
         if self.platforms.get(session_id) == "cron":
             body = plain(reply) or ("The routine failed." if failed else "The routine finished.")
@@ -234,6 +249,15 @@ class CrewPush:
         question = str((first.get("question") if isinstance(first, dict) else first) or "")
         self.notify("clarify", session_id, tool_call_id or str(int(time.time())),
                     body=plain(question) or "Has a question for you.")
+
+    @quiet
+    def post_tool_call(self, *, tool_name: str = "", result: Any = "", session_id: str = "", **_: Any) -> None:
+        if tool_name != "message_agent":
+            return
+        with self.lock:
+            if self.agent_turns.get(session_id):
+                for process in PROCESS_ID.findall(str(result or "")):
+                    self.agent_processes.remember(process, True)
 
     @quiet
     def pre_approval_request(self, *, command: str = "", description: str = "", session_id: str = "",

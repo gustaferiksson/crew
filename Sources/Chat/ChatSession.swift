@@ -85,7 +85,7 @@ final class ChatSession {
         let prompt = Prompt(text: text.trimmingCharacters(in: .whitespacesAndNewlines), sentAt: .now, attachments: attachments, mentionNote: mentionNote(for: bots))
         guard !prompt.text.isEmpty || !attachments.isEmpty, let runtime else { return }
         guard isRunning else { return submit(prompt) }
-        if mode == .queue || !attachments.isEmpty { return queue.append(prompt) }
+        if mode == .queue || !attachments.isEmpty || transcript.turns.last.map({ $0.agentMessage != nil || $0.delivery != nil }) == true { return queue.append(prompt) }
         Task {
             do {
                 _ = try await gateway.call("session.steer", ["session_id": runtime.rawValue, "text": prompt.text], as: JSONValue.self)
@@ -466,16 +466,20 @@ nonisolated private struct HistoryPage: Decodable, Sendable {
     let messages: [HistoryRow]
 }
 
-nonisolated func history(of stored: StoredSessionID, profile: String, on server: URL, with urlSession: URLSession) async throws -> [HistoryRow] {
+nonisolated func history(of stored: StoredSessionID, profile: String, on server: URL, with urlSession: URLSession, limit: Int = 500) async throws -> [HistoryRow] {
+    try await fetch(historyRequest(of: stored, profile: profile, on: server, limit: limit), with: urlSession, as: HistoryPage.self).messages
+}
+
+nonisolated func historyRequest(of stored: StoredSessionID, profile: String, on server: URL, limit: Int) -> URLRequest {
     var request = hermesRequest("api/sessions/\(stored.rawValue)/messages", on: server)
     request.url?.append(queryItems: [
         URLQueryItem(name: "profile", value: profile),
         URLQueryItem(name: "order", value: "latest"),
-        URLQueryItem(name: "limit", value: "500"),
+        URLQueryItem(name: "limit", value: String(limit)),
         URLQueryItem(name: "include_compacted", value: "true"),
         URLQueryItem(name: "inline_images", value: "false"),
     ])
-    return try await fetch(request, with: urlSession, as: HistoryPage.self).messages
+    return request
 }
 
 nonisolated private struct LiveSnapshot: Decodable, Sendable {

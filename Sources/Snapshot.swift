@@ -17,6 +17,9 @@ enum Snapshot: String {
     case chatAttachments = "chat-attachments"
     case chatDictation = "chat-dictation"
     case chatMentions = "chat-mentions"
+    case chatMentionPeek = "chat-mention-peek"
+    case chatMentionChat = "chat-mention-chat"
+    case chatAgentMessage = "chat-agent-message"
     case chatA2UI = "chat-a2ui"
     case chatA2UICards = "chat-a2ui-cards"
     case chatA2UIForm = "chat-a2ui-form"
@@ -34,12 +37,13 @@ enum Snapshot: String {
     case notifications
     case newBot = "new-bot"
     case groupChat = "group-chat"
+    case groupWelcome = "group-welcome"
     case groupInspector = "group-inspector"
 
     static let requested = UserDefaults.standard.string(forKey: "snapshot").flatMap(Snapshot.init(rawValue:))
 
     var chatFixture: ChatFixture? {
-        [.chat: .conversation, .chatHistory: .history, .chatTimestamps: .timestamps, .chatWorkLog: .workLog, .chatQuestion: .question, .chatOffline: .offline, .chatAttachments: .attachments, .chatDictation: .dictation, .chatMentions: .mentions, .chatA2UI: .a2ui, .chatA2UICards: .a2uiCards, .chatA2UIForm: .a2uiForm, .chatA2UITable: .a2uiTable, .chatA2UIChart: .a2uiChart, .chatA2UIMap: .a2uiMap][self]
+        [.chat: .conversation, .chatHistory: .history, .chatTimestamps: .timestamps, .chatWorkLog: .workLog, .chatQuestion: .question, .chatOffline: .offline, .chatAttachments: .attachments, .chatDictation: .dictation, .chatMentions: .mentions, .chatMentionPeek: .mentions, .chatMentionChat: .mentions, .chatAgentMessage: .agentMessage, .chatA2UI: .a2ui, .chatA2UICards: .a2uiCards, .chatA2UIForm: .a2uiForm, .chatA2UITable: .a2uiTable, .chatA2UIChart: .a2uiChart, .chatA2UIMap: .a2uiMap][self]
     }
 
     var inspectorTab: InspectorTab? {
@@ -51,7 +55,7 @@ enum Snapshot: String {
         if self == .loginUnreachable {
             return Connection(fixture: .signedOut, server: server, signInError: .unreachable(host: "hermes.example.com"))
         }
-        if [.sidebar, .sidebarFlat, .layout, .layoutInspector, .inspectorLook, .profileSkills, .botPage, .notifications, .newBot, .groupChat, .groupInspector].contains(self) || chatFixture != nil || inspectorTab != nil { return Connection(fixture: .connected, server: server) }
+        if [.sidebar, .sidebarFlat, .layout, .layoutInspector, .inspectorLook, .profileSkills, .botPage, .notifications, .newBot, .groupChat, .groupWelcome, .groupInspector].contains(self) || chatFixture != nil || inspectorTab != nil { return Connection(fixture: .connected, server: server) }
         if self == .unreachable { return Connection(fixture: .unreachable, server: server) }
         return Connection(fixture: .signedOut, server: server)
     }
@@ -59,7 +63,7 @@ enum Snapshot: String {
     var bots: BotStore {
         let bot = { (name: String, minutesAgo: Double, preview: String, meta: BotMeta) in
             Bot(
-                name: name, displayName: nil, description: nil, model: "claude-opus-4-5", isDefault: name == "default", hasAvatar: name == "scout",
+                name: name, displayName: nil, description: name == "scout" ? "Finds flights, trains and hotels, and keeps an eye on prices." : nil, model: "claude-opus-4-5", isDefault: name == "default", hasAvatar: name == "scout",
                 canonicalSession: CanonicalSession(
                     id: StoredSessionID(rawValue: "s-\(name)"), resolvedID: StoredSessionID(rawValue: "s-\(name)"), preview: preview,
                     lastActive: .now.addingTimeInterval(-minutesAgo * 60), messageCount: 12
@@ -93,6 +97,15 @@ enum Snapshot: String {
     }
 
     var chats: ChatSessions {
+        if self == .chatMentionChat, let scout = bots.bots.first(where: { $0.id == "scout" }) {
+            let asked = Date.now.addingTimeInterval(-5 * 60)
+            let turn = Turn(
+                id: "s1", prompt: Prompt(text: "Keep an eye on flight prices to Lofoten for March.", sentAt: asked.addingTimeInterval(-3600)),
+                reply: "Watching. The cheapest right now is SAS on Friday at 07:10 for 1 840 kr.", status: .complete,
+                startedAt: asked.addingTimeInterval(-3600), finishedAt: asked.addingTimeInterval(-3590)
+            )
+            return ChatSessions(fixture: ["scout": ChatSession(fixture: scout, transcript: Transcript(turns: [turn]), todos: [])])
+        }
         guard let id = selectedBot, let bot = bots.bots.first(where: { $0.id == id }) else { return ChatSessions() }
         return ChatSessions(fixture: [id: ChatSession(fixture: bot, transcript: ChatFixture.history.transcript, todos: [])])
     }

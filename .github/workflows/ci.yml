@@ -21,6 +21,9 @@ jobs:
       - name: Test
         run: xcodebuild test -project Crew.xcodeproj -scheme CrewTests -derivedDataPath .build -destination 'platform=macOS,arch=arm64' -skipPackagePluginValidation -skipMacroValidation
 
+      - name: UI tests (iOS Simulator)
+        run: Tests/ui.sh
+
   plugin:
     name: crew-push tests
     runs-on: ubuntu-latest

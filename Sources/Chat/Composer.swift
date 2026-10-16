@@ -96,11 +96,6 @@ struct Composer: View {
                     isFocused = true
                 }
             }
-            let mentioned = mentionedBots(in: draft, among: mentionable)
-            if !mentioned.isEmpty {
-                MentionChips(bots: mentioned)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
             GlassEffectContainer(spacing: rowSpacing) {
                 HStack(alignment: .bottom, spacing: rowSpacing) {
                     if features.contains(.attachments) {

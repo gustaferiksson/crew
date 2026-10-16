@@ -41,7 +41,7 @@ Sources: `hermex-push/plugin/**`, `hermex-push/relay/**`, `hermex/docs/agents/pu
 
 | Hook | Fire site | Kwargs we use |
 |---|---|---|
-| `pre_llm_call` | turn start | `session_id`, `platform` |
+| `pre_llm_call` | turn start | `session_id`, `platform`, `user_message` |
 | `post_llm_call` | `agent/turn_finalizer.py:470` | `session_id`, `turn_id`, `user_message`, `assistant_response`, `platform` |
 | `on_session_end` | `agent/turn_finalizer.py:797`, once per `run_conversation()` (i.e. per turn) | `session_id`, `turn_id`, `completed`, `failed`, `interrupted`, `turn_exit_reason`, `platform` |
 | `pre_approval_request` | `tools/approval_gateway_wait.py:203` (dashboard/gateway path), `approval_prompt.py`, `approval_smart.py`, `file_tools_write_guards.py` | `command`, `description`, `session_key`, `surface`, plus `session_id`, `turn_id`, `tool_call_id` from context vars (`approval_context.py:55-73`). **No `request_id` on the gateway path.** |
@@ -477,6 +477,7 @@ Body (well under the 4 KB limit with the 120/400 character clips):
 - Premise, verified: when iOS drops the socket, `tui_gateway/ws.py:459-466` detaches the session instead of closing it. After `dashboard.ws_orphan_reap_grace_s` (default 20 s) the orphan reaper interrupts a detached turn only if its activity clock is stale (`session_lifecycle.py:851`), so a healthy turn finishes and pushes. A turn parked on an approval or question while detached must keep that clock fresh (`activity_heartbeat` in the approval wait suggests it does); verify on device, and if such turns get interrupted, set `dashboard.ws_orphan_reap_grace_s: 0` on the host (park forever, the pre-reaper behaviour).
 - Every completed, non-interrupted turn in a session whose platform is known and not a native chat platform (Telegram etc. already notify). That covers Crew, Hermex, Desktop and TUI turns alike, which is what the user wants from a phone. `on_session_end` with `interrupted=True` (Stop, or a socket drop on the Desktop backend) never pushes.
 - Subagent turns: muted (their parent's approval and question banners still go out).
+- Turns answering another bot (crew-push 0.3.1): muted when the turn's `user_message` is a `message_agent` delivery (`Message from 🤖 <name> (@<handle>):`, relayed `(@<handle>@<connection>)` or legacy `[Message from agent '<name>']`, Hermes Desktop's `AGENT_MESSAGE_RE`), flagged in `pre_llm_call` so a failed turn is muted too. Approvals and questions raised during such a turn still push: they block the bot until the user answers, and Crew shows them even though the turn is hidden. Since 0.3.2 the follow-up turn of such an exchange is muted too: `post_tool_call` remembers the `process_id` of every `message_agent` call made inside a muted turn, and a later `[IMPORTANT: Background process proc_… bot_mode_dm.py --run-delivery` notice for that process starts a muted turn. A delivery notice for a call the user's own turn made (the sender's chat) is unknown there, so its relay reply still pushes.
 - Approvals: all surfaces except `smart` (an auxiliary model decided, nobody waits).
 - Questions: the `clarify` tool. `sudo`/`secret` prompts are out of v1; `on_human_input_request` (`kind == "sudo"`) is the hook if wanted later.
 - Routines: `platform == "cron"`, off by default per device (`prefs.routines`), passive interruption level.

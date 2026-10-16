@@ -40,7 +40,7 @@ struct UserBubble: View {
                 .map { Text("\(Text($0).baselineOffset(-avatarSize / 8))\u{202F}") } ?? Text(verbatim: "")
             var title = AttributedString(bot.title.replacing(" ", with: "\u{00A0}"))
             title.link = URL(string: "crew-mention:\(item.offset)")
-            let tag = Text("\u{202F}\(avatar)\(Text(title).fontWeight(.semibold))\u{202F}")
+            let tag = Text("\u{00A0}\(avatar)\(Text(title).fontWeight(.semibold))\u{00A0}")
             return Text("\(result)@\u{00A0}\(tag.customAttribute(MentionTag(index: item.offset)))")
         }
     }

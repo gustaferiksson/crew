@@ -1,0 +1,107 @@
+{
+  "profiles" : [
+    {
+      "canonical_session" : {
+        "id" : "20261013_144627_bb3f2e",
+        "last_active" : 1792136143.4991646,
+        "live_message_count" : 299,
+        "message_count" : 304,
+        "preview" : "Message from 🤖 Crew Peer (@crew-test-peer): Hello! Great to hear from you.",
+        "resolved_id" : "20261013_144627_bb3f2e",
+        "root_title" : "Bot Chat",
+        "started_at" : 1791902787.6562948,
+        "title" : "Bot Chat"
+      },
+      "description" : "Crew round-trip bot",
+      "display_name" : "",
+      "has_avatar" : false,
+      "is_default" : false,
+      "last_session" : {
+        "id" : "20261014_104951_964299",
+        "last_active" : 1791978598.4614215,
+        "live_message_count" : 4,
+        "message_count" : 4,
+        "preview" : "Which weekend do you mean, and should I compare **return flights or one-way flig...",
+        "started_at" : 1791974991.918978,
+        "title" : "Compare three Oslo–Bodø weekend flights"
+      },
+      "model" : "gpt-6-astra",
+      "name" : "crew-test",
+      "path" : "/opt/data/profiles/crew-test",
+      "previous_names" : [
+
+      ],
+      "provider" : "openai-codex",
+      "skill_count" : 59,
+      "ui_meta" : {
+        "crew" : {
+          "messages" : 299,
+          "session" : "20261013_144627_bb3f2e"
+        },
+        "hermes-bots" : {
+          "color" : "#14b8a6",
+          "custom" : true,
+          "expression" : "happy",
+          "imageKind" : "shape",
+          "pinned" : true,
+          "shape" : "blob",
+          "title" : "Crew Test"
+        }
+      },
+      "ui_meta_revisions" : {
+        "crew" : 57,
+        "hermes-bots" : 14
+      },
+      "worker_session" : null
+    },
+    {
+      "canonical_session" : {
+        "id" : "20261016_073554_7ee8e5",
+        "last_active" : 1792136161.4388528,
+        "live_message_count" : 4,
+        "message_count" : 4,
+        "preview" : "Hello!",
+        "resolved_id" : "20261016_073554_7ee8e5",
+        "root_title" : "Bot Chat",
+        "started_at" : 1792136154.437942,
+        "title" : "Bot Chat"
+      },
+      "description" : "Crew scenario peer",
+      "display_name" : "",
+      "has_avatar" : false,
+      "is_default" : false,
+      "last_session" : {
+        "id" : "20261016_073554_7ee8e5",
+        "last_active" : 1792136167.691136,
+        "live_message_count" : 4,
+        "message_count" : 4,
+        "preview" : "Hello!",
+        "started_at" : 1792136154.437942,
+        "title" : "Bot Chat"
+      },
+      "model" : "gpt-6-astra",
+      "name" : "crew-test-peer",
+      "path" : "/opt/data/profiles/crew-test-peer",
+      "previous_names" : [
+
+      ],
+      "provider" : "openai-codex",
+      "skill_count" : 58,
+      "ui_meta" : {
+        "hermes-bots" : {
+          "color" : "#14b8a6",
+          "created" : 1792136143286,
+          "custom" : true,
+          "expression" : "happy",
+          "imageKind" : "shape",
+          "shape" : "hexagon",
+          "title" : "Crew Peer"
+        }
+      },
+      "ui_meta_revisions" : {
+        "hermes-bots" : 1
+      },
+      "worker_session" : null
+    }
+  ]
+}

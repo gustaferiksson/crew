@@ -18,6 +18,7 @@ Kind = Literal["reply", "turn_error", "approval", "clarify", "routine", "payment
 HOOK_NAMES = ("pre_llm_call", "post_llm_call", "on_session_end", "pre_tool_call", "post_tool_call",
               "pre_approval_request", "post_approval_response", "transform_tool_result", "subagent_start")
 BOT_CHAT_TITLE = "Bot Chat"
+CLAIM_SECONDS = 60
 
 
 @dataclass(frozen=True)
@@ -294,6 +295,15 @@ class CrewPush:
 
     def pre_tool_call(self, *, tool_name: str = "", args: Any = None, session_id: str = "",
                       tool_call_id: str = "", task_id: str = "", **_: Any) -> dict[str, str] | None:
+        if tool_name == "tool_call":
+            try:
+                from tools.tool_search import resolve_underlying_call
+
+                underlying, inner, _error = resolve_underlying_call(args)
+            except Exception:
+                return payments.block("crew_check_failed") if "browser_vault" in str(args) else None
+            if underlying == "browser_vault":
+                tool_name, args = underlying, inner
         if tool_name == "browser_vault" and isinstance(args, dict) and args.get("action") == "fill":
             try:
                 return self.check_payment(args, session_id, tool_call_id, task_id or "default")
@@ -336,10 +346,13 @@ class CrewPush:
             return payments.block("crew_missing_details")
         if item.origin and (blocked := shop_tab_block(task_id, item.origin)):
             return blocked
-        if tool_call_id:
-            with self.lock:
+        with self.lock:
+            if any(key != tool_call_id and other["session_id"] == session_id and "request_id" not in other
+                   and other["at"] > now - CLAIM_SECONDS for key, other in self.claims.items()):
+                return payments.block("crew_one_at_a_time")
+            if tool_call_id:
                 self.claims.remember(tool_call_id, {
-                    **claim, "origin": item.origin, "label": item.label, "command": command,
+                    **claim, "origin": item.origin, "label": item.label, "command": command, "at": now,
                     "session_id": session_id, "session_key": session_key,
                     "snapshot": {str(approval.get("request_id") or "") for approval in pending}})
         return None
@@ -408,12 +421,12 @@ class CrewPush:
 
     @quiet
     def post_approval_response(self, *, command: str = "", session_key: str = "", surface: str = "",
-                               choice: str = "", coalesced: bool = False, **_: Any) -> None:
+                               choice: str = "", coalesced: bool = False, tool_call_id: str = "", **_: Any) -> None:
         if surface != "vault-payment" or coalesced:
             return
         entry = next((entry for entry in reversed(store.read_list("payments.json"))
                       if entry.get("session_key") == session_key and entry.get("command") == command
-                      and entry.get("state") == "pending"), None)
+                      and entry.get("state") == "pending" and entry.get("tool_call_id") == tool_call_id), None)
         if entry is None:
             return
         state = payments.STATES.get(choice, "cancelled")

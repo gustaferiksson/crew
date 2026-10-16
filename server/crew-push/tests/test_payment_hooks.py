@@ -417,6 +417,7 @@ def test_list_offers_a_missing_shop(push: CrewPush, hermes: Hermes) -> None:
 
 def test_request_route_serves_the_bound_entry(push: CrewPush, hermes: Hermes, plugin_api: types.ModuleType,
                                               clock: types.SimpleNamespace) -> None:
+    store.write_gate(True)
     fill(push)
     ask(push, hermes)
     body = plugin_api.payment_request(R)
@@ -460,3 +461,32 @@ def test_fanout_returns_blocks_and_fails_closed(device, hermes: Hermes, monkeypa
         assert manager.has_hook("transform_tool_result") and manager.has_hook("post_approval_response")
     finally:
         undo()
+
+
+def test_parallel_fills_in_one_session_wait_for_the_first(push: CrewPush, hermes: Hermes,
+                                                          clock: types.SimpleNamespace) -> None:
+    assert fill(push) is None
+    assert code(fill(push, tool_call_id="call_2")) == "crew_one_at_a_time"
+    clock.value = NOW + hooks.CLAIM_SECONDS + 1
+    assert fill(push, tool_call_id="call_3") is None
+
+
+def test_parallel_decisions_update_their_own_entry(push: CrewPush, hermes: Hermes) -> None:
+    store.mutate_payments(lambda entries: [
+        {"request_id": "a" * 32, "session_key": KEY, "command": COMMAND, "state": "pending", "tool_call_id": "call_1"},
+        {"request_id": "b" * 32, "session_key": KEY, "command": COMMAND, "state": "pending", "tool_call_id": "call_2"}])
+    push.post_approval_response(command=COMMAND, session_key=KEY, surface="vault-payment", choice="deny",
+                                tool_call_id="call_1")
+    assert [entry["state"] for entry in store.read_list("payments.json")] == ["denied", "pending"]
+
+
+def test_fill_behind_the_tool_search_bridge_is_checked(push: CrewPush, hermes: Hermes,
+                                                       monkeypatch: pytest.MonkeyPatch) -> None:
+    store.write_gate(False)
+    monkeypatch.setitem(sys.modules, "tools.tool_search", types.SimpleNamespace(
+        resolve_underlying_call=lambda args: (args["name"], args["arguments"], None)))
+    bridged = {"name": "browser_vault", "arguments": FILL}
+    assert code(push.pre_tool_call(tool_name="tool_call", args=bridged, session_id=SESSION)) == "crew_gate_off"
+    monkeypatch.setitem(sys.modules, "tools.tool_search", None)
+    assert code(push.pre_tool_call(tool_name="tool_call", args=bridged, session_id=SESSION)) == "crew_check_failed"
+    assert push.pre_tool_call(tool_name="tool_call", args={"name": "web_search"}, session_id=SESSION) is None

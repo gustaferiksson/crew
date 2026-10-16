@@ -83,7 +83,10 @@ def shop_host(site: str) -> str:
     text = site.strip()
     if not text:
         raise InvalidSite("no_host")
-    parts = urlsplit(text if "://" in text else f"https://{text}")
+    try:
+        parts = urlsplit(text if "://" in text else f"https://{text}")
+    except ValueError:
+        raise InvalidSite("no_host") from None
     if parts.scheme.lower() != "https":
         raise InvalidSite("not_https")
     try:

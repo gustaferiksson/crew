@@ -16,6 +16,7 @@ from crew_push.fanout import serve_every_profile_in_host  # noqa: E402
 from crew_push.hooks import Event, bot_name, build, build_read  # noqa: E402
 
 serve_every_profile_in_host()
+(store.data_dir() / "gate.json").unlink(missing_ok=True)
 TOKEN = re.compile(r"^[0-9a-f]{64,200}$")
 PROFILE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")
 ERRORS = {

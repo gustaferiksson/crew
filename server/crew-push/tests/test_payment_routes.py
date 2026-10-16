@@ -1,3 +1,4 @@
+import importlib.util
 import json
 import subprocess
 import sys
@@ -153,6 +154,7 @@ def test_site_normalisation(site: str, host: str) -> None:
     ("https://-shop.example.com", "no_host"),
     ("https://www.zalando.se:8443", "port"),
     ("www.zalando.se:99999", "port"),
+    ("https://[abc", "no_host"),
 ])
 def test_invalid_sites(client: TestClient, master: Path, site: str, reason: str) -> None:
     with pytest.raises(payments.InvalidSite) as invalid:
@@ -228,3 +230,11 @@ def test_log_keeps_the_newest_200() -> None:
     store.mutate_payments(lambda entries: [{"request_id": str(index)} for index in range(250)])
     entries = store.read_list("payments.json")
     assert len(entries) == 200 and entries[-1]["request_id"] == "249" and entries[0]["request_id"] == "50"
+
+
+def test_a_dashboard_start_forgets_the_gate(plugin_api: types.ModuleType) -> None:
+    store.write_gate(True)
+    spec = importlib.util.spec_from_file_location("fresh_plugin_api", PLUGIN_ROOT / "dashboard" / "plugin_api.py")
+    assert spec and spec.loader
+    spec.loader.exec_module(importlib.util.module_from_spec(spec))
+    assert store.read_gate() is None

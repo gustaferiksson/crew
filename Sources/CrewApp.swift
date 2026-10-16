@@ -72,5 +72,17 @@ struct CrewApp: App {
             }
         }
         #endif
+        #if os(macOS)
+        WindowGroup("Chat", for: Bot.ID.self) { $id in
+            BotChatWindow(id: id)
+                .environment(connection)
+                .environment(bots)
+                .environment(chats)
+                .environment(groups)
+                .environment(appDelegate.push)
+                .environment(appDelegate.updater)
+        }
+        .defaultSize(width: 560, height: 640)
+        #endif
     }
 }

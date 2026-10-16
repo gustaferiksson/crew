@@ -68,8 +68,7 @@ struct GroupChatScreen: View {
                 stop: { session?.stop() },
                 openPersona: { showsInspector.toggle() },
                 respond: { session?.respond(to: $0, with: $1) },
-                retry: { session?.retry($0) },
-                openBot: select
+                retry: { session?.retry($0) }
             )
         )
         .toolbar {

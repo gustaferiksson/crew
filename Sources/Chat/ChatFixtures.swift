@@ -53,7 +53,10 @@ enum ChatFixture {
         if [.offline, .history, .dictation].contains(self) { return Transcript(turns: turns) }
         if [.a2ui, .a2uiCards, .a2uiForm, .a2uiTable, .a2uiChart, .a2uiMap].contains(self) { return Transcript(turns: Self.a2uiTurns(now)) }
         if self == .attachments { return Transcript(turns: [greeting(now.addingTimeInterval(-26 * 3600)), receipt(now.addingTimeInterval(-6 * 60))]) }
-        if self == .mentions { return Transcript(turns: [greeting(now.addingTimeInterval(-26 * 3600)), handoff(now.addingTimeInterval(-6 * 60))]) }
+        if self == .mentions {
+            let reply = Turn(id: "t8", agentMessage: AgentMessage("Message from 🤖 Scout (@scout): Found three options under 2 000 kr: SAS on Friday at 07:10, Norwegian on Saturday at 09:45, and Widerøe via Bodø."), status: .complete, startedAt: now.addingTimeInterval(-4 * 60))
+            return Transcript(turns: [greeting(now.addingTimeInterval(-26 * 3600)), handoff(now.addingTimeInterval(-6 * 60)), reply])
+        }
         if self == .agentMessage { return Transcript(turns: [greeting(now.addingTimeInterval(-26 * 3600)), message("m1", "Flights for Saturday are booked.", reply: "Thanks, Scout!", at: now.addingTimeInterval(-40 * 60)), message("m2", "Can you add the Lofoten ferry to the trip notes?", reply: "Added the 08:15 ferry to the trip notes.", at: now.addingTimeInterval(-5 * 60))]).visible }
         return Transcript(turns: turns + [deploy(now.addingTimeInterval(-48))])
     }
@@ -209,8 +212,8 @@ enum ChatFixture {
     private func handoff(_ start: Date) -> Turn {
         Turn(
             id: "t7",
-            prompt: Prompt(text: "Can you ask @scout to find flights for the Lofoten trip in March? Two adults, flexible dates, and @hermes, please add the booking to my calendar.", sentAt: start),
-            work: [WorkItem(id: "t7-w0", kind: .tool(ToolCall(name: "message_agent", subject: "scout", arguments: #"{"target": "scout"}"#, status: .success)), startedAt: start.addingTimeInterval(2), duration: 1)],
+            prompt: Prompt(text: "Can you ask @scout to find flights for the Lofoten trip in March? Two adults, flexible dates, and @ada, please add the booking to my calendar.", sentAt: start),
+            work: [WorkItem(id: "t7-w0", kind: .tool(ToolCall(name: "message_agent", subject: "scout", arguments: #"{"target": "scout", "message": "Please find flights to Lofoten in March for two adults, flexible dates."}"#, result: #"{"status": "queued", "process_id": "proc_7f3a"}"#, status: .success)), startedAt: start.addingTimeInterval(2), duration: 1)],
             reply: "Asked Scout to look for flights to Lofoten. The results will show up in Scout's chat.",
             status: .complete,
             startedAt: start,
@@ -253,6 +256,17 @@ struct ChatFixtureScreen: View {
     let fixture: ChatFixture
 
     @Environment(BotStore.self) private var bots
+    @State private var session: ChatSession?
+
+    private static let hermes = Bot(
+        name: "default", displayName: "Hermes", description: nil, model: nil, isDefault: true, hasAvatar: false, canonicalSession: nil,
+        meta: BotMeta(shape: "blob", color: "#8b5cf6", expression: "happy"), metaRevision: nil
+    )
+
+    init(fixture: ChatFixture) {
+        self.fixture = fixture
+        _session = State(initialValue: fixture == .mentions ? ChatSession(fixture: Self.hermes, transcript: fixture.transcript, todos: []) : nil)
+    }
 
     var body: some View {
         #if os(iOS)
@@ -270,15 +284,12 @@ struct ChatFixtureScreen: View {
         ChatView(
             botName: "Hermes",
             avatar: BotAvatar(
-                bot: Bot(
-                    name: "default", displayName: "Hermes", description: nil, model: nil, isDefault: true, hasAvatar: false, canonicalSession: nil,
-                    meta: BotMeta(shape: "blob", color: "#8b5cf6", expression: "happy"), metaRevision: nil
-                ),
+                bot: Self.hermes,
                 status: fixture == .conversation ? .waiting(.approval) : .idle,
                 photo: nil,
                 size: 28
             ),
-            transcript: fixture.transcript,
+            transcript: fixture == .mentions ? fixture.transcript.visible : fixture.transcript,
             emptyState: EmptyView(),
             mentionable: bots.bots.filter { $0.id != "default" },
             request: fixture.request,
@@ -286,5 +297,6 @@ struct ChatFixtureScreen: View {
             activity: fixture == .conversation ? "Preparing terminal" : nil,
             presentation: fixture.presentation
         )
+        .environment(\.chatSession, session)
     }
 }

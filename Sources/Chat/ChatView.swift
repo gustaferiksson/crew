@@ -127,12 +127,12 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
                                     expandedRuns: $expandedRuns,
                                     retry: actions.retry
                                 )
-                            }
-                            .background {
-                                if highlighted == turn.id {
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .fill(.tint.opacity(0.12))
-                                        .padding(-8)
+                                .background {
+                                    if highlighted == turn.id {
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .fill(.tint.opacity(0.12))
+                                            .padding(-8)
+                                    }
                                 }
                             }
                             .id(turn.id)

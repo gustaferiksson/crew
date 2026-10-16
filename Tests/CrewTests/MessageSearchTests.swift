@@ -57,6 +57,10 @@ private nonisolated struct HistoryPage: Decodable {
         #expect(!checklist.contains("[ ]"))
         #expect(!checklist.contains("###"))
         #expect(emphasised(found[2].highlighted("weather")) == ["weather"])
+        let shown = String(found[2].highlighted("weather").characters)
+        #expect(shown.hasPrefix("…"))
+        #expect(shown.prefix(32).contains("Check weather"))
+        #expect(String(found[3].highlighted("weather").characters).hasPrefix("Assuming a mild-weather weekend"))
     }
 
     @Test func toolRowsAreNotMessageHits() throws {

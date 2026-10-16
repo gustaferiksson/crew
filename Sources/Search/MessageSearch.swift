@@ -47,8 +47,10 @@ nonisolated struct MessageHit: Identifiable, Hashable, Sendable {
         let marked = flat.contains(">>>") ? flat : query.split(whereSeparator: \.isWhitespace).reduce(flat) { text, word in
             text.replacing(Regex<Substring>(verbatim: String(word)).ignoresCase()) { ">>>\($0.output)<<<" }
         }
+        let lead = marked.range(of: ">>>").map { marked[..<$0.lowerBound] } ?? ""
+        let kept = lead.count > 32 ? lead.suffix(24).drop { !$0.isWhitespace }.drop(while: \.isWhitespace) : lead
         var result = AttributedString(speaker.map { "\($0): " } ?? "")
-        var rest = Substring(marked)
+        var rest = kept.count < lead.count ? Substring("…" + kept + marked[lead.endIndex...]) : Substring(marked)
         while let match = rest.firstMatch(of: />>>(.*?)<<</) {
             result += AttributedString(rest[..<match.range.lowerBound])
             var term = AttributedString(match.1)

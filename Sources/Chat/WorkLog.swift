@@ -67,8 +67,10 @@ struct WorkLog: View {
     @Binding var expandedWork: Set<WorkItem.ID>
     @Binding var expandedRuns: Set<String>
 
+    @Environment(BotStore.self) private var bots
+
     private var isLive: Bool { turn.status == .streaming }
-    private var isExpanded: Bool { isLive || expandedTurns.contains(turn.id) }
+    private var isExpanded: Bool { (isLive && turn.agentMessage == nil) || expandedTurns.contains(turn.id) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -101,7 +103,21 @@ struct WorkLog: View {
             withAnimation(.snappy) { expandedTurns.formSymmetricDifference([turn.id]) }
         } label: {
             HStack(spacing: 4) {
-                if isLive {
+                if let message = turn.agentMessage {
+                    if let bot = bots.bots.first(where: { $0.name == message.handle }) {
+                        BotAvatar(bot: bot, status: .idle, photo: bots.photos[bot.id], size: 16)
+                            .padding(.trailing, 4)
+                    }
+                    Text("Message from \(message.sender)")
+                        .phaseAnimator(isLive ? [1, 0.6] : [1]) { content, opacity in
+                            content.opacity(opacity)
+                        } animation: { _ in
+                            .easeInOut(duration: 1)
+                        }
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.semibold))
+                        .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                } else if isLive {
                     TimelineView(.periodic(from: turn.startedAt, by: 1)) { context in
                         Text("Working for \(Duration.seconds(Int(context.date.timeIntervalSince(turn.startedAt))).formatted(elapsedStyle))")
                     }
@@ -129,7 +145,7 @@ struct WorkLog: View {
             .contentShape(.rect)
         }
         .buttonStyle(.plain)
-        .disabled(isLive)
+        .disabled(isLive && turn.agentMessage == nil)
     }
 
     private func runToggle(_ title: String, systemImage: String, runID: String) -> some View {

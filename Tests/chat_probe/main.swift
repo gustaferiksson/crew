@@ -423,7 +423,7 @@ if phases.contains("mention") {
     try await waitIdle(chat)
     try await waitIdle(chat, timeout: 180) { !$0.isRunning && $0.transcript.turns.last?.delivery != nil }
     for turn in chat.transcript.turns.dropFirst(start) {
-        print(chat.transcript.hides(turn) ? "HIDDEN " : "SHOWN  ", turn.prompt?.text ?? turn.notice ?? turn.delivery ?? "-", "|", turn.reply)
+        print(chat.transcript.visible.turns.contains { $0.id == turn.id } ? "SHOWN  " : "HIDDEN ", turn.prompt?.text ?? turn.notice ?? turn.delivery ?? "-", "|", turn.reply)
     }
 }
 
@@ -489,7 +489,7 @@ if phases.contains("record") {
             try await Task.sleep(for: .milliseconds(250))
             let current = try await roster()
             let active = try await live(of: current.bots)
-            let inHiddenTurn = chat.isRunning && chat.transcript.turns.last.map(chat.transcript.hides) == true
+            let inHiddenTurn = chat.isRunning && chat.transcript.turns.last.map({ $0.agentMessage != nil || $0.delivery != nil }) == true
             if !duringSaved, inHiddenTurn, active.sessions.contains(where: { $0.status != "idle" }) {
                 try save("profiles.during", current.raw)
                 try save("active_list.during", active.raw)
@@ -513,7 +513,7 @@ if phases.contains("record") {
             try save("\(file).preview", .array(try await rows(of: bot, limit: 20)))
         }
         for turn in chat.transcript.turns.suffix(4) {
-            print(chat.transcript.hides(turn) ? "HIDDEN " : "SHOWN  ", turn.prompt?.text ?? turn.delivery ?? "-", "|", turn.reply)
+            print(chat.transcript.visible.turns.contains { $0.id == turn.id } ? "SHOWN  " : "HIDDEN ", turn.prompt?.text ?? turn.delivery ?? "-", "|", turn.reply)
         }
     } catch {
         print("RECORD FAILED", error)

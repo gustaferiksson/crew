@@ -1,7 +1,7 @@
 name: crew-push
 label: Crew Push
 kind: standalone
-version: 0.3.1
+version: 0.3.2
 description: APNs notifications for the Crew app (finished turns, approvals, questions, routines).
 author: Gustaf Eriksson
 requires_hermes: ">=0.21.7"

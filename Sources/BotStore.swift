@@ -165,6 +165,15 @@ nonisolated enum BotStatus: Hashable, Sendable {
     case working
     case waiting(WaitingKind?)
     case failed
+
+    init?(live status: String, waiting kind: WaitingKind?) {
+        if status == "waiting" {
+            self = .waiting(kind)
+            return
+        }
+        guard status == "working" else { return nil }
+        self = .working
+    }
 }
 
 nonisolated struct SectionTag: Hashable, Sendable {
@@ -607,9 +616,9 @@ final class BotStore {
             guard let position = bot.canonicalSession?.position, let read = [bot.readPosition, seenActivity[bot.id], firstSeenActivity[bot.id]].compactMap(\.self).max(), position > read else { continue }
             result[bot.id] = .unread
         }
-        for session in liveSessions.filter({ $0.status != "idle" }).sorted(by: { $1.status == "waiting" && $0.status != "waiting" }) {
-            guard let matched = owners[session.sessionKey], matched.count == 1, let id = matched.first else { continue }
-            result[id] = session.status == "waiting" ? .waiting(waitingKinds[session.id]) : .working
+        for session in liveSessions.sorted(by: { $1.status == "waiting" && $0.status != "waiting" }) {
+            guard let matched = owners[session.sessionKey], matched.count == 1, let id = matched.first, let status = BotStatus(live: session.status, waiting: waitingKinds[session.id]) else { continue }
+            result[id] = status
         }
         if statuses != result { statuses = result }
     }

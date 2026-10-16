@@ -13,6 +13,7 @@ nonisolated struct Turn: Identifiable, Codable, Sendable, Equatable {
     var prompt: Prompt?
     var notice: String?
     var agentMessage: AgentMessage?
+    var delivery: String?
     var hiddenText: String?
     var work: [WorkItem] = []
     var reply = ""
@@ -143,9 +144,32 @@ nonisolated func noticeText(kind: String?, content: String) -> String? {
     return nil
 }
 
+nonisolated func deliveryProcess(in content: String) -> String? {
+    guard content.hasPrefix("[IMPORTANT: Background process "), content.contains("bot_mode_dm.py --run-delivery") else { return nil }
+    return content.firstMatch(of: /proc_[0-9a-f]+/).map { String($0.output) }
+}
+
 extension Transcript {
     var visible: Transcript {
-        Transcript(turns: turns.filter { $0.agentMessage == nil })
+        Transcript(turns: turns.filter { !hides($0) })
+    }
+
+    var preview: String? {
+        let turn = visible.turns.last { !$0.reply.isEmpty || $0.prompt?.text.isEmpty == false }
+        let text = turn.map { $0.reply.isEmpty ? $0.prompt?.text ?? "" : $0.reply }
+        return text?.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+    }
+
+    func hides(_ turn: Turn) -> Bool {
+        if turn.agentMessage != nil { return true }
+        guard let delivery = turn.delivery else { return false }
+        for origin in turns.reversed() {
+            for item in origin.work {
+                guard case .tool(let call) = item.kind, call.name == "message_agent", call.result?.contains(delivery) == true else { continue }
+                return origin.agentMessage != nil
+            }
+        }
+        return false
     }
 
     init(history rows: [HistoryRow]) {
@@ -158,10 +182,11 @@ extension Transcript {
                 continue
             }
             if row.role == "user" {
-                let notice = noticeText(kind: row.displayKind, content: text)
-                let prompt = notice == nil && row.displayKind != "hidden" ? Prompt(raw: text, sentAt: date) : nil
+                let delivery = deliveryProcess(in: text)
+                let notice = delivery == nil ? noticeText(kind: row.displayKind, content: text) : nil
+                let prompt = notice == nil && delivery == nil && row.displayKind != "hidden" ? Prompt(raw: text, sentAt: date) : nil
                 let hiddenText = row.displayKind == "hidden" ? row.content ?? text : nil
-                turns.append(Turn(id: String(row.id), prompt: prompt, notice: notice, agentMessage: AgentMessage(text), hiddenText: hiddenText, status: .complete, startedAt: date, finishedAt: date))
+                turns.append(Turn(id: String(row.id), prompt: prompt, notice: notice, agentMessage: AgentMessage(text), delivery: delivery, hiddenText: hiddenText, status: .complete, startedAt: date, finishedAt: date))
                 continue
             }
             if row.role == "assistant" {
@@ -199,10 +224,11 @@ extension Transcript {
     }
 
     mutating func begin(remote user: String, displayKind: String?, at date: Date) {
-        let notice = noticeText(kind: displayKind, content: user)
+        let delivery = deliveryProcess(in: user)
+        let notice = delivery == nil ? noticeText(kind: displayKind, content: user) : nil
         let prompt = Prompt(raw: user, sentAt: date)
-        let isShown = notice == nil && displayKind != "hidden" && (!prompt.text.isEmpty || !prompt.attachments.isEmpty)
-        turns.append(Turn(id: UUID().uuidString, prompt: isShown ? prompt : nil, notice: notice, agentMessage: AgentMessage(user), hiddenText: displayKind == "hidden" ? user : nil, status: .streaming, startedAt: date))
+        let isShown = notice == nil && delivery == nil && displayKind != "hidden" && (!prompt.text.isEmpty || !prompt.attachments.isEmpty)
+        turns.append(Turn(id: UUID().uuidString, prompt: isShown ? prompt : nil, notice: notice, agentMessage: AgentMessage(user), delivery: delivery, hiddenText: displayKind == "hidden" ? user : nil, status: .streaming, startedAt: date))
     }
 
     mutating func apply(_ event: TurnEvent, at date: Date = .now) {

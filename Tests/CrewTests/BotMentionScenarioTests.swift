@@ -40,35 +40,36 @@ private func replayedStore() throws -> BotStore {
     return store
 }
 
-@Test func senderChatShowsThePromptAndTheRelayOnly() throws {
+@Test func senderChatShowsThePromptAndOneRelay() throws {
     #expect(chatRows(Transcript(history: try history("crew-test.history"))) == [
         "bubble: @crew-test-peer hi",
         "work log: 1",
         "reply: 👋",
-        "reply: @crew-test-peer replied: “Hello! Great to hear from you.”",
+        "reply: @crew-test-peer: “Hello! Great to hear from you.”",
     ])
 }
 
-@Test func mentionedBotChatStaysEmpty() throws {
+@Test func mentionedBotChatShowsOneCollapsedExchange() throws {
     let transcript = Transcript(history: try history("crew-test-peer.history"))
     #expect(transcript.turns.count == 2)
-    #expect(chatRows(transcript).isEmpty)
+    #expect(chatRows(transcript) == ["work log: 4"])
+    #expect(transcript.visible.turns.first?.agentMessage?.sender == "Crew Test")
 }
 
 @Test func botRowsShowTheLastVisibleTurn() throws {
     let store = try replayedStore()
-    #expect(store.previews["crew-test"] == "@crew-test-peer replied: “Hello! Great to hear from you.”")
-    #expect(store.previews["crew-test-peer"] == "")
+    #expect(store.previews["crew-test"] == "@crew-test-peer: “Hello! Great to hear from you.”")
+    #expect(store.previews["crew-test-peer"] == "Message from Crew Test")
     #expect(store.bots.first { $0.name == "crew-test-peer" }?.description == "Crew scenario peer")
     let open = ChatSessions(fixture: try ["crew-test", "crew-test-peer"].reduce(into: [:]) { sessions, name in
         guard let bot = store.bots.first(where: { $0.name == name }) else { return }
         sessions[name] = ChatSession(fixture: bot, transcript: Transcript(history: try history("\(name).history")), todos: [])
     })
     #expect(open.sessions["crew-test"]?.transcript.preview == store.previews["crew-test"])
-    #expect(open.sessions["crew-test-peer"]?.transcript.preview == nil)
+    #expect(open.sessions["crew-test-peer"]?.transcript.preview == store.previews["crew-test-peer"])
 }
 
-@Test func hiddenTurnStillShowsWorkingThenUnread() throws {
+@Test func exchangeShowsWorkingThenUnread() throws {
     let store = BotStore(fixture: [], statuses: [:])
     let chats = ChatSessions()
     store.apply(roster: try recorded("profiles.before", as: Roster.self).profiles)
@@ -94,4 +95,14 @@ private func replayedStore() throws -> BotStore {
     #expect(try #require(lastActive(store.bots, "crew-test")) < #require(hiddenAt))
     #expect(lastActive(before, "crew-test-peer") == nil)
     #expect(lastActive(store.bots, "crew-test-peer") != nil)
+}
+
+@Test func agentBuildIsNotWorking() throws {
+    let store = BotStore(fixture: [], statuses: [:])
+    store.apply(roster: try recorded("profiles.during", as: Roster.self).profiles)
+    let during = try String(contentsOf: scenario.appending(path: "active_list.during.json"), encoding: .utf8)
+    let starting = during.replacingOccurrences(of: #""status" : "working""#, with: #""status" : "starting""#)
+    #expect(starting != during)
+    store.apply(live: try JSONDecoder().decode(ActiveList.self, from: Data(starting.utf8)).sessions)
+    #expect(store.statuses["crew-test"] != .working)
 }

@@ -2,7 +2,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 enum ChatFixture {
-    case conversation, history, timestamps, workLog, question, offline, attachments, dictation, mentions, a2ui, a2uiCards, a2uiForm, a2uiTable, a2uiChart, a2uiMap
+    case conversation, history, timestamps, workLog, question, offline, attachments, dictation, mentions, agentMessage, a2ui, a2uiCards, a2uiForm, a2uiTable, a2uiChart, a2uiMap
 
     var presentation: ChatPresentation {
         if self == .history { return ChatPresentation(scrollTarget: "t1") }
@@ -21,6 +21,7 @@ enum ChatFixture {
             ])
         }
         if self == .mentions { return ChatPresentation(draft: "Loop in @ada and @sc") }
+        if self == .agentMessage { return ChatPresentation(expandedTurns: ["m2"]) }
         if self == .dictation {
             let levels = (0..<Dictation.levelCount).map { 0.25 + 0.6 * abs(sin(Double($0) * 0.7)) * Double($0 % 5 + 1) / 5 }
             return ChatPresentation(dictation: Dictation(fixture: levels, startedAt: .now.addingTimeInterval(-7)))
@@ -53,6 +54,7 @@ enum ChatFixture {
         if [.a2ui, .a2uiCards, .a2uiForm, .a2uiTable, .a2uiChart, .a2uiMap].contains(self) { return Transcript(turns: Self.a2uiTurns(now)) }
         if self == .attachments { return Transcript(turns: [greeting(now.addingTimeInterval(-26 * 3600)), receipt(now.addingTimeInterval(-6 * 60))]) }
         if self == .mentions { return Transcript(turns: [greeting(now.addingTimeInterval(-26 * 3600)), handoff(now.addingTimeInterval(-6 * 60))]) }
+        if self == .agentMessage { return Transcript(turns: [greeting(now.addingTimeInterval(-26 * 3600)), message("m1", "Flights for Saturday are booked.", reply: "Thanks, Scout!", at: now.addingTimeInterval(-40 * 60)), message("m2", "Can you add the Lofoten ferry to the trip notes?", reply: "Added the 08:15 ferry to the trip notes.", at: now.addingTimeInterval(-5 * 60))]).visible }
         return Transcript(turns: turns + [deploy(now.addingTimeInterval(-48))])
     }
 
@@ -62,6 +64,18 @@ enum ChatFixture {
             prompt: Prompt(text: "Hey, are you up?", sentAt: start),
             work: [WorkItem(id: "t1-w0", kind: .thinking("Casual greeting late in the evening. Keep it short and friendly."), startedAt: start.addingTimeInterval(1), duration: 2)],
             reply: "Always. What are we working on tonight?",
+            status: .complete,
+            startedAt: start,
+            finishedAt: start.addingTimeInterval(4)
+        )
+    }
+
+    private func message(_ id: String, _ text: String, reply: String, at start: Date) -> Turn {
+        Turn(
+            id: id,
+            agentMessage: AgentMessage("Message from 🤖 Scout (@scout): \(text)"),
+            work: [WorkItem(id: "\(id)-w0", kind: .tool(ToolCall(name: "message_agent", subject: "scout", arguments: #"{"target": "scout"}"#, status: .success)), startedAt: start.addingTimeInterval(2), duration: 1)],
+            reply: reply,
             status: .complete,
             startedAt: start,
             finishedAt: start.addingTimeInterval(4)

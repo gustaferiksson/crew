@@ -58,6 +58,13 @@ nonisolated struct WorkItem: Identifiable, Codable, Sendable, Equatable {
     var kind: Kind
     var startedAt: Date
     var duration: TimeInterval?
+
+    var messagedHandle: String? {
+        guard case .tool(let call) = kind, call.name == "message_agent", call.result?.contains("\"process_id\"") == true else { return nil }
+        let target = ((try? JSONSerialization.jsonObject(with: Data(call.arguments.utf8))) as? [String: Any])?["target"] as? String ?? ""
+        let handle = target.trimmingCharacters(in: .whitespaces).trimmingPrefix("@").prefix { $0 != "@" }.lowercased()
+        return handle == "hermes" ? "default" : handle
+    }
 }
 
 nonisolated struct ToolCall: Codable, Sendable, Equatable {
@@ -151,25 +158,59 @@ nonisolated func deliveryProcess(in content: String) -> String? {
 
 extension Transcript {
     var visible: Transcript {
-        Transcript(turns: turns.filter { !hides($0) })
+        let log = { (turn: Turn) in
+            turn.work + (turn.reply.isEmpty ? [] : [WorkItem(id: "\(turn.id)-reply", kind: .note(turn.reply), startedAt: turn.finishedAt ?? turn.startedAt)])
+        }
+        var shown: [Turn] = []
+        var awaited: [(handle: String, origin: Turn.ID)] = []
+        var answered: Set<Turn.ID> = []
+        var exchanges: [Turn.ID: Int] = [:]
+        for turn in turns {
+            if let message = turn.agentMessage {
+                if let index = awaited.firstIndex(where: { $0.handle == message.handle }) {
+                    answered.insert(awaited.remove(at: index).origin)
+                    var reply = turn
+                    reply.prompt = nil
+                    reply.agentMessage = nil
+                    shown.append(reply)
+                    continue
+                }
+                exchanges[turn.id] = shown.count
+                var exchange = turn
+                exchange.prompt = nil
+                exchange.reply = ""
+                exchange.work = [WorkItem(id: "\(turn.id)-message", kind: .note(message.body.split(separator: "\n", omittingEmptySubsequences: false).map { "> \($0)" }.joined(separator: "\n")), startedAt: turn.startedAt)] + log(turn)
+                shown.append(exchange)
+                continue
+            }
+            guard let delivery = turn.delivery else {
+                if turn.prompt != nil { awaited += turn.work.compactMap { $0.messagedHandle.map { ($0, turn.id) } } }
+                shown.append(turn)
+                continue
+            }
+            let origin = turns.last { origin in
+                origin.work.contains { item in if case .tool(let call) = item.kind { call.name == "message_agent" && call.result?.contains(delivery) == true } else { false } }
+            }
+            awaited.removeAll { $0.origin == origin?.id }
+            if let origin, answered.contains(origin.id) { continue }
+            if let origin, let index = exchanges[origin.id] {
+                shown[index].work += log(turn)
+                shown[index].finishedAt = turn.finishedAt
+                if shown[index].status == .complete {
+                    shown[index].status = turn.status
+                    shown[index].failure = turn.failure
+                }
+            } else if origin.map({ $0.agentMessage == nil }) ?? turns.contains(where: { $0.agentMessage == nil && $0.prompt != nil }) {
+                shown.append(turn)
+            }
+        }
+        return Transcript(turns: shown)
     }
 
     var preview: String? {
-        let turn = visible.turns.last { !$0.reply.isEmpty || $0.prompt?.text.isEmpty == false }
-        let text = turn.map { $0.reply.isEmpty ? $0.prompt?.text ?? "" : $0.reply }
+        let turn = visible.turns.last { !$0.reply.isEmpty || $0.prompt?.text.isEmpty == false || $0.agentMessage != nil }
+        let text = turn.map { $0.agentMessage.map { String(localized: "Message from \($0.sender)") } ?? ($0.reply.isEmpty ? $0.prompt?.text ?? "" : $0.reply) }
         return text?.split(whereSeparator: \.isWhitespace).joined(separator: " ")
-    }
-
-    func hides(_ turn: Turn) -> Bool {
-        if turn.agentMessage != nil { return true }
-        guard let delivery = turn.delivery else { return false }
-        for origin in turns.reversed() {
-            for item in origin.work {
-                guard case .tool(let call) = item.kind, call.name == "message_agent", call.result?.contains(delivery) == true else { continue }
-                return origin.agentMessage != nil
-            }
-        }
-        return !turns.contains { $0.agentMessage == nil && $0.prompt != nil }
     }
 
     init(history rows: [HistoryRow]) {

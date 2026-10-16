@@ -53,6 +53,9 @@ ssh mainframe systemctl restart hermes.service
 
 ## Steps
 
+**Superseded for build order:** the experience and the crew-push/Crew contract are specified in [flows/payments.md](flows/payments.md), built as two parallel PRs (crew-push 0.4.0 with steps 1, 2 and the server half of 4; Crew with steps 3 and the inspector half of 4). Where they differ, the flow spec wins: Crew reads amount, merchant and reason from a crew-push route by `request_id` (not from `tool.start`, which carries only `{action, handle}` plus the extra args and is not sent when tool progress is off), answers payments with `approval.respond`, approves with a press and hold (no biometrics), and manages shops through crew-push routes rather than `vault.list`/`vault.remove`. Steps 5 and 6 are unchanged.
+
+
 ### 1. Test page and stock flow (S)
 
 - **Changes:** `pages/checkout-test.html`: a static checkout with `autocomplete` card fields (`cc-number`, `cc-exp-month`, `cc-exp-year`, `cc-csc`, `cc-name`), a "Total 499 kr" line, a "Save card" checkbox and a Pay button that shows "Paid with card ending 4242". No network calls. Findings go into this doc.

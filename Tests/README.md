@@ -35,3 +35,7 @@ A scenario is one real flow recorded once from the server into `Tests/fixtures/s
 ## UI tests
 
 `CrewUITests` launches the app with `-snapshot <fixture> -server hermes.example.com -username gustaf`, so it renders fixture data and never touches the network. Find elements by their accessibility labels and values first (print `app.debugDescription` to see them) and add an `accessibilityIdentifier` only for elements you can't otherwise reach. It never runs on the Mac.
+
+## Profiling
+
+`-snapshot chat-mentions -mentionTurns <n>` puts `n` more tagged exchanges in the mention chat. Record it with `xcrun xctrace record --template 'Time Profiler' --device <private simulator> --attach <pid>` while scrolling or typing, and keep the fast checks in `MentionPerformanceTests`.

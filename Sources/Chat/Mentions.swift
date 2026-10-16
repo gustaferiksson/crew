@@ -20,9 +20,39 @@ func mentionedBots(in text: String, among bots: [Bot]) -> [Bot] {
     return bots.filter { !$0.mentionTags.isDisjoint(with: tags) }
 }
 
-func removingMention(of bot: Bot, from text: String) -> String {
-    text.replacing(/(?:^|\s)@([A-Za-z0-9][A-Za-z0-9_-]*)/) { match in
-        bot.mentionTags.contains(match.1.lowercased()) ? "" : match.0
+nonisolated struct MentionSegment: Equatable {
+    let text: String
+    let bot: Bot?
+}
+
+func mentionSegments(in text: String, among bots: [Bot]) -> [MentionSegment] {
+    var segments: [MentionSegment] = []
+    var cursor = text.startIndex
+    for match in text.matches(of: /(?:^|\s)@([A-Za-z0-9][A-Za-z0-9_-]*)/) {
+        guard let bot = bots.first(where: { $0.mentionTags.contains(match.1.lowercased()) }) else { continue }
+        let tag = text.index(before: match.1.startIndex)..<match.1.endIndex
+        if cursor < tag.lowerBound { segments.append(MentionSegment(text: String(text[cursor..<tag.lowerBound]), bot: nil)) }
+        segments.append(MentionSegment(text: String(text[tag]), bot: bot))
+        cursor = tag.upperBound
+    }
+    if cursor < text.endIndex { segments.append(MentionSegment(text: String(text[cursor...]), bot: nil)) }
+    return segments
+}
+
+struct MentionTag: TextAttribute {}
+
+struct MentionTagRenderer: TextRenderer {
+    let fill: Color
+
+    var displayPadding: EdgeInsets { EdgeInsets(top: 0, leading: 2, bottom: 0, trailing: 2) }
+
+    func draw(layout: Text.Layout, in context: inout GraphicsContext) {
+        for run in layout.flatMap({ $0 }) where run[MentionTag.self] != nil {
+            context.fill(Capsule().path(in: run.typographicBounds.rect.insetBy(dx: -2, dy: 0)), with: .color(fill))
+        }
+        for line in layout {
+            context.draw(line)
+        }
     }
 }
 
@@ -108,36 +138,5 @@ struct MentionPicker: View {
             .contentShape(.rect(cornerRadius: 16))
         }
         .buttonStyle(.plain)
-    }
-}
-
-struct MentionChips: View {
-    let bots: [Bot]
-    let tap: (Bot) -> Void
-
-    @Environment(BotStore.self) private var roster
-
-    var body: some View {
-        HStack(spacing: 8) {
-            ForEach(bots) { bot in
-                Button {
-                    tap(bot)
-                } label: {
-                    HStack(spacing: 4) {
-                        BotAvatar(bot: bot, status: .idle, photo: roster.photos[bot.id], size: 20)
-                        Text(verbatim: "@\(bot.handle)")
-                            .font(.subheadline.weight(.medium))
-                            .lineLimit(1)
-                    }
-                    .padding(.leading, 4)
-                    .padding(.trailing, 8)
-                    .padding(.vertical, 4)
-                    .contentShape(.capsule)
-                }
-                .buttonStyle(.plain)
-                .glassEffect(.regular.tint(.accentColor.opacity(0.12)).interactive(), in: .capsule)
-                .overlay(Capsule().strokeBorder(Color.accentColor.opacity(0.35), lineWidth: 1))
-            }
-        }
     }
 }

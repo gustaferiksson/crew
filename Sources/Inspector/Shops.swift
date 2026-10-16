@@ -267,14 +267,19 @@ struct AddShopSheet: View {
                 } footer: {
                     VStack(alignment: .leading, spacing: 12) {
                         if let host {
-                            Text("The card will fill only on \(Text(verbatim: "https://\(host)").font(.title3.weight(.semibold)).foregroundStyle(isPunycode(host) ? .orange : .primary)).")
-                                .fixedSize(horizontal: false, vertical: true)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("The card will fill only on")
+                                Text(verbatim: "https://\(host)")
+                                    .font(.title3.weight(.semibold))
+                                    .foregroundStyle(isPunycode(host) ? .orange : .primary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
                             if isPunycode(host) {
                                 Label("This address uses special characters and could imitate another site.", systemImage: "exclamationmark.triangle.fill")
                                     .foregroundStyle(.orange)
                             }
                         }
-                        Text("Use the address shown at checkout; www.zalando.se and zalando.se are different sites. Only add sites you'd shop at yourself.")
+                        Text(String(localized: "Use the address shown at checkout; www.zalando.se and zalando.se are different sites. Only add sites you'd shop at yourself."))
                     }
                     .padding(.top, 8)
                 }

@@ -1,0 +1,5 @@
+{
+  "success": false,
+  "error_type": "payment_declined",
+  "error": "The user did not confirm filling this payment card. Do not retry; ask them instead."
+}

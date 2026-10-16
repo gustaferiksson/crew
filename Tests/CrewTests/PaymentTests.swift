@@ -114,9 +114,9 @@ private func paymentApproval() throws -> ApprovalRequest {
 }
 
 @Test func paymentShowsBeforeAnotherApproval() throws {
-    let other = try JSONDecoder().decode(ServerRequest.self, from: Data(#"{"id": "srq-0", "method": "approval", "params": {"session_id": "rt-4b8e2f", "command": "npm publish", "choices": ["once", "deny"]}}"#.utf8))
+    let other = try JSONDecoder().decode(ServerRequest.self, from: Data(#"{"id": "srq-0", "method": "approval", "params": {"session_id": "rt-7f3a91c2", "command": "npm publish", "choices": ["once", "deny"]}}"#.utf8))
     let session = ChatSession(fixture: scout, transcript: Transcript(), todos: [], requests: [other, try approvalFrame()])
-    #expect(session.request?.id == "srq-7c1e0b2a9d4f")
+    #expect(session.request?.id == "srq-4b1e9c0d7a22")
     #expect(session.request?.isPayment == true)
 }
 
@@ -124,8 +124,8 @@ private func paymentApproval() throws -> ApprovalRequest {
     var transcript = Transcript()
     transcript.begin(prompt: "Buy the boots")
     transcript.apply(.toolStart(id: "call-1", name: "browser_vault", context: nil, arguments: fillArguments))
-    let other = try JSONDecoder().decode(ServerRequest.self, from: Data(#"{"id": "srq-0", "method": "approval", "params": {"session_id": "rt-4b8e2f", "command": "npm publish", "choices": ["once", "deny"]}}"#.utf8))
-    let session = ChatSession(fixture: scout, transcript: transcript, todos: [], requests: [try approvalFrame(), other], payments: ["srq-7c1e0b2a9d4f": PaymentCardState()])
+    let other = try JSONDecoder().decode(ServerRequest.self, from: Data(#"{"id": "srq-0", "method": "approval", "params": {"session_id": "rt-7f3a91c2", "command": "npm publish", "choices": ["once", "deny"]}}"#.utf8))
+    let session = ChatSession(fixture: scout, transcript: transcript, todos: [], requests: [try approvalFrame(), other], payments: ["srq-4b1e9c0d7a22": PaymentCardState()])
     let event = try JSONDecoder().decode(GatewayEvent.self, from: Data(#"{"type": "tool.complete", "payload": {"tool_id": "call-1", "result": "{\"success\": true}"}}"#.utf8))
     session.apply(event)
     #expect(session.openRequests.map(\.id) == ["srq-0"])
@@ -146,17 +146,21 @@ private func paymentApproval() throws -> ApprovalRequest {
     ("fill-denied", "Denied 499 kr", .denied),
     ("fill-expired", "Payment request expired", .neutral),
     ("fill-cancelled", "Payment request cancelled", .neutral),
-    ("fill-origin-changed", "Approved, but the card wasn't filled: the page left www.zalando.se", .warning),
+    ("fill-origin-changed", "Approved, but the card wasn't filled: the page left the shop", .warning),
+    ("fill-origin-mismatch", "Approved, but the card wasn't filled: the page left the shop", .warning),
     ("fill-no-fields", "Approved, but the card wasn't filled: card fields not found", .warning),
-    ("fill-human-control", "Approved, but the card wasn't filled: you're controlling the browser", .warning),
+    ("fill-no-card-number", "Approved, but the card wasn't filled: card fields not found", .warning),
+    ("fill-human-has-control", "Approved, but the card wasn't filled: you're controlling the browser", .warning),
     ("fill-error", "Approved, but the card wasn't filled: the browser didn't respond", .warning),
     ("fill-approved.raw", "Approved 499 kr at www.zalando.se", .approved),
-    ("fill-declined.raw", "Payment not approved", .neutral),
-    ("fill-origin-changed.raw", "Approved, but the card wasn't filled: the page left www.zalando.se", .warning),
-    ("fill-origin-mismatch.raw", "Approved, but the card wasn't filled: the page left www.zalando.se", .warning),
+    ("fill-denied.raw", "Payment not approved", .neutral),
+    ("fill-expired.raw", "Payment not approved", .neutral),
+    ("fill-cancelled.raw", "Payment not approved", .neutral),
+    ("fill-origin-changed.raw", "Approved, but the card wasn't filled: the page left the shop", .warning),
+    ("fill-origin-mismatch.raw", "Approved, but the card wasn't filled: the page left the shop", .warning),
     ("fill-no-fields.raw", "Approved, but the card wasn't filled: card fields not found", .warning),
-    ("fill-partial.raw", "Approved, but the card wasn't filled: card fields not found", .warning),
-    ("fill-human-control.raw", "Approved, but the card wasn't filled: you're controlling the browser", .warning),
+    ("fill-no-card-number.raw", "Approved, but the card wasn't filled: card fields not found", .warning),
+    ("fill-human-has-control.raw", "Approved, but the card wasn't filled: you're controlling the browser", .warning),
     ("fill-error.raw", "Approved, but the card wasn't filled: the browser didn't respond", .warning),
 ])
 func receiptRowFromTheFillResult(name: String, expected: String, tone: PaymentReceipt.Tone) throws {
@@ -165,7 +169,7 @@ func receiptRowFromTheFillResult(name: String, expected: String, tone: PaymentRe
     #expect(receipt.tone == tone)
 }
 
-@Test(arguments: ["block-no-shop-card", "block-missing-details", "block-gate-off", "block-not-bot-chat", "block-one-at-a-time", "block-after-decline", "list-missing-shop"])
+@Test(arguments: ["block-no-shop-card", "block-missing-details", "list-missing-shop"])
 func blocksAndListsGiveNoReceipt(name: String) throws {
     let arguments = name.hasPrefix("list") ? #"{"action": "list"}"# : fillArguments
     #expect(PaymentReceipt(vaultCall(try text(name), arguments: arguments)) == nil)

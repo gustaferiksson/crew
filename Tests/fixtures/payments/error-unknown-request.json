@@ -1,6 +1,6 @@
 {
   "detail": {
     "code": "unknown_request",
-    "message": "unknown_request (log line)"
+    "message": "no payment request with that id"
   }
 }

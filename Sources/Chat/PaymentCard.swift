@@ -85,6 +85,7 @@ struct PaymentCard<Avatar: View>: View {
                 Label("This address uses special characters and could imitate another site.", systemImage: "exclamationmark.triangle.fill")
                     .font(.footnote)
                     .foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
@@ -378,6 +379,7 @@ struct ShopOfferCard: View {
                 Label("This address uses special characters and could imitate another site.", systemImage: "exclamationmark.triangle.fill")
                     .font(.footnote)
                     .foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             Text("Only add sites you'd shop at yourself.")
                 .font(.footnote)

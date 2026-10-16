@@ -1,6 +1,6 @@
 {
   "detail": {
     "code": "unknown_profile",
-    "message": "unknown_profile (log line)"
+    "message": "no such profile"
   }
 }

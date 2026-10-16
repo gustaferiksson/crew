@@ -1,0 +1,5 @@
+{
+  "success": false,
+  "error": "The user has taken control of the browser.",
+  "error_type": "human_has_control"
+}

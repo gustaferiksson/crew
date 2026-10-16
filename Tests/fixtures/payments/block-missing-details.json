@@ -1,3 +1,3 @@
 {
-  "error": "{\"success\": false, \"error_type\": \"crew_missing_details\", \"error\": \"Call browser_vault fill again with amount, merchant and reason, for example amount \\\"499 kr\\\", merchant \\\"Zalando\\\", reason \\\"Winter boots, size 43\\\".\"}"
+  "error": "{\"success\": false, \"error_type\": \"crew_missing_details\", \"error\": \"A payment fill needs amount (the total shown at checkout, with a digit, up to 32 characters), merchant (up to 64) and reason (up to 140). Retry the same fill with them, for example amount \\\"499 kr\\\", merchant \\\"Zalando\\\", reason \\\"Winter boots, size 43\\\".\"}"
 }

@@ -1,5 +1,0 @@
-{
-  "success": false,
-  "error_type": "payment_declined",
-  "error": "The user declined the payment fill."
-}

@@ -1,12 +1,15 @@
 {
   "jsonrpc": "2.0",
-  "id": "srq-7c1e0b2a9d4f",
+  "id": "srq-4b1e9c0d7a22",
   "method": "approval",
   "params": {
-    "session_id": "rt-4b8e2f",
+    "session_id": "rt-7f3a91c2",
     "command": "Fill payment card 'Shopping card •••• 4242 · www.zalando.se' on https://www.zalando.se",
-    "description": "Fill the payment card on www.zalando.se",
+    "description": "The agent wants to enter your saved card details into this checkout page. The card number and CVC never enter the conversation. Approve only if you intend to pay here.",
     "pattern_key": "mcp_elicitation",
+    "pattern_keys": [
+      "mcp_elicitation"
+    ],
     "request_id": "5f0c3e9a2b7d4c18a6e1f20b9d3c7a54",
     "choices": [
       "once",

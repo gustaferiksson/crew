@@ -1,7 +1,7 @@
 {
   "detail": {
     "code": "invalid_site",
-    "message": "invalid_site (log line)",
-    "reason": "no_host"
+    "reason": "no_host",
+    "message": "the site has no valid host"
   }
 }

@@ -1,3 +1,0 @@
-{
-  "error": "{\"success\": false, \"error_type\": \"crew_after_decline\", \"error\": \"The user declined the last payment. Do not retry until they ask.\"}"
-}

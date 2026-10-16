@@ -9,10 +9,10 @@
   "merchant": "Zalando",
   "reason": "Winter boots, size 43",
   "state": "expired",
-  "fill": null,
+  "fill": "not_filled",
   "fill_error": null,
   "created_at": 1760609940.0,
   "expires_at": 1760610240.0,
   "decided_at": 1760610240.0,
-  "now": 1760610300.0
+  "now": 1760610241.0
 }

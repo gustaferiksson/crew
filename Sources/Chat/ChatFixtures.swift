@@ -59,7 +59,7 @@ enum ChatFixture {
         if self == .paymentOffer {
             let offer = #"{"error": "{\"success\": false, \"error_type\": \"crew_no_shop_card\", \"crew_payment\": {\"missing_shop\": \"https://www.zalando.de\"}, \"error\": \"There is no card for https://www.zalando.de.\"}"}"#
             var turns = Self.shoppingTurns(now, fill: offer)
-            turns[1].reply = "I don't have a card for www.zalando.de. Add it in Crew?"
+            turns[1].reply = "I have no card for that shop yet. Add it in Crew?"
             return Transcript(turns: turns)
         }
         if self == .paymentNotice {
@@ -276,6 +276,7 @@ struct ChatFixtureScreen: View {
     @State private var answers: [String] = []
     @State private var paymentNotice: String?
     @State private var shopOffer: String?
+    @State private var addingShop = false
 
     private static let hermes = Bot(
         name: "default", displayName: "Hermes", description: nil, model: nil, isDefault: true, hasAvatar: false, canonicalSession: nil,
@@ -325,10 +326,14 @@ struct ChatFixtureScreen: View {
             actions: ChatActions(
                 respond: { _, choice in answer(choice) },
                 dismissPaymentNotice: { paymentNotice = nil },
+                addShop: { _ in addingShop = true },
                 dismissShopOffer: { shopOffer = nil }
             )
         )
         .environment(\.chatSession, session)
+        .sheet(isPresented: $addingShop) {
+            AddShopSheet(profile: "default", site: shopOffer ?? "") { _ in }
+        }
         .overlay(alignment: .topLeading) {
             if fixture.isPayment {
                 Color.clear

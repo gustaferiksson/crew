@@ -1,5 +1,5 @@
 {
   "success": false,
-  "error_type": "supervisor_required",
-  "kind": "payment"
+  "error": "eval failed",
+  "error_type": "eval_failed"
 }

@@ -1,11 +1,11 @@
 {
   "shop": {
-    "id": "vault_3f9a1c2b7d4e",
-    "origin": "https://www.zalando.se",
-    "host": "www.zalando.se",
-    "created_at": 1760600000.0,
+    "id": "vault_8c1d2e3f4a5b",
+    "origin": "https://www.xn--zaland-1xa.se",
+    "host": "www.xn--zaland-1xa.se",
+    "created_at": 1760610100.0,
     "last_paid_at": null,
     "stale": false,
-    "punycode": false
+    "punycode": true
   }
 }

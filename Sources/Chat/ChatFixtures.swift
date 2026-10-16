@@ -275,7 +275,7 @@ struct ChatFixtureScreen: View {
                 photo: nil,
                 size: 28
             ),
-            transcript: fixture.transcript.visible,
+            transcript: fixture == .mentions ? fixture.transcript.visible : fixture.transcript,
             emptyState: EmptyView(),
             mentionable: bots.bots.filter { $0.id != "default" },
             request: fixture.request,

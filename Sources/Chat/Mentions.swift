@@ -59,8 +59,8 @@ nonisolated func mentionExchange(with bot: Bot.ID, from turn: Turn.ID, in transc
           let match = MessageAgentCall.all(in: transcript.turns[start]).last(where: { $0.target == handle })
     else { return nil }
     if match.call.status == .running { return MentionExchange(message: match.message, outcome: .sending) }
-    let reason = (match.result["error"] ?? match.result["detail"]) as? String ?? match.call.outcome
-    guard match.call.status == .success else { return MentionExchange(message: match.message, outcome: .failed(reason)) }
+    let reason = (match.result["error"] ?? match.result["detail"]) as? String
+    guard match.call.status == .success else { return MentionExchange(message: match.message, outcome: .failed(reason ?? match.call.outcome)) }
     guard let process = match.process else {
         let isQueued = ["queued", "sent", "delivered"].contains(match.result["status"] as? String ?? "")
         return MentionExchange(message: match.message, outcome: isQueued ? .relayed : .failed(reason))

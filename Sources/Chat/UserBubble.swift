@@ -12,7 +12,7 @@ struct UserBubble: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.displayScale) private var displayScale
     @ScaledMetric(relativeTo: .body) private var avatarSize: CGFloat = 16
-    @State private var card: Int?
+    @State private var card: MentionPick?
     @State private var isUnfolded = false
     @State private var fullHeight: CGFloat = 0
     @State private var foldThreshold: CGFloat = 0
@@ -35,6 +35,10 @@ struct UserBubble: View {
 
     private var segments: [MentionSegment] { mentionSegments(in: text, among: mentionable) }
 
+    private var picked: Bot? {
+        card.flatMap { pick in segments.indices.contains(pick.index) && segments[pick.index].bot?.id == pick.bot ? segments[pick.index].bot : nil }
+    }
+
     private var content: Text {
         segments.enumerated().reduce(Text(verbatim: "")) { result, item in
             guard let bot = item.element.bot else { return Text("\(result)\(Text(verbatim: item.element.text))") }
@@ -55,8 +59,10 @@ struct UserBubble: View {
                 .overlayPreferenceValue(Text.LayoutKey.self, tagButtons)
                 .tint(.white)
                 .environment(\.openURL, OpenURLAction { url in
-                    guard url.scheme == "crew-mention", let index = Int(url.absoluteString.replacing("crew-mention:", with: "")) else { return .systemAction }
-                    card = index
+                    guard url.scheme == "crew-mention", let index = Int(url.absoluteString.replacing("crew-mention:", with: "")),
+                          let bot = segments.indices.contains(index) ? segments[index].bot : nil
+                    else { return .systemAction }
+                    card = MentionPick(index: index, bot: bot.id)
                     return .handled
                 })
                 .background {
@@ -92,15 +98,15 @@ struct UserBubble: View {
         .containerRelativeFrame(.horizontal, alignment: .trailing) { length, _ in min(length * 0.75, 560) }
         .frame(maxWidth: .infinity, alignment: .trailing)
         #if os(iOS)
-        .sheet(isPresented: Binding(get: { card != nil }, set: { if !$0 { card = nil } })) {
-            if let card, let bot = segments[card].bot {
-                MentionSheet(bot: bot, turnID: turnID)
+        .sheet(isPresented: Binding(get: { picked != nil }, set: { if !$0 { card = nil } })) {
+            if let picked {
+                MentionSheet(bot: picked, turnID: turnID)
             }
         }
         #endif
         .task {
-            guard [.chatMentionPeek, .chatMentionChat].contains(Snapshot.requested) else { return }
-            card = segments.firstIndex { $0.bot != nil }
+            guard [.chatMentionPeek, .chatMentionChat].contains(Snapshot.requested), let index = segments.firstIndex(where: { $0.bot != nil }), let bot = segments[index].bot else { return }
+            card = MentionPick(index: index, bot: bot.id)
         }
     }
 
@@ -120,7 +126,7 @@ struct UserBubble: View {
 
     private func tagButton(index: Int, bot: Bot, rect: CGRect) -> some View {
         Button {
-            card = index
+            card = MentionPick(index: index, bot: bot.id)
         } label: {
             Color.clear
                 .contentShape(.capsule)
@@ -134,7 +140,7 @@ struct UserBubble: View {
         .accessibilityHidden(true)
         .frame(width: rect.width, height: rect.height)
         #if os(macOS)
-        .popover(isPresented: Binding(get: { card == index }, set: { if !$0 { card = nil } })) {
+        .popover(isPresented: Binding(get: { card?.index == index && picked != nil }, set: { if !$0 { card = nil } })) {
             MentionPeek(bot: bot, turnID: turnID) {
                 card = nil
                 openWindow(value: bot.id)
@@ -144,4 +150,9 @@ struct UserBubble: View {
         #endif
         .position(x: rect.midX, y: rect.midY)
     }
+}
+
+private struct MentionPick: Equatable {
+    let index: Int
+    let bot: Bot.ID
 }

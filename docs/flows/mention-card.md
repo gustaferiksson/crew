@@ -13,7 +13,7 @@ A sent bubble shows each `@handle` or `@title-slug` token that names a mentionab
 
 The same content on every platform. It observes the current chat's `ChatSession` transcript, so Sending, Waiting and the reply update in place while it is open.
 
-1. **Header:** 44 pt avatar with live mood, title, `@handle`, and the target's live status from `BotStore` (its own `session.active_list` entry, not the sender's): "Working" (plus its status text when its chat session is open), "Needs approval", "Waiting for you", "Failed", or "Active <relative time>" when idle.
+1. **Header:** 44 pt avatar with live mood, title, `@handle`, and the target's live status from `BotStore` (its own `session.active_list` entry, not the sender's): "Working" (plus its status text when its chat session is open), "Needs approval", "Waiting for you", "Failed", or, for a plain mention, "Active <relative time>" when idle (an exchange card already carries its own times).
 2. **The mention card**, a tappable rounded panel with a chevron that brings up the bot's live chat (below). It carries the information, so the tap target is never bare navigation:
    - **Message to <bot>:** the `message` argument of the mentioning turn's `message_agent` call whose `target` is this bot, quoted (what the current bot actually sent, not the user's text).
    - **<Bot>'s reply** with its time: the `Message from … (@handle)` row paired the way #32 pairs them (each queued call with a `process_id` in a user-started turn consumes the next such row from that handle, oldest call first), so an older tag never picks up a newer reply.
@@ -21,7 +21,7 @@ The same content on every platform. It observes the current chat's `ChatSession`
    - **Delivered:** the delivery notice for the call's `process_id` arrived without a reply row (the target answered in its own chat): "Delivered. The answer is in <bot>'s chat."
    - **Sending:** the call is still streaming (the result follows within a second): "Sending…".
    - **Not delivered:** the call errored, or its result has neither a `process_id` nor a queued status: "Not delivered" in red with the server's short reason when there is one.
-   - **Relayed:** queued without a `process_id` (another machine through Hermes Desktop): "Sent through Hermes Desktop. The reply shows there."
+   - **Relayed:** queued without a `process_id` (another machine through Hermes Desktop): "Sent through Hermes Desktop. The reply will show up there."
    - **Plain mention** (no `message_agent` call to this bot in that turn, group rooms, the conversation viewer): "Recent" with the bot's latest chat preview and its time from the roster, so the peek is never empty.
    - Quotes clamp to 4 lines; the full text is in the live chat.
 3. **About:** the bot's description when it has one (up to 3 lines).
@@ -31,7 +31,7 @@ The sender's chat still shows its own relay line ("@scout replied: …"); the pe
 ## iPhone and iPad
 
 - A sheet over the current chat with `.medium` and `.large` detents (driven by `presentationDetents(_:selection:)`), a visible grabber, and `.presentationContentInteraction(.scrolls)` so scrolling the peek or the chat never resizes the sheet by accident. It opens at medium with the peek.
-- Dragging to large, or tapping the mention card, grows the sheet and swaps its content to that bot's live chat (the same `ChatScreen` as the bot list opens, fully usable: persona pill title, transcript at the bottom, composer, approvals, inspector push). Dragging down from large returns to the peek at medium; dragging down from medium dismisses back to the original chat, which never moved.
+- Dragging to large, or tapping the mention card, grows the sheet and swaps its content to that bot's live chat (the same `ChatScreen` as the bot list opens, fully usable: persona pill title, transcript at the bottom, composer, approvals, inspector push) with a close button that dismisses the whole sheet. Dragging the grabber down from large returns to the peek at medium (a drag on the transcript scrolls it); dragging down from medium dismisses back to the original chat, which never moved.
 - On iPad's regular width the sheet is a form sheet; the mention card is the way into the chat there.
 - Accessibility: a "Show Chat" accessibility action on the peek, and the grabber is adjustable.
 - A tag inside the sheet's chat opens its own peek on top.
@@ -39,7 +39,7 @@ The sender's chat still shows its own relay line ("@scout replied: …"); the pe
 ## Mac
 
 - A popover anchored at the tapped tag with the same peek, 320 pt wide.
-- Clicking the mention card closes the popover and opens that bot's chat in its own window (`WindowGroup(for: Bot.ID)` plus `openWindow`, one window per bot, Cmd-W closes it). The main window keeps its selection and stays usable next to it, like a Mail message opened in its own window. Rejected: a modal sheet (it would block reading the sender's chat) and swapping the inspector column (it belongs to the selected bot and is too narrow for a chat).
+- Clicking the mention card closes the popover and opens that bot's chat in its own window (`WindowGroup(for: Bot.ID)` plus `openWindow`, one window per bot, Cmd-W closes it). The main window keeps its selection and stays usable next to it, like a Mail message opened in its own window. Its persona pill opens that bot's inspector in the window. Rejected: a modal sheet (it would block reading the sender's chat) and swapping the inspector column (it belongs to the selected bot and is too narrow for a chat).
 
 ## Every direction and other surfaces
 

@@ -51,6 +51,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
     var offlineReason: String?
     var activity: String?
     var models: ModelSwitcher?
+    var focus: SearchFocus?
     var actions = ChatActions()
 
     @State private var draft: String
@@ -64,9 +65,11 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
     @State private var trackpadTravel: CGFloat = 0
     @State private var timestampWidth: CGFloat = 40
     @State private var surfaces = SurfaceStore()
+    @State private var highlighted: Turn.ID?
+    @State private var handledFocus: UUID?
     private let presentation: ChatPresentation
 
-    init(botName: String, avatar: Avatar, transcript: Transcript, emptyState: EmptyState, mentionable: [Bot], features: ComposerFeatures = .all, request: PendingRequest? = nil, offlineReason: String? = nil, activity: String? = nil, models: ModelSwitcher? = nil, presentation: ChatPresentation = ChatPresentation(), actions: ChatActions = ChatActions()) {
+    init(botName: String, avatar: Avatar, transcript: Transcript, emptyState: EmptyState, mentionable: [Bot], features: ComposerFeatures = .all, request: PendingRequest? = nil, offlineReason: String? = nil, activity: String? = nil, models: ModelSwitcher? = nil, focus: SearchFocus? = nil, presentation: ChatPresentation = ChatPresentation(), actions: ChatActions = ChatActions()) {
         self.botName = botName
         self.avatar = avatar
         self.transcript = transcript
@@ -77,6 +80,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
         self.offlineReason = offlineReason
         self.activity = activity
         self.models = models
+        self.focus = focus
         self.actions = actions
         self.presentation = presentation
         _expandedTurns = State(initialValue: presentation.expandedTurns)
@@ -123,6 +127,13 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
                                     expandedRuns: $expandedRuns,
                                     retry: actions.retry
                                 )
+                            }
+                            .background {
+                                if highlighted == turn.id {
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(.tint.opacity(0.12))
+                                        .padding(-8)
+                                }
                             }
                             .id(turn.id)
                         }
@@ -247,6 +258,18 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
             #else
             .toolbar(removing: .title)
             #endif
+            .task(id: [focus?.id.uuidString, "\(transcript.turns.count)"]) {
+                guard let focus, focus.id != handledFocus, let target = transcript.turn(matching: focus.snippet) else { return }
+                handledFocus = focus.id
+                isAtBottom = false
+                position.scrollTo(id: target.id, anchor: .center)
+                highlighted = target.id
+            }
+            .task(id: highlighted) {
+                guard highlighted != nil else { return }
+                try? await Task.sleep(for: .seconds(2))
+                withAnimation(.easeOut(duration: 0.6)) { highlighted = nil }
+            }
             .task(id: surfaces.blocks.count) {
                 guard let target = presentation.scrollTarget else { return }
                 position.scrollTo(id: target, anchor: .top)

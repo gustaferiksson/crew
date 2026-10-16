@@ -24,7 +24,11 @@ struct BotsView: View {
     #endif
     @State private var selection = Snapshot.requested?.selectedBot
     @State private var showsNotifications = false
-    @State private var query = ""
+    @State private var query = Snapshot.requested?.searchQuery ?? ""
+    @State private var search = MessageSearch(fixture: Snapshot.requested?.searchHits)
+    @State private var searchAttempt = 0
+    @State private var focus = Snapshot.requested?.searchFocus
+    @State private var reading: MessageHit?
     @State private var isCreating = Snapshot.requested == .newBot
     @State private var isCreatingGroup = false
     @State private var deleting: Bot?
@@ -66,7 +70,7 @@ struct BotsView: View {
                         }
                         .listSectionSeparator(.hidden, edges: .top)
                     }
-                } else {
+                } else if !MessageSearch.isSearchable(query) {
                     ForEach((store.favourites + store.sections.flatMap(\.bots)).filter {
                         $0.title.localizedStandardContains(query) || $0.name.localizedStandardContains(query)
                             || $0.canonicalSession?.preview?.localizedStandardContains(query) == true
@@ -74,6 +78,18 @@ struct BotsView: View {
                         row(for: bot)
                     }
                     ForEach(groups.rooms.filter { $0.name.localizedStandardContains(query) }) { groupRow(for: $0) }
+                } else {
+                    if !matchingBots.isEmpty || !matchingRooms.isEmpty {
+                        Section("Conversations") {
+                            ForEach(matchingBots) { row(for: $0) }
+                            ForEach(matchingRooms) { groupRow(for: $0) }
+                        }
+                        .listSectionSeparator(.hidden, edges: .top)
+                    }
+                    if !search.hits.isEmpty || search.phase != .done || search.failed > 0 {
+                        Section("Messages") { messageResults }
+                            .listSectionSeparator(.hidden, edges: .top)
+                    }
                 }
             }
             .overlay {
@@ -81,7 +97,12 @@ struct BotsView: View {
                     ContentUnavailableView("No Bots", systemImage: "person.2", description: Text("This server has no profiles yet."))
                 } else if !store.isLoaded && connection.state == .connecting {
                     ProgressView()
+                } else if MessageSearch.isSearchable(query) && search.phase == .done && search.hits.isEmpty && search.failed == 0 && matchingBots.isEmpty && matchingRooms.isEmpty {
+                    ContentUnavailableView.search(text: query)
                 }
+            }
+            .task(id: [query, "\(connection.state == .connected)", "\(searchAttempt)"]) {
+                await search.run(query, in: store.bots, on: connection.state == .connected ? connection.session?.server : nil, with: connection.urlSession)
             }
             #if os(iOS)
             .listStyle(.plain)
@@ -141,7 +162,7 @@ struct BotsView: View {
             NavigationStack {
                 Group {
                     if let selected {
-                        ChatScreen(bot: selected, models: models, showsBot: $showsBot) { selection = $0 }
+                        ChatScreen(bot: selected, models: models, showsBot: $showsBot, focus: focus) { selection = $0 }
                     } else if let selectedRoom {
                         GroupChatScreen(room: selectedRoom, showsInspector: $showsBot) { selection = $0 }
                     } else {
@@ -215,6 +236,16 @@ struct BotsView: View {
         }
         .onChange(of: selection, initial: true) {
             push.show(selection)
+            if focus?.bot != selection { focus = nil }
+        }
+        .sheet(item: $reading) { hit in
+            if let bot = store.bots.first(where: { $0.id == hit.bot }) {
+                ConversationTranscript(
+                    bot: bot,
+                    conversation: Conversation(id: hit.session, title: hit.title, source: nil, startedAt: hit.conversationDate.timeIntervalSince1970, lastActive: nil),
+                    focus: hit.snippet
+                )
+            }
         }
         .onChange(of: push.pendingRoute, initial: true) {
             guard let route = push.pendingRoute else { return }
@@ -252,6 +283,55 @@ struct BotsView: View {
             Button("New Bot", systemImage: "square.and.pencil") { isCreating = true }
                 .disabled(connection.state != .connected)
         }
+    }
+
+    private var matchingBots: [Bot] {
+        (store.favourites + store.sections.flatMap(\.bots)).filter { $0.title.localizedStandardContains(query) || $0.name.localizedStandardContains(query) }
+    }
+
+    private var matchingRooms: [Room] {
+        groups.rooms.filter { $0.name.localizedStandardContains(query) }
+    }
+
+    @ViewBuilder
+    private var messageResults: some View {
+        ForEach(search.hits) { hit in
+            if let bot = store.bots.first(where: { $0.id == hit.bot }) {
+                Button {
+                    focus = hit.isInBotChat ? SearchFocus(bot: hit.bot, snippet: hit.snippet) : nil
+                    selection = hit.bot
+                    if !hit.isInBotChat { reading = hit }
+                } label: {
+                    MessageHitRow(hit: hit, bot: bot, photo: store.photos[bot.id], query: query)
+                }
+                .buttonStyle(.plain)
+                .listRowInsets(EdgeInsets(top: rowPadding, leading: 0, bottom: rowPadding, trailing: 12))
+            }
+        }
+        Group {
+            if search.phase == .searching && search.hits.isEmpty {
+                Label {
+                    Text("Searching…")
+                } icon: {
+                    ProgressView()
+                        .controlSize(.small)
+                }
+            } else if search.phase == .offline {
+                Text("Connect to search messages.")
+            } else if search.phase == .done && search.failed > 0 && search.failed == search.searched {
+                HStack(spacing: 8) {
+                    Text("Couldn't search messages.")
+                    Button("Try Again") { searchAttempt += 1 }
+                        .buttonStyle(.borderless)
+                }
+            } else if search.phase == .done && search.failed > 0 {
+                Text("Some bots couldn't be searched.")
+                    .font(.footnote)
+            }
+        }
+        .foregroundStyle(.secondary)
+        .listRowSeparator(.hidden)
+        .selectionDisabled()
     }
 
     private func rows(in section: BotSection) -> [ListRow] {
@@ -427,6 +507,66 @@ private struct BotRow: View {
             Text(date.rowLabel)
                 .foregroundStyle(.secondary)
         }
+    }
+}
+
+private struct MessageHitRow: View {
+    let hit: MessageHit
+    let bot: Bot
+    let photo: Image?
+    let query: String
+    @Environment(\.displayScale) private var displayScale
+    @Environment(BotStore.self) private var store
+    @Environment(ChatSessions.self) private var chats
+
+    private var date: Date? {
+        guard hit.isInBotChat else { return hit.conversationDate }
+        return chats.sessions[bot.id]?.transcript.turn(matching: hit.snippet).map { $0.prompt?.sentAt ?? $0.finishedAt ?? $0.startedAt }
+    }
+
+    var body: some View {
+        HStack(spacing: 0) {
+            Color.clear
+                .frame(width: dotGutter, height: 8)
+            BotAvatar(bot: bot, status: chats.status(of: bot.id, in: store), photo: photo, size: rowAvatarSize)
+                .padding(.trailing, 12)
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    Text(bot.title)
+                        .font(.headline)
+                        .lineLimit(1)
+                    Spacer(minLength: 4)
+                    if let date {
+                        Text(date.rowLabel)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+                if !hit.isInBotChat {
+                    Text("in \(hit.title ?? String(localized: "Untitled"))")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                Text(hit.highlighted(query))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2, reservesSpace: true)
+            }
+            .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
+            #if os(macOS)
+            .overlay(alignment: .bottom) {
+                Rectangle()
+                    .fill(.separator)
+                    .frame(height: 1 / displayScale)
+                    .padding(.trailing, -12)
+                    .offset(y: rowPadding)
+            }
+            #endif
+        }
+        .contentShape(.rect)
+        .accessibilityElement(children: .combine)
     }
 }
 

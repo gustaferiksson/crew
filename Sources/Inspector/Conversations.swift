@@ -73,6 +73,7 @@ struct ConversationList: View {
 struct ConversationTranscript: View {
     let bot: Bot
     let conversation: Conversation
+    var focus: String?
 
     @Environment(Connection.self) private var connection
     @Environment(BotStore.self) private var bots
@@ -83,6 +84,8 @@ struct ConversationTranscript: View {
     @State private var expandedTurns: Set<Turn.ID> = []
     @State private var expandedWork: Set<WorkItem.ID> = []
     @State private var expandedRuns: Set<String> = []
+    @State private var position = ScrollPosition(idType: Turn.ID.self)
+    @State private var highlighted: Turn.ID?
 
     var body: some View {
         NavigationStack {
@@ -102,11 +105,27 @@ struct ConversationTranscript: View {
                                     expandedWork: $expandedWork,
                                     expandedRuns: $expandedRuns
                                 )
+                                .background {
+                                    if highlighted == turn.id {
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .fill(.tint.opacity(0.12))
+                                            .padding(-8)
+                                    }
+                                }
                             }
                         }
+                        .scrollTargetLayout()
                         .padding(16)
                     }
                     .defaultScrollAnchor(.bottom)
+                    .scrollPosition($position)
+                    .task {
+                        guard let focus, let target = transcript.turn(matching: focus) else { return }
+                        position.scrollTo(id: target.id, anchor: .center)
+                        highlighted = target.id
+                        try? await Task.sleep(for: .seconds(2))
+                        withAnimation(.easeOut(duration: 0.6)) { highlighted = nil }
+                    }
                 } else if let failure {
                     ContentUnavailableView("Couldn't Load Conversation", systemImage: "exclamationmark.triangle", description: Text(failure))
                 } else {

@@ -1,0 +1,28 @@
+{
+ "results": [
+  {
+   "snippet": "{\"responses\": [{\"question\": \"Which >>>colour<<< do you prefer?\", \"choices_offered\": [\"red\", \"blue\"], \"status\": \"answered\", \"user_response\": \"red\"}], \"outcome\": \"submitted\"}",
+   "role": "tool",
+   "source": "tui",
+   "model": "gpt-6-astra",
+   "session_started": 1791902787.6562948,
+   "last_active": 1792183058.1799,
+   "session_id": "20261013_144627_bb3f2e",
+   "lineage_root": "20261013_144627_bb3f2e",
+   "profile": "crew-test",
+   "is_default_profile": false,
+   "id": "20261013_144627_bb3f2e",
+   "title": "Bot Chat",
+   "started_at": 1791902787.6562948,
+   "ended_at": null,
+   "is_active": true,
+   "message_count": 373,
+   "tool_call_count": 70,
+   "input_tokens": 657214,
+   "output_tokens": 5858,
+   "preview": "Use your terminal tool to run ls -la in your current working...",
+   "parent_session_id": null,
+   "archived": false
+  }
+ ]
+}

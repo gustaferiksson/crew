@@ -16,6 +16,7 @@ struct BotsView: View {
     @Environment(Connection.self) private var connection
     @Environment(BotStore.self) private var store
     @Environment(GroupStore.self) private var groups
+    @Environment(ChatSessions.self) private var chats
     @Environment(PushCenter.self) private var push
     #if os(macOS)
     @Environment(AppUpdater.self) private var updater
@@ -220,6 +221,7 @@ struct BotsView: View {
             guard let route = push.pendingRoute else { return }
             push.pendingRoute = nil
             selection = route.profile
+            if route.kind == "payment", let requestID = route.requestID { chats.expectPayment(requestID, for: route.profile) }
         }
         .sheet(isPresented: $showsNotifications) {
             NotificationSettings()

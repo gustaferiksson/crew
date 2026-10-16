@@ -110,7 +110,7 @@ struct PaymentCard<Avatar: View>: View {
         }
         .padding(12)
         .background(.fill.tertiary, in: .rect(cornerRadius: 16))
-        .redacted(reason: state.lookup == .loading ? .placeholder : [])
+        .redacted(reason: details == nil ? .placeholder : [])
     }
 
     private func detailRow(_ label: LocalizedStringKey, @ViewBuilder value: () -> some View) -> some View {

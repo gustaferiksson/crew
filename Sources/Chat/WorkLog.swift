@@ -273,6 +273,7 @@ private struct WorkRow: View {
     private var appearance: (verb: String, icon: String) {
         if case .thinking = item.kind { return ("Thinking", "brain") }
         guard case .tool(let call) = item.kind else { return ("", "text.bubble") }
+        if call.name == "browser_vault" { return (vaultAction(call) == "fill" ? "Card" : "Checked cards", "creditcard") }
         if let style = toolStyles[call.name] { return style }
         if call.name.hasPrefix("browser_") { return ("Browsed", "safari") }
         return (call.name.replacing("_", with: " ").capitalized, "wrench.and.screwdriver")
@@ -282,9 +283,22 @@ private struct WorkRow: View {
         switch item.kind {
         case .thinking(let text), .note(let text):
             text.split(whereSeparator: \.isNewline).first.map { $0.replacing("**", with: "").replacing("#", with: "").trimmingCharacters(in: .whitespaces) } ?? ""
+        case .tool(let call) where call.name == "browser_vault":
+            vaultSubject(call)
         case .tool(let call):
             call.subject
         }
+    }
+
+    private func vaultAction(_ call: ToolCall) -> String? {
+        ((try? JSONSerialization.jsonObject(with: Data(call.arguments.utf8))) as? [String: Any])?["action"] as? String
+    }
+
+    private func vaultSubject(_ call: ToolCall) -> String {
+        guard vaultAction(call) == "fill" else { return "" }
+        let arguments = (try? JSONSerialization.jsonObject(with: Data(call.arguments.utf8))) as? [String: Any]
+        let place = call.result.flatMap(VaultResult.init)?.origin.flatMap { URLComponents(string: $0)?.encodedHost } ?? arguments?["merchant"] as? String
+        return place.map { String(localized: "at \($0)") } ?? ""
     }
 }
 

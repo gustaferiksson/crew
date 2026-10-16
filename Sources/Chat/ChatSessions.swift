@@ -6,6 +6,7 @@ final class ChatSessions {
     private(set) var sessions: [Bot.ID: ChatSession]
     private var gateway: Gateway?
     private var runs: [Bot.ID: Task<Void, Never>] = [:]
+    private var awaitedPayments: [Bot.ID: String] = [:]
 
     init(fixture sessions: [Bot.ID: ChatSession] = [:]) {
         self.sessions = sessions
@@ -19,7 +20,13 @@ final class ChatSessions {
         guard sessions[bot.id] == nil else { return }
         let session = ChatSession(bot: bot, gateway: gateway, urlSession: urlSession)
         sessions[bot.id] = session
+        if let requestID = awaitedPayments.removeValue(forKey: bot.id) { session.expectPayment(requestID) }
         runs[bot.id] = Task { await session.run() }
+    }
+
+    func expectPayment(_ requestID: String, for bot: Bot.ID) {
+        guard let session = sessions[bot] else { return awaitedPayments[bot] = requestID }
+        session.expectPayment(requestID)
     }
 
     func status(of bot: Bot.ID, in store: BotStore) -> BotStatus {

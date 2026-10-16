@@ -49,6 +49,8 @@ nonisolated private struct RegistrationReply: Decodable, Sendable {
     let apnsConfigured: Bool
 }
 
+nonisolated private let denyPaymentAction = "DENY_PAYMENT"
+
 @Observable
 final class PushCenter: NSObject {
     private(set) var status: PushStatus
@@ -84,9 +86,14 @@ final class PushCenter: NSObject {
     func start() {
         let center = UNUserNotificationCenter.current()
         center.delegate = self
+        let deny = UNNotificationAction(identifier: denyPaymentAction, title: String(localized: "Deny"), options: .destructive, icon: UNNotificationActionIcon(systemImageName: "xmark"))
+        let payment = UNNotificationCategory(
+            identifier: "CREW_PAYMENT", actions: [deny], intentIdentifiers: [],
+            hiddenPreviewsBodyPlaceholder: String(localized: "Payment request"), options: .hiddenPreviewsShowTitle
+        )
         center.setNotificationCategories(Set(["CREW_REPLY", "CREW_APPROVAL", "CREW_QUESTION", "CREW_ROUTINE"].map {
             UNNotificationCategory(identifier: $0, actions: [], intentIdentifiers: [], options: .hiddenPreviewsShowTitle)
-        }))
+        } + [payment]))
         Task { await refreshAuthorization() }
     }
 
@@ -201,8 +208,23 @@ final class PushCenter: NSObject {
     }
 
     func readElsewhere(_ route: PushRoute) async {
-        guard route.kind == "read", route.installID == nil || route.installID == UserDefaults.standard.string(forKey: "pushInstallID") else { return }
-        await removeDelivered(of: route.profile)
+        guard route.installID == nil || route.installID == UserDefaults.standard.string(forKey: "pushInstallID") else { return }
+        if route.kind == "read" { return await removeDelivered(of: route.profile) }
+        guard route.kind == "payment_resolved", let requestID = route.requestID else { return }
+        await removeDeliveredPayments { $0.requestID == requestID }
+    }
+
+    func removeStalePayments() async {
+        let now = Date.now
+        await removeDeliveredPayments { $0.isStalePayment(at: now) }
+    }
+
+    private func removeDeliveredPayments(where matches: (PushRoute) -> Bool) async {
+        let center = UNUserNotificationCenter.current()
+        let ended = await center.deliveredNotifications().filter { notification in
+            PushRoute(userInfo: notification.request.content.userInfo).map { $0.kind == "payment" && matches($0) } ?? false
+        }
+        center.removeDeliveredNotifications(withIdentifiers: ended.map(\.request.identifier))
     }
 
     private func removeDelivered(of bot: Bot.ID) async {
@@ -288,9 +310,16 @@ extension PushCenter: UNUserNotificationCenterDelegate {
         completionHandler(MainActor.assumeIsolated { presentation(for: route) })
     }
 
-    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
+    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
         let route = PushRoute(userInfo: response.notification.request.content.userInfo)
-        MainActor.assumeIsolated { open(route) }
-        completionHandler()
+        guard response.actionIdentifier == denyPaymentAction else { return await MainActor.run { open(route) } }
+        guard let route, route.kind == "payment", let requestID = route.requestID else { return }
+        guard await !denyPayment(in: route.sessionID, requestID: requestID) else { return }
+        let content = UNMutableNotificationContent()
+        content.title = route.profile
+        content.body = String(localized: "Couldn't reach Hermes. Open Crew to answer.")
+        content.threadIdentifier = "profile.\(route.profile)"
+        content.userInfo = ["crew": ["profile": route.profile, "session_id": route.sessionID]]
+        try? await center.add(UNNotificationRequest(identifier: "deny-failed.\(requestID)", content: content, trigger: nil))
     }
 }

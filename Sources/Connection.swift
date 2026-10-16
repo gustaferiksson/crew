@@ -17,6 +17,51 @@ nonisolated struct StoredSession: Codable, Equatable, Sendable {
     let cookies: [StoredCookie]
 }
 
+nonisolated private func restore(_ cookies: [StoredCookie], into jar: HTTPCookieStorage) {
+    for cookie in cookies {
+        var properties: [HTTPCookiePropertyKey: Any] = [
+            .name: cookie.name, .value: cookie.value, .domain: cookie.domain, .path: cookie.path,
+        ]
+        properties[.expires] = cookie.expires
+        properties[.secure] = cookie.isSecure ? "TRUE" : nil
+        HTTPCookie(properties: properties).map(jar.setCookie)
+    }
+}
+
+nonisolated func denyPayment(in sessionID: String, requestID: String) async -> Bool {
+    guard let stored = readKeychain(account: "session").flatMap({ try? JSONDecoder().decode(StoredSession.self, from: $0) }) else { return false }
+    let configuration = URLSessionConfiguration.ephemeral
+    configuration.timeoutIntervalForRequest = 10
+    let jar = configuration.httpCookieStorage ?? HTTPCookieStorage.shared
+    restore(stored.cookies, into: jar)
+    let urlSession = URLSession(configuration: configuration)
+    let gateway = Gateway(server: stored.server, urlSession: urlSession) {
+        try await fetch(hermesRequest("api/auth/ws-ticket", on: stored.server, json: [:]), with: urlSession, as: WebSocketTicket.self).ticket
+    }
+    let statuses = gateway.statuses()
+    await gateway.connect()
+    let isConnected = await withTaskGroup(of: Bool.self) { group in
+        group.addTask {
+            for await status in statuses {
+                if status == .connected { return true }
+                if case .stopped = status { return false }
+            }
+            return false
+        }
+        group.addTask {
+            try? await Task.sleep(for: .seconds(15))
+            return false
+        }
+        let first = await group.next() ?? false
+        group.cancelAll()
+        return first
+    }
+    let params = ["session_id": sessionID, "choice": "deny", "request_id": requestID]
+    let answered = isConnected ? (try? await gateway.call("approval.respond", params, as: JSONValue.self)) != nil : false
+    await gateway.disconnect()
+    return answered
+}
+
 @Observable
 final class Connection {
     enum State {
@@ -38,14 +83,7 @@ final class Connection {
         configuration.timeoutIntervalForRequest = 10
         let cookieJar = configuration.httpCookieStorage ?? HTTPCookieStorage.shared
         let session = readKeychain(account: "session").flatMap { try? JSONDecoder().decode(StoredSession.self, from: $0) }
-        for cookie in session?.cookies ?? [] {
-            var properties: [HTTPCookiePropertyKey: Any] = [
-                .name: cookie.name, .value: cookie.value, .domain: cookie.domain, .path: cookie.path,
-            ]
-            properties[.expires] = cookie.expires
-            properties[.secure] = cookie.isSecure ? "TRUE" : nil
-            HTTPCookie(properties: properties).map(cookieJar.setCookie)
-        }
+        restore(session?.cookies ?? [], into: cookieJar)
         self.urlSession = URLSession(configuration: configuration)
         self.cookieJar = cookieJar
         self.session = session

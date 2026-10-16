@@ -39,11 +39,32 @@ enum Snapshot: String {
     case groupChat = "group-chat"
     case groupWelcome = "group-welcome"
     case groupInspector = "group-inspector"
+    case chatPayment = "chat-payment"
+    case chatPaymentHolding = "chat-payment-holding"
+    case chatPaymentApproved = "chat-payment-approved"
+    case chatPaymentLoading = "chat-payment-loading"
+    case chatPaymentFailed = "chat-payment-failed"
+    case chatPaymentUnverified = "chat-payment-unverified"
+    case chatPaymentPunycode = "chat-payment-punycode"
+    case chatPaymentCountdown = "chat-payment-countdown"
+    case chatPaymentNotice = "chat-payment-notice"
+    case chatPaymentOffer = "chat-payment-offer"
+    case chatPaymentReceipts = "chat-payment-receipts"
+    case inspectorShops = "inspector-shops"
+    case inspectorShopsEmpty = "inspector-shops-empty"
+    case inspectorShopsNoCard = "inspector-shops-no-card"
+    case inspectorShopsSeveral = "inspector-shops-several"
+    case addShop = "add-shop"
+    case addShopError = "add-shop-error"
 
     static let requested = UserDefaults.standard.string(forKey: "snapshot").flatMap(Snapshot.init(rawValue:))
 
     var chatFixture: ChatFixture? {
-        [.chat: .conversation, .chatHistory: .history, .chatTimestamps: .timestamps, .chatWorkLog: .workLog, .chatQuestion: .question, .chatOffline: .offline, .chatAttachments: .attachments, .chatDictation: .dictation, .chatMentions: .mentions, .chatMentionPeek: .mentions, .chatMentionChat: .mentions, .chatAgentMessage: .agentMessage, .chatA2UI: .a2ui, .chatA2UICards: .a2uiCards, .chatA2UIForm: .a2uiForm, .chatA2UITable: .a2uiTable, .chatA2UIChart: .a2uiChart, .chatA2UIMap: .a2uiMap][self]
+        [.chat: .conversation, .chatHistory: .history, .chatTimestamps: .timestamps, .chatWorkLog: .workLog, .chatQuestion: .question, .chatOffline: .offline, .chatAttachments: .attachments, .chatDictation: .dictation, .chatMentions: .mentions, .chatMentionPeek: .mentions, .chatMentionChat: .mentions, .chatAgentMessage: .agentMessage, .chatA2UI: .a2ui, .chatA2UICards: .a2uiCards, .chatA2UIForm: .a2uiForm, .chatA2UITable: .a2uiTable, .chatA2UIChart: .a2uiChart, .chatA2UIMap: .a2uiMap, .chatPayment: .payment, .chatPaymentHolding: .paymentHolding, .chatPaymentApproved: .paymentApproved, .chatPaymentLoading: .paymentLoading, .chatPaymentFailed: .paymentFailed, .chatPaymentUnverified: .paymentUnverified, .chatPaymentPunycode: .paymentPunycode, .chatPaymentCountdown: .paymentCountdown, .chatPaymentNotice: .paymentNotice, .chatPaymentOffer: .paymentOffer, .chatPaymentReceipts: .paymentReceipts][self]
+    }
+
+    var isShops: Bool {
+        [.inspectorShops, .inspectorShopsEmpty, .inspectorShopsNoCard, .inspectorShopsSeveral, .addShop, .addShopError].contains(self)
     }
 
     var inspectorTab: InspectorTab? {
@@ -54,6 +75,9 @@ enum Snapshot: String {
         let server = URL(string: "https://hermes.example.com")!
         if self == .loginUnreachable {
             return Connection(fixture: .signedOut, server: server, signInError: .unreachable(host: "hermes.example.com"))
+        }
+        if isShops || chatFixture?.isPayment == true {
+            return Connection(fixture: .connected, server: server, crewPush: PluginStatus(pluginVersion: "0.4.0", installId: "fixture", apnsConfigured: true, http2: true, devices: 2, features: ["payments"], gate: true))
         }
         if [.sidebar, .sidebarFlat, .layout, .layoutInspector, .inspectorLook, .profileSkills, .botPage, .notifications, .newBot, .groupChat, .groupWelcome, .groupInspector].contains(self) || chatFixture != nil || inspectorTab != nil { return Connection(fixture: .connected, server: server) }
         if self == .unreachable { return Connection(fixture: .unreachable, server: server) }

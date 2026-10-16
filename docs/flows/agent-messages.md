@@ -5,14 +5,14 @@ A bot (the sender) calls `message_agent`; the other bot (the target) answers in 
 ## Target's chat (the bot that was messaged)
 
 - Each exchange started by another bot is one collapsed row in the work-log style: the sender's 16 pt avatar (only when the handle is in the bot list; a relayed or deleted bot shows just the name), "Message from <sender>" with the name from the message itself, a chevron. Like Messages' grouped system rows, it says something happened without competing with the user's own conversation. It is a plain button labelled by its text, like the work-log header, so VoiceOver, Dynamic Type (it wraps) and the Mac keyboard behave the same.
-- Expanded, it lists the incoming message, the bot's thinking and tool rows (the `message_agent` reply call included), and the bot's reply, all as secondary work-log note and tool rows, the incoming message first. The later delivery follow-up turn (the `[IMPORTANT: Background process …` row and the bot's acknowledgement) folds into the same row, so one exchange is one row. It lands seconds after the exchange; if the user has written in between, the follow-up still folds into the row above, which is the honest place for it.
+- Expanded, it lists the incoming message, the bot's thinking and tool rows (the `message_agent` reply call included), and the bot's reply, all as secondary work-log note and tool rows, the incoming message first as a quote. The later delivery follow-up turn (the `[IMPORTANT: Background process …` row and the bot's acknowledgement) folds into the same row, so one exchange is one row. It lands seconds after the exchange; if the user has written in between, the follow-up still folds into the row above, which is the honest place for it.
 - While the exchange or its follow-up runs, the title pulses like "Working for" does; unlike the work log it stays collapsed (its own expanded state, not forced open while live) and can be opened. The composer shows the running state, and a message the user sends while the last turn is an agent message or a delivery follow-up (`agentMessage` or `delivery` set) is queued until the turn ends, never steered into a reply addressed to another bot.
 - Several exchanges are several rows, in order, between the user's own turns.
 
 ## Sender's chat (the bot whose user asked for the message)
 
 - Unchanged from #31: the user's prompt and the bot's "queued" line, then the one-line relay turn ("@test-bot replied: …") when the delivery lands. The reply arriving as `Message from <target>` is a reply to this chat's own `message_agent` call and stays hidden, as does the raw delivery notice.
-- Rule: each `message_agent` call to @handle in a user-started turn consumes the next `Message from …(@handle)` turn as its reply (hidden); any other `Message from` turn, such as a second unprompted one, is an exchange and shows as a collapsed row.
+- Rule: each queued `message_agent` call (its result has a `process_id`) to @handle in a user-started turn consumes the next `Message from …(@handle)` turn as its reply (hidden); any other `Message from` turn, such as a second unprompted one, is an exchange and shows as a collapsed row.
 
 ## Bot list, push, other surfaces
 

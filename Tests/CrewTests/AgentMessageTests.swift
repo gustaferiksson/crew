@@ -32,7 +32,7 @@ func notes(_ turn: Turn) -> [String?] {
     #expect(visible.turns.map(\.id) == ["1", "5"])
     #expect(visible.turns[0].prompt == nil)
     #expect(visible.turns[0].reply.isEmpty)
-    #expect(notes(visible.turns[0]) == ["The user is greeting you—please say hello back.", nil, "Hello!"])
+    #expect(notes(visible.turns[0]) == ["> The user is greeting you—please say hello back.", nil, "Hello!"])
     #expect(visible.turns[1].reply == "Just hello.")
 }
 
@@ -47,7 +47,7 @@ func notes(_ turn: Turn) -> [String?] {
     #expect(transcript.turns.last?.agentMessage == AgentMessage("Message from Scout (@scout): Flights found."))
     let exchange = transcript.visible.turns.last
     #expect(exchange?.status == .streaming)
-    #expect(exchange.map(notes) == ["Flights found.", "Thanks, Scout."])
+    #expect(exchange.map(notes) == ["> Flights found.", "Thanks, Scout."])
     #expect(transcript.preview == "Message from Scout")
 }
 
@@ -63,6 +63,18 @@ func notes(_ turn: Turn) -> [String?] {
     transcript.begin(remote: "Message from 🤖 Scout (@scout): Prices dropped.", displayKind: nil, at: .now)
     transcript.apply(.messageComplete(text: "Noted.", status: .complete, error: nil))
     #expect(transcript.visible.turns.map(\.agentMessage?.body) == [nil, "Prices dropped."])
+}
+
+@Test func failedCallDoesNotSwallowTheNextMessage() {
+    var transcript = Transcript()
+    transcript.begin(prompt: "Ask @scout for flights", at: .now)
+    transcript.apply(.toolStart(id: "c1", name: "message_agent", context: nil, arguments: #"{"target": "scout"}"#))
+    transcript.apply(.toolComplete(id: "c1", duration: nil, summary: nil, result: #"{"status": "ambiguous"}"#))
+    transcript.apply(.messageComplete(text: "Which Scout?", status: .complete, error: nil))
+    transcript.begin(remote: "Message from 🤖 Scout (@scout): Prices dropped.", displayKind: nil, at: .now)
+    transcript.apply(.messageComplete(text: "", status: .error, error: "Provider down"))
+    #expect(transcript.visible.turns.map(\.agentMessage?.body) == [nil, "Prices dropped."])
+    #expect(transcript.visible.turns.last?.failure == "Provider down")
 }
 
 @Test func agentMessageFormsMatchDesktop() {

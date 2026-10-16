@@ -60,7 +60,7 @@ nonisolated struct WorkItem: Identifiable, Codable, Sendable, Equatable {
     var duration: TimeInterval?
 
     var messagedHandle: String? {
-        guard case .tool(let call) = kind, call.name == "message_agent" else { return nil }
+        guard case .tool(let call) = kind, call.name == "message_agent", call.result?.contains("\"process_id\"") == true else { return nil }
         let target = ((try? JSONSerialization.jsonObject(with: Data(call.arguments.utf8))) as? [String: Any])?["target"] as? String ?? ""
         let handle = target.trimmingCharacters(in: .whitespaces).trimmingPrefix("@").prefix { $0 != "@" }.lowercased()
         return handle == "hermes" ? "default" : handle
@@ -174,7 +174,7 @@ extension Transcript {
                 var exchange = turn
                 exchange.prompt = nil
                 exchange.reply = ""
-                exchange.work = [WorkItem(id: "\(turn.id)-message", kind: .note(message.body), startedAt: turn.startedAt)] + log(turn)
+                exchange.work = [WorkItem(id: "\(turn.id)-message", kind: .note(message.body.split(separator: "\n", omittingEmptySubsequences: false).map { "> \($0)" }.joined(separator: "\n")), startedAt: turn.startedAt)] + log(turn)
                 shown.append(exchange)
                 continue
             }
@@ -188,9 +188,11 @@ extension Transcript {
             }
             if let origin, let index = exchanges[origin.id] {
                 shown[index].work += log(turn)
-                shown[index].status = turn.status
                 shown[index].finishedAt = turn.finishedAt
-                shown[index].failure = turn.failure
+                if shown[index].status == .complete {
+                    shown[index].status = turn.status
+                    shown[index].failure = turn.failure
+                }
             } else if origin.map({ $0.agentMessage == nil }) ?? turns.contains(where: { $0.agentMessage == nil && $0.prompt != nil }) {
                 shown.append(turn)
             }

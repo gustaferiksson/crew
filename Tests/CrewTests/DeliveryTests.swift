@@ -46,9 +46,17 @@ private func transcript(_ json: String) throws -> Transcript {
     #expect(target.turns.map(\.delivery) == [nil, "proc_747c697fd2e6"])
     #expect(target.turns[1].prompt == nil)
     #expect(target.visible.turns.map(\.id) == ["5"])
-    #expect(notes(target.visible.turns[0]) == ["The user sends another greeting; please say hello back.", nil, "Hello again! 👋", "Crew Test confirmed receipt of my greeting."])
+    #expect(notes(target.visible.turns[0]) == ["> The user sends another greeting; please say hello back.", nil, "Hello again! 👋", "Crew Test confirmed receipt of my greeting."])
     #expect(target.visible.turns[0].finishedAt == Date(timeIntervalSince1970: 1792127292.1401896))
     #expect(target.preview == "Message from Crew Test")
+}
+
+@Test func foldedDeliveryKeepsTheExchangeFailure() throws {
+    var target = try transcript(targetRows)
+    target.turns[0].status = .error
+    target.turns[0].failure = "Provider down"
+    #expect(target.visible.turns[0].status == .error)
+    #expect(target.visible.turns[0].failure == "Provider down")
 }
 
 @Test func otherBackgroundProcessesKeepTheirNotice() throws {

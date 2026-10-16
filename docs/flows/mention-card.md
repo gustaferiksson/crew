@@ -1,33 +1,69 @@
-# Mention tags and the bot card
+# Mention tags and the mention peek
 
-A sent bubble shows each `@handle` or `@title-slug` token that names a mentionable bot as an inline tag. Tapping a tag opens a small card for that bot without leaving the chat.
+A sent bubble shows each `@handle` or `@title-slug` token that names a mentionable bot as an inline tag. Tapping a tag peeks at that bot and at what the mention caused, without leaving the chat, and lets the user pull up that bot's live chat on top. Nothing navigates the main window away, and there is no bare "Open Chat" button.
 
-## Surfaces
+## Tag (unchanged from #33)
 
-- **Sent bubble (iPhone, iPad, Mac):** the token renders inline as a white-translucent capsule (light-to-darker sheen, 1 pt white hairline) holding the bot's 16 pt avatar (scaled with Dynamic Type, centred on the text) and the semibold token as typed. Narrow no-break spaces keep avatar and token together, so the tag wraps as one unit. The bubble gradient is fixed, so the capsule reads the same in light and dark; only the avatar follows the appearance.
-- **Mentionable bots:** in a bot chat, the roster minus the current bot (so `@hermes` in Hermes's chat stays plain text); in a group room, the room's members only; in the inspector's conversation viewer, the roster minus that bot.
-- **Tap anywhere on the tag (avatar or text):** opens the card. On Mac and iPad it is a popover with its arrow on the tapped tag; on iPhone the popover adapts to a sheet sized to the card's height with a drag indicator (Messages and Slack peek at a contact or profile the same way). The chat stays put underneath, and the popover follows the tag if the transcript moves.
-- **Pointer:** a link cursor on Mac and a highlight hover effect on iPad.
-- **Card:** 64 pt avatar with its live mood, title (up to 2 lines), `@handle`, a status line only when the bot is working, waiting or failed (same words as the bot list), the description (up to 4 lines, hidden when empty), and a prominent "Open Chat" button. Open Chat closes the card and selects that bot exactly like picking it in the bot list (from a room it leaves the room). The conversation viewer has no navigation, so its card has no Open Chat.
-- **Long press on the bubble (iPhone):** unchanged Copy, Select, Share menu, also when the press starts on a tag; Copy copies the raw text including the `@handle`.
-- **Mac:** a click on a tag opens the card instead of starting a selection; selecting and copying the rest of the text is unchanged. Use the bubble's context menu for an exact copy of the raw text.
-- **VoiceOver:** the text reads as written; each tag adds a "Show <bot>" custom action that opens the card. The overlay buttons are hidden from accessibility so nothing is read twice.
-- **Composer, bot list, push, inspector tabs:** untouched. The composer text stays plain and no chip row shows.
+- White-translucent capsule (sheen, 1 pt white hairline) holding the bot's 16 pt avatar (`ImageRenderer` snapshot, scaled with Dynamic Type) and the semibold token as typed; narrow no-break spaces keep it on one line. The bubble's gradient is fixed, so the capsule is the same in light and dark (checked in both renders).
+- Mentionable: the roster minus the current bot in a bot chat, the members in a group room, the roster minus that bot in the inspector's conversation viewer.
+- The token is a link (`crew-mention:<index>`), so VoiceOver's Links rotor and UI tests reach it; a clear overlay over the whole capsule (avatar included) takes touch and pointer taps. Mac: link cursor; iPad: hover highlight.
+- Long press on the bubble still opens Copy, Select, Share, also when it starts on a tag.
 
-## Directions
+## The peek
 
-- Only the user's own sent bubbles carry tags. Bot replies and bot-to-bot notices are unchanged.
+The same content on every platform. It observes the current chat's `ChatSession` transcript, so Sending, Waiting and the reply update in place while it is open.
+
+1. **Header:** 44 pt avatar with live mood, title, `@handle`, and the target's live status from `BotStore` (its own `session.active_list` entry, not the sender's): "Working" (plus its status text when its chat session is open), "Needs approval", "Waiting for you", "Failed", or "Active <relative time>" when idle.
+2. **The mention card**, a tappable rounded panel with a chevron that brings up the bot's live chat (below). It carries the information, so the tap target is never bare navigation:
+   - **Message to <bot>:** the `message` argument of the mentioning turn's `message_agent` call whose `target` is this bot, quoted (what the current bot actually sent, not the user's text).
+   - **<Bot>'s reply** with its time: the `Message from … (@handle)` row paired the way #32 pairs them (each queued call with a `process_id` in a user-started turn consumes the next such row from that handle, oldest call first), so an older tag never picks up a newer reply.
+   - **No reply yet:** "Waiting for <bot>" with a pulsing dot while the target is working, "No reply yet" when it is idle (also when the history window doesn't hold the reply).
+   - **Delivered:** the delivery notice for the call's `process_id` arrived without a reply row (the target answered in its own chat): "Delivered. The answer is in <bot>'s chat."
+   - **Sending:** the call is still streaming (the result follows within a second): "Sending…".
+   - **Not delivered:** the call errored, or its result has neither a `process_id` nor a queued status: "Not delivered" in red with the server's short reason when there is one.
+   - **Relayed:** queued without a `process_id` (another machine through Hermes Desktop): "Sent through Hermes Desktop. The reply shows there."
+   - **Plain mention** (no `message_agent` call to this bot in that turn, group rooms, the conversation viewer): "Recent" with the bot's latest chat preview and its time from the roster, so the peek is never empty.
+   - Quotes clamp to 4 lines; the full text is in the live chat.
+3. **About:** the bot's description when it has one (up to 3 lines).
+
+The sender's chat still shows its own relay line ("@scout replied: …"); the peek's quote is the target's own words, read from the hidden row, never shown in the transcript.
+
+## iPhone and iPad
+
+- A sheet over the current chat with `.medium` and `.large` detents (driven by `presentationDetents(_:selection:)`), a visible grabber, and `.presentationContentInteraction(.scrolls)` so scrolling the peek or the chat never resizes the sheet by accident. It opens at medium with the peek.
+- Dragging to large, or tapping the mention card, grows the sheet and swaps its content to that bot's live chat (the same `ChatScreen` as the bot list opens, fully usable: persona pill title, transcript at the bottom, composer, approvals, inspector push). Dragging down from large returns to the peek at medium; dragging down from medium dismisses back to the original chat, which never moved.
+- On iPad's regular width the sheet is a form sheet; the mention card is the way into the chat there.
+- Accessibility: a "Show Chat" accessibility action on the peek, and the grabber is adjustable.
+- A tag inside the sheet's chat opens its own peek on top.
+
+## Mac
+
+- A popover anchored at the tapped tag with the same peek, 320 pt wide.
+- Clicking the mention card closes the popover and opens that bot's chat in its own window (`WindowGroup(for: Bot.ID)` plus `openWindow`, one window per bot, Cmd-W closes it). The main window keeps its selection and stays usable next to it, like a Mail message opened in its own window. Rejected: a modal sheet (it would block reading the sender's chat) and swapping the inspector column (it belongs to the selected bot and is too narrow for a chat).
+
+## Every direction and other surfaces
+
+- **Sender's chat:** only the peek is new; its rows are unchanged.
+- **Target's chat** in the sheet or window: unchanged (#32's collapsed exchange row once it lands). It marks the target seen like any open chat (`ChatScreen` does it on every new position), so its unread badge clears.
+- **Bot list:** keeps its selection; unread clears as above. **Push:** unchanged; foreground banners for the bot in the sheet or window are not suppressed (`PushCenter.show` tracks only the main selection), a known gap. **Inspector:** unchanged.
 
 ## States
 
-- **Unknown handle, or roster not loaded yet:** plain text, no tag, not tappable.
-- **Same bot twice:** each tag anchors its own popover.
-- **Bot deleted or renamed later:** the token no longer matches and renders as plain text.
-- **No photo:** the avatar is the generated shape; a photo replaces it once loaded. The inline avatar is a still snapshot (idle mood); the card shows the live mood.
-- **Long content:** a folded bubble (Show more) keeps tags tappable in its visible lines only. A tag forced across two lines opens from its first part.
-- **Offline:** the card still opens from the cached roster; Open Chat navigates and the chat shows its usual offline state.
-- **Composer bar grows** (mention picker, approval card) while the transcript is at the bottom: the transcript stays pinned to the bottom, so the last reply never sits under the bar.
+- Unknown handle or roster not loaded: plain text, no tag.
+- Same bot twice in one bubble: each tag opens its own peek over the same turn's call.
+- Offline: the peek renders from loaded rows; the live chat shows its usual offline line.
+- Bot deleted while the peek is open: the tag stops matching and the peek closes; an open sheet chat or window shows its last state.
+- Large Dynamic Type: the peek scrolls inside the medium detent.
+- Light and dark: system materials and secondary styles.
+
+## Tests
+
+- Unit tests on the recorded `bot-mention` scenario (Message and Reply from the real rows) and hand-built rows for Sending, Waiting, Delivered, Not delivered, Relayed, the plain mention, `@hermes` and two turns mentioning the same bot.
+- UI test (iPhone simulator): tapping the tag opens the sheet with the message and the reply, and the original chat stays underneath.
+- Renders: the peek at medium and the live chat at large (iPhone, light and dark). The Mac popover and window are not rendered (no Mac window driving).
 
 ## Not in scope
 
-- A "Mention" button on the card: the draft lives in `ChatView` and the composer focus in `Composer`, so it needs new plumbing; Open Chat is the single action, like Slack and Messages.
+- Opening the target's chat scrolled to the exchange row: on main that row is hidden until #32 lands; the chat opens at the bottom, where the exchange usually is.
+- A "Mention" button or a reply field in the peek: the live chat is where you write.
+- The group room peek pointing at the member's turn in the room.

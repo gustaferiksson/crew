@@ -17,7 +17,8 @@ enum Snapshot: String {
     case chatAttachments = "chat-attachments"
     case chatDictation = "chat-dictation"
     case chatMentions = "chat-mentions"
-    case chatMentionCard = "chat-mention-card"
+    case chatMentionPeek = "chat-mention-peek"
+    case chatMentionChat = "chat-mention-chat"
     case chatA2UI = "chat-a2ui"
     case chatA2UICards = "chat-a2ui-cards"
     case chatA2UIForm = "chat-a2ui-form"
@@ -41,7 +42,7 @@ enum Snapshot: String {
     static let requested = UserDefaults.standard.string(forKey: "snapshot").flatMap(Snapshot.init(rawValue:))
 
     var chatFixture: ChatFixture? {
-        [.chat: .conversation, .chatHistory: .history, .chatTimestamps: .timestamps, .chatWorkLog: .workLog, .chatQuestion: .question, .chatOffline: .offline, .chatAttachments: .attachments, .chatDictation: .dictation, .chatMentions: .mentions, .chatMentionCard: .mentions, .chatA2UI: .a2ui, .chatA2UICards: .a2uiCards, .chatA2UIForm: .a2uiForm, .chatA2UITable: .a2uiTable, .chatA2UIChart: .a2uiChart, .chatA2UIMap: .a2uiMap][self]
+        [.chat: .conversation, .chatHistory: .history, .chatTimestamps: .timestamps, .chatWorkLog: .workLog, .chatQuestion: .question, .chatOffline: .offline, .chatAttachments: .attachments, .chatDictation: .dictation, .chatMentions: .mentions, .chatMentionPeek: .mentions, .chatMentionChat: .mentions, .chatA2UI: .a2ui, .chatA2UICards: .a2uiCards, .chatA2UIForm: .a2uiForm, .chatA2UITable: .a2uiTable, .chatA2UIChart: .a2uiChart, .chatA2UIMap: .a2uiMap][self]
     }
 
     var inspectorTab: InspectorTab? {
@@ -95,6 +96,15 @@ enum Snapshot: String {
     }
 
     var chats: ChatSessions {
+        if self == .chatMentionChat, let scout = bots.bots.first(where: { $0.id == "scout" }) {
+            let asked = Date.now.addingTimeInterval(-5 * 60)
+            let turn = Turn(
+                id: "s1", prompt: Prompt(text: "Keep an eye on flight prices to Lofoten for March.", sentAt: asked.addingTimeInterval(-3600)),
+                reply: "Watching. The cheapest right now is SAS on Friday at 07:10 for 1 840 kr.", status: .complete,
+                startedAt: asked.addingTimeInterval(-3600), finishedAt: asked.addingTimeInterval(-3590)
+            )
+            return ChatSessions(fixture: ["scout": ChatSession(fixture: scout, transcript: Transcript(turns: [turn]), todos: [])])
+        }
         guard let id = selectedBot, let bot = bots.bots.first(where: { $0.id == id }) else { return ChatSessions() }
         return ChatSessions(fixture: [id: ChatSession(fixture: bot, transcript: ChatFixture.history.transcript, todos: [])])
     }

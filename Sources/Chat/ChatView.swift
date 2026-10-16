@@ -10,7 +10,6 @@ struct ChatActions {
     var changeModel: (ModelChoice) -> Void = { _ in }
     var respond: (ApprovalRequest.ID, ApprovalChoice) -> Void = { _, _ in }
     var retry: (String) -> Void = { _ in }
-    var openBot: (Bot.ID) -> Void = { _ in }
     var answer: (QuestionRequest.ID, [String: String]) -> Void = { _, _ in }
 }
 
@@ -122,8 +121,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
                                     expandedTurns: $expandedTurns,
                                     expandedWork: $expandedWork,
                                     expandedRuns: $expandedRuns,
-                                    retry: actions.retry,
-                                    openBot: actions.openBot
+                                    retry: actions.retry
                                 )
                             }
                             .id(turn.id)
@@ -268,7 +266,6 @@ struct TurnView: View {
     @Binding var expandedWork: Set<WorkItem.ID>
     @Binding var expandedRuns: Set<String>
     var retry: (String) -> Void = { _ in }
-    var openBot: ((Bot.ID) -> Void)?
 
     @Environment(BotStore.self) private var bots
 
@@ -299,7 +296,7 @@ struct TurnView: View {
                             .offset(x: reveal)
                     }
                     if !prompt.text.isEmpty {
-                        UserBubble(text: prompt.text, mentionable: mentionable, openBot: openBot)
+                        UserBubble(text: prompt.text, mentionable: mentionable, turnID: turn.id)
                             .offset(x: reveal)
                             .modifier(Timestamp(date: prompt.sentAt, reveal: reveal, width: timestampWidth))
                     }

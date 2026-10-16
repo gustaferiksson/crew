@@ -20,6 +20,62 @@ func mentionedBots(in text: String, among bots: [Bot]) -> [Bot] {
     return bots.filter { !$0.mentionTags.isDisjoint(with: tags) }
 }
 
+nonisolated struct MentionExchange: Equatable, Sendable {
+    enum Outcome: Equatable, Sendable {
+        case sending
+        case awaiting
+        case replied(String, at: Date)
+        case delivered
+        case failed(String?)
+        case relayed
+    }
+
+    let message: String
+    let outcome: Outcome
+}
+
+nonisolated private struct MessageAgentCall {
+    let target: String
+    let message: String
+    let call: ToolCall
+    let result: [String: Any]
+
+    var process: String? { call.status == .success ? result["process_id"] as? String : nil }
+
+    static func all(in turn: Turn) -> [MessageAgentCall] {
+        turn.work.compactMap { item in
+            guard case .tool(let call) = item.kind, call.name == "message_agent" else { return nil }
+            let arguments = (try? JSONSerialization.jsonObject(with: Data(call.arguments.utf8))) as? [String: Any] ?? [:]
+            let target = (arguments["target"] as? String ?? call.subject).trimmingCharacters(in: .whitespaces).trimmingPrefix("@").prefix { $0 != "@" }.lowercased()
+            let result = call.result.flatMap { (try? JSONSerialization.jsonObject(with: Data($0.utf8))) as? [String: Any] } ?? [:]
+            return MessageAgentCall(target: target == "hermes" ? "default" : target, message: arguments["message"] as? String ?? "", call: call, result: result)
+        }
+    }
+}
+
+nonisolated func mentionExchange(with bot: Bot.ID, from turn: Turn.ID, in transcript: Transcript) -> MentionExchange? {
+    let handle = bot.lowercased()
+    guard let start = transcript.turns.firstIndex(where: { $0.id == turn }),
+          let match = MessageAgentCall.all(in: transcript.turns[start]).last(where: { $0.target == handle })
+    else { return nil }
+    if match.call.status == .running { return MentionExchange(message: match.message, outcome: .sending) }
+    let reason = (match.result["error"] ?? match.result["detail"]) as? String ?? match.call.outcome
+    guard match.call.status == .success else { return MentionExchange(message: match.message, outcome: .failed(reason)) }
+    guard let process = match.process else {
+        let isQueued = ["queued", "sent", "delivered"].contains(match.result["status"] as? String ?? "")
+        return MentionExchange(message: match.message, outcome: isQueued ? .relayed : .failed(reason))
+    }
+    var awaited: [String] = []
+    for turn in transcript.turns {
+        if turn.prompt != nil { awaited += MessageAgentCall.all(in: turn).filter { $0.target == handle }.compactMap(\.process) }
+        guard turn.agentMessage?.handle == handle, let message = turn.agentMessage, !awaited.isEmpty else { continue }
+        guard awaited.removeFirst() == process else { continue }
+        return MentionExchange(message: match.message, outcome: .replied(message.body, at: turn.startedAt))
+    }
+    let isDelivered = transcript.turns[start...].contains { $0.delivery == process }
+    return MentionExchange(message: match.message, outcome: isDelivered ? .delivered : .awaiting)
+}
+
 nonisolated struct MentionSegment: Equatable {
     let text: String
     let bot: Bot?
@@ -86,74 +142,6 @@ private struct MentionAvatarKey: Hashable {
     guard let image = renderer.cgImage.map({ Image(decorative: $0, scale: scale) }) else { return nil }
     renderedMentionAvatars[key] = image
     return image
-}
-
-struct MentionCard: View {
-    let bot: Bot
-    let openBot: ((Bot.ID) -> Void)?
-
-    @Environment(BotStore.self) private var roster
-    @Environment(\.dismiss) private var dismiss
-    @State private var height: CGFloat = 280
-
-    private var status: BotStatus { roster.statuses[bot.id] ?? .idle }
-
-    private var about: String? {
-        [bot.meta.description, bot.description].compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }.first { !$0.isEmpty }
-    }
-
-    var body: some View {
-        VStack(spacing: 16) {
-            BotAvatar(bot: bot, status: status, photo: roster.photos[bot.id], size: 64)
-            VStack(spacing: 4) {
-                Text(bot.title)
-                    .font(.title3.bold())
-                    .lineLimit(2)
-                Text(verbatim: "@\(bot.handle)")
-                    .foregroundStyle(.secondary)
-                if case .waiting(let kind) = status {
-                    Text(kind == .approval ? "Needs approval" : "Waiting for you")
-                        .font(.subheadline)
-                        .foregroundStyle(.orange)
-                } else if status == .working {
-                    Text("Working")
-                        .font(.subheadline)
-                        .foregroundStyle(.green)
-                } else if status == .failed {
-                    Text("Failed")
-                        .font(.subheadline)
-                        .foregroundStyle(.red)
-                }
-            }
-            if let about {
-                Text(about)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .lineLimit(4)
-            }
-            if let openBot {
-                Button("Open Chat", systemImage: "bubble.left.and.bubble.right") {
-                    dismiss()
-                    openBot(bot.id)
-                }
-                .buttonStyle(.glassProminent)
-                .controlSize(.large)
-            }
-        }
-        .padding(24)
-        .foregroundStyle(Color.primary)
-        #if os(macOS)
-        .frame(width: 280)
-        #else
-        .frame(maxWidth: .infinity)
-        #endif
-        .fixedSize(horizontal: false, vertical: true)
-        .onGeometryChange(for: CGFloat.self, of: \.size.height) { height = $0 }
-        .presentationCompactAdaptation(.sheet)
-        .presentationDetents([.height(height)])
-        .presentationDragIndicator(.visible)
-    }
 }
 
 func mentionNote(for bots: [Bot]) -> String {

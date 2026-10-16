@@ -52,7 +52,6 @@ struct ChatScreen: View {
                 openPersona: { showsBot.toggle() },
                 changeModel: { changeModel(to: $0) },
                 respond: { session?.respond(to: $0, with: $1) },
-                openBot: select,
                 answer: { session?.answer($0, with: $1) }
             )
         )

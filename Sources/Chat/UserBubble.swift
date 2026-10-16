@@ -3,9 +3,12 @@ import SwiftUI
 struct UserBubble: View {
     let text: String
     let mentionable: [Bot]
-    let openBot: ((Bot.ID) -> Void)?
+    let turnID: Turn.ID
 
     @Environment(BotStore.self) private var roster
+    #if os(macOS)
+    @Environment(\.openWindow) private var openWindow
+    #endif
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.displayScale) private var displayScale
     @ScaledMetric(relativeTo: .body) private var avatarSize: CGFloat = 16
@@ -37,7 +40,9 @@ struct UserBubble: View {
             guard let bot = item.element.bot else { return Text("\(result)\(Text(verbatim: item.element.text))") }
             let avatar = mentionAvatar(for: bot, photo: roster.photos[bot.id], size: avatarSize, scheme: colorScheme, scale: displayScale)
                 .map { Text("\(Text($0).baselineOffset(-avatarSize / 8))\u{202F}") } ?? Text(verbatim: "")
-            let tag = Text("\u{202F}\(avatar)\(Text(verbatim: item.element.text).fontWeight(.semibold))\u{202F}")
+            var handle = AttributedString(item.element.text)
+            handle.link = URL(string: "crew-mention:\(item.offset)")
+            let tag = Text("\u{202F}\(avatar)\(Text(handle).fontWeight(.semibold))\u{202F}")
             return Text("\(result)\(tag.customAttribute(MentionTag(index: item.offset)))")
         }
     }
@@ -48,13 +53,12 @@ struct UserBubble: View {
                 .lineLimit(isFoldable && !isUnfolded ? 6 : nil)
                 .textRenderer(MentionTagRenderer())
                 .overlayPreferenceValue(Text.LayoutKey.self, tagButtons)
-                .accessibilityActions {
-                    ForEach(Array(segments.enumerated()), id: \.offset) { index, segment in
-                        if let bot = segment.bot {
-                            Button("Show \(bot.title)") { card = index }
-                        }
-                    }
-                }
+                .tint(.white)
+                .environment(\.openURL, OpenURLAction { url in
+                    guard url.scheme == "crew-mention", let index = Int(url.absoluteString.replacing("crew-mention:", with: "")) else { return .systemAction }
+                    card = index
+                    return .handled
+                })
                 .background {
                     content
                         .fixedSize(horizontal: false, vertical: true)
@@ -87,8 +91,15 @@ struct UserBubble: View {
         .modifier(MessageMenu(text: text, shape: shape))
         .containerRelativeFrame(.horizontal, alignment: .trailing) { length, _ in min(length * 0.75, 560) }
         .frame(maxWidth: .infinity, alignment: .trailing)
+        #if os(iOS)
+        .sheet(isPresented: Binding(get: { card != nil }, set: { if !$0 { card = nil } })) {
+            if let card, let bot = segments[card].bot {
+                MentionSheet(bot: bot, turnID: turnID)
+            }
+        }
+        #endif
         .task {
-            guard Snapshot.requested == .chatMentionCard else { return }
+            guard [.chatMentionPeek, .chatMentionChat].contains(Snapshot.requested) else { return }
             card = segments.firstIndex { $0.bot != nil }
         }
     }
@@ -122,9 +133,15 @@ struct UserBubble: View {
         #endif
         .accessibilityHidden(true)
         .frame(width: rect.width, height: rect.height)
+        #if os(macOS)
         .popover(isPresented: Binding(get: { card == index }, set: { if !$0 { card = nil } })) {
-            MentionCard(bot: bot, openBot: openBot)
+            MentionPeek(bot: bot, turnID: turnID) {
+                card = nil
+                openWindow(value: bot.id)
+            }
+            .frame(width: 320)
         }
+        #endif
         .position(x: rect.midX, y: rect.midY)
     }
 }

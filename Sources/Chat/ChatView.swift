@@ -292,14 +292,8 @@ struct TurnView: View {
                         PromptAttachments(attachments: prompt.attachments)
                             .offset(x: reveal)
                     }
-                    let mentioned = mentionedBots(in: prompt.text, among: mentionable)
-                    if !mentioned.isEmpty {
-                        MentionChips(bots: mentioned) { openBot($0.id) }
-                            .frame(maxWidth: .infinity, alignment: .trailing)
-                            .offset(x: reveal)
-                    }
                     if !prompt.text.isEmpty {
-                        UserBubble(text: prompt.text)
+                        UserBubble(text: prompt.text, mentionable: mentionable, openBot: openBot)
                             .offset(x: reveal)
                             .modifier(Timestamp(date: prompt.sentAt, reveal: reveal, width: timestampWidth))
                     }

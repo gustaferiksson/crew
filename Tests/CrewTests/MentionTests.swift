@@ -4,9 +4,13 @@ private func bot(_ name: String, title: String) -> Bot {
     Bot(name: name, displayName: nil, description: nil, model: nil, isDefault: false, hasAvatar: false, canonicalSession: nil, meta: BotMeta(title: title))
 }
 
-@Test func removingMentionDropsHandleAndTitleTagsOnly() {
+@Test func mentionSegmentsTagHandleAndTitleTokensOnly() {
     let ada = bot("ada", title: "Ada Lovelace")
-    let text = "Loop in @ada, @Ada-Lovelace and @scout"
-    #expect(removingMention(of: ada, from: text) == "Loop in, and @scout")
-    #expect(mentionedBots(in: removingMention(of: ada, from: text), among: [ada]).isEmpty)
+    let segments = mentionSegments(in: "@ada loop in @Ada-Lovelace, and @scout", among: [ada])
+    #expect(segments == [
+        MentionSegment(text: "@ada", bot: ada),
+        MentionSegment(text: " loop in ", bot: nil),
+        MentionSegment(text: "@Ada-Lovelace", bot: ada),
+        MentionSegment(text: ", and @scout", bot: nil),
+    ])
 }

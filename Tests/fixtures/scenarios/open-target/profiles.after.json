@@ -3,10 +3,10 @@
     {
       "canonical_session" : {
         "id" : "20261013_144627_bb3f2e",
-        "last_active" : 1792183023.6372359,
-        "live_message_count" : 368,
-        "message_count" : 373,
-        "preview" : "@crew-test-peer replied: “Hello! Nice to hear from you.”",
+        "last_active" : 1792183766.1302252,
+        "live_message_count" : 376,
+        "message_count" : 381,
+        "preview" : "@crew-test-peer replied: “Hello! Glad to hear from you.”",
         "resolved_id" : "20261013_144627_bb3f2e",
         "root_title" : "Bot Chat",
         "started_at" : 1791902787.6562948,
@@ -35,7 +35,7 @@
       "skill_count" : 59,
       "ui_meta" : {
         "crew" : {
-          "messages" : 365,
+          "messages" : 373,
           "session" : "20261013_144627_bb3f2e"
         },
         "hermes-bots" : {
@@ -49,21 +49,21 @@
         }
       },
       "ui_meta_revisions" : {
-        "crew" : 75,
+        "crew" : 76,
         "hermes-bots" : 14
       },
       "worker_session" : null
     },
     {
       "canonical_session" : {
-        "id" : "20261016_203712_12b360",
-        "last_active" : 1792183039.3369203,
+        "id" : "20261016_204935_b3b1c2",
+        "last_active" : 1792183782.5191948,
         "live_message_count" : 6,
         "message_count" : 6,
-        "preview" : "Greeting delivered to Crew Test.",
-        "resolved_id" : "20261016_203712_12b360",
+        "preview" : "Greeting delivered to @crew-test.",
+        "resolved_id" : "20261016_204935_b3b1c2",
         "root_title" : "Bot Chat",
-        "started_at" : 1792183032.610065,
+        "started_at" : 1792183775.8518095,
         "title" : "Bot Chat"
       },
       "description" : "Crew scenario peer",
@@ -71,12 +71,12 @@
       "has_avatar" : false,
       "is_default" : false,
       "last_session" : {
-        "id" : "20261016_203712_12b360",
-        "last_active" : 1792183050.083902,
+        "id" : "20261016_204935_b3b1c2",
+        "last_active" : 1792183797.1870666,
         "live_message_count" : 6,
         "message_count" : 6,
-        "preview" : "Greeting delivered to Crew Test.",
-        "started_at" : 1792183032.610065,
+        "preview" : "Greeting delivered to @crew-test.",
+        "started_at" : 1792183775.8518095,
         "title" : "Bot Chat"
       },
       "model" : "gpt-6-astra",
@@ -90,7 +90,7 @@
       "ui_meta" : {
         "hermes-bots" : {
           "color" : "#14b8a6",
-          "created" : 1792183020217,
+          "created" : 1792183762777,
           "custom" : true,
           "expression" : "happy",
           "imageKind" : "shape",

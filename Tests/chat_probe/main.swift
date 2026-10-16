@@ -438,7 +438,7 @@ if phases.contains("record") {
     pretty.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
     let scrubs = [(server.host() ?? "", "hermes.example.com"), (env["HERMES_USER"] ?? "", "user"), (env["HERMES_PASSWORD"] ?? "", "***"), (peerName, "crew-test-peer")].filter { $0.0.count > 2 }
     func save(_ name: String, _ value: JSONValue) throws {
-        let text = scrubs.reduce(String(decoding: try pretty.encode(value), as: UTF8.self)) { $0.replacingOccurrences(of: $1.0, with: $1.1) }
+        let text = scrubs.reduce(String(decoding: try pretty.encode(value), as: UTF8.self)) { $0.replacingOccurrences(of: $1.0, with: $1.1) }.replacing(/crew-test-[0-9a-f]{6}/, with: "crew-test-old")
         try Data((text + "\n").utf8).write(to: folder.appending(path: "\(name).json"))
         print("RECORDED \(name).json")
     }

@@ -47,6 +47,7 @@ final class ChatSession {
     private var todoRevision = -1
     private var syncedPosition: ReadPosition?
     private var serverPosition: ReadPosition?
+    private var syncedTranscript = Transcript()
     private var isSyncing = false
 
     init(bot: Bot, gateway: Gateway, urlSession: URLSession) {
@@ -93,6 +94,10 @@ final class ChatSession {
             while let position = serverPosition, position != syncedPosition, !isRunning {
                 syncedPosition = position
                 let shown = transcript
+                guard shown == syncedTranscript else {
+                    syncedTranscript = shown
+                    continue
+                }
                 guard let rows = try? await history(of: StoredSessionID(rawValue: position.session), profile: profile, on: gateway.server, with: urlSession) else {
                     syncedPosition = nil
                     break
@@ -100,7 +105,9 @@ final class ChatSession {
                 guard transcript == shown else { continue }
                 var reloaded = Transcript(history: rows)
                 reloaded.adoptIDs(from: shown)
+                reloaded.keepFailures(from: shown)
                 transcript = reloaded
+                syncedTranscript = reloaded
             }
             isSyncing = false
         }
@@ -278,6 +285,7 @@ final class ChatSession {
             }
         }
         self.transcript.adoptIDs(from: previous)
+        syncedTranscript = self.transcript
         appliedSeq = max(appliedSeq, replay.latestSeq)
         let incoming = (snapshot.openRequests ?? []) + replay.openRequests
         openRequests.removeAll { request in request.sessionID != snapshot.sessionID || !incoming.contains { $0.id == request.id } }

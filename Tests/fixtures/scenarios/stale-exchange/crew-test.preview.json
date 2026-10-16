@@ -1,6 +1,6 @@
 [
   {
-    "content": "{\"status\": \"queued\", \"delivery_id\": \"ae38a5a25ec65560ea53caf2beb5b41598ecf926fd75fa15db6b17f3ccefe448\", \"to\": \"@crew-test-75e8b4\", \"reply_delivery\": \"notification\", \"detail\": \"Message queued for @crew-test-75e8b4: this acknowledges the hand-off to a background delivery process, not a delivery receipt \\u2014 do NOT wait or poll. Finish your turn now; that process's completion notification carries the delivery outcome \\u2014 the reply (relay it then, attributed to that agent) or the delivery failure (report it; the message was NOT delivered).\", \"process_id\": \"proc_1ad7e3080ce9\", \"queued_at\": 1792137425}",
+    "content": "{\"status\": \"queued\", \"delivery_id\": \"ae38a5a25ec65560ea53caf2beb5b41598ecf926fd75fa15db6b17f3ccefe448\", \"to\": \"@crew-test-old\", \"reply_delivery\": \"notification\", \"detail\": \"Message queued for @crew-test-old: this acknowledges the hand-off to a background delivery process, not a delivery receipt \\u2014 do NOT wait or poll. Finish your turn now; that process's completion notification carries the delivery outcome \\u2014 the reply (relay it then, attributed to that agent) or the delivery failure (report it; the message was NOT delivered).\", \"process_id\": \"proc_1ad7e3080ce9\", \"queued_at\": 1792137425}",
     "display_kind": null,
     "id": 372,
     "reasoning": null,
@@ -24,7 +24,7 @@
     "tool_calls": null
   },
   {
-    "content": "Message from 🤖 Crew Peer (@crew-test-75e8b4): Hello to you and the user! Greetings from @crew-test-75e8b4.",
+    "content": "Message from 🤖 Crew Peer (@crew-test-old): Hello to you and the user! Greetings from @crew-test-old.",
     "display_kind": null,
     "id": 374,
     "reasoning": null,
@@ -36,7 +36,7 @@
     "tool_calls": null
   },
   {
-    "content": "@crew-test-75e8b4: “Hello to you and the user! Greetings from @crew-test-75e8b4.”",
+    "content": "@crew-test-old: “Hello to you and the user! Greetings from @crew-test-old.”",
     "display_kind": null,
     "id": 375,
     "reasoning": null,
@@ -48,7 +48,7 @@
     "tool_calls": null
   },
   {
-    "content": "Message from 🤖 Crew Peer (@crew-test-75e8b4): A separate follow-up from me: nice to meet you, teammate. This is my second message, sent independently from the greeting.",
+    "content": "Message from 🤖 Crew Peer (@crew-test-old): A separate follow-up from me: nice to meet you, teammate. This is my second message, sent independently from the greeting.",
     "display_kind": null,
     "id": 376,
     "reasoning": null,
@@ -60,7 +60,7 @@
     "tool_calls": null
   },
   {
-    "content": "@crew-test-75e8b4’s separate follow-up: “Nice to meet you, teammate. This is my second message, sent independently from the greeting.”",
+    "content": "@crew-test-old’s separate follow-up: “Nice to meet you, teammate. This is my second message, sent independently from the greeting.”",
     "display_kind": null,
     "id": 377,
     "reasoning": null,
@@ -72,7 +72,7 @@
     "tool_calls": null
   },
   {
-    "content": "[IMPORTANT: Background process proc_1ad7e3080ce9 completed normally (exit code 0).\nCommand: /opt/hermes/.venv/bin/python /opt/hermes/tools/bot_mode_dm.py --run-delivery --author '{\"id\":\"bot:crew-test\",\"name\":\"crew-test\",\"is_bot\":true}' query-file /opt/data/cache/scratch/hermes-dm-10000/dm-8boqon_g.txt --profile-home /opt/data/profiles/crew-test-75e8b4 /opt/hermes/.venv/bin/hermes -p crew-test-75e8b4 chat --in '~' -c 'Bot Chat' --create-if-missing -Q\nOutput:\n@crew-test replied to both messages, quoting the greeting and the separate follow-up. Both deliveries completed successfully.\nSession 20261016_075711_0f4ea9 found but has no messages. Starting fresh.\n\nsession_id: 20261016_075711_0f4ea9\n]",
+    "content": "[IMPORTANT: Background process proc_1ad7e3080ce9 completed normally (exit code 0).\nCommand: /opt/hermes/.venv/bin/python /opt/hermes/tools/bot_mode_dm.py --run-delivery --author '{\"id\":\"bot:crew-test\",\"name\":\"crew-test\",\"is_bot\":true}' query-file /opt/data/cache/scratch/hermes-dm-10000/dm-8boqon_g.txt --profile-home /opt/data/profiles/crew-test-old /opt/hermes/.venv/bin/hermes -p crew-test-old chat --in '~' -c 'Bot Chat' --create-if-missing -Q\nOutput:\n@crew-test replied to both messages, quoting the greeting and the separate follow-up. Both deliveries completed successfully.\nSession 20261016_075711_0f4ea9 found but has no messages. Starting fresh.\n\nsession_id: 20261016_075711_0f4ea9\n]",
     "display_kind": "process_complete",
     "id": 378,
     "reasoning": null,

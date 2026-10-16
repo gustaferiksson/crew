@@ -163,12 +163,12 @@ extension Transcript {
         }
         var shown: [Turn] = []
         var awaited: [(handle: String, origin: Turn.ID)] = []
-        var answered: [String] = []
+        var answered: [(handle: String, at: Int)] = []
         var exchanges: [Turn.ID: Int] = [:]
-        for turn in turns {
+        for (position, turn) in turns.enumerated() {
             if let message = turn.agentMessage {
                 if let index = awaited.firstIndex(where: { $0.handle == message.handle }) {
-                    answered.append(awaited.remove(at: index).handle)
+                    answered.append((awaited.remove(at: index).handle, position))
                     var reply = turn
                     reply.prompt = nil
                     reply.agentMessage = nil
@@ -188,9 +188,10 @@ extension Transcript {
                 shown.append(turn)
                 continue
             }
-            let origin = turns.last { origin in
-                origin.work.contains { item in if case .tool(let call) = item.kind { call.name == "message_agent" && call.result?.contains(delivery) == true } else { false } }
+            let originIndex = turns.indices.last { index in
+                turns[index].work.contains { item in if case .tool(let call) = item.kind { call.name == "message_agent" && call.result?.contains(delivery) == true } else { false } }
             }
+            let origin = originIndex.map { turns[$0] }
             let handle = origin?.work.first { item in if case .tool(let call) = item.kind { call.result?.contains(delivery) == true } else { false } }?.messagedHandle
             awaited.removeAll { $0.origin == origin?.id }
             if let origin, let index = exchanges[origin.id] {
@@ -200,7 +201,7 @@ extension Transcript {
                     shown[index].status = turn.status
                     shown[index].failure = turn.failure
                 }
-            } else if let index = answered.firstIndex(where: { $0 == handle }) {
+            } else if let originIndex, let index = answered.firstIndex(where: { $0.handle == handle && $0.at > originIndex }) {
                 answered.remove(at: index)
             } else if origin.map({ $0.agentMessage == nil }) ?? turns.contains(where: { $0.agentMessage == nil && $0.prompt != nil }) {
                 shown.append(turn)
@@ -260,6 +261,16 @@ extension Transcript {
                 turns[index].work[item].id = previous.id
             }
         }
+    }
+
+    mutating func keepFailures(from old: Transcript) {
+        for index in turns.indices {
+            guard let failed = old.turns.first(where: { $0.id == turns[index].id && $0.status != .complete }) else { continue }
+            turns[index].status = failed.status
+            turns[index].failure = failed.failure
+        }
+        guard let last = old.turns.last, last.status == .error, !turns.contains(where: { $0.id == last.id }) else { return }
+        turns.append(last)
     }
 
     mutating func begin(prompt text: String, attachments: [Attachment] = [], id: String = UUID().uuidString, at date: Date = .now) {

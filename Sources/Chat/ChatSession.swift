@@ -467,6 +467,10 @@ nonisolated private struct HistoryPage: Decodable, Sendable {
 }
 
 nonisolated func history(of stored: StoredSessionID, profile: String, on server: URL, with urlSession: URLSession, limit: Int = 500) async throws -> [HistoryRow] {
+    try await fetch(historyRequest(of: stored, profile: profile, on: server, limit: limit), with: urlSession, as: HistoryPage.self).messages
+}
+
+nonisolated func historyRequest(of stored: StoredSessionID, profile: String, on server: URL, limit: Int) -> URLRequest {
     var request = hermesRequest("api/sessions/\(stored.rawValue)/messages", on: server)
     request.url?.append(queryItems: [
         URLQueryItem(name: "profile", value: profile),
@@ -475,7 +479,7 @@ nonisolated func history(of stored: StoredSessionID, profile: String, on server:
         URLQueryItem(name: "include_compacted", value: "true"),
         URLQueryItem(name: "inline_images", value: "false"),
     ])
-    return try await fetch(request, with: urlSession, as: HistoryPage.self).messages
+    return request
 }
 
 nonisolated private struct LiveSnapshot: Decodable, Sendable {

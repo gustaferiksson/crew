@@ -427,54 +427,100 @@ if phases.contains("mention") {
     }
 }
 
-if phases.contains("exchange") {
-    record("exchange-turn")
+if phases.contains("record") {
+    let scenario = CommandLine.arguments.last ?? ""
+    guard scenario == "bot-mention" else { print("unknown scenario \(scenario)"); exit(1) }
+    let folder = URL(fileURLWithPath: #filePath).appending(path: "../../fixtures/scenarios/\(scenario)").standardized
+    try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
     let peerName = "crew-test-\(UUID().uuidString.prefix(6).lowercased())"
-    let store = BotStore(fixture: [], statuses: [:])
-    try await store.create(NewProfile(name: peerName, description: "Throwaway Crew probe peer", soul: nil, cloneFrom: "crew-test"), via: gateway) { meta in
-        meta = BotMeta(title: "Crew Peer", shape: "hexagon", color: "#14b8a6", custom: true, imageKind: "shape", expression: "happy")
+    let names = ["crew-test", peerName]
+    let pretty = JSONEncoder()
+    pretty.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+    let scrubs = [(server.host() ?? "", "hermes.example.com"), (env["HERMES_USER"] ?? "", "user"), (env["HERMES_PASSWORD"] ?? "", "***"), (peerName, "crew-test-peer")].filter { $0.0.count > 2 }
+    func save(_ name: String, _ value: JSONValue) throws {
+        let text = scrubs.reduce(String(decoding: try pretty.encode(value), as: UTF8.self)) { $0.replacingOccurrences(of: $1.0, with: $1.1) }
+        try Data((text + "\n").utf8).write(to: folder.appending(path: "\(name).json"))
+        print("RECORDED \(name).json")
     }
+    func roster() async throws -> (raw: JSONValue, bots: [Bot]) {
+        let raw = try await gateway.call("profiles.list", ["include_sessions": true], as: JSONValue.self)
+        guard case .object(let object) = raw, case .array(let profiles) = object["profiles"] else { return (.object(["profiles": .array([])]), []) }
+        let kept = profiles.filter { if case .object(let profile) = $0, case .string(let name) = profile["name"] { names.contains(name) } else { false } }
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .secondsSince1970
+        return (.object(["profiles": .array(kept)]), try decoder.decode([Bot].self, from: encoder.encode(JSONValue.array(kept))))
+    }
+    func live(of bots: [Bot]) async throws -> (raw: JSONValue, sessions: [LiveSession]) {
+        let keys = Set(bots.compactMap(\.canonicalSession).flatMap { [$0.id.rawValue, $0.resolvedID.rawValue] })
+        let raw = try await gateway.call("session.active_list", [String: String](), as: JSONValue.self)
+        guard case .object(let object) = raw, case .array(let sessions) = object["sessions"] else { return (.object(["sessions": .array([])]), []) }
+        let kept = sessions.filter { if case .object(let session) = $0, case .string(let key) = session["session_key"] { keys.contains(key) } else { false } }
+        return (.object(["sessions": .array(kept)]), try JSONDecoder().decode([LiveSession].self, from: encoder.encode(JSONValue.array(kept))))
+    }
+    func rows(of bot: Bot, limit: Int) async throws -> [JSONValue] {
+        guard let session = bot.canonicalSession else { return [] }
+        let (data, _) = try await urlSession.data(for: historyRequest(of: session.resolvedID, profile: bot.name, on: server, limit: limit))
+        guard case .object(let page) = try JSONDecoder().decode(JSONValue.self, from: data), case .array(let messages) = page["messages"] else { return [] }
+        return messages
+    }
+
+    let store = BotStore(fixture: [], statuses: [:])
+    Task { await store.run(gateway, urlSession: urlSession) }
+    try await Task.sleep(for: .seconds(3))
     do {
-        guard let peer = store.bots.first(where: { $0.name == peerName }) else { throw HermesError.invalidResponse }
-        let peerChat = try await attached(peer)
-        print("peer chat attached, failure \(peerChat.failure ?? "-")")
-        chat.send("@\(peerName) say hi, and ask it to also send you one separate message of its own afterwards", mentioning: [peer], mode: .send)
-        try await waitIdle(chat)
-        try await waitIdle(chat, timeout: 240) { !$0.isRunning && $0.transcript.turns.last?.delivery != nil }
-        var quiet = 0
-        while quiet < 15 {
-            try await Task.sleep(for: .seconds(2))
-            let live = try await gateway.call("session.active_list", [String: String](), as: JSONValue.self)
-            let busy = if case .object(let o) = live, case .array(let rows)? = o["sessions"] { rows.contains { if case .object(let r) = $0, case .string(let status)? = r["status"] { status != "idle" } else { false } } } else { false }
-            quiet = busy ? 0 : quiet + 1
+        try await store.create(NewProfile(name: peerName, description: "Crew scenario peer", soul: "You are Crew Peer, a temporary probe bot. When another agent messages you, answer it by sending one short greeting back with your message_agent tool.", cloneFrom: nil), via: gateway) { meta in
+            meta = BotMeta(title: "Crew Peer", shape: "hexagon", color: "#14b8a6", custom: true, imageKind: "shape", expression: "happy")
         }
-        await store.reload(gateway)
-        let live = try await gateway.call("session.active_list", [String: String](), as: JSONValue.self)
-        let statuses: [String: String] = if case .object(let o) = live, case .array(let rows)? = o["sessions"] {
-            Dictionary(rows.compactMap { row -> (String, String)? in
-                guard case .object(let r) = row, case .string(let key)? = r["session_key"], case .string(let status)? = r["status"] else { return nil }
-                return (key, status)
-            }, uniquingKeysWith: { $1 })
-        } else { [:] }
-        for name in ["crew-test", peerName] {
-            guard let bot = store.bots.first(where: { $0.name == name }), let session = bot.canonicalSession else { print("== \(name): no canonical session"); continue }
-            let rows = try await history(of: session.resolvedID, profile: name, on: server, with: urlSession)
-            let window = try await history(of: session.resolvedID, profile: name, on: server, with: urlSession, limit: 20)
-            let visible = Transcript(history: rows).visible
-            let preview = Transcript(history: Array(window.sorted { $0.id < $1.id }.drop { $0.role != "user" })).preview ?? ""
-            let live = statuses[session.resolvedID.rawValue] ?? statuses[session.id.rawValue] ?? "none"
-            print("== \(name) row: preview \"\(preview)\" | time \(session.lastActive?.formatted(date: .omitted, time: .standard) ?? "-") | live \(live) -> \(BotStatus(live: live, waiting: nil).map { "\($0)" } ?? "idle") | messages \(session.messageCount ?? 0), read \(bot.readPosition?.messages ?? -1)")
-            print("== \(name) chat, last 6 visible of \(visible.turns.count):")
-            for line in summary(Transcript(turns: Array(visible.turns.suffix(6)))) { print("  ", line) }
-            for turn in visible.turns.suffix(6) where turn.agentMessage != nil { print("   exchange row: Message from \(turn.agentMessage?.sender ?? "?")") }
+        guard let peer = store.bots.first(where: { $0.name == peerName }), let sender = store.bots.first(where: { $0.name == "crew-test" }), let senderSession = sender.canonicalSession else { throw HermesError.invalidResponse }
+        store.markSeen(sender)
+        for _ in 0..<60 {
+            if let bot = try await roster().bots.first(where: { $0.name == "crew-test" }), bot.readPosition == bot.canonicalSession?.position { break }
+            try await Task.sleep(for: .milliseconds(250))
+        }
+        let before = try await roster()
+        try save("profiles.before", before.raw)
+        let firstRow = try await history(of: senderSession.resolvedID, profile: sender.name, on: server, with: urlSession, limit: 1).map(\.id).max() ?? 0
+
+        chat.send("@\(peerName) hi", mentioning: [peer], mode: .send)
+        var duringSaved = false
+        var quietSince: Date?
+        let started = Date.now
+        while Date.now.timeIntervalSince(started) < 300 {
+            try await Task.sleep(for: .milliseconds(250))
+            let current = try await roster()
+            let active = try await live(of: current.bots)
+            let inHiddenTurn = chat.isRunning && chat.transcript.turns.last.map({ $0.agentMessage != nil || $0.delivery != nil }) == true
+            if !duringSaved, inHiddenTurn, active.sessions.contains(where: { $0.status != "idle" }) {
+                try save("profiles.during", current.raw)
+                try save("active_list.during", active.raw)
+                duringSaved = true
+            }
+            let settled = !chat.isRunning && chat.transcript.turns.last?.delivery != nil && active.sessions.allSatisfy { $0.status == "idle" }
+            quietSince = settled ? quietSince ?? .now : nil
+            if let quietSince, Date.now.timeIntervalSince(quietSince) > 20 { break }
+        }
+        if !duringSaved { print("WARNING: never saw crew-test working on a hidden turn") }
+        let after = try await roster()
+        try save("profiles.after", after.raw)
+        try save("active_list.after", try await live(of: after.bots).raw)
+        for bot in after.bots {
+            let history = try await rows(of: bot, limit: 500).filter { row in
+                guard bot.name == "crew-test", case .object(let object) = row, case .number(let id) = object["id"] else { return true }
+                return id > Double(firstRow)
+            }
+            let file = bot.name == peerName ? "crew-test-peer" : bot.name
+            try save("\(file).history", .array(history))
+            try save("\(file).preview", .array(try await rows(of: bot, limit: 20)))
+        }
+        for turn in chat.transcript.turns.suffix(4) {
+            print(chat.transcript.visible.turns.contains { $0.id == turn.id } ? "SHOWN  " : "HIDDEN ", turn.prompt?.text ?? turn.delivery ?? "-", "|", turn.reply)
         }
     } catch {
-        print("FAIL", error)
+        print("RECORD FAILED", error)
     }
-    if let peer = store.bots.first(where: { $0.name == peerName }) {
-        try await store.delete(peer, via: gateway, urlSession: urlSession)
-        print("deleted", peerName, store.bots.contains { $0.name == peerName } ? "STILL THERE" : "gone")
-    }
+    await store.reload(gateway)
+    if let peer = store.bots.first(where: { $0.name == peerName }) { try await store.delete(peer, via: gateway, urlSession: urlSession) }
+    print(store.bots.contains { $0.name == peerName } ? "PEER NOT DELETED" : "peer deleted")
 }
 
 if phases.contains("history") {

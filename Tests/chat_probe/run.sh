@@ -1,5 +1,5 @@
 #!/bin/zsh
-# Headless live-chat probe against the real server, crew-test only. Usage: Tests/chat_probe/run.sh <tool|interrupt|queue|steer|clarify|reconnect|attach|peer|late|sync|read|a2ui|history>... (a2ui: installs the crew-ui skill, sends $A2UI_PROMPT)
+# Headless live-chat probe against the real server, crew-test only. Usage: Tests/chat_probe/run.sh <tool|interrupt|queue|steer|clarify|reconnect|attach|peer|late|sync|read|a2ui|history|mention>... (a2ui: installs the crew-ui skill, sends $A2UI_PROMPT)
 set -e
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 OUT="$(mktemp -d)"

@@ -63,7 +63,7 @@ func mentionNote(for bots: [Bot]) -> String {
         return "@\(bot.handle) = agent profile \"\(bot.name)\"" + (title.isEmpty ? "" : " (\"\(title)\")")
     }
     return "\n\n[@mentions resolved from the Bot Mode roster — the user is referring to: " + lines.joined(separator: "; ")
-        + ". If they want one of these agents contacted, compose your own message and send it with your message_agent tool (agents on other connected machines are reachable too — the Desktop relays it); never forward the user\u{2019}s text verbatim. If this session has no message_agent tool, agent messaging is unavailable here — say so.]"
+        + ". If they want one of these agents contacted, compose your own message and send it with your message_agent tool (agents on other connected machines are reachable too — the Desktop relays it); never forward the user\u{2019}s text verbatim. If this session has no message_agent tool, agent messaging is unavailable here — say so. Keep it brief: never narrate queueing or delivery, say at most one short line after message_agent, and relay the reply in one line when it arrives.]"
 }
 
 struct MentionPicker: View {

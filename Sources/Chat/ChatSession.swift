@@ -47,7 +47,6 @@ final class ChatSession {
     private var todoRevision = -1
     private var syncedPosition: ReadPosition?
     private var serverPosition: ReadPosition?
-    private var syncedTranscript = Transcript()
     private var isSyncing = false
 
     init(bot: Bot, gateway: Gateway, urlSession: URLSession) {
@@ -58,8 +57,8 @@ final class ChatSession {
         self.urlSession = urlSession
     }
 
-    convenience init(fixture bot: Bot, transcript: Transcript, todos: [TodoItem]) {
-        self.init(bot: bot, gateway: Gateway(server: URL(filePath: "/"), urlSession: .shared) { throw CancellationError() }, urlSession: .shared)
+    convenience init(fixture bot: Bot, transcript: Transcript, todos: [TodoItem], urlSession: URLSession = .shared) {
+        self.init(bot: bot, gateway: Gateway(server: URL(filePath: "/"), urlSession: urlSession) { throw CancellationError() }, urlSession: urlSession)
         self.transcript = transcript
         self.todos = todos
     }
@@ -94,10 +93,6 @@ final class ChatSession {
             while let position = serverPosition, position != syncedPosition, !isRunning {
                 syncedPosition = position
                 let shown = transcript
-                guard shown == syncedTranscript else {
-                    syncedTranscript = shown
-                    continue
-                }
                 guard let rows = try? await history(of: StoredSessionID(rawValue: position.session), profile: profile, on: gateway.server, with: urlSession) else {
                     syncedPosition = nil
                     break
@@ -107,7 +102,6 @@ final class ChatSession {
                 reloaded.adoptIDs(from: shown)
                 reloaded.keepFailures(from: shown)
                 transcript = reloaded
-                syncedTranscript = reloaded
             }
             isSyncing = false
         }
@@ -285,7 +279,6 @@ final class ChatSession {
             }
         }
         self.transcript.adoptIDs(from: previous)
-        syncedTranscript = self.transcript
         appliedSeq = max(appliedSeq, replay.latestSeq)
         let incoming = (snapshot.openRequests ?? []) + replay.openRequests
         openRequests.removeAll { request in request.sessionID != snapshot.sessionID || !incoming.contains { $0.id == request.id } }
@@ -359,6 +352,7 @@ final class ChatSession {
             transcript.apply(.messageComplete(text: payload.text ?? "", status: status, error: payload.error ?? payload.failureReason))
             generatingTool = nil
             statusLine = nil
+            sync(to: serverPosition)
             guard !queue.isEmpty else { return }
             return submit(queue.removeFirst())
         }

@@ -14,6 +14,7 @@ nonisolated struct Turn: Identifiable, Codable, Sendable, Equatable {
     var notice: String?
     var agentMessage: AgentMessage?
     var delivery: String?
+    var deliveryFailed = false
     var hiddenText: String?
     var work: [WorkItem] = []
     var reply = ""
@@ -201,7 +202,7 @@ extension Transcript {
                     shown[index].status = turn.status
                     shown[index].failure = turn.failure
                 }
-            } else if let originIndex, let index = answered.firstIndex(where: { $0.handle == handle && $0.at > originIndex }) {
+            } else if !turn.deliveryFailed, let originIndex, let index = answered.firstIndex(where: { $0.handle == handle && $0.at > originIndex }) {
                 answered.remove(at: index)
             } else if origin.map({ $0.agentMessage == nil }) ?? turns.contains(where: { $0.agentMessage == nil && $0.prompt != nil }) {
                 shown.append(turn)
@@ -230,7 +231,7 @@ extension Transcript {
                 let notice = delivery == nil ? noticeText(kind: row.displayKind, content: text) : nil
                 let prompt = notice == nil && delivery == nil && row.displayKind != "hidden" ? Prompt(raw: text, sentAt: date) : nil
                 let hiddenText = row.displayKind == "hidden" ? row.content ?? text : nil
-                turns.append(Turn(id: String(row.id), prompt: prompt, notice: notice, agentMessage: AgentMessage(text), delivery: delivery, hiddenText: hiddenText, status: .complete, startedAt: date, finishedAt: date))
+                turns.append(Turn(id: String(row.id), prompt: prompt, notice: notice, agentMessage: AgentMessage(text), delivery: delivery, deliveryFailed: delivery != nil && !text.contains("completed normally (exit code 0)"), hiddenText: hiddenText, status: .complete, startedAt: date, finishedAt: date))
                 continue
             }
             if row.role == "assistant" {
@@ -282,7 +283,7 @@ extension Transcript {
         let notice = delivery == nil ? noticeText(kind: displayKind, content: user) : nil
         let prompt = Prompt(raw: user, sentAt: date)
         let isShown = notice == nil && delivery == nil && displayKind != "hidden" && (!prompt.text.isEmpty || !prompt.attachments.isEmpty)
-        turns.append(Turn(id: UUID().uuidString, prompt: isShown ? prompt : nil, notice: notice, agentMessage: AgentMessage(user), delivery: delivery, hiddenText: displayKind == "hidden" ? user : nil, status: .streaming, startedAt: date))
+        turns.append(Turn(id: UUID().uuidString, prompt: isShown ? prompt : nil, notice: notice, agentMessage: AgentMessage(user), delivery: delivery, deliveryFailed: delivery != nil && !user.contains("completed normally (exit code 0)"), hiddenText: displayKind == "hidden" ? user : nil, status: .streaming, startedAt: date))
     }
 
     mutating func apply(_ event: TurnEvent, at date: Date = .now) {

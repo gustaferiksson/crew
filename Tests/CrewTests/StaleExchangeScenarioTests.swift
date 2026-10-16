@@ -61,19 +61,24 @@ private func settle(_ session: ChatSession) async throws {
     #expect(abs(lastActive.timeIntervalSince(lastRow.startedAt)) < 1)
 }
 
-@Test func openTargetChatRefetchesOnlyWhenThePositionMoves() async throws {
+@Test func openTargetChatRefetchesWhenThePositionMoves() async throws {
     let bots = try recorded("profiles.after", as: Roster.self).profiles
     let bot = try #require(bots.first { $0.name == "test-bot" })
-    let session = try openChat(bot)
+    let rows = try recorded("test-bot.history", as: [HistoryRow].self)
+    let configuration = URLSessionConfiguration.ephemeral
+    configuration.protocolClasses = [RecordedHistory.self]
+    let session = ChatSession(fixture: bot, transcript: Transcript(history: rows.filter { $0.id <= 21 }), todos: [], urlSession: URLSession(configuration: configuration))
     let chats = ChatSessions(fixture: ["test-bot": session])
     chats.sync(with: bots)
     try await Task.sleep(for: .milliseconds(300))
-    #expect(session.transcript.turns.isEmpty)
+    #expect(session.transcript.visible.turns.count == 4)
     let position = try #require(bot.canonicalSession?.position)
     session.sync(to: ReadPosition(session: position.session, messages: position.messages + 1))
-    try await settle(session)
+    for _ in 0..<100 where session.transcript.visible.turns.count == 4 {
+        try await Task.sleep(for: .milliseconds(20))
+    }
     #expect(session.transcript.visible.turns.count == 5)
-    #expect(session.transcript.visible.turns.last?.startedAt == Date(timeIntervalSince1970: try #require(try recorded("test-bot.history", as: [HistoryRow].self).first { $0.id == 22 }).timestamp))
+    #expect(session.transcript.visible.turns.last?.startedAt == Date(timeIntervalSince1970: try #require(rows.first { $0.id == 22 }).timestamp))
     #expect(session.transcript.preview == "Message from Crew Test")
 }
 
@@ -115,6 +120,20 @@ private func settle(_ session: ChatSession) async throws {
     }
     let shown = Transcript(history: rows.filter { (388...393).contains($0.id) } + again).visible.turns
     #expect(shown.last?.delivery != nil)
+}
+
+@Test func failedFollowUpShowsEvenAfterAReplyFromTheSameBot() throws {
+    let rows = try recorded("crew-test.history", as: [HistoryRow].self)
+    let again = rows.filter { (388...391).contains($0.id) || $0.id == 394 }.map { row in
+        HistoryRow(id: row.id + 100, role: row.role, content: row.content?.replacingOccurrences(of: "completed normally (exit code 0)", with: "exited (exit code 1)"), toolCallId: row.toolCallId.map { "\($0)-again" }, toolCalls: row.toolCalls?.map { HistoryRow.Call(id: "\($0.id)-again", function: $0.function) }, timestamp: row.timestamp, reasoning: row.reasoning, reasoningContent: row.reasoningContent, displayKind: row.displayKind, displayContent: row.displayContent)
+    }
+    let ordered = rows.filter { (388...391).contains($0.id) } + again.filter { $0.id < 494 } + rows.filter { (392...393).contains($0.id) } + again.filter { $0.id == 494 }
+    let transcript = Transcript(history: ordered.enumerated().map { index, row in
+        HistoryRow(id: index + 1, role: row.role, content: row.content, toolCallId: row.toolCallId, toolCalls: row.toolCalls, timestamp: row.timestamp, reasoning: row.reasoning, reasoningContent: row.reasoningContent, displayKind: row.displayKind, displayContent: row.displayContent)
+    })
+    #expect(transcript.turns.last?.deliveryFailed == true)
+    #expect(transcript.visible.turns.last?.delivery != nil)
+    #expect(Transcript(history: rows).turns.contains { $0.delivery != nil && !$0.deliveryFailed })
 }
 
 @Test func senderRowPreviewIsTheRelay() throws {

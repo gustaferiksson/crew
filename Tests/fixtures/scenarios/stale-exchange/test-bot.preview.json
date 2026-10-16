@@ -1,278 +1,258 @@
 [
   {
-    "content": "Hello again! 👋",
-    "display_kind": null,
-    "id": 8,
-    "reasoning": null,
-    "reasoning_content": null,
-    "role": "assistant",
-    "session_id": "local-2f019da0d42e7edb4df0ce4f8deecfcd9b642a429ec33508ac38d156e26d39b8",
-    "timestamp": 1792127283.611511,
-    "tool_call_id": null,
-    "tool_calls": null
+    "content" : "Hello again! 👋",
+    "display_kind" : null,
+    "id" : 8,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "assistant",
+    "timestamp" : 1792127283.611511,
+    "tool_call_id" : null,
+    "tool_calls" : null
   },
   {
-    "content": "[IMPORTANT: Background process proc_747c697fd2e6 completed normally (exit code 0).\nCommand: /opt/hermes/.venv/bin/python /opt/hermes/tools/bot_mode_dm.py --run-delivery --author '{\"id\":\"bot:test-bot\",\"name\":\"test-bot\",\"is_bot\":true}' query-file /opt/data/profiles/test-bot/cache/scratch/hermes-dm-10000/dm-64as2zv6.txt --profile-home /opt/data/profiles/crew-test /opt/hermes/.venv/bin/hermes -p crew-test chat --in '~' -c 'Bot Chat' --create-if-missing -Q\nOutput:\n{\"reply\": \"@test-bot replied: \\u201cHello again! \\ud83d\\udc4b\\u201d\", \"status\": \"settled\", \"delivery_id\": \"27a55319beabddaa4793da7d10dc769533227db9af9ca5ae10e902033595032c\"}\n]",
-    "display_kind": null,
-    "id": 9,
-    "reasoning": null,
-    "reasoning_content": null,
-    "role": "user",
-    "session_id": "local-2f019da0d42e7edb4df0ce4f8deecfcd9b642a429ec33508ac38d156e26d39b8",
-    "timestamp": 1792127287.7407491,
-    "tool_call_id": null,
-    "tool_calls": null
+    "content" : "[IMPORTANT: Background process proc_747c697fd2e6 completed normally (exit code 0).\nCommand: /opt/hermes/.venv/bin/python /opt/hermes/tools/bot_mode_dm.py --run-delivery --author '{\"id\":\"bot:test-bot\",\"name\":\"test-bot\",\"is_bot\":true}' query-file /opt/hermes/data --profile-home /opt/hermes/data /opt/hermes/.venv/bin/hermes -p crew-test chat --in '~' -c 'Bot Chat' --create-if-missing -Q\nOutput:\n{\"reply\": \"@test-bot replied: \\u201cHello again! \\ud83d\\udc4b\\u201d\", \"status\": \"settled\", \"delivery_id\": \"27a55319beabddaa4793da7d10dc769533227db9af9ca5ae10e902033595032c\"}\n]",
+    "display_kind" : null,
+    "id" : 9,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "user",
+    "timestamp" : 1792127287.7407491,
+    "tool_call_id" : null,
+    "tool_calls" : null
   },
   {
-    "content": "Crew Test confirmed receipt of my greeting.",
-    "display_kind": null,
-    "id": 10,
-    "reasoning": null,
-    "reasoning_content": null,
-    "role": "assistant",
-    "session_id": "local-2f019da0d42e7edb4df0ce4f8deecfcd9b642a429ec33508ac38d156e26d39b8",
-    "timestamp": 1792127292.1401896,
-    "tool_call_id": null,
-    "tool_calls": null
+    "content" : "Crew Test confirmed receipt of my greeting.",
+    "display_kind" : null,
+    "id" : 10,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "assistant",
+    "timestamp" : 1792127292.1401896,
+    "tool_call_id" : null,
+    "tool_calls" : null
   },
   {
-    "content": "Message from 🤖 Crew Test (@crew-test): The user is saying hello to you again; please return a brief greeting.",
-    "display_kind": null,
-    "id": 11,
-    "reasoning": null,
-    "reasoning_content": null,
-    "role": "user",
-    "session_id": "local-2f019da0d42e7edb4df0ce4f8deecfcd9b642a429ec33508ac38d156e26d39b8",
-    "timestamp": 1792128776.9626284,
-    "tool_call_id": null,
-    "tool_calls": null
+    "content" : "Message from 🤖 Crew Test (@crew-test): The user is saying hello to you again; please return a brief greeting.",
+    "display_kind" : null,
+    "id" : 11,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "user",
+    "timestamp" : 1792128776.9626284,
+    "tool_call_id" : null,
+    "tool_calls" : null
   },
   {
-    "content": "",
-    "display_kind": null,
-    "id": 12,
-    "reasoning": null,
-    "reasoning_content": null,
-    "role": "assistant",
-    "session_id": "local-2f019da0d42e7edb4df0ce4f8deecfcd9b642a429ec33508ac38d156e26d39b8",
-    "timestamp": 1792128780.5112712,
-    "tool_call_id": null,
-    "tool_calls": [
+    "content" : "",
+    "display_kind" : null,
+    "id" : 12,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "assistant",
+    "timestamp" : 1792128780.5112712,
+    "tool_call_id" : null,
+    "tool_calls" : [
       {
-        "function": {
-          "arguments": "{\"target\":\"crew-test\",\"message\":\"Hello again! 👋\"}",
-          "name": "message_agent"
+        "function" : {
+          "arguments" : "{\"target\":\"crew-test\",\"message\":\"Hello again! 👋\"}",
+          "name" : "message_agent"
         },
-        "id": "call_4abd74874a61445388e0d82da3dd3da7",
-        "type": "function"
+        "id" : "call_4abd74874a61445388e0d82da3dd3da7",
+        "type" : "function"
       }
     ]
   },
   {
-    "content": "{\"status\": \"queued\", \"delivery_id\": \"e4d07c453a585a82bec61d0e320bfecc6435751d440aa063697523b3570402a1\", \"to\": \"@crew-test\", \"detail\": \"Durably queued for the live Bot Chat owner. Do NOT wait or resend; finish your turn.\", \"process_id\": \"proc_cacfa982ae01\", \"reply_delivery\": \"notification\"}",
-    "display_kind": null,
-    "id": 13,
-    "reasoning": null,
-    "reasoning_content": null,
-    "role": "tool",
-    "session_id": "local-2f019da0d42e7edb4df0ce4f8deecfcd9b642a429ec33508ac38d156e26d39b8",
-    "timestamp": 1792128780.7004855,
-    "tool_call_id": "call_4abd74874a61445388e0d82da3dd3da7",
-    "tool_calls": null
+    "content" : "{\"status\": \"queued\", \"delivery_id\": \"e4d07c453a585a82bec61d0e320bfecc6435751d440aa063697523b3570402a1\", \"to\": \"@crew-test\", \"detail\": \"Durably queued for the live Bot Chat owner. Do NOT wait or resend; finish your turn.\", \"process_id\": \"proc_cacfa982ae01\", \"reply_delivery\": \"notification\"}",
+    "display_kind" : null,
+    "id" : 13,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "tool",
+    "timestamp" : 1792128780.7004855,
+    "tool_call_id" : "call_4abd74874a61445388e0d82da3dd3da7",
+    "tool_calls" : null
   },
   {
-    "content": "Hello again! 👋",
-    "display_kind": null,
-    "id": 14,
-    "reasoning": null,
-    "reasoning_content": null,
-    "role": "assistant",
-    "session_id": "local-2f019da0d42e7edb4df0ce4f8deecfcd9b642a429ec33508ac38d156e26d39b8",
-    "timestamp": 1792128782.3444617,
-    "tool_call_id": null,
-    "tool_calls": null
+    "content" : "Hello again! 👋",
+    "display_kind" : null,
+    "id" : 14,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "assistant",
+    "timestamp" : 1792128782.3444617,
+    "tool_call_id" : null,
+    "tool_calls" : null
   },
   {
-    "content": "[IMPORTANT: Background process proc_cacfa982ae01 completed normally (exit code 0).\nCommand: /opt/hermes/.venv/bin/python /opt/hermes/tools/bot_mode_dm.py --run-delivery --author '{\"id\":\"bot:test-bot\",\"name\":\"test-bot\",\"is_bot\":true}' query-file /opt/data/profiles/test-bot/cache/scratch/hermes-dm-10000/dm-n_780749.txt --profile-home /opt/data/profiles/crew-test /opt/hermes/.venv/bin/hermes -p crew-test chat --in '~' -c 'Bot Chat' --create-if-missing -Q\nOutput:\n{\"reply\": \"@test-bot: Hello again! \\ud83d\\udc4b\", \"status\": \"settled\", \"delivery_id\": \"e4d07c453a585a82bec61d0e320bfecc6435751d440aa063697523b3570402a1\"}\n]",
-    "display_kind": null,
-    "id": 15,
-    "reasoning": null,
-    "reasoning_content": null,
-    "role": "user",
-    "session_id": "local-2f019da0d42e7edb4df0ce4f8deecfcd9b642a429ec33508ac38d156e26d39b8",
-    "timestamp": 1792128787.4068782,
-    "tool_call_id": null,
-    "tool_calls": null
+    "content" : "[IMPORTANT: Background process proc_cacfa982ae01 completed normally (exit code 0).\nCommand: /opt/hermes/.venv/bin/python /opt/hermes/tools/bot_mode_dm.py --run-delivery --author '{\"id\":\"bot:test-bot\",\"name\":\"test-bot\",\"is_bot\":true}' query-file /opt/hermes/data --profile-home /opt/hermes/data /opt/hermes/.venv/bin/hermes -p crew-test chat --in '~' -c 'Bot Chat' --create-if-missing -Q\nOutput:\n{\"reply\": \"@test-bot: Hello again! \\ud83d\\udc4b\", \"status\": \"settled\", \"delivery_id\": \"e4d07c453a585a82bec61d0e320bfecc6435751d440aa063697523b3570402a1\"}\n]",
+    "display_kind" : null,
+    "id" : 15,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "user",
+    "timestamp" : 1792128787.4068782,
+    "tool_call_id" : null,
+    "tool_calls" : null
   },
   {
-    "content": "Crew Test received my greeting.",
-    "display_kind": null,
-    "id": 16,
-    "reasoning": null,
-    "reasoning_content": null,
-    "role": "assistant",
-    "session_id": "local-2f019da0d42e7edb4df0ce4f8deecfcd9b642a429ec33508ac38d156e26d39b8",
-    "timestamp": 1792128789.9351559,
-    "tool_call_id": null,
-    "tool_calls": null
+    "content" : "Crew Test received my greeting.",
+    "display_kind" : null,
+    "id" : 16,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "assistant",
+    "timestamp" : 1792128789.9351559,
+    "tool_call_id" : null,
+    "tool_calls" : null
   },
   {
-    "content": "Message from 🤖 Crew Test (@crew-test): Please check the current time with your terminal and report it briefly, including the timezone, for the user.",
-    "display_kind": null,
-    "id": 17,
-    "reasoning": null,
-    "reasoning_content": null,
-    "role": "user",
-    "session_id": "local-2f019da0d42e7edb4df0ce4f8deecfcd9b642a429ec33508ac38d156e26d39b8",
-    "timestamp": 1792153343.1505976,
-    "tool_call_id": null,
-    "tool_calls": null
+    "content" : "Message from 🤖 Crew Test (@crew-test): Please check the current time with your terminal and report it briefly, including the timezone, for the user.",
+    "display_kind" : null,
+    "id" : 17,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "user",
+    "timestamp" : 1792153343.1505976,
+    "tool_call_id" : null,
+    "tool_calls" : null
   },
   {
-    "content": "",
-    "display_kind": null,
-    "id": 18,
-    "reasoning": null,
-    "reasoning_content": null,
-    "role": "assistant",
-    "session_id": "local-2f019da0d42e7edb4df0ce4f8deecfcd9b642a429ec33508ac38d156e26d39b8",
-    "timestamp": 1792153346.995366,
-    "tool_call_id": null,
-    "tool_calls": [
+    "content" : "",
+    "display_kind" : null,
+    "id" : 18,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "assistant",
+    "timestamp" : 1792153346.995366,
+    "tool_call_id" : null,
+    "tool_calls" : [
       {
-        "function": {
-          "arguments": "{\"command\":\"date '+%Y-%m-%d %H:%M:%S %Z (UTC%:z)'\"}",
-          "name": "terminal"
+        "function" : {
+          "arguments" : "{\"command\":\"date '+%Y-%m-%d %H:%M:%S %Z (UTC%:z)'\"}",
+          "name" : "terminal"
         },
-        "id": "call_a24a336aaddc486782d14155b03593b4",
-        "type": "function"
+        "id" : "call_a24a336aaddc486782d14155b03593b4",
+        "type" : "function"
       }
     ]
   },
   {
-    "content": "{\"output\": \"2026-10-16 12:22:27 UTC (UTC+00:00)\", \"exit_code\": 0, \"error\": null}",
-    "display_kind": null,
-    "id": 19,
-    "reasoning": null,
-    "reasoning_content": null,
-    "role": "tool",
-    "session_id": "local-2f019da0d42e7edb4df0ce4f8deecfcd9b642a429ec33508ac38d156e26d39b8",
-    "timestamp": 1792153347.181548,
-    "tool_call_id": "call_a24a336aaddc486782d14155b03593b4",
-    "tool_calls": null
+    "content" : "{\"output\": \"2026-10-16 12:22:27 UTC (UTC+00:00)\", \"exit_code\": 0, \"error\": null}",
+    "display_kind" : null,
+    "id" : 19,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "tool",
+    "timestamp" : 1792153347.181548,
+    "tool_call_id" : "call_a24a336aaddc486782d14155b03593b4",
+    "tool_calls" : null
   },
   {
-    "content": "",
-    "display_kind": null,
-    "id": 20,
-    "reasoning": null,
-    "reasoning_content": null,
-    "role": "assistant",
-    "session_id": "local-2f019da0d42e7edb4df0ce4f8deecfcd9b642a429ec33508ac38d156e26d39b8",
-    "timestamp": 1792153350.2677495,
-    "tool_call_id": null,
-    "tool_calls": [
+    "content" : "",
+    "display_kind" : null,
+    "id" : 20,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "assistant",
+    "timestamp" : 1792153350.2677495,
+    "tool_call_id" : null,
+    "tool_calls" : [
       {
-        "function": {
-          "arguments": "{\"target\":\"crew-test\",\"message\":\"The terminal reports 2026-10-16 12:22:27 UTC (UTC+00:00).\"}",
-          "name": "message_agent"
+        "function" : {
+          "arguments" : "{\"target\":\"crew-test\",\"message\":\"The terminal reports 2026-10-16 12:22:27 UTC (UTC+00:00).\"}",
+          "name" : "message_agent"
         },
-        "id": "call_aa609e3e531a4dc1a13b59c3addbf132",
-        "type": "function"
+        "id" : "call_aa609e3e531a4dc1a13b59c3addbf132",
+        "type" : "function"
       }
     ]
   },
   {
-    "content": "{\"status\": \"queued\", \"delivery_id\": \"26bd41cdef68e10614b092e0be40ec49b98d358450803ad8d68a841c6c6563c0\", \"to\": \"@crew-test\", \"detail\": \"Durably queued for the live Bot Chat owner. Do NOT wait or resend; finish your turn.\", \"process_id\": \"proc_64737f237a91\", \"reply_delivery\": \"notification\"}",
-    "display_kind": null,
-    "id": 21,
-    "reasoning": null,
-    "reasoning_content": null,
-    "role": "tool",
-    "session_id": "local-2f019da0d42e7edb4df0ce4f8deecfcd9b642a429ec33508ac38d156e26d39b8",
-    "timestamp": 1792153350.3577776,
-    "tool_call_id": "call_aa609e3e531a4dc1a13b59c3addbf132",
-    "tool_calls": null
+    "content" : "{\"status\": \"queued\", \"delivery_id\": \"26bd41cdef68e10614b092e0be40ec49b98d358450803ad8d68a841c6c6563c0\", \"to\": \"@crew-test\", \"detail\": \"Durably queued for the live Bot Chat owner. Do NOT wait or resend; finish your turn.\", \"process_id\": \"proc_64737f237a91\", \"reply_delivery\": \"notification\"}",
+    "display_kind" : null,
+    "id" : 21,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "tool",
+    "timestamp" : 1792153350.3577776,
+    "tool_call_id" : "call_aa609e3e531a4dc1a13b59c3addbf132",
+    "tool_calls" : null
   },
   {
-    "content": "Message from 🤖 Crew Test (@crew-test): The user sends you a friendly greeting; please say hello back.",
-    "display_kind": null,
-    "id": 22,
-    "reasoning": null,
-    "reasoning_content": null,
-    "role": "user",
-    "session_id": "local-2f019da0d42e7edb4df0ce4f8deecfcd9b642a429ec33508ac38d156e26d39b8",
-    "timestamp": 1792180395.4803565,
-    "tool_call_id": null,
-    "tool_calls": null
+    "content" : "Message from 🤖 Crew Test (@crew-test): The user sends you a friendly greeting; please say hello back.",
+    "display_kind" : null,
+    "id" : 22,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "user",
+    "timestamp" : 1792180395.4803565,
+    "tool_call_id" : null,
+    "tool_calls" : null
   },
   {
-    "content": "",
-    "display_kind": null,
-    "id": 23,
-    "reasoning": null,
-    "reasoning_content": null,
-    "role": "assistant",
-    "session_id": "local-2f019da0d42e7edb4df0ce4f8deecfcd9b642a429ec33508ac38d156e26d39b8",
-    "timestamp": 1792180399.772118,
-    "tool_call_id": null,
-    "tool_calls": [
+    "content" : "",
+    "display_kind" : null,
+    "id" : 23,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "assistant",
+    "timestamp" : 1792180399.772118,
+    "tool_call_id" : null,
+    "tool_calls" : [
       {
-        "function": {
-          "arguments": "{\"target\":\"crew-test\",\"message\":\"Hello! 👋\"}",
-          "name": "message_agent"
+        "function" : {
+          "arguments" : "{\"target\":\"crew-test\",\"message\":\"Hello! 👋\"}",
+          "name" : "message_agent"
         },
-        "id": "call_43c747f8480d41428f7ff5752bfdaf18",
-        "type": "function"
+        "id" : "call_43c747f8480d41428f7ff5752bfdaf18",
+        "type" : "function"
       }
     ]
   },
   {
-    "content": "{\"status\": \"queued\", \"delivery_id\": \"47a47b23f1e623190a7066289a612192845f11b97ac14a697729cee43bfeaa36\", \"to\": \"@crew-test\", \"detail\": \"Durably queued for the live Bot Chat owner. Do NOT wait or resend; finish your turn.\", \"process_id\": \"proc_394d9700ee7b\", \"reply_delivery\": \"notification\"}",
-    "display_kind": null,
-    "id": 24,
-    "reasoning": null,
-    "reasoning_content": null,
-    "role": "tool",
-    "session_id": "local-2f019da0d42e7edb4df0ce4f8deecfcd9b642a429ec33508ac38d156e26d39b8",
-    "timestamp": 1792180399.9593723,
-    "tool_call_id": "call_43c747f8480d41428f7ff5752bfdaf18",
-    "tool_calls": null
+    "content" : "{\"status\": \"queued\", \"delivery_id\": \"47a47b23f1e623190a7066289a612192845f11b97ac14a697729cee43bfeaa36\", \"to\": \"@crew-test\", \"detail\": \"Durably queued for the live Bot Chat owner. Do NOT wait or resend; finish your turn.\", \"process_id\": \"proc_394d9700ee7b\", \"reply_delivery\": \"notification\"}",
+    "display_kind" : null,
+    "id" : 24,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "tool",
+    "timestamp" : 1792180399.9593723,
+    "tool_call_id" : "call_43c747f8480d41428f7ff5752bfdaf18",
+    "tool_calls" : null
   },
   {
-    "content": "Hello! 👋",
-    "display_kind": null,
-    "id": 25,
-    "reasoning": null,
-    "reasoning_content": null,
-    "role": "assistant",
-    "session_id": "local-2f019da0d42e7edb4df0ce4f8deecfcd9b642a429ec33508ac38d156e26d39b8",
-    "timestamp": 1792180404.1009593,
-    "tool_call_id": null,
-    "tool_calls": null
+    "content" : "Hello! 👋",
+    "display_kind" : null,
+    "id" : 25,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "assistant",
+    "timestamp" : 1792180404.1009593,
+    "tool_call_id" : null,
+    "tool_calls" : null
   },
   {
-    "content": "[IMPORTANT: Background process proc_394d9700ee7b completed normally (exit code 0).\nCommand: /opt/hermes/.venv/bin/python /opt/hermes/tools/bot_mode_dm.py --run-delivery --author '{\"id\":\"bot:test-bot\",\"name\":\"test-bot\",\"is_bot\":true}' query-file /opt/data/profiles/test-bot/cache/scratch/hermes-dm-10000/dm-cv4dvj40.txt --profile-home /opt/data/profiles/crew-test /opt/hermes/.venv/bin/hermes -p crew-test chat --in '~' -c 'Bot Chat' --create-if-missing -Q\nOutput:\n{\"reply\": \"@test-bot: \\u201cHello! \\ud83d\\udc4b\\u201d\", \"status\": \"settled\", \"delivery_id\": \"47a47b23f1e623190a7066289a612192845f11b97ac14a697729cee43bfeaa36\"}\n]",
-    "display_kind": null,
-    "id": 26,
-    "reasoning": null,
-    "reasoning_content": null,
-    "role": "user",
-    "session_id": "local-2f019da0d42e7edb4df0ce4f8deecfcd9b642a429ec33508ac38d156e26d39b8",
-    "timestamp": 1792180404.168576,
-    "tool_call_id": null,
-    "tool_calls": null
+    "content" : "[IMPORTANT: Background process proc_394d9700ee7b completed normally (exit code 0).\nCommand: /opt/hermes/.venv/bin/python /opt/hermes/tools/bot_mode_dm.py --run-delivery --author '{\"id\":\"bot:test-bot\",\"name\":\"test-bot\",\"is_bot\":true}' query-file /opt/hermes/data --profile-home /opt/hermes/data /opt/hermes/.venv/bin/hermes -p crew-test chat --in '~' -c 'Bot Chat' --create-if-missing -Q\nOutput:\n{\"reply\": \"@test-bot: \\u201cHello! \\ud83d\\udc4b\\u201d\", \"status\": \"settled\", \"delivery_id\": \"47a47b23f1e623190a7066289a612192845f11b97ac14a697729cee43bfeaa36\"}\n]",
+    "display_kind" : null,
+    "id" : 26,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "user",
+    "timestamp" : 1792180404.168576,
+    "tool_call_id" : null,
+    "tool_calls" : null
   },
   {
-    "content": "Crew Test received my greeting.",
-    "display_kind": null,
-    "id": 27,
-    "reasoning": null,
-    "reasoning_content": null,
-    "role": "assistant",
-    "session_id": "local-2f019da0d42e7edb4df0ce4f8deecfcd9b642a429ec33508ac38d156e26d39b8",
-    "timestamp": 1792180406.4676383,
-    "tool_call_id": null,
-    "tool_calls": null
+    "content" : "Crew Test received my greeting.",
+    "display_kind" : null,
+    "id" : 27,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "assistant",
+    "timestamp" : 1792180406.4676383,
+    "tool_call_id" : null,
+    "tool_calls" : null
   }
 ]

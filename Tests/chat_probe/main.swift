@@ -438,7 +438,7 @@ if phases.contains("record") {
     pretty.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
     let scrubs = [(server.host() ?? "", "hermes.example.com"), (env["HERMES_USER"] ?? "", "user"), (env["HERMES_PASSWORD"] ?? "", "***"), (peerName, "crew-test-peer")].filter { $0.0.count > 2 }
     func save(_ name: String, _ value: JSONValue) throws {
-        let text = scrubs.reduce(String(decoding: try pretty.encode(value), as: UTF8.self)) { $0.replacingOccurrences(of: $1.0, with: $1.1) }.replacing(/crew-test-[0-9a-f]{6}/, with: "crew-test-old")
+        let text = scrubs.reduce(String(decoding: try pretty.encode(value), as: UTF8.self)) { $0.replacingOccurrences(of: $1.0, with: $1.1) }.replacing(/crew-test-[0-9a-f]{6}/, with: "crew-test-old").replacing(/\/opt\/data\/[^\s"'\\]*/, with: "/opt/hermes/data").replacing(/uid:[0-9]+/, with: "uid:user")
         try Data((text + "\n").utf8).write(to: folder.appending(path: "\(name).json"))
         print("RECORDED \(name).json")
     }
@@ -461,7 +461,8 @@ if phases.contains("record") {
         guard let session = bot.canonicalSession else { return [] }
         let (data, _) = try await urlSession.data(for: historyRequest(of: session.resolvedID, profile: bot.name, on: server, limit: limit))
         guard case .object(let page) = try JSONDecoder().decode(JSONValue.self, from: data), case .array(let messages) = page["messages"] else { return [] }
-        return messages
+        let keys: Set = ["id", "role", "content", "tool_call_id", "tool_calls", "timestamp", "reasoning", "reasoning_content", "display_kind"]
+        return messages.map { row in if case .object(let object) = row { .object(object.filter { keys.contains($0.key) }) } else { row } }
     }
 
     let store = BotStore(fixture: [], statuses: [:])

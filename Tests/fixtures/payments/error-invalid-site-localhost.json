@@ -1,0 +1,7 @@
+{
+  "detail": {
+    "code": "invalid_site",
+    "reason": "localhost",
+    "message": "the site must be a public name"
+  }
+}

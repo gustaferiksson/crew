@@ -1,0 +1,7 @@
+{
+  "detail": {
+    "code": "invalid_site",
+    "reason": "port",
+    "message": "the site must use the standard https port"
+  }
+}

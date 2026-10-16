@@ -1,0 +1,18 @@
+{
+  "success": false,
+  "filled_fields": 2,
+  "backend": "local",
+  "kind": "payment",
+  "origin": "https://www.zalando.se",
+  "fields": [
+    "cc-name",
+    "postal-code"
+  ],
+  "error": "The card fields weren't found; this checkout probably puts them in a payment frame, which can't be filled. Tell the user.",
+  "crew_payment": {
+    "request_id": "5f0c3e9a2b7d4c18a6e1f20b9d3c7a54",
+    "state": "approved",
+    "fill": "not_filled",
+    "fill_error": "no_fields"
+  }
+}

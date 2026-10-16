@@ -1,0 +1,11 @@
+{
+  "success": false,
+  "error_type": "origin_mismatch",
+  "error": "Refused: current page origin (https://www.zalando.de) does not match the vault item's bound origin(s) (https://www.zalando.se). Vault fills only run on the exact origin(s) the credential was saved for.",
+  "crew_payment": {
+    "request_id": "5f0c3e9a2b7d4c18a6e1f20b9d3c7a54",
+    "state": "approved",
+    "fill": "not_filled",
+    "fill_error": "origin_mismatch"
+  }
+}

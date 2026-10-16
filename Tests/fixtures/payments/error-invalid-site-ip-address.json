@@ -1,0 +1,7 @@
+{
+  "detail": {
+    "code": "invalid_site",
+    "reason": "ip_address",
+    "message": "the site must be a name, not an IP address"
+  }
+}

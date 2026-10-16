@@ -1,0 +1,17 @@
+{
+  "success": true,
+  "items": [
+    {
+      "handle": "vault_3f9a1c2b7d4e",
+      "backend": "local",
+      "label": "Shopping card •••• 4242 · www.zalando.se",
+      "kind": "payment",
+      "origin": "https://www.zalando.se",
+      "available": true
+    }
+  ],
+  "crew_payment": {
+    "missing_shop": "https://www.zalando.de"
+  },
+  "hint": "There is no card for https://www.zalando.de. Tell the user they can add this shop in Crew, then wait."
+}

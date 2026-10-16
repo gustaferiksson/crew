@@ -1,0 +1,6 @@
+{
+  "detail": {
+    "code": "duplicate_shop",
+    "message": "this profile already has a card for that origin"
+  }
+}

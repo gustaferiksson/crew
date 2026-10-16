@@ -38,7 +38,7 @@ Request `{"profile": "scout", "site": "https://www.zalando.se/checkout?step=2"}`
 The route takes the host, IDNA-encodes a non-ASCII host, lower-cases it, and requires `https` (or no scheme), port 443 or none, a dotted public-looking name, not an IP literal and not `localhost`. Then it copies the master: `VaultStore(get_profile_dir(profile) / "vault").add_item(kind="payment", label="<master label> •••• <last4> · <host>", origin="https://<host>", secret=<master secret>)`.
 
 - `201 {"shop": <shop>}`
-- `400 invalid_site` with `"reason": "not_https" | "ip_address" | "localhost" | "no_host" | "port"`
+- `400 invalid_site` with `"reason": "not_https" | "ip_address" | "localhost" | "no_host" | "port"` inside `detail` (`localhost` also covers a single-label name such as `intranet`)
 - `409 duplicate_shop`, `409 no_card`, `409 several_cards`, `404 unknown_profile`
 
 ### `DELETE /payments/shops/{id}?profile=scout`
@@ -87,7 +87,7 @@ State shared across processes lives in files: `gate.json` and `payments.json`. O
 
 ### `pre_tool_call`
 
-On `browser_vault` with `action == "fill"` and a handle whose item is `payment`. This branch is **not** wrapped in crew-push's `quiet`: it catches its own exceptions and returns a block. Checks, in order; the first failing one returns `{"action": "block", "message": <JSON string>}`:
+On `browser_vault` with `action == "fill"` and a handle whose item is `payment`. This branch is **not** wrapped in crew-push's `quiet`: it catches its own exceptions and returns a block with `crew_check_failed` (also when the item's kind cannot be read, such as a locked password manager). Checks, in order; the first failing one returns `{"action": "block", "message": <JSON string>}`:
 
 | Code | Rule |
 |---|---|
@@ -144,7 +144,7 @@ Decorated fill result (fixture `fill-approved.json`):
     "interruption-level": "time-sensitive"
   },
   "crew": {"v": 1, "kind": "payment", "install_id": "9f2c41d07ab35e11", "profile": "scout",
-           "session_id": "20261016_101512_ab12cd", "event_id": "5be0c2a91f7d3e44",
+           "session_id": "20261016_101512_ab12cd", "event_id": "d53856b2866653ae",
            "request_id": "5f0c3e9a2b7d4c18a6e1f20b9d3c7a54", "expires_at": 1760610240.0}
 }
 ```
@@ -171,10 +171,10 @@ Headers: `apns-push-type: background`, `apns-priority: 5`, `apns-expiration: now
 | | `no_card`, `several_cards` | the card row's states |
 | `DELETE` | `unknown_shop` | the row leaves (already gone) |
 | `GET /payments/requests/{id}` | `unknown_request` | Deny-only card |
-| tool results | `crew_gate_off`, `crew_not_bot_chat`, `crew_one_at_a_time`, `crew_after_decline`, `crew_missing_details`, `crew_no_shop_card` | only `crew_no_shop_card` with `missing_shop` drives UI (the offer); the rest are failed tool rows and the bot's words |
+| tool results | `crew_gate_off`, `crew_not_bot_chat`, `crew_one_at_a_time`, `crew_after_decline`, `crew_missing_details`, `crew_no_shop_card`, `crew_check_failed` | only `crew_no_shop_card` with `missing_shop` drives UI (the offer); the rest are failed tool rows and the bot's words |
 | `approval.respond` | `resolved: 0`, `4001`, `5004` | state from the route; card leaves; "Couldn't reach Hermes. Try again." |
 | any 5xx or network | | "Couldn't load the amount." + Try Again; "Couldn't load shops." |
 
 ## Fixtures
 
-`Tests/fixtures/payments/`: `status.json`, `payments.json`, `payments-no-card.json`, `payments-several.json`, `shop-created.json`, one error file per route code, `request-pending.json`, `request-approved.json`, `request-expired.json`, `approval-frame.json` (recorded from a real `approval` frame on `crew-test`), `block-no-shop-card.json`, `block-missing-details.json`, a decorated and a raw fill result per outcome in the Results table, `list-missing-shop.json`, `push-payment.json`, `push-payment-previews-off.json`, `push-payment-resolved.json`.
+`Tests/fixtures/payments/`: `status.json`, `payments.json`, `payments-no-card.json`, `payments-several.json`, `shop-created.json`, `shop-removed.json`, one error file per route code (`error-<code>.json`, and `error-invalid-site-<reason>.json` per reason), `request-pending.json`, `request-approved.json`, `request-expired.json`, `approval-frame.json` (reconstructed from Hermes 0.22.1's `ServerRequest.frame()` and `_approval_request_payload`; re-record it on `crew-test` after the deploy), `block-no-shop-card.json`, `block-missing-details.json`, a decorated and a raw fill result per outcome in the Results table (`fill-<outcome>.json` and `fill-<outcome>.raw.json` for `approved`, `denied`, `expired`, `cancelled`, `origin-changed`, `origin-mismatch`, `no-fields`, `no-card-number`, `human-has-control`, `error`), `list-missing-shop.json`, `push-payment.json`, `push-payment-previews-off.json`, `push-payment-resolved.json`.

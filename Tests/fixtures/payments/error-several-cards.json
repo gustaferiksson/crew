@@ -1,0 +1,6 @@
+{
+  "detail": {
+    "code": "several_cards",
+    "message": "more than one payment card without a website in the default vault"
+  }
+}

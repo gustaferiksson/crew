@@ -1,0 +1,21 @@
+{
+  "success": true,
+  "filled_fields": 5,
+  "backend": "local",
+  "kind": "payment",
+  "origin": "https://www.zalando.se",
+  "fields": [
+    "cc-csc",
+    "cc-exp-month",
+    "cc-exp-year",
+    "cc-name",
+    "cc-number"
+  ],
+  "crew_payment": {
+    "request_id": "5f0c3e9a2b7d4c18a6e1f20b9d3c7a54",
+    "state": "approved",
+    "fill": "filled",
+    "fill_error": null
+  },
+  "next": "Click the shop's pay button. Never tick save card or remember card."
+}

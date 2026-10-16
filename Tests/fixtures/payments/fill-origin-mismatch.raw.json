@@ -1,0 +1,5 @@
+{
+  "success": false,
+  "error_type": "origin_mismatch",
+  "error": "Refused: current page origin (https://www.zalando.de) does not match the vault item's bound origin(s) (https://www.zalando.se). Vault fills only run on the exact origin(s) the credential was saved for."
+}

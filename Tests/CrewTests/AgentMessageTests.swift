@@ -62,7 +62,8 @@ func notes(_ turn: Turn) -> [String?] {
     transcript.apply(.messageComplete(text: "@scout replied: Two options.", status: .complete, error: nil))
     transcript.begin(remote: "Message from 🤖 Scout (@scout): Prices dropped.", displayKind: nil, at: .now)
     transcript.apply(.messageComplete(text: "Noted.", status: .complete, error: nil))
-    #expect(transcript.visible.turns.map(\.agentMessage?.body) == [nil, "Prices dropped."])
+    #expect(transcript.visible.turns.map(\.agentMessage?.body) == [nil, nil, "Prices dropped."])
+    #expect(transcript.visible.turns[1].reply == "@scout replied: Two options.")
 }
 
 @Test func failedCallDoesNotSwallowTheNextMessage() {

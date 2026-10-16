@@ -423,7 +423,57 @@ if phases.contains("mention") {
     try await waitIdle(chat)
     try await waitIdle(chat, timeout: 180) { !$0.isRunning && $0.transcript.turns.last?.delivery != nil }
     for turn in chat.transcript.turns.dropFirst(start) {
-        print(chat.transcript.hides(turn) ? "HIDDEN " : "SHOWN  ", turn.prompt?.text ?? turn.notice ?? turn.delivery ?? "-", "|", turn.reply)
+        print(chat.transcript.visible.turns.contains { $0.id == turn.id } ? "SHOWN  " : "HIDDEN ", turn.prompt?.text ?? turn.notice ?? turn.delivery ?? "-", "|", turn.reply)
+    }
+}
+
+if phases.contains("exchange") {
+    record("exchange-turn")
+    let peerName = "crew-test-\(UUID().uuidString.prefix(6).lowercased())"
+    let store = BotStore(fixture: [], statuses: [:])
+    try await store.create(NewProfile(name: peerName, description: "Throwaway Crew probe peer", soul: nil, cloneFrom: "crew-test"), via: gateway) { meta in
+        meta = BotMeta(title: "Crew Peer", shape: "hexagon", color: "#14b8a6", custom: true, imageKind: "shape", expression: "happy")
+    }
+    do {
+        guard let peer = store.bots.first(where: { $0.name == peerName }) else { throw HermesError.invalidResponse }
+        let peerChat = try await attached(peer)
+        print("peer chat attached, failure \(peerChat.failure ?? "-")")
+        chat.send("@\(peerName) say hi, and ask it to also send you one separate message of its own afterwards", mentioning: [peer], mode: .send)
+        try await waitIdle(chat)
+        try await waitIdle(chat, timeout: 240) { !$0.isRunning && $0.transcript.turns.last?.delivery != nil }
+        var quiet = 0
+        while quiet < 15 {
+            try await Task.sleep(for: .seconds(2))
+            let live = try await gateway.call("session.active_list", [String: String](), as: JSONValue.self)
+            let busy = if case .object(let o) = live, case .array(let rows)? = o["sessions"] { rows.contains { if case .object(let r) = $0, case .string(let status)? = r["status"] { status != "idle" } else { false } } } else { false }
+            quiet = busy ? 0 : quiet + 1
+        }
+        await store.reload(gateway)
+        let live = try await gateway.call("session.active_list", [String: String](), as: JSONValue.self)
+        let statuses: [String: String] = if case .object(let o) = live, case .array(let rows)? = o["sessions"] {
+            Dictionary(rows.compactMap { row -> (String, String)? in
+                guard case .object(let r) = row, case .string(let key)? = r["session_key"], case .string(let status)? = r["status"] else { return nil }
+                return (key, status)
+            }, uniquingKeysWith: { $1 })
+        } else { [:] }
+        for name in ["crew-test", peerName] {
+            guard let bot = store.bots.first(where: { $0.name == name }), let session = bot.canonicalSession else { print("== \(name): no canonical session"); continue }
+            let rows = try await history(of: session.resolvedID, profile: name, on: server, with: urlSession)
+            let window = try await history(of: session.resolvedID, profile: name, on: server, with: urlSession, limit: 20)
+            let visible = Transcript(history: rows).visible
+            let preview = Transcript(history: Array(window.sorted { $0.id < $1.id }.drop { $0.role != "user" })).preview ?? ""
+            let live = statuses[session.resolvedID.rawValue] ?? statuses[session.id.rawValue] ?? "none"
+            print("== \(name) row: preview \"\(preview)\" | time \(session.lastActive?.formatted(date: .omitted, time: .standard) ?? "-") | live \(live) -> \(BotStatus(live: live, waiting: nil).map { "\($0)" } ?? "idle") | messages \(session.messageCount ?? 0), read \(bot.readPosition?.messages ?? -1)")
+            print("== \(name) chat, last 6 visible of \(visible.turns.count):")
+            for line in summary(Transcript(turns: Array(visible.turns.suffix(6)))) { print("  ", line) }
+            for turn in visible.turns.suffix(6) where turn.agentMessage != nil { print("   exchange row: Message from \(turn.agentMessage?.sender ?? "?")") }
+        }
+    } catch {
+        print("FAIL", error)
+    }
+    if let peer = store.bots.first(where: { $0.name == peerName }) {
+        try await store.delete(peer, via: gateway, urlSession: urlSession)
+        print("deleted", peerName, store.bots.contains { $0.name == peerName } ? "STILL THERE" : "gone")
     }
 }
 

@@ -11,12 +11,12 @@ A bot (the sender) calls `message_agent`; the other bot (the target) answers in 
 
 ## Sender's chat (the bot whose user asked for the message)
 
-- Unchanged from #31: the user's prompt and the bot's "queued" line, then the one-line relay turn ("@test-bot replied: …") when the delivery lands. The reply arriving as `Message from <target>` is a reply to this chat's own `message_agent` call and stays hidden, as does the raw delivery notice.
-- Rule: each queued `message_agent` call (its result has a `process_id`) to @handle in a user-started turn consumes the next `Message from …(@handle)` turn as its reply (hidden); any other `Message from` turn, such as a second unprompted one, is an exchange and shows as a collapsed row.
+- The user's prompt and the bot's "queued" line, then one relay line ("@test-bot replied: …"). The relay is the bot's answer to the reply that arrives as `Message from <target>`: that turn shows as a plain reply (no bubble, no notice), and the delivery follow-up after it is hidden, because it only repeats the relay and can even be Hermes' `(empty)` sentinel (seen on the real server). When no reply message arrives (a failed delivery), the follow-up shows instead, so the failure is visible. The raw delivery notice never shows.
+- Rule: each queued `message_agent` call (its result has a `process_id`) to @handle in a user-started turn consumes the next `Message from …(@handle)` turn as its reply (shown as the relay line); any other `Message from` turn, such as a second unprompted one, is an exchange and shows as a collapsed row.
 
 ## Bot list, push, other surfaces
 
-- Preview: the last visible turn, so a target whose latest activity is an exchange reads "Message from Crew Test", matching its time label. The sender reads the relay line. Both on iPhone and Mac, from the open `ChatSession` or from `BotStore`'s 20-row fetch.
+- Preview: the last visible turn, so a target whose latest activity is an exchange reads "Message from Crew Test", matching its time label. The sender reads the relay line, or "Message from <target>" when the target also sent something of its own afterwards. Both on iPhone and Mac, from the open `ChatSession` or from `BotStore`'s 20-row fetch.
 - Time and unread: unchanged (`last_active`, `message_count`); now they always point at something visible.
 - Working: shown only for `working` and `waiting` from `session.active_list`. During an exchange the server reports the target `working` and it is; the collapsed row with its pulsing title is what the badge refers to. `starting` (an agent build after a resume, no turn) is not Working.
 - Push: unchanged, crew-push 0.3.1 sends no reply or failure push for agent-initiated turns. The local "Replied" alert (push off) still fires on the unread edge, as before; it now matches a visible row, and muting it would need the preview fetch before the alert, so it stays a known gap.

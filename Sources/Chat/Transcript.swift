@@ -162,12 +162,17 @@ extension Transcript {
             turn.work + (turn.reply.isEmpty ? [] : [WorkItem(id: "\(turn.id)-reply", kind: .note(turn.reply), startedAt: turn.finishedAt ?? turn.startedAt)])
         }
         var shown: [Turn] = []
-        var awaited: [String] = []
+        var awaited: [(handle: String, origin: Turn.ID)] = []
+        var answered: Set<Turn.ID> = []
         var exchanges: [Turn.ID: Int] = [:]
         for turn in turns {
             if let message = turn.agentMessage {
-                if let index = awaited.firstIndex(of: message.handle) {
-                    awaited.remove(at: index)
+                if let index = awaited.firstIndex(where: { $0.handle == message.handle }) {
+                    answered.insert(awaited.remove(at: index).origin)
+                    var reply = turn
+                    reply.prompt = nil
+                    reply.agentMessage = nil
+                    shown.append(reply)
                     continue
                 }
                 exchanges[turn.id] = shown.count
@@ -179,13 +184,14 @@ extension Transcript {
                 continue
             }
             guard let delivery = turn.delivery else {
-                if turn.prompt != nil { awaited += turn.work.compactMap(\.messagedHandle) }
+                if turn.prompt != nil { awaited += turn.work.compactMap { $0.messagedHandle.map { ($0, turn.id) } } }
                 shown.append(turn)
                 continue
             }
             let origin = turns.last { origin in
                 origin.work.contains { item in if case .tool(let call) = item.kind { call.name == "message_agent" && call.result?.contains(delivery) == true } else { false } }
             }
+            if let origin, answered.contains(origin.id) { continue }
             if let origin, let index = exchanges[origin.id] {
                 shown[index].work += log(turn)
                 shown[index].finishedAt = turn.finishedAt

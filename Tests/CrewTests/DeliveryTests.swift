@@ -31,14 +31,37 @@ private func transcript(_ json: String) throws -> Transcript {
     return Transcript(history: try decoder.decode([HistoryRow].self, from: Data(json.utf8)))
 }
 
-@Test func senderKeepsTheRelayButNotTheDeliveryNotice() throws {
+@Test func senderShowsTheReplyRelayAndHidesItsDelivery() throws {
     let visible = try transcript(senderRows).visible
-    #expect(visible.turns.map(\.id) == ["316", "322"])
-    #expect(visible.turns[1].delivery == "proc_8df9ddaf2d55")
+    #expect(visible.turns.map(\.id) == ["316", "320"])
     #expect(visible.turns[1].prompt == nil)
-    #expect(visible.turns[1].notice == nil)
-    #expect(visible.turns[1].reply == "@test-bot replied, “Hello again! 👋”; the background delivery process has now finished successfully.")
-    #expect(try transcript(senderRows).preview == "@test-bot replied, “Hello again! 👋”; the background delivery process has now finished successfully.")
+    #expect(visible.turns[1].agentMessage == nil)
+    #expect(visible.turns[1].reply == "@test-bot replied: “Hello again! 👋”")
+    #expect(try transcript(senderRows).preview == "@test-bot replied: “Hello again! 👋”")
+}
+
+private let peerRows = #"""
+[
+ {"id": 360, "role": "user", "content": "@crew-test-f0ab5f say hi, and ask it to also send you one separate message of its own afterwards\n\n[@mentions resolved from the Bot Mode roster — the user is referring to: @crew-test-f0ab5f = agent profile \"crew-test-f0ab5f\" (\"Crew Peer\"). If they want one of these agents contacted, compose your own message and send it with your message_agent tool (agents on other connected machines are reachable too — the Desktop relays it); never forward the user’s text verbatim. If this session has no message_agent tool, agent messaging is unavailable here — say so. Keep it brief: never narrate queueing or delivery, say at most one short line after message_agent, and relay the reply in one line when it arrives.]", "timestamp": 1792137105.9647279, "display_kind": null},
+ {"id": 361, "role": "assistant", "content": "", "timestamp": 1792137110.6796052, "display_kind": null, "tool_calls": [{"id": "call_cc3a7b7662b447deaa178d7a23724ee9", "function": {"name": "message_agent", "arguments": "{\"target\":\"crew-test-f0ab5f\",\"message\":\"Hello from the user and me! Please reply with a greeting, then send me (@crew-test) one separate follow-up message of your own using message_agent.\"}"}}]},
+ {"id": 362, "role": "tool", "content": "{\"status\": \"queued\", \"delivery_id\": \"e361f5d63c3e13456291c1f11cbea682b1a3e542e20037048b9220b2eedc4171\", \"to\": \"@crew-test-f0ab5f\", \"reply_delivery\": \"notification\", \"detail\": \"Message queued for @crew-test-f0ab5f: this acknowledges the hand-off to a background delivery process, not a delivery receipt \\u2014 do NOT wait or poll. Finish your turn now; that process's completion notification carries the delivery outcome \\u2014 the reply (relay it then, attributed to that agent) or the delivery failure (report it; the message was NOT delivered).\", \"process_id\": \"proc_812d6cea8f0d\", \"queued_at\": 1792137110}", "timestamp": 1792137110.71451, "display_kind": null, "tool_call_id": "call_cc3a7b7662b447deaa178d7a23724ee9"},
+ {"id": 363, "role": "assistant", "content": "👋", "timestamp": 1792137115.984484, "display_kind": null},
+ {"id": 364, "role": "user", "content": "Message from 🤖 Crew Peer (@crew-test-f0ab5f): Hello to you and the user!", "timestamp": 1792137132.775024, "display_kind": null},
+ {"id": 365, "role": "assistant", "content": "@crew-test-f0ab5f: “Hello to you and the user!”", "timestamp": 1792137135.6537883, "display_kind": null},
+ {"id": 366, "role": "user", "content": "Message from 🤖 Crew Peer (@crew-test-f0ab5f): A separate follow-up from me: what would you like to test next?", "timestamp": 1792137137.792151, "display_kind": null},
+ {"id": 367, "role": "assistant", "content": "@crew-test-f0ab5f’s separate follow-up: “What would you like to test next?”", "timestamp": 1792137141.8338115, "display_kind": null},
+ {"id": 368, "role": "user", "content": "[IMPORTANT: Background process proc_812d6cea8f0d completed normally (exit code 0).\nCommand: /opt/hermes/.venv/bin/python /opt/hermes/tools/bot_mode_dm.py --run-delivery --author '{\"id\":\"bot:crew-test\",\"name\":\"crew-test\",\"is_bot\":true}' query-file /opt/data/cache/scratch/hermes-dm-10000/dm-mzsraedm.txt --profile-home /opt/data/profiles/crew-test-f0ab5f /opt/hermes/.venv/bin/hermes -p crew-test-f0ab5f chat --in '~' -c 'Bot Chat' --create-if-missing -Q\nOutput:\n@crew-test received both messages and echoed the greeting and separate follow-up.\nSession 20261016_075156_2922b5 found but has no messages. Starting fresh.\n\nsession_id: 20261016_075156_2922b5\n]", "timestamp": 1792137147.1844687, "display_kind": "process_complete"},
+ {"id": 369, "role": "assistant", "content": "(empty)", "timestamp": 1792137201.25714, "display_kind": null}
+
+]
+"""#
+
+@Test func senderRunWithAnUnpromptedSecondMessageAndAnEmptyDeliveryReply() throws {
+    let visible = try transcript(peerRows).visible
+    #expect(visible.turns.map(\.id) == ["360", "364", "366"])
+    #expect(visible.turns[1].reply == "@crew-test-f0ab5f: “Hello to you and the user!”")
+    #expect(visible.turns[2].agentMessage?.sender == "Crew Peer")
+    #expect(try transcript(peerRows).preview == "Message from Crew Peer")
 }
 
 @Test func targetFoldsItsExchangeAndDeliveryIntoOneRow() throws {

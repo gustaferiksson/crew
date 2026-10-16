@@ -121,9 +121,11 @@ struct ConversationTranscript: View {
                         .task {
                             guard let focus, let target = transcript.turn(matching: focus) else { return }
                             try? await Task.sleep(for: .milliseconds(400))
+                            guard !Task.isCancelled else { return }
                             proxy.scrollTo(target.id, anchor: .center)
                             highlighted = target.id
                             try? await Task.sleep(for: .seconds(2))
+                            guard !Task.isCancelled else { return }
                             withAnimation(.easeOut(duration: 0.6)) { highlighted = nil }
                         }
                     }
@@ -147,6 +149,10 @@ struct ConversationTranscript: View {
         .frame(minWidth: 560, minHeight: 640)
         #endif
         .task {
+            if Snapshot.requested != nil {
+                transcript = ChatFixture.history.transcript
+                return
+            }
             guard let server = connection.session?.server else { return }
             do {
                 let loaded = Transcript(history: try await history(of: conversation.id, profile: bot.name, on: server, with: connection.urlSession))

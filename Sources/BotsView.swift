@@ -101,7 +101,7 @@ struct BotsView: View {
                     ContentUnavailableView.search(text: query)
                 }
             }
-            .task(id: [query, "\(connection.state == .connected)", "\(searchAttempt)"]) {
+            .task(id: [query, "\(connection.state == .connected)", "\(searchAttempt)", "\(store.bots.count)"]) {
                 await search.run(query, in: store.bots, on: connection.state == .connected ? connection.session?.server : nil, with: connection.urlSession)
             }
             #if os(iOS)
@@ -286,11 +286,12 @@ struct BotsView: View {
     }
 
     private var matchingBots: [Bot] {
-        (store.favourites + store.sections.flatMap(\.bots)).filter { $0.title.localizedStandardContains(query) || $0.name.localizedStandardContains(query) }
+        let name = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        return (store.favourites + store.sections.flatMap(\.bots)).filter { $0.title.localizedStandardContains(name) || $0.name.localizedStandardContains(name) }
     }
 
     private var matchingRooms: [Room] {
-        groups.rooms.filter { $0.name.localizedStandardContains(query) }
+        groups.rooms.filter { $0.name.localizedStandardContains(query.trimmingCharacters(in: .whitespacesAndNewlines)) }
     }
 
     @ViewBuilder
@@ -519,9 +520,10 @@ private struct MessageHitRow: View {
     @Environment(BotStore.self) private var store
     @Environment(ChatSessions.self) private var chats
 
+    @State private var matchedDate: Date?
+
     private var date: Date? {
-        guard hit.isInBotChat else { return hit.conversationDate }
-        return chats.sessions[bot.id]?.transcript.turn(matching: hit.snippet).map { $0.prompt?.sentAt ?? $0.finishedAt ?? $0.startedAt }
+        hit.isInBotChat ? matchedDate : hit.conversationDate
     }
 
     var body: some View {
@@ -567,6 +569,10 @@ private struct MessageHitRow: View {
         }
         .contentShape(.rect)
         .accessibilityElement(children: .combine)
+        .task(id: [hit.id, "\(chats.sessions[bot.id]?.transcript.turns.count ?? 0)"]) {
+            guard hit.isInBotChat else { return }
+            matchedDate = chats.sessions[bot.id]?.transcript.turn(matching: hit.snippet).map { $0.prompt?.sentAt ?? $0.finishedAt ?? $0.startedAt }
+        }
     }
 }
 

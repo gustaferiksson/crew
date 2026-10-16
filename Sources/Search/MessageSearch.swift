@@ -27,8 +27,10 @@ nonisolated struct MessageHit: Identifiable, Hashable, Sendable {
     var id: String { "\(bot)/\(session.rawValue)" }
 
     init?(bot: Bot, match: SessionMatch) {
-        let plain = match.snippet.replacing(/>>>|<<</, with: "").trimmingCharacters(in: .whitespacesAndNewlines)
-        guard ["user", "assistant"].contains(match.role),
+        let raw = match.snippet.replacing(/>>>|<<</, with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let plain = raw.trimmingPrefix("...").trimmingCharacters(in: .whitespacesAndNewlines)
+        let isCutNotice = match.role == "user" && raw.hasPrefix("...") && plain.hasSuffix("]")
+        guard ["user", "assistant"].contains(match.role), !isCutNotice,
               !["[IMPORTANT: Background process", "[System:", "<a2ui-action>"].contains(where: { plain.hasPrefix($0) })
         else { return nil }
         let agentMessage = match.role == "user" ? AgentMessage(plain) : nil
@@ -44,11 +46,11 @@ nonisolated struct MessageHit: Identifiable, Hashable, Sendable {
 
     func highlighted(_ query: String) -> AttributedString {
         let flat = flattenedSnippet(snippet)
-        let marked = flat.contains(">>>") ? flat : query.split(whereSeparator: \.isWhitespace).reduce(flat) { text, word in
-            text.replacing(Regex<Substring>(verbatim: String(word)).ignoresCase()) { ">>>\($0.output)<<<" }
-        }
+        let words = query.split(whereSeparator: \.isWhitespace).map { NSRegularExpression.escapedPattern(for: String($0)) }
+        let pattern = (try? Regex<Substring>(words.joined(separator: "|")))?.ignoresCase()
+        let marked = flat.contains(">>>") || words.isEmpty ? flat : pattern.map { flat.replacing($0) { ">>>\($0.output)<<<" } } ?? flat
         let lead = marked.range(of: ">>>").map { marked[..<$0.lowerBound] } ?? ""
-        let kept = lead.count > 32 ? lead.suffix(24).drop { !$0.isWhitespace }.drop(while: \.isWhitespace) : lead
+        let kept = lead.count > 32 ? lead.suffix(24).drop { !$0.isWhitespace }.drop { $0.isWhitespace || $0 == "·" } : lead
         var result = AttributedString(speaker.map { "\($0): " } ?? "")
         var rest = kept.count < lead.count ? Substring("…" + kept + marked[lead.endIndex...]) : Substring(marked)
         while let match = rest.firstMatch(of: />>>(.*?)<<</) {
@@ -70,11 +72,12 @@ struct SearchFocus: Equatable {
 }
 
 nonisolated func flattenedSnippet(_ snippet: String) -> String {
-    let unfenced = snippet.range(of: "```").map { "\(snippet[..<$0.lowerBound])..." } ?? snippet
+    let unfenced = snippet.range(of: "```").map { "\(snippet[..<$0.lowerBound].trimmingCharacters(in: .whitespacesAndNewlines)) ..." } ?? snippet
     return unfenced
         .replacing(/(?m)^[ \t]*(?:#{1,6}|>|[-*+]|\d+\.)[ \t]+/, with: "")
         .replacing(/\[[ xX]\][ \t]*/, with: "")
-        .replacing(/\*\*|__|`/, with: "")
+        .replacing(/\*\*|`/, with: "")
+        .replacing(/\s*\n\s*/, with: " · ")
         .replacing(/\s+/, with: " ")
         .replacing("...", with: "…")
         .trimmingCharacters(in: .whitespaces)
@@ -126,6 +129,7 @@ final class MessageSearch {
     private(set) var phase = Phase.idle
     private(set) var failed = 0
     private(set) var searched = 0
+    private var completed: [String]?
     private let fixture: [MessageHit]?
 
     init(fixture: [MessageHit]? = nil) {
@@ -138,10 +142,11 @@ final class MessageSearch {
 
     func run(_ query: String, in bots: [Bot], on server: URL?, with urlSession: URLSession) async {
         let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        hits = []
-        failed = 0
-        searched = 0
+        let targets = bots.filter { $0.meta.hidden != true }
+        let key = [query, server?.absoluteString ?? ""] + targets.map(\.id)
+        guard key != completed || phase != .done else { return }
         guard Self.isSearchable(query) else {
+            hits = []
             phase = .idle
             return
         }
@@ -151,6 +156,7 @@ final class MessageSearch {
             return
         }
         guard let server else {
+            hits = []
             phase = .offline
             return
         }
@@ -160,8 +166,8 @@ final class MessageSearch {
         } catch {
             return
         }
-        let targets = bots.filter { $0.meta.hidden != true }
-        searched = targets.count
+        var fresh: [MessageHit]?
+        var failures = 0
         await withTaskGroup(of: [MessageHit]?.self) { group in
             var pending = targets.makeIterator()
             for _ in 0..<4 {
@@ -174,13 +180,18 @@ final class MessageSearch {
                     group.addTask { try? await searchMessages(of: bot, matching: query, on: server, with: urlSession) }
                 }
                 guard let found else {
-                    failed += 1
+                    failures += 1
                     continue
                 }
-                hits = (hits + found).sorted { $0.conversationDate > $1.conversationDate }
+                fresh = ((fresh ?? []) + found).sorted { $0.conversationDate > $1.conversationDate }
+                hits = fresh ?? []
             }
         }
         guard !Task.isCancelled else { return }
+        hits = fresh ?? []
+        failed = failures
+        searched = targets.count
+        completed = key
         phase = .done
     }
 }

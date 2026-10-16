@@ -52,8 +52,8 @@ private nonisolated struct HistoryPage: Decodable {
         #expect(!fenced.contains("\n"))
         #expect(fenced.hasSuffix("before leaving. …"))
         let checklist = flattenedSnippet(found[2].snippet)
-        #expect(checklist.hasPrefix("…Menstrual supplies, if needed Insect repellent"))
-        #expect(checklist.contains("Before Leaving Check >>>weather<<<, trail conditions"))
+        #expect(checklist.hasPrefix("…Menstrual supplies, if needed · Insect repellent"))
+        #expect(checklist.contains("Before Leaving · Check >>>weather<<<, trail conditions"))
         #expect(!checklist.contains("[ ]"))
         #expect(!checklist.contains("###"))
         #expect(emphasised(found[2].highlighted("weather")) == ["weather"])
@@ -74,6 +74,8 @@ private nonisolated struct HistoryPage: Decodable {
         #expect(MessageHit(bot: crewTest, match: match("[System: The active model is >>>boat<<<", role: "user")) == nil)
         #expect(MessageHit(bot: crewTest, match: match("<a2ui-action>{\"name\": \">>>boat<<<\"}</a2ui-action>", role: "user")) == nil)
         #expect(MessageHit(bot: crewTest, match: match("{\"ok\": true, \">>>boat<<<\": 1}", role: "tool")) == nil)
+        #expect(MessageHit(bot: crewTest, match: match("...No session found matching 'Bot >>>Chat<<<' and a new titled session could not be created.\n]", role: "user", title: "Bot Chat")) == nil)
+        #expect(MessageHit(bot: crewTest, match: match("...[System: The active model is >>>boat<<<", role: "user")) == nil)
     }
 
     @Test func agentMessagesNameTheirSender() throws {
@@ -91,6 +93,9 @@ private nonisolated struct HistoryPage: Decodable {
     @Test func markerlessSnippetsHighlightTheQueryWords() throws {
         let hit = try #require(MessageHit(bot: crewTest, match: match("Book the Boat early; tours thin out", role: "assistant")))
         #expect(emphasised(hit.highlighted("boat tours")) == ["Boat", "tours"])
+        #expect(emphasised(hit.highlighted("b bo")) == ["B", "B"])
+        #expect(String(hit.highlighted("(boat").characters).hasSuffix("tours thin out"))
+        #expect(flattenedSnippet("call __init__ on **it**") == "call __init__ on it")
     }
 
     @Test func recordedToolSnippetFindsTheTurnWhoseAnswerItQuotes() throws {

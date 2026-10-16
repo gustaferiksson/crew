@@ -551,7 +551,7 @@ final class BotStore {
                 previewPositions[bot.id] = nil
                 continue
             }
-            previews[bot.id] = Transcript(history: rows).preview ?? ""
+            previews[bot.id] = Transcript(history: Array(rows.sorted { $0.id < $1.id }.drop { $0.role != "user" })).preview ?? ""
         }
     }
 

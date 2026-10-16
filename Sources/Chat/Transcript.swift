@@ -169,7 +169,7 @@ extension Transcript {
                 return origin.agentMessage != nil
             }
         }
-        return false
+        return !turns.contains { $0.agentMessage == nil && $0.prompt != nil }
     }
 
     init(history rows: [HistoryRow]) {

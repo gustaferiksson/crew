@@ -79,10 +79,30 @@ private func transcript(_ json: String) throws -> Transcript {
     #expect(Prompt(raw: "@test-bot hi" + note, sentAt: .now).text == "@test-bot hi")
 }
 
-@Test func deliveryWithoutLoadedOriginKeepsTheReply() throws {
+@Test func deliveryWithoutLoadedOriginShowsOnlyBesideAUserTurn() throws {
     let rows = try JSONSerialization.jsonObject(with: Data(senderRows.utf8)) as? [[String: Any]] ?? []
-    let tail = try JSONSerialization.data(withJSONObject: Array(rows.suffix(2)))
-    let visible = try transcript(String(decoding: tail, as: UTF8.self)).visible
-    #expect(visible.turns.map(\.id) == ["322"])
-    #expect(visible.turns[0].prompt == nil)
+    let user: [String: Any] = ["id": 300, "role": "user", "content": "Plan the trip", "timestamp": 1792127200.0]
+    let alone = try JSONSerialization.data(withJSONObject: Array(rows.suffix(2)))
+    let beside = try JSONSerialization.data(withJSONObject: [user] + rows.suffix(2))
+    #expect(try transcript(String(decoding: alone, as: UTF8.self)).visible.turns.isEmpty)
+    let visible = try transcript(String(decoding: beside, as: UTF8.self)).visible
+    #expect(visible.turns.map(\.id) == ["300", "322"])
+    #expect(visible.turns[1].prompt == nil)
+}
+
+@Test func targetWindowCutAtADeliveryHasNoPreview() throws {
+    let rows = #"""
+    [
+     {"id": 9, "role": "user", "content": "[IMPORTANT: Background process proc_747c697fd2e6 completed normally (exit code 0).\nCommand: /opt/hermes/.venv/bin/python /opt/hermes/tools/bot_mode_dm.py --run-delivery --author '{\"id\":\"bot:test-bot\",\"name\":\"test-bot\",\"is_bot\":true}' query-file /opt/data/profiles/test-bot/cache/scratch/hermes-dm-10000/dm-64as2zv6.txt --profile-home /opt/data/profiles/crew-test /opt/hermes/.venv/bin/hermes -p crew-test chat --in '~' -c 'Bot Chat' --create-if-missing -Q\nOutput:\n{\"reply\": \"@test-bot replied: \\u201cHello again! \\ud83d\\udc4b\\u201d\", \"status\": \"settled\", \"delivery_id\": \"27a55319beabddaa4793da7d10dc769533227db9af9ca5ae10e902033595032c\"}\n]", "timestamp": 1792127287.7407491, "display_kind": null},
+     {"id": 10, "role": "assistant", "content": "Crew Test confirmed receipt of my greeting.", "timestamp": 1792127292.1401896, "display_kind": null},
+     {"id": 11, "role": "user", "content": "Message from 🤖 Crew Test (@crew-test): The user is saying hello to you again; please return a brief greeting.", "timestamp": 1792128776.9626284, "display_kind": null},
+     {"id": 12, "role": "assistant", "content": "", "timestamp": 1792128780.5112712, "display_kind": null, "tool_calls": [{"id": "call_4abd74874a61445388e0d82da3dd3da7", "function": {"name": "message_agent", "arguments": "{\"target\":\"crew-test\",\"message\":\"Hello again! 👋\"}"}}]},
+     {"id": 13, "role": "tool", "content": "{\"status\": \"queued\", \"delivery_id\": \"e4d07c453a585a82bec61d0e320bfecc6435751d440aa063697523b3570402a1\", \"to\": \"@crew-test\", \"detail\": \"Durably queued for the live Bot Chat owner. Do NOT wait or resend; finish your turn.\", \"process_id\": \"proc_cacfa982ae01\", \"reply_delivery\": \"notification\"}", "timestamp": 1792128780.7004855, "display_kind": null, "tool_call_id": "call_4abd74874a61445388e0d82da3dd3da7"},
+     {"id": 14, "role": "assistant", "content": "Hello again! 👋", "timestamp": 1792128782.3444617, "display_kind": null},
+     {"id": 15, "role": "user", "content": "[IMPORTANT: Background process proc_cacfa982ae01 completed normally (exit code 0).\nCommand: /opt/hermes/.venv/bin/python /opt/hermes/tools/bot_mode_dm.py --run-delivery --author '{\"id\":\"bot:test-bot\",\"name\":\"test-bot\",\"is_bot\":true}' query-file /opt/data/profiles/test-bot/cache/scratch/hermes-dm-10000/dm-n_780749.txt --profile-home /opt/data/profiles/crew-test /opt/hermes/.venv/bin/hermes -p crew-test chat --in '~' -c 'Bot Chat' --create-if-missing -Q\nOutput:\n{\"reply\": \"@test-bot: Hello again! \\ud83d\\udc4b\", \"status\": \"settled\", \"delivery_id\": \"e4d07c453a585a82bec61d0e320bfecc6435751d440aa063697523b3570402a1\"}\n]", "timestamp": 1792128787.4068782, "display_kind": null},
+     {"id": 16, "role": "assistant", "content": "Crew Test received my greeting.", "timestamp": 1792128789.9351559, "display_kind": null}
+    ]
+    """#
+    #expect(try transcript(rows).visible.turns.isEmpty)
+    #expect(try transcript(rows).preview == nil)
 }

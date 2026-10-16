@@ -195,7 +195,7 @@ enum ChatFixture {
     private func handoff(_ start: Date) -> Turn {
         Turn(
             id: "t7",
-            prompt: Prompt(text: "Can you ask @scout to find flights for the Lofoten trip in March? Two adults, flexible dates, and @hermes, please add the booking to my calendar.", sentAt: start),
+            prompt: Prompt(text: "Can you ask @scout to find flights for the Lofoten trip in March? Two adults, flexible dates, and @ada, please add the booking to my calendar.", sentAt: start),
             work: [WorkItem(id: "t7-w0", kind: .tool(ToolCall(name: "message_agent", subject: "scout", arguments: #"{"target": "scout"}"#, status: .success)), startedAt: start.addingTimeInterval(2), duration: 1)],
             reply: "Asked Scout to look for flights to Lofoten. The results will show up in Scout's chat.",
             status: .complete,

@@ -39,20 +39,120 @@ func mentionSegments(in text: String, among bots: [Bot]) -> [MentionSegment] {
     return segments
 }
 
-struct MentionTag: TextAttribute {}
+struct MentionTag: TextAttribute {
+    let index: Int
+}
+
+func mentionTagFrames(in layout: Text.Layout) -> [(index: Int, rect: CGRect)] {
+    layout.flatMap { line in
+        line.reduce(into: [(index: Int, rect: CGRect)]()) { frames, run in
+            guard let index = run[MentionTag.self]?.index else { return }
+            guard frames.last?.index == index else { return frames.append((index, run.typographicBounds.rect)) }
+            frames[frames.count - 1].rect = frames[frames.count - 1].rect.union(run.typographicBounds.rect)
+        }
+    }
+}
 
 struct MentionTagRenderer: TextRenderer {
-    let fill: Color
-
-    var displayPadding: EdgeInsets { EdgeInsets(top: 0, leading: 2, bottom: 0, trailing: 2) }
-
     func draw(layout: Text.Layout, in context: inout GraphicsContext) {
-        for run in layout.flatMap({ $0 }) where run[MentionTag.self] != nil {
-            context.fill(Capsule().path(in: run.typographicBounds.rect.insetBy(dx: -2, dy: 0)), with: .color(fill))
+        for frame in mentionTagFrames(in: layout) {
+            let capsule = Capsule().path(in: frame.rect)
+            let sheen = Gradient(colors: [.white.opacity(0.32), .white.opacity(0.16)])
+            context.fill(capsule, with: .linearGradient(sheen, startPoint: CGPoint(x: frame.rect.midX, y: frame.rect.minY), endPoint: CGPoint(x: frame.rect.midX, y: frame.rect.maxY)))
+            context.stroke(Capsule().path(in: frame.rect.insetBy(dx: 0.5, dy: 0.5)), with: .color(.white.opacity(0.4)), lineWidth: 1)
         }
         for line in layout {
             context.draw(line)
         }
+    }
+}
+
+@MainActor private var renderedMentionAvatars: [MentionAvatarKey: Image] = [:]
+
+private struct MentionAvatarKey: Hashable {
+    let name: String
+    let meta: BotMeta
+    let hasPhoto: Bool
+    let scheme: ColorScheme
+    let size: CGFloat
+    let scale: CGFloat
+}
+
+@MainActor func mentionAvatar(for bot: Bot, photo: Image?, size: CGFloat, scheme: ColorScheme, scale: CGFloat) -> Image? {
+    let key = MentionAvatarKey(name: bot.name, meta: bot.meta, hasPhoto: photo != nil, scheme: scheme, size: size, scale: scale)
+    if let cached = renderedMentionAvatars[key] { return cached }
+    let renderer = ImageRenderer(content: BotAvatar(bot: bot, status: .idle, photo: photo, size: size).environment(\.colorScheme, scheme))
+    renderer.scale = scale
+    guard let image = renderer.cgImage.map({ Image(decorative: $0, scale: scale) }) else { return nil }
+    renderedMentionAvatars[key] = image
+    return image
+}
+
+struct MentionCard: View {
+    let bot: Bot
+    let openBot: ((Bot.ID) -> Void)?
+
+    @Environment(BotStore.self) private var roster
+    @Environment(\.dismiss) private var dismiss
+    @State private var height: CGFloat = 280
+
+    private var status: BotStatus { roster.statuses[bot.id] ?? .idle }
+
+    private var about: String? {
+        [bot.meta.description, bot.description].compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }.first { !$0.isEmpty }
+    }
+
+    var body: some View {
+        VStack(spacing: 16) {
+            BotAvatar(bot: bot, status: status, photo: roster.photos[bot.id], size: 64)
+            VStack(spacing: 4) {
+                Text(bot.title)
+                    .font(.title3.bold())
+                    .lineLimit(2)
+                Text(verbatim: "@\(bot.handle)")
+                    .foregroundStyle(.secondary)
+                if case .waiting(let kind) = status {
+                    Text(kind == .approval ? "Needs approval" : "Waiting for you")
+                        .font(.subheadline)
+                        .foregroundStyle(.orange)
+                } else if status == .working {
+                    Text("Working")
+                        .font(.subheadline)
+                        .foregroundStyle(.green)
+                } else if status == .failed {
+                    Text("Failed")
+                        .font(.subheadline)
+                        .foregroundStyle(.red)
+                }
+            }
+            if let about {
+                Text(about)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(4)
+            }
+            if let openBot {
+                Button("Open Chat", systemImage: "bubble.left.and.bubble.right") {
+                    dismiss()
+                    openBot(bot.id)
+                }
+                .buttonStyle(.glassProminent)
+                .controlSize(.large)
+            }
+        }
+        .padding(24)
+        .foregroundStyle(Color.primary)
+        #if os(macOS)
+        .frame(width: 280)
+        #else
+        .frame(maxWidth: .infinity)
+        #endif
+        .fixedSize(horizontal: false, vertical: true)
+        .onGeometryChange(for: CGFloat.self, of: \.size.height) { height = $0 }
+        .presentationCompactAdaptation(.sheet)
+        .presentationDetents([.height(height)])
+        .presentationDragIndicator(.visible)
     }
 }
 

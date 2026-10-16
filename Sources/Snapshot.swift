@@ -17,6 +17,7 @@ enum Snapshot: String {
     case chatAttachments = "chat-attachments"
     case chatDictation = "chat-dictation"
     case chatMentions = "chat-mentions"
+    case chatMentionCard = "chat-mention-card"
     case chatA2UI = "chat-a2ui"
     case chatA2UICards = "chat-a2ui-cards"
     case chatA2UIForm = "chat-a2ui-form"
@@ -40,7 +41,7 @@ enum Snapshot: String {
     static let requested = UserDefaults.standard.string(forKey: "snapshot").flatMap(Snapshot.init(rawValue:))
 
     var chatFixture: ChatFixture? {
-        [.chat: .conversation, .chatHistory: .history, .chatTimestamps: .timestamps, .chatWorkLog: .workLog, .chatQuestion: .question, .chatOffline: .offline, .chatAttachments: .attachments, .chatDictation: .dictation, .chatMentions: .mentions, .chatA2UI: .a2ui, .chatA2UICards: .a2uiCards, .chatA2UIForm: .a2uiForm, .chatA2UITable: .a2uiTable, .chatA2UIChart: .a2uiChart, .chatA2UIMap: .a2uiMap][self]
+        [.chat: .conversation, .chatHistory: .history, .chatTimestamps: .timestamps, .chatWorkLog: .workLog, .chatQuestion: .question, .chatOffline: .offline, .chatAttachments: .attachments, .chatDictation: .dictation, .chatMentions: .mentions, .chatMentionCard: .mentions, .chatA2UI: .a2ui, .chatA2UICards: .a2uiCards, .chatA2UIForm: .a2uiForm, .chatA2UITable: .a2uiTable, .chatA2UIChart: .a2uiChart, .chatA2UIMap: .a2uiMap][self]
     }
 
     var inspectorTab: InspectorTab? {
@@ -60,7 +61,7 @@ enum Snapshot: String {
     var bots: BotStore {
         let bot = { (name: String, minutesAgo: Double, preview: String, meta: BotMeta) in
             Bot(
-                name: name, displayName: nil, description: nil, model: "claude-opus-4-5", isDefault: name == "default", hasAvatar: name == "scout",
+                name: name, displayName: nil, description: name == "scout" ? "Finds flights, trains and hotels, and keeps an eye on prices." : nil, model: "claude-opus-4-5", isDefault: name == "default", hasAvatar: name == "scout",
                 canonicalSession: CanonicalSession(
                     id: StoredSessionID(rawValue: "s-\(name)"), resolvedID: StoredSessionID(rawValue: "s-\(name)"), preview: preview,
                     lastActive: .now.addingTimeInterval(-minutesAgo * 60), messageCount: 12

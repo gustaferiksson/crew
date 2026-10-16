@@ -3,8 +3,13 @@ import SwiftUI
 struct UserBubble: View {
     let text: String
     let mentionable: [Bot]
-    let openBot: (Bot.ID) -> Void
+    let openBot: ((Bot.ID) -> Void)?
 
+    @Environment(BotStore.self) private var roster
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.displayScale) private var displayScale
+    @ScaledMetric(relativeTo: .body) private var avatarSize: CGFloat = 16
+    @State private var card: Int?
     @State private var isUnfolded = false
     @State private var fullHeight: CGFloat = 0
     @State private var foldThreshold: CGFloat = 0
@@ -25,26 +30,31 @@ struct UserBubble: View {
 
     private var isFoldable: Bool { fullHeight > foldThreshold + 1 }
 
+    private var segments: [MentionSegment] { mentionSegments(in: text, among: mentionable) }
+
     private var content: Text {
-        mentionSegments(in: text, among: mentionable).reduce(Text(verbatim: "")) { result, segment in
-            guard let bot = segment.bot else { return Text("\(result)\(Text(verbatim: segment.text))") }
-            var tag = AttributedString(segment.text)
-            tag.link = URL(string: "crew-bot:\(bot.id)")
-            return Text("\(result)\(Text(tag).fontWeight(.semibold).customAttribute(MentionTag()))")
+        segments.enumerated().reduce(Text(verbatim: "")) { result, item in
+            guard let bot = item.element.bot else { return Text("\(result)\(Text(verbatim: item.element.text))") }
+            let avatar = mentionAvatar(for: bot, photo: roster.photos[bot.id], size: avatarSize, scheme: colorScheme, scale: displayScale)
+                .map { Text("\(Text($0).baselineOffset(-avatarSize / 8))\u{202F}") } ?? Text(verbatim: "")
+            let tag = Text("\u{202F}\(avatar)\(Text(verbatim: item.element.text).fontWeight(.semibold))\u{202F}")
+            return Text("\(result)\(tag.customAttribute(MentionTag(index: item.offset)))")
         }
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             content
-                .textRenderer(MentionTagRenderer(fill: .white.opacity(0.24)))
-                .tint(.white)
-                .environment(\.openURL, OpenURLAction { url in
-                    guard let bot = mentionable.first(where: { url.absoluteString == "crew-bot:\($0.id)" }) else { return .systemAction }
-                    openBot(bot.id)
-                    return .handled
-                })
                 .lineLimit(isFoldable && !isUnfolded ? 6 : nil)
+                .textRenderer(MentionTagRenderer())
+                .overlayPreferenceValue(Text.LayoutKey.self, tagButtons)
+                .accessibilityActions {
+                    ForEach(Array(segments.enumerated()), id: \.offset) { index, segment in
+                        if let bot = segment.bot {
+                            Button("Show \(bot.title)") { card = index }
+                        }
+                    }
+                }
                 .background {
                     content
                         .fixedSize(horizontal: false, vertical: true)
@@ -77,5 +87,44 @@ struct UserBubble: View {
         .modifier(MessageMenu(text: text, shape: shape))
         .containerRelativeFrame(.horizontal, alignment: .trailing) { length, _ in min(length * 0.75, 560) }
         .frame(maxWidth: .infinity, alignment: .trailing)
+        .task {
+            guard Snapshot.requested == .chatMentionCard else { return }
+            card = segments.firstIndex { $0.bot != nil }
+        }
+    }
+
+    private func tagButtons(for layouts: [Text.LayoutKey.AnchoredLayout]) -> some View {
+        GeometryReader { proxy in
+            let frames = layouts.flatMap { layout in
+                mentionTagFrames(in: layout.layout).map { ($0.index, $0.rect.offsetBy(dx: proxy[layout.origin].x, dy: proxy[layout.origin].y)) }
+            }
+            let anchors = Dictionary(frames, uniquingKeysWith: { first, _ in first })
+            ForEach(anchors.keys.sorted(), id: \.self) { index in
+                if let bot = segments[index].bot, let rect = anchors[index] {
+                    tagButton(index: index, bot: bot, rect: rect)
+                }
+            }
+        }
+    }
+
+    private func tagButton(index: Int, bot: Bot, rect: CGRect) -> some View {
+        Button {
+            card = index
+        } label: {
+            Color.clear
+                .contentShape(.capsule)
+        }
+        .buttonStyle(.plain)
+        #if os(iOS)
+        .hoverEffect(.highlight)
+        #else
+        .pointerStyle(.link)
+        #endif
+        .accessibilityHidden(true)
+        .frame(width: rect.width, height: rect.height)
+        .popover(isPresented: Binding(get: { card == index }, set: { if !$0 { card = nil } })) {
+            MentionCard(bot: bot, openBot: openBot)
+        }
+        .position(x: rect.midX, y: rect.midY)
     }
 }

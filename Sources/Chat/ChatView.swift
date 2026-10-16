@@ -28,6 +28,11 @@ private let separatorGap: TimeInterval = 60 * 60
 
 private let bottomID = "bottom"
 
+private struct BottomEdge: Equatable {
+    let distance: CGFloat
+    let inset: CGFloat
+}
+
 private let separatorFormatter = {
     let formatter = DateFormatter()
     formatter.dateStyle = .medium
@@ -137,10 +142,11 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
             #if os(iOS)
             .scrollDismissesKeyboard(.interactively)
             #endif
-            .onScrollGeometryChange(for: CGFloat.self) { geometry in
-                geometry.contentSize.height - geometry.visibleRect.maxY + geometry.contentInsets.bottom
-            } action: { _, distance in
-                isAtBottom = distance < 40
+            .onScrollGeometryChange(for: BottomEdge.self) { geometry in
+                BottomEdge(distance: geometry.contentSize.height - geometry.visibleRect.maxY + geometry.contentInsets.bottom, inset: geometry.contentInsets.bottom)
+            } action: { old, new in
+                isAtBottom = new.distance < 40
+                if new.inset > old.inset, old.distance < 40 { position.scrollTo(edge: .bottom) }
             }
             .simultaneousGesture(
                 DragGesture(minimumDistance: 16, inputKinds: [.directTouch, .indirectTouch])
@@ -262,7 +268,7 @@ struct TurnView: View {
     @Binding var expandedWork: Set<WorkItem.ID>
     @Binding var expandedRuns: Set<String>
     var retry: (String) -> Void = { _ in }
-    var openBot: (Bot.ID) -> Void = { _ in }
+    var openBot: ((Bot.ID) -> Void)?
 
     @Environment(BotStore.self) private var bots
 

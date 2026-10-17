@@ -236,7 +236,11 @@ final class ProfileDraft {
     }
 
     func adopt(_ bot: Bot) {
-        guard bot.name == name, (bot.metaRevision ?? 0) > (revision ?? 0),fields.identity == baseline.identity, photoChange == .unchanged, !isSaving else { return }
+        guard bot.name == name,
+              (bot.metaRevision ?? 0) > (revision ?? 0),
+              fields.identity == baseline.identity,
+              photoChange == .unchanged
+        else { return }
         meta = bot.meta
         revision = bot.metaRevision
         fields.identity = Identity(bot: bot)

@@ -34,6 +34,7 @@ private func encoded(_ meta: BotMeta) throws -> [String: JSONValue] {
 
 @Test func multiLineRoleReadsAsOneLine() throws {
     #expect(try roster(role: .string(" Chief\nof Staff ")).role == "Chief of Staff")
+    #expect(try roster(role: .string("Chief \n\tof  Staff")).role == "Chief of Staff")
 }
 
 @Test func draftPrefillsRoleWithoutBeingDirty() throws {

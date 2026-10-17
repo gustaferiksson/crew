@@ -100,7 +100,7 @@ nonisolated struct Bot: Identifiable, Hashable, Sendable {
     }
 
     var role: String? {
-        let role = (meta.role ?? "").split(whereSeparator: \.isNewline).joined(separator: " ").trimmingCharacters(in: .whitespaces)
+        let role = (meta.role ?? "").split(whereSeparator: \.isWhitespace).joined(separator: " ")
         return role.isEmpty ? nil : role
     }
 }

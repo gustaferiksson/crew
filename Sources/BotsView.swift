@@ -707,6 +707,7 @@ private struct FavouriteTile: View {
     private var statusValue: Text {
         if case .waiting = status { return Text("Waiting") }
         if status == .working { return Text("Working") }
+        if status == .unread { return Text("Unread") }
         return Text(verbatim: "")
     }
 }

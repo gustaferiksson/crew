@@ -36,7 +36,7 @@ Other clients pick a change up on their next `profiles.list` poll (Crew: within 
 - **Draft model:** the role is `ProfileDraft.Identity.role` (prefilled from `Bot.role`), so it rides the identity rules that exist: an identity change sends `hermes-bots`, a reload keeps unsaved identity edits, a conflict reloads the identity. `outgoingMeta` writes `role` only when it differs from the baseline, like the title; whitespace only saves as no role.
 - **Autosave:** the same 0.6 s debounce as the name. `BotInspector`'s `onChange(of: draft.fields)` must count the role as typed text (`typed.identity.role = new.identity.role`), otherwise every keystroke saves at once. Saving…/Saved and failure with Try Again show in the status line under it; the failure label reads "name, role and look".
 - **Conflict:** a stale revision reloads name, role and look, and the notice reads "This bot's name, role or look changed on another device. Crew loaded the latest version, so make those changes again."
-- **Changed elsewhere while the inspector is open:** today the draft only reloads on (re)connect, so a role set by an agent would stay stale in the field and the next rename would hit a conflict. New: when the roster brings a new `hermes-bots` revision for the open bot and the identity has no unsaved edits, the draft adopts the roster's meta, revision and identity (name, role, look) at once. With unsaved edits it keeps them, and the save conflicts as today.
+- **Changed elsewhere while the inspector is open:** today the draft only reloads on (re)connect, so a role set by an agent would stay stale in the field and the next rename would hit a conflict. New: when the roster brings a new `hermes-bots` revision for the open bot and the identity has no unsaved edits, the draft adopts the roster's meta, revision and identity (name, role, shape, colour, expression) at once, also while another section saves. With unsaved edits it keeps them, and the save conflicts as today. A photo changed elsewhere is not refetched here; it shows the next time the inspector loads, as today.
 - **New Bot sheet:** a Role field in the Name section under Display Title (prompt "Role", like the Display Title row; an example prompt read as a value), written in the same single `hermes-bots` write as the title and look; the header preview shows it under the title.
 - After a save the inspector reloads the roster, so the list, tiles and peek follow at once.
 
@@ -67,7 +67,7 @@ Other clients pick a change up on their next `profiles.list` poll (Crew: within 
 - **Save failure:** inline notice with Try Again; the typed role stays in the field.
 - **Dynamic Type:** rows and tiles stay one line per field and truncate; the peek wraps.
 - **Light and dark:** system secondary styles only.
-- **Accessibility:** the row's name line is labelled "Marlow, Chief of Staff" (no "middle dot"); the tile is one element labelled with the name and role, its status ("Working", "Waiting") as the value, so a busy tile still speaks the role; the Role field is labelled "Role".
+- **Accessibility:** the row's name line is labelled "Marlow, Chief of Staff" (no "middle dot"); the tile is one element labelled with the name and role, its status ("Working", "Waiting", "Unread") as the value, so a busy tile still speaks the role; the Role field is labelled "Role".
 
 ## Tests
 

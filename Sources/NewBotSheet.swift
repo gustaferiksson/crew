@@ -47,9 +47,10 @@ struct NewBotSheet: View {
     }
 
     private var look: BotMeta {
-        BotMeta(
+        let role = role.trimmingCharacters(in: .whitespacesAndNewlines)
+        return BotMeta(
             title: resolvedTitle,
-            role: [role.trimmingCharacters(in: .whitespacesAndNewlines)].first { !$0.isEmpty },
+            role: role.isEmpty ? nil : role,
             shape: isCustom ? shape.rawValue : nil,
             color: isCustom ? color : nil,
             custom: isCustom,

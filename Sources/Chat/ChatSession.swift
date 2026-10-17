@@ -45,16 +45,20 @@ final class ChatSession {
     private var epoch: String?
     private var appliedSeq = 0
     private var todoRevision = -1
+    private var syncedPosition: ReadPosition?
+    private var serverPosition: ReadPosition?
+    private var isSyncing = false
 
     init(bot: Bot, gateway: Gateway, urlSession: URLSession) {
         self.profile = bot.name
         self.stored = bot.canonicalSession?.id
+        self.syncedPosition = bot.canonicalSession?.position
         self.gateway = gateway
         self.urlSession = urlSession
     }
 
-    convenience init(fixture bot: Bot, transcript: Transcript, todos: [TodoItem]) {
-        self.init(bot: bot, gateway: Gateway(server: URL(filePath: "/"), urlSession: .shared) { throw CancellationError() }, urlSession: .shared)
+    convenience init(fixture bot: Bot, transcript: Transcript, todos: [TodoItem], urlSession: URLSession = .shared) {
+        self.init(bot: bot, gateway: Gateway(server: URL(filePath: "/"), urlSession: urlSession) { throw CancellationError() }, urlSession: urlSession)
         self.transcript = transcript
         self.todos = todos
     }
@@ -78,6 +82,28 @@ final class ChatSession {
                 if await self.gateway.status == .connected { await self.attach() }
                 for await event in events { await self.handle(event) }
             }
+        }
+    }
+
+    func sync(to position: ReadPosition?) {
+        serverPosition = position
+        guard !isSyncing else { return }
+        isSyncing = true
+        Task {
+            while let position = serverPosition, position != syncedPosition, !isRunning {
+                syncedPosition = position
+                let shown = transcript
+                guard let rows = try? await history(of: StoredSessionID(rawValue: position.session), profile: profile, on: gateway.server, with: urlSession) else {
+                    syncedPosition = nil
+                    break
+                }
+                guard transcript == shown else { continue }
+                var reloaded = Transcript(history: rows)
+                reloaded.adoptIDs(from: shown)
+                reloaded.keepFailures(from: shown)
+                transcript = reloaded
+            }
+            isSyncing = false
         }
     }
 
@@ -326,6 +352,7 @@ final class ChatSession {
             transcript.apply(.messageComplete(text: payload.text ?? "", status: status, error: payload.error ?? payload.failureReason))
             generatingTool = nil
             statusLine = nil
+            sync(to: serverPosition)
             guard !queue.isEmpty else { return }
             return submit(queue.removeFirst())
         }

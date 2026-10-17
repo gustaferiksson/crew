@@ -569,7 +569,7 @@ final class BotStore {
     }
 
     func showPreview(of id: Bot.ID, from rows: [HistoryRow]) {
-        previews[id] = Transcript(history: Array(rows.sorted { $0.id < $1.id }.drop { $0.role != "user" })).preview ?? ""
+        previews[id] = Transcript(history: Array(rows.sorted { $0.id < $1.id }.drop { $0.role != "user" })).preview
     }
 
     private static func photo(from data: Data) -> Image? {

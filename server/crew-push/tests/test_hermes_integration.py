@@ -39,7 +39,7 @@ def test_plugin_loads_in_hermes(tmp_path: Path) -> None:
     assert all(result["has_hook"].values())
     assert any("CrewPush.on_session_end" in name for name in result["own_callbacks"])
     assert result["mounted"] is True
-    assert result["status"]["plugin_version"] == "0.4.3"
+    assert result["status"]["plugin_version"] == "0.4.4"
     assert result["status"]["apns_configured"] is True
     assert result["status"]["http2"] is True
     assert result["register"] == 200
@@ -53,7 +53,8 @@ def test_plugin_loads_in_hermes(tmp_path: Path) -> None:
     assert result["shop"] == {"status": 201, "card": {"label": "Shopping card", "last4": "4242", "problem": None},
                               "hosts": ["www.zalando.se"], "label": "Shopping card •••• 4242 · www.zalando.se",
                               "same_secret": True, "gate": False}
-    assert result["pay"] == {"gate_off": "crew_gate_off", "blocked": "crew_missing_details", "allowed": None,
+    assert result["pay"] == {"gate_off": "crew_gate_off", "blocked": "crew_missing_details",
+                             "no_page": "crew_no_shop_page", "allowed": None,
                              "request_id_matches": True, "state": "approved", "fill": "filled",
                              "crew_payment": "approved", "kinds": ["payment", "payment_resolved"]}
     assert set(result["anonymous"].values()) == {401}

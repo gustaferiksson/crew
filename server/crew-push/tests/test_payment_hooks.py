@@ -28,11 +28,14 @@ CODES = ["crew_gate_off", "crew_not_bot_chat", "crew_one_at_a_time", "crew_after
 @dataclass
 class Hermes:
     items: dict[str, Any] = field(default_factory=lambda: {
-        "vault_3f9a1c2b7d4e": types.SimpleNamespace(kind="payment", label=LABEL, origin=ORIGIN),
-        "vault_login": types.SimpleNamespace(kind="login", label="Zalando", origin=ORIGIN)})
+        "vault_3f9a1c2b7d4e": types.SimpleNamespace(kind="payment", label=LABEL, origin=ORIGIN, allowed_origins=()),
+        "vault_login": types.SimpleNamespace(kind="login", label="Zalando", origin=ORIGIN, allowed_origins=())})
     pending: list[dict[str, Any]] = field(default_factory=list)
-    sessions: dict[str, Any] = field(default_factory=lambda: {"default": {"session_name": "s"}})
-    supervisor: Any = True
+    browser_use: bool = True
+    registry: dict[str, Any] = field(default_factory=lambda: {"default": "browser_exec"})
+    sessions: dict[str, Any] = field(default_factory=dict)
+    attachable: bool = True
+    ensured: list[str] = field(default_factory=list)
     tabs: set[str] = field(default_factory=lambda: {ORIGIN})
     page: str = ORIGIN
     card_fields: Any = True
@@ -48,6 +51,12 @@ class Hermes:
             raise RuntimeError("CDP socket closed")
         assert kind == "payment"
         return origin if origin in self.tabs else None
+
+    def ensure(self, task_id: str) -> Any:
+        self.ensured.append(task_id)
+        if task_id not in self.registry and self.attachable:
+            self.registry[task_id] = "attached"
+        return self.registry.get(task_id)
 
     def open_request(self, command: str = COMMAND, request_id: str = R) -> None:
         self.pending.append({"command": command, "request_id": request_id, "pattern_key": "mcp_elicitation"})
@@ -67,9 +76,12 @@ def hermes(monkeypatch: pytest.MonkeyPatch, hermes_root: Path, bot_chat: dict[st
         "tools.approval_context": types.SimpleNamespace(get_current_session_key=lambda default="default": KEY,
                                                         _get_approval_timeout=lambda: 300),
         "tools.browser_tool": types.SimpleNamespace(_active_sessions=state.sessions, _last_session_key=lambda t: t),
+        "tools.browser_supervisor": types.SimpleNamespace(SUPERVISOR_REGISTRY=types.SimpleNamespace(
+            get=lambda task_id: state.registry.get(task_id))),
+        "tools.browser_use_cli": types.SimpleNamespace(is_browser_use_cli_mode=lambda: state.browser_use),
         "tools.browser_vault_tool": types.SimpleNamespace(
             _TAB_PROBES={"payment": "!!document.querySelector('input[autocomplete^=cc-]')"},
-            _ensure_supervisor=lambda task_id: state.supervisor,
+            _ensure_supervisor=state.ensure,
             _focus_bound_origin=state.focus,
             _current_page_origin=lambda task_id: state.page,
             _eval_js=lambda task_id, expression: {"success": True, "result": state.card_fields}),
@@ -334,21 +346,64 @@ def test_no_shop_card_offers_the_page(push: CrewPush, hermes: Hermes) -> None:
     result = fill(push)
     assert {"error": result["message"]} == fixture("block-no-shop-card.json")
     hermes.card_fields = False
+    assert code(fill(push)) == "crew_no_shop_page"
+    hermes.page = ORIGIN
     body = json.loads(fill(push)["message"])
     assert body["error_type"] == "crew_no_shop_card" and "crew_payment" not in body
     assert ORIGIN in body["error"]
 
 
-def test_no_shop_card_is_skipped_when_the_browser_cannot_be_read(push: CrewPush, hermes: Hermes) -> None:
+def message(directive: dict[str, str] | None) -> str:
+    assert code(directive) == "crew_no_shop_page"
+    return json.loads(directive["message"])["error"]
+
+
+def test_browser_use_without_a_page_blocks_before_any_approval(push: CrewPush, hermes: Hermes) -> None:
+    hermes.registry.clear()
+    text = message(fill(push))
+    assert text == (f"No browser page is open on {ORIGIN}. Open the checkout with browser_exec first "
+                    '(new_tab("<checkout URL>")), then call browser_vault fill again.')
+    assert hermes.ensured == [] and push.claims == {}
+
+
+def test_browser_use_page_on_another_origin_blocks(push: CrewPush, hermes: Hermes) -> None:
     hermes.tabs.clear()
-    hermes.supervisor = None
+    hermes.page, hermes.card_fields = "chrome://new-tab-page", False
+    assert "browser_exec" in message(fill(push))
+    hermes.page = None
+    assert "browser_exec" in message(fill(push))
+    assert push.claims == {}
+
+
+def test_browser_use_page_on_the_shop_is_allowed(push: CrewPush, hermes: Hermes) -> None:
     assert fill(push) is None
-    hermes.supervisor = True
+    assert hermes.ensured == ["default"] and "call_1" in push.claims
+
+
+def test_built_in_browser_reads_the_page_after_navigating(push: CrewPush, hermes: Hermes) -> None:
+    hermes.browser_use = False
+    hermes.registry.clear()
+    text = message(fill(push))
+    assert "browser_navigate first, then call browser_vault fill again" in text and hermes.ensured == []
+    hermes.sessions["default"] = {"session_name": "s"}
+    assert fill(push) is None
+    assert hermes.registry == {"default": "attached"}
+
+
+def test_any_bound_origin_counts(push: CrewPush, hermes: Hermes) -> None:
+    hermes.items["vault_3f9a1c2b7d4e"].allowed_origins = (ORIGIN, "https://zalando.se")
+    hermes.tabs = {"https://zalando.se"}
+    assert fill(push) is None
+
+
+def test_an_unreadable_browser_blocks(push: CrewPush, hermes: Hermes) -> None:
     hermes.raise_in = "browser"
-    assert fill(push) is None
+    assert "browser_exec" in message(fill(push))
     hermes.raise_in = ""
-    hermes.sessions.clear()
-    assert fill(push) is None
+    hermes.browser_use, hermes.attachable = False, False
+    hermes.registry.clear()
+    hermes.sessions["default"] = {"session_name": "s"}
+    assert "browser_navigate" in message(fill(push))
 
 
 def test_block_messages_stay_under_hermes_cap(push: CrewPush, hermes: Hermes) -> None:
@@ -509,9 +564,11 @@ def test_list_offers_a_missing_shop(push: CrewPush, hermes: Hermes) -> None:
     assert transform(push, raw, action="list") is None
     hermes.card_fields, hermes.page = True, ORIGIN
     assert transform(push, raw, action="list") is None
-    hermes.sessions.clear()
+    hermes.registry.clear()
     hermes.page = "https://www.zalando.de"
     assert transform(push, raw, action="list") is None
+    hermes.sessions["default"] = {"session_name": "s"}
+    assert transform(push, raw, action="list") == fixture("list-missing-shop.json")
 
 
 def test_request_route_serves_the_bound_entry(push: CrewPush, hermes: Hermes, plugin_api: types.ModuleType,

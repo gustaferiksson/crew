@@ -173,33 +173,54 @@ def is_bot_chat(profile: str, session_id: str) -> bool:
         db.close()
 
 
-def card_page_origin(task_id: str) -> str | None:
+def browser_open(task_id: str) -> bool:
+    from tools.browser_supervisor import SUPERVISOR_REGISTRY
     from tools.browser_tool import _active_sessions, _last_session_key
+
+    return SUPERVISOR_REGISTRY.get(task_id) is not None or bool(_active_sessions.get(_last_session_key(task_id)))
+
+
+def card_page_origin(task_id: str) -> str | None:
     from tools.browser_vault_tool import _TAB_PROBES, _current_page_origin, _eval_js
 
-    if not _active_sessions.get(_last_session_key(task_id)):
+    if not browser_open(task_id):
         return None
     probe = _eval_js(task_id, _TAB_PROBES["payment"])
     return _current_page_origin(task_id) if probe.get("success") and probe.get("result") in (True, "true") else None
 
 
-def shop_tab_block(task_id: str, origin: str) -> dict[str, str] | None:
+def no_page_block(origin: str) -> dict[str, str]:
     try:
-        from tools.browser_tool import _active_sessions, _last_session_key
-        from tools.browser_vault_tool import _ensure_supervisor, _focus_bound_origin
+        from tools.browser_use_cli import is_browser_use_cli_mode
 
-        if not _active_sessions.get(_last_session_key(task_id)) or _ensure_supervisor(task_id) is None \
-                or _focus_bound_origin(task_id, origin, "payment"):
-            return None
-        page = card_page_origin(task_id)
+        browser_use = is_browser_use_cli_mode()
     except Exception:
-        log.debug("crew-push: could not read the browser for a payment fill", exc_info=True)
-        return None
-    if page:
-        return payments.block("crew_no_shop_card", payments.no_card_for(page), missing_shop=page)
-    return payments.block("crew_no_shop_card", f"No open tab on {origin} shows card fields. Open the shop's "
-                                               "checkout there; if its card fields sit in a payment frame, they "
-                                               "can't be filled, so tell the user.")
+        browser_use = False
+    how = 'browser_exec first (new_tab("<checkout URL>"))' if browser_use else "browser_navigate first"
+    return payments.block("crew_no_shop_page", f"No browser page is open on {origin}. Open the checkout with {how}, "
+                                               "then call browser_vault fill again.")
+
+
+def shop_tab_block(task_id: str, origins: list[str]) -> dict[str, str] | None:
+    try:
+        from tools.browser_vault_tool import _current_page_origin, _ensure_supervisor, _focus_bound_origin
+
+        if not browser_open(task_id) or _ensure_supervisor(task_id) is None:
+            return no_page_block(origins[0])
+        if any(_focus_bound_origin(task_id, origin, "payment") for origin in origins):
+            return None
+        offer = card_page_origin(task_id)
+        page = _current_page_origin(task_id)
+    except Exception:
+        log.warning("crew-push: could not read the browser for a payment fill, blocking it", exc_info=True)
+        return no_page_block(origins[0])
+    if offer and offer not in origins:
+        return payments.block("crew_no_shop_card", payments.no_card_for(offer), missing_shop=offer)
+    if page in origins:
+        return payments.block("crew_no_shop_card", f"No open tab on {page} shows card fields. Open the shop's "
+                                                   "checkout there; if its card fields sit in a payment frame, they "
+                                                   "can't be filled, so tell the user.")
+    return no_page_block(origins[0])
 
 
 def redact(command: str) -> str:
@@ -354,7 +375,7 @@ class CrewPush:
         claim = payments.claim(args)
         if claim is None:
             return payments.block("crew_missing_details")
-        if item.origin and (blocked := shop_tab_block(task_id, item.origin)):
+        if item.origin and (blocked := shop_tab_block(task_id, list(item.allowed_origins) or [item.origin])):
             return blocked
         with self.lock:
             if any(key != tool_call_id and other["session_id"] == session_id and "request_id" not in other

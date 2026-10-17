@@ -105,10 +105,11 @@ final class PaymentUITests: XCTestCase {
         XCTAssertFalse(add.isEnabled)
 
         number.tap()
-        number.typeText("4242424242424241")
+        "4242424242424241".forEach { number.typeText(String($0)) }
         expiry.tap()
         XCTAssertTrue(app.staticTexts["Check the card number."].waitForExistence(timeout: 5))
-        expiry.typeText("0825")
+        "0825".forEach { expiry.typeText(String($0)) }
+        XCTAssertEqual(expiry.value as? String, "08/25")
         code.tap()
         XCTAssertTrue(app.staticTexts["This card has expired."].waitForExistence(timeout: 5))
         code.typeText("123")
@@ -122,11 +123,11 @@ final class PaymentUITests: XCTestCase {
         XCTAssertNotEqual(number.value as? String, "4242 4242 4242 4241")
         XCTAssertFalse(app.staticTexts["Check the card number."].exists)
         number.tap()
-        number.typeText("4242424242424242")
+        "4242424242424242".forEach { number.typeText(String($0)) }
         XCTAssertEqual(number.value as? String, "4242 4242 4242 4242")
         let expiryFocused = XCTNSPredicateExpectation(predicate: NSPredicate(format: "hasKeyboardFocus == true"), object: expiry)
         XCTAssertEqual(XCTWaiter().wait(for: [expiryFocused], timeout: 5), .completed)
-        expiry.typeText("1230")
+        "1230".forEach { expiry.typeText(String($0)) }
         XCTAssertEqual(expiry.value as? String, "12/30")
         let focused = XCTNSPredicateExpectation(predicate: NSPredicate(format: "hasKeyboardFocus == true"), object: code)
         XCTAssertEqual(XCTWaiter().wait(for: [focused], timeout: 5), .completed)

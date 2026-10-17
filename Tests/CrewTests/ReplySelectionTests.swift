@@ -1,4 +1,5 @@
 import AppKit
+import CoreText
 import Foundation
 import SwiftUI
 import Testing
@@ -110,6 +111,23 @@ struct ReplySelectionTests {
             let markerEnd = layout.boundingRect(forGlyphRange: layout.glyphRange(forCharacterRange: marker, actualCharacterRange: nil), in: container).maxX
             let stepStart = layout.boundingRect(forGlyphRange: layout.glyphRange(forCharacterRange: step, actualCharacterRange: nil), in: container).minX
             #expect(stepStart - markerEnd >= 7.5, "\(number). ends at \(markerEnd), text starts at \(stepStart)")
+        }
+    }
+
+    @Test func codeKeepsAsciiHyphensOnScreenAndWhenCopied() throws {
+        let view = try textView("Still on `macos-15`:\n\n```sh\nxcodebuild -scheme Crew --flag value -- -x\n```")
+        view.selectAll(nil)
+        let plain = try copied(from: view).plain
+        #expect(Array(plain.utf8) == Array("Still on macos-15:\nxcodebuild -scheme Crew --flag value -- -x".utf8))
+        let storage = try #require(view.textStorage)
+        let layout = try #require(view.layoutManager)
+        for needle in ["macos-15", "--flag", "-- -x"] {
+            let range = (storage.string as NSString).range(of: needle)
+            let font = try #require(storage.attribute(.font, at: range.location, effectiveRange: nil) as? NSFont)
+            let glyphs = layout.glyphRange(forCharacterRange: range, actualCharacterRange: nil)
+            let names = (glyphs.location..<NSMaxRange(glyphs)).compactMap { CTFontCopyNameForGlyph(font, layout.cgGlyph(at: $0)) as String? }
+            #expect(names.filter { $0.contains("dash") }.isEmpty, "\(needle): \(names)")
+            #expect(names.filter { $0 == "hyphen" }.count == needle.filter { $0 == "-" }.count, "\(needle): \(names)")
         }
     }
 

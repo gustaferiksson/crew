@@ -3,7 +3,7 @@ import SwiftUI
 import SafariServices
 #endif
 
-nonisolated enum LinkDestination: Equatable {
+nonisolated enum LinkDestination {
     case inApp
     case system
 
@@ -30,16 +30,16 @@ extension OpenURLAction {
     }
 
     private static func presentSafari(with url: URL) {
-        let window = UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .first { $0.activationState == .foregroundActive }?
-            .keyWindow
-        guard let root = window?.rootViewController else { return UIApplication.shared.open(url) }
+        let root = UIApplication.shared.connectedScenes
+            .compactMap { ($0 as? UIWindowScene)?.keyWindow }
+            .first { $0.isKeyWindow }?
+            .rootViewController
+        guard let root else { return UIApplication.shared.open(url) }
+        guard let top = Array(sequence(first: root, next: \.presentedViewController)).last, !(top is SFSafariViewController) else { return }
         let configuration = SFSafariViewController.Configuration()
         configuration.entersReaderIfAvailable = false
         let safari = SFSafariViewController(url: url, configuration: configuration)
         safari.modalPresentationStyle = .pageSheet
-        guard let top = sequence(first: root, next: \.presentedViewController).reversed().first, !(top is SFSafariViewController) else { return }
         top.present(safari, animated: true)
     }
 }

@@ -8,6 +8,7 @@ import Testing
     "https://archive-api.open-meteo.com/v1/archive?latitude=59.3293",
     "https://gustaferiksson.github.io/other",
     "https://gustaferiksson.github.io/crew/checkout-test.html",
+    "https://gustaferiksson.github.io/crew/manifest.plist",
 ])
 func webLinksOpenInApp(_ link: String) throws {
     #expect(LinkDestination(try #require(URL(string: link))) == .inApp)

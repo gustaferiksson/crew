@@ -11,7 +11,7 @@ On iPhone and iPad a web link tapped anywhere in Crew opens in Safari's in-app b
   - Anything else (`mailto:`, `tel:`, `sms:`, `itms-services:`, `crew-mention:`, other app schemes, host-less URLs): system, unchanged from today (`.systemAction`).
 - In-app links first try `UIApplication.open` with `universalLinksOnly`: a link an installed app claims (GitHub, YouTube, Maps) opens in that app, as tapping it in Safari would. Only when no app claims it does the card appear. The check is local and takes no visible time.
 - The card is presented by UIKit from the topmost presented controller of the foreground key window, so it stacks over a sheet (inspector on iPhone, a search result, another conversation, an expanded mention chat) instead of failing to present. If the topmost controller already is a Safari card (a double tap), the second tap is ignored.
-- Presentation is `.pageSheet`, the card the user asked for: content dimmed behind it, Close (Done on older iOS) or a swipe down closes it, full screen in compact height (iPhone landscape), a large centred card on iPad. Trade-off accepted: a pull down at the very top of a page can close the card instead of scrolling. Configuration is the default `SFSafariViewController.Configuration` with `entersReaderIfAvailable` explicitly false; Reader stays one tap away in Safari's own toolbar.
+- Presentation is `.pageSheet`, the card the user asked for: content dimmed behind it, Close or a swipe down closes it, full screen in compact height (iPhone landscape), a large centred card on iPad. Trade-off accepted: a pull down at the very top of a page can close the card instead of scrolling. Configuration is the default `SFSafariViewController.Configuration` with `entersReaderIfAvailable` explicitly false; Reader stays one tap away in Safari's own toolbar.
 - No `UIApplication.open`/`openURL` call elsewhere needs changing: nothing in Crew opens web URLs directly today.
 
 ## Surfaces
@@ -37,10 +37,12 @@ On iPhone and iPad a web link tapped anywhere in Crew opens in Safari's in-app b
 - **Background while open**: the card stays presented when the app returns.
 - **VoiceOver**: links are in the Links rotor as today; activating one presents the card, which takes focus; Close returns to the chat.
 - **Light and dark**: Safari's chrome follows the system. Crew's Dynamic Type does not apply inside the page (Safari's own text size does).
-- **iPad with two Crew windows**: the card opens in the foreground-active scene's key window, which is the tapped one in practice. Known limitation if two Crew scenes are both foreground and the tap lands in the non-key one.
+- **iPad with two Crew windows**: the card opens in the key window, which is the one just tapped.
+- **Push while the card is open**: the card covers the chat like any sheet does today, so the visible-chat rule still treats that bot as on screen and mutes its banners (same as with the inspector or a search result open). Tapping another bot's push selects that chat underneath; Close reveals it. Accepted, consistent with sheets.
+- **Reply arrives while the card is open**: it lands in the chat underneath and shows on Close, as it would under any sheet.
 
 ## Tests
 
 - Unit (`LinkRoutingTests`): http/https in-app (any case, other Pages files), install page, `mailto:`/`tel:`/`sms:`/`itms-services:`/`crew-mention:`/`maps:`/`file:`/host-less to the system.
-- UI (`InAppBrowserUITests`): in `-snapshot layout`, tap the "PR #42" link in the bot reply; the Safari card appears (its Open in Safari button); Close returns to the chat with the reply and composer still there.
+- UI (`InAppBrowserUITests`): in `-snapshot layout`, tap the "PR #42" link in the bot reply; the Safari card appears (its Open in Safari button); Close returns to the chat with the reply and composer still there. Then from search, open the "Ferries around Reine" conversation sheet, tap the same link there, and Close lands back on the sheet.
 - Render: the card over the chat on a private iOS simulator.

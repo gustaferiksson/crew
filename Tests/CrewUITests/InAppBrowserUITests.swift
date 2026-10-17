@@ -24,4 +24,26 @@ final class InAppBrowserUITests: XCTestCase {
         XCTAssertTrue(lastReply.isHittable)
         XCTAssertTrue(app.textFields.firstMatch.isHittable)
     }
+
+    @MainActor func testLinkInAConversationSheetOpensSafariOverTheSheet() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-snapshot", "sidebar-search", "-server", "hermes.example.com", "-username", "gustaf"]
+        app.launch()
+
+        let scoutHit = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "in Ferries around Reine")).firstMatch
+        XCTAssertTrue(scoutHit.waitForExistence(timeout: 10))
+        scoutHit.tap()
+        let sheet = app.navigationBars["Ferries around Reine"]
+        XCTAssertTrue(sheet.waitForExistence(timeout: 5))
+
+        let link = app.links["PR #42"]
+        XCTAssertTrue(link.waitForExistence(timeout: 5))
+        link.tap()
+        let openInSafari = app.buttons["OpenInSafariButton"]
+        XCTAssertTrue(openInSafari.waitForExistence(timeout: 10))
+        app.buttons["Close"].tap()
+
+        XCTAssertTrue(openInSafari.waitForNonExistence(timeout: 5))
+        XCTAssertTrue(sheet.buttons["Done"].isHittable)
+    }
 }

@@ -53,6 +53,9 @@ struct CrewApp: App {
                         await appDelegate.push.announceRead(of: bot, on: connection)
                     }
                 }
+                .onChange(of: bots.bots) {
+                    chats.sync(with: bots.bots)
+                }
                 .onChange(of: bots.statuses) { old, new in
                     appDelegate.push.notifyLocally(from: old, to: new, bots: bots.bots)
                 }

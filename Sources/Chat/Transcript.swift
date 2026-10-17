@@ -14,6 +14,7 @@ nonisolated struct Turn: Identifiable, Codable, Sendable, Equatable {
     var notice: String?
     var agentMessage: AgentMessage?
     var delivery: String?
+    var deliveryFailed = false
     var hiddenText: String?
     var work: [WorkItem] = []
     var reply = ""
@@ -166,12 +167,12 @@ extension Transcript {
         }
         var shown: [Turn] = []
         var awaited: [(handle: String, origin: Turn.ID)] = []
-        var answered: Set<Turn.ID> = []
+        var answered: [(handle: String, at: Int)] = []
         var exchanges: [Turn.ID: Int] = [:]
-        for turn in turns {
+        for (position, turn) in turns.enumerated() {
             if let message = turn.agentMessage {
                 if let index = awaited.firstIndex(where: { $0.handle == message.handle }) {
-                    answered.insert(awaited.remove(at: index).origin)
+                    answered.append((awaited.remove(at: index).handle, position))
                     var reply = turn
                     reply.prompt = nil
                     reply.agentMessage = nil
@@ -191,11 +192,12 @@ extension Transcript {
                 shown.append(turn)
                 continue
             }
-            let origin = turns.last { origin in
-                origin.work.contains { item in if case .tool(let call) = item.kind { call.name == "message_agent" && call.result?.contains(delivery) == true } else { false } }
+            let originIndex = turns.indices.last { index in
+                turns[index].work.contains { item in if case .tool(let call) = item.kind { call.name == "message_agent" && call.result?.contains(delivery) == true } else { false } }
             }
+            let origin = originIndex.map { turns[$0] }
+            let handle = origin?.work.first { item in if case .tool(let call) = item.kind { call.result?.contains(delivery) == true } else { false } }?.messagedHandle
             awaited.removeAll { $0.origin == origin?.id }
-            if let origin, answered.contains(origin.id) { continue }
             if let origin, let index = exchanges[origin.id] {
                 shown[index].work += log(turn)
                 shown[index].finishedAt = turn.finishedAt
@@ -203,6 +205,8 @@ extension Transcript {
                     shown[index].status = turn.status
                     shown[index].failure = turn.failure
                 }
+            } else if !turn.deliveryFailed, let originIndex, let index = answered.firstIndex(where: { $0.handle == handle && $0.at > originIndex }) {
+                answered.remove(at: index)
             } else if origin.map({ $0.agentMessage == nil }) ?? turns.contains(where: { $0.agentMessage == nil && $0.prompt != nil }) {
                 shown.append(turn)
             }
@@ -230,7 +234,7 @@ extension Transcript {
                 let notice = delivery == nil ? noticeText(kind: row.displayKind, content: text) : nil
                 let prompt = notice == nil && delivery == nil && row.displayKind != "hidden" ? Prompt(raw: text, sentAt: date) : nil
                 let hiddenText = row.displayKind == "hidden" ? row.content ?? text : nil
-                turns.append(Turn(id: String(row.id), prompt: prompt, notice: notice, agentMessage: AgentMessage(text), delivery: delivery, hiddenText: hiddenText, status: .complete, startedAt: date, finishedAt: date))
+                turns.append(Turn(id: String(row.id), prompt: prompt, notice: notice, agentMessage: AgentMessage(text), delivery: delivery, deliveryFailed: delivery != nil && !text.contains("completed normally (exit code 0)"), hiddenText: hiddenText, status: .complete, startedAt: date, finishedAt: date))
                 continue
             }
             if row.role == "assistant" {
@@ -263,6 +267,16 @@ extension Transcript {
         }
     }
 
+    mutating func keepFailures(from old: Transcript) {
+        for index in turns.indices {
+            guard let failed = old.turns.first(where: { $0.id == turns[index].id && $0.status != .complete }) else { continue }
+            turns[index].status = failed.status
+            turns[index].failure = failed.failure
+        }
+        guard let last = old.turns.last, last.status == .error, !turns.contains(where: { $0.id == last.id }) else { return }
+        turns.append(last)
+    }
+
     mutating func begin(prompt text: String, attachments: [Attachment] = [], id: String = UUID().uuidString, at date: Date = .now) {
         turns.append(Turn(id: id, prompt: Prompt(text: text, sentAt: date, attachments: attachments), status: .streaming, startedAt: date))
     }
@@ -272,7 +286,7 @@ extension Transcript {
         let notice = delivery == nil ? noticeText(kind: displayKind, content: user) : nil
         let prompt = Prompt(raw: user, sentAt: date)
         let isShown = notice == nil && delivery == nil && displayKind != "hidden" && (!prompt.text.isEmpty || !prompt.attachments.isEmpty)
-        turns.append(Turn(id: UUID().uuidString, prompt: isShown ? prompt : nil, notice: notice, agentMessage: AgentMessage(user), delivery: delivery, hiddenText: displayKind == "hidden" ? user : nil, status: .streaming, startedAt: date))
+        turns.append(Turn(id: UUID().uuidString, prompt: isShown ? prompt : nil, notice: notice, agentMessage: AgentMessage(user), delivery: delivery, deliveryFailed: delivery != nil && !user.contains("completed normally (exit code 0)"), hiddenText: displayKind == "hidden" ? user : nil, status: .streaming, startedAt: date))
     }
 
     mutating func apply(_ event: TurnEvent, at date: Date = .now) {

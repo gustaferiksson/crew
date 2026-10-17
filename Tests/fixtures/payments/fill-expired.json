@@ -1,7 +1,7 @@
 {
   "success": false,
   "error_type": "payment_declined",
-  "error": "Nobody answered within 5 minutes. Tell the user it expired. Do not retry in this turn; if they ask again in a new message, you may.",
+  "error": "Nobody answered within 5 minutes. Tell the user it expired. Do not retry in this turn. This cancelled only this attempt. \"Never retry payment_declined\" means never retry on your own; if the user later asks you to pay again, call browser_vault fill again and Crew will ask them to approve it.",
   "crew_payment": {
     "request_id": "5f0c3e9a2b7d4c18a6e1f20b9d3c7a54",
     "origin": "https://www.zalando.se",

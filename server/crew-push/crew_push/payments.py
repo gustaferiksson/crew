@@ -21,11 +21,14 @@ PUBLIC_FIELDS = ("request_id", "profile", "session_id", "origin", "host", "card_
 NEXT = "Click the shop's pay button. Never tick save card or remember card."
 NO_FIELDS = ("The card fields weren't found; this checkout probably puts them in a payment frame, which can't be "
              "filled. Tell the user.")
+RETRY_LATER = ("This cancelled only this attempt. \"Never retry payment_declined\" means never retry on your own; "
+               "if the user later asks you to pay again, call browser_vault fill again and Crew will ask them to "
+               "approve it.")
+RETRY_NOTE = ("The user may be asking to retry the declined payment. Retrying is allowed now: call browser_vault fill "
+              "again if that's what they want.")
 DECLINED = {
-    "denied": ("The user denied this payment. Do not retry in this turn; ask what they want instead. If they ask "
-               "you to try again in a new message, you may."),
-    "expired": ("Nobody answered within 5 minutes. Tell the user it expired. Do not retry in this turn; if they ask "
-                "again in a new message, you may."),
+    "denied": "The user denied this payment. Do not retry in this turn; ask what they want instead. " + RETRY_LATER,
+    "expired": "Nobody answered within 5 minutes. Tell the user it expired. Do not retry in this turn. " + RETRY_LATER,
     "cancelled": "The request was cancelled. Stop.",
 }
 BLOCKS = {

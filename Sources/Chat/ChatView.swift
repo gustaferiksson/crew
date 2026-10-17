@@ -319,11 +319,8 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
                 withAnimation(.easeOut(duration: 0.6)) { highlighted = nil }
             }
             .task(id: surfaces.blocks.count) {
-                guard let target = presentation.scrollTarget else { return }
+                guard let target = presentation.scrollTarget else { return isAtBottom && !surfaces.blocks.isEmpty ? proxy.scrollTo(bottomID, anchor: .bottom) : () }
                 position.scrollTo(id: target, anchor: .top)
-            }
-            .onChange(of: surfaces.blocks.count) {
-                if isAtBottom, presentation.scrollTarget == nil { proxy.scrollTo(bottomID, anchor: .bottom) }
             }
         }
     }

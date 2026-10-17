@@ -71,7 +71,14 @@ enum ChatFixture {
         if self == .attachments { return Transcript(turns: [greeting(now.addingTimeInterval(-26 * 3600)), receipt(now.addingTimeInterval(-6 * 60))]) }
         if self == .mentions {
             let reply = Turn(id: "t8", agentMessage: AgentMessage("Message from 🤖 Scout (@scout): Found three options under 2 000 kr: SAS on Friday at 07:10, Norwegian on Saturday at 09:45, and Widerøe via Bodø."), status: .complete, startedAt: now.addingTimeInterval(-4 * 60))
-            return Transcript(turns: [greeting(now.addingTimeInterval(-26 * 3600)), handoff(now.addingTimeInterval(-6 * 60)), reply])
+            let earlier = (0..<UserDefaults.standard.integer(forKey: "mentionTurns")).flatMap { index in
+                let start = now.addingTimeInterval(-26 * 3600 + Double(index) * 60)
+                var ask = handoff(start)
+                ask.id = "p\(index)"
+                ask.work[0].id = "p\(index)-w0"
+                return [ask, Turn(id: "r\(index)", agentMessage: reply.agentMessage, status: .complete, startedAt: start.addingTimeInterval(30))]
+            }
+            return Transcript(turns: [greeting(now.addingTimeInterval(-26 * 3600))] + earlier + [handoff(now.addingTimeInterval(-6 * 60)), reply])
         }
         if self == .agentMessage { return Transcript(turns: [greeting(now.addingTimeInterval(-26 * 3600)), message("m1", "Flights for Saturday are booked.", reply: "Thanks, Scout!", at: now.addingTimeInterval(-40 * 60)), message("m2", "Can you add the Lofoten ferry to the trip notes?", reply: "Added the 08:15 ferry to the trip notes.", at: now.addingTimeInterval(-5 * 60))]).visible }
         return Transcript(turns: turns + [deploy(now.addingTimeInterval(-48))])

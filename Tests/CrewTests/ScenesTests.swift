@@ -18,3 +18,16 @@ import Testing
     scenes.claim(chat)
     #expect(scenes.owner == chat)
 }
+
+@MainActor @Test func aNewWindowTakesOverSoAStaleOwnerNeverBlocksTheAppTasks() {
+    let scenes = Scenes()
+    let vanished = UUID()
+    let next = UUID()
+
+    scenes.claim(vanished)
+    scenes.take(next)
+    #expect(scenes.owner == next)
+
+    scenes.release(vanished)
+    #expect(scenes.owner == next)
+}

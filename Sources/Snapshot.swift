@@ -82,9 +82,6 @@ enum Snapshot: String {
     static let requested = UserDefaults.standard.string(forKey: "snapshot").flatMap(Snapshot.init(rawValue:))
     static let isInteractive = UserDefaults.standard.bool(forKey: "uiTest")
 
-    var isChatWindow: Bool {
-        [.chatWindow, .chatWindowInspector, .chatWindowMissing].contains(self)
-    }
 
     var chatFixture: ChatFixture? {
         [.chat: .conversation, .chatHistory: .history, .chatSelection: .history, .chatTimestamps: .timestamps, .chatWorkLog: .workLog, .chatQuestion: .question, .chatQuestions: .questions, .chatQuestionsSnacks: .questionsSnacks, .chatOffline: .offline, .chatAttachments: .attachments, .chatDictation: .dictation, .chatMentions: .mentions, .composerLine: .composerLine, .composerLines: .composerLines, .composerRunning: .composerRunning, .composerRunningText: .composerRunningText, .chatSteer: .steer, .chatSteerTaken: .steerTaken, .chatWaiting: .waiting, .chatMentionPeek: .mentions, .chatMentionChat: .mentions, .chatAgentMessage: .agentMessage, .chatA2UI: .a2ui, .chatA2UICards: .a2uiCards, .chatA2UIForm: .a2uiForm, .chatA2UITable: .a2uiTable, .chatA2UIChart: .a2uiChart, .chatA2UIMap: .a2uiMap, .chatPayment: .payment, .chatPaymentHolding: .paymentHolding, .chatPaymentApproved: .paymentApproved, .chatPaymentLoading: .paymentLoading, .chatPaymentFailed: .paymentFailed, .chatPaymentUnverified: .paymentUnverified, .chatPaymentPunycode: .paymentPunycode, .chatPaymentCountdown: .paymentCountdown, .chatPaymentNotice: .paymentNotice, .chatPaymentOffer: .paymentOffer, .chatPaymentReceipts: .paymentReceipts][self]
@@ -217,8 +214,8 @@ import AppKit
 extension Snapshot {
     static func signOutAfterChatWindow(_ connection: Connection, _ scenes: Scenes) async {
         guard isInteractive, UserDefaults.standard.bool(forKey: "signOutAfterChatWindow") else { return }
-        while scenes.chatWindows.isEmpty, !Task.isCancelled { try? await Task.sleep(for: .milliseconds(200)) }
-        try? await Task.sleep(for: .seconds(2))
+        while scenes.chatWindows.isEmpty || NSApp.windows.filter(\.isVisible).count > 1, !Task.isCancelled { try? await Task.sleep(for: .milliseconds(200)) }
+        try? await Task.sleep(for: .seconds(1))
         guard !Task.isCancelled else { return }
         connection.endFixtureSession()
     }

@@ -21,6 +21,7 @@ struct BotChatWindow: View {
                 NavigationStack {
                     ChatScreen(bot: bot, models: models, showsBot: $showsBot) { _ in }
                 }
+                .frame(minWidth: 320)
                 .inspector(isPresented: $showsBot) {
                     BotInspector(bot: bot, models: models, isPresented: $showsBot)
                         .inspectorColumnWidth(min: inspectorWidth.min, ideal: inspectorWidth.ideal, max: inspectorWidth.max)
@@ -31,17 +32,17 @@ struct BotChatWindow: View {
                 ContentUnavailableView("No Bot", systemImage: "person.crop.circle.badge.questionmark", description: Text("This bot is no longer on the server."))
             }
         }
-        .task(id: [bot?.id, bot?.model, connection.gateway.map { "\(ObjectIdentifier($0))" }]) {
-            let switcher = ModelSwitcher()
-            models = switcher
+        .task(id: [bot?.model, connection.gateway.map { "\(ObjectIdentifier($0))" }]) {
             guard let bot, let gateway = connection.gateway else { return }
-            await switcher.load(profile: bot.name, via: gateway)
+            await models.load(profile: bot.name, via: gateway)
         }
         .onAppear {
             if let id { scenes.chatWindows.insert(id) }
         }
         .onDisappear {
-            if let id { scenes.chatWindows.remove(id) }
+            guard let id else { return }
+            scenes.chatWindows.remove(id)
+            push.hide(id)
         }
         .onChange(of: appearsActive, initial: true) {
             if appearsActive, let id { push.show(id) }

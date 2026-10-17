@@ -49,12 +49,13 @@ final class ChatWindowUITests: XCTestCase {
         XCTAssertTrue(field.waitForExistence(timeout: 5))
         field.click()
         field.typeText("Move standup to 10")
-        let main = app.windows.containing(NSPredicate(format: "label == %@", atlasPreview)).firstMatch
+        guard let main = app.windows.allElementsBoundByIndex.first(where: { $0.staticTexts[atlasPreview].exists }) else { return XCTFail("no main window") }
         let sharedDraft = NSPredicate(format: "value == %@", "Move standup to 10")
         XCTAssertTrue(
             main.textFields.matching(sharedDraft).firstMatch.waitForExistence(timeout: 5) || main.textViews.matching(sharedDraft).firstMatch.exists,
             "both windows edit the same draft"
         )
+        XCTAssertEqual(window.title, "Atlas", "the window is titled with the bot")
         attach(window, "chat-window-light")
 
         app.staticTexts[ledgerPreview].rightClick()
@@ -63,12 +64,15 @@ final class ChatWindowUITests: XCTestCase {
         open.click()
         expectWindows(3, in: app, "the context menu opens another bot's window")
 
+        app.buttons["Scout, Travel Planner"].doubleClick()
+        expectWindows(4, in: app, "a double-click on a favourite tile opens its window")
+
         app.staticTexts[quillPreview].click()
         app.typeKey("o", modifierFlags: .command)
-        expectWindows(4, in: app, "File > Open in New Window opens the selected bot")
+        expectWindows(5, in: app, "File > Open in New Window opens the selected bot")
 
         app.typeKey("w", modifierFlags: .command)
-        expectWindows(3, in: app, "Cmd-W closes the front chat window")
+        expectWindows(4, in: app, "Cmd-W closes the front chat window")
     }
 
     @MainActor func testChatWindowInDark() {
@@ -83,7 +87,9 @@ final class ChatWindowUITests: XCTestCase {
         let app = launch(["-signOutAfterChatWindow", "YES"])
         app.staticTexts[atlasPreview].doubleClick()
         expectWindows(2, in: app, "a double-click opens the bot's chat in its own window")
-        app.windows.allElementsBoundByIndex.first { $0.staticTexts[atlasPreview].exists }?.buttons[XCUIIdentifierCloseWindow].click()
+        guard let main = app.windows.allElementsBoundByIndex.first(where: { $0.staticTexts[atlasPreview].exists }) else { return XCTFail("no main window") }
+        main.buttons[XCUIIdentifierCloseWindow].click()
+        expectWindows(1, in: app, "closing the main window leaves the chat window open")
 
         XCTAssertTrue(app.buttons["Sign In"].waitForExistence(timeout: 10), "signing out brings back the main window with the sign-in screen")
         expectWindows(1, in: app, "signing out closes every chat window")

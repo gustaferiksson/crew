@@ -497,7 +497,7 @@ extension PendingRequest {
         }
         if request.method == "clarify", let params = try? JSONDecoder().decode(ClarifyParams.self, from: data) {
             self = .question(QuestionRequest(id: request.id, questions: params.questions.map {
-                QuestionRequest.Question(id: $0.qid, text: $0.question, choices: $0.choices ?? [])
+                QuestionRequest.Question(id: $0.qid, text: $0.question, choices: $0.choices ?? [], isMultiSelect: $0.multiSelect ?? false)
             }))
             return
         }
@@ -540,6 +540,12 @@ nonisolated private struct ClarifyParams: Decodable {
         let qid: String
         let question: String
         let choices: [String]?
+        let multiSelect: Bool?
+
+        private enum CodingKeys: String, CodingKey {
+            case qid, question, choices
+            case multiSelect = "multi_select"
+        }
     }
 
     let questions: [Question]

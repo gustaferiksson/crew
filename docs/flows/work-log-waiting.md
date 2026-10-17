@@ -1,27 +1,28 @@
-# Waiting dots in the live work log
+# Compact live work log
 
-After a send, the model often thinks for several seconds before its first tool call or text (12 s on `crew-test`), and Hermes sends nothing visible in that time: `thinking.delta` is only the TUI spinner face, and the model rarely streams `reasoning.delta`. The chat showed a faint "Working for 5s" header with nothing under it, which read as stuck. Now three small dots, like Messages' typing indicator, sit where the next work row will land.
+Two complaints from use: after a send, a faint "Working for 5s" header sat over nothing for 10 s or more, which read as stuck; and the work log was forced open while a turn ran, then snapped shut to "Worked for" when it ended, so the messages jumped. Now the live turn shows one line that never changes height: "Working for 12s ••• ›", which becomes "Worked for 15s ›" in the same place.
 
-## When they show
+## Header
 
-`Turn.updatedAt` is when the live turn last changed on screen (any tool, thinking, note or text event, stamped when Crew applied it, so live and replayed events use the same clock). `Turn.quietSince` is that time (or the turn start when nothing has arrived yet), and nil (no dots) while a tool is running (its row has a spinner), while reply text is showing, or once the turn has ended.
+- Live: "Working for Xs" (digits monospaced so nothing after it jiggles each second), three small dots, then the existing `status.update` text or "Preparing <tool>" in tertiary, then the chevron. On iPhone the Stop button stays at the trailing end.
+- The dots show from the send until reply text starts streaming; a recorded crew-test turn (`chat.think-turn.v0.22.2.jsonl`) shows them for 15.3 s, through a silent 7 s, a tool call and another silent 8 s. Once text streams the reply itself shows progress.
+- The header text no longer pulses; the dots carry the "alive" signal, so two animations never drift side by side.
+- Finished: "Worked for Xs ›", same font and height, so the transition is a text change, not a layout change.
+- Tapping the header expands the full log (thinking, notes, tool rows) both while live and after; the expansion is kept per turn, so a log the user opened during the turn stays open when it ends. Nothing opens or closes on its own.
 
-- No work yet: dots at once, from the send until the first row or text.
-- Between items: dots after 2 s of nothing new (`Turn.quietGap`), so a quick tool batch never flashes them. Recorded timing (`chat.think-turn.v0.22.2.jsonl`): dots 0 to 7.2 s, a 0.1 s tool, nothing for 2 s, dots 9.3 to 15.4 s, then the reply.
-- They leave at once when the next row or text arrives (no fade out, so the new row takes their slot without a jump) and fade in over 0.3 s.
+## Dots
 
-## Look
+- Three 4 pt circles (scaled with Dynamic Type like `.subheadline`), 2 pt apart, `.secondary`, inline after the time, so they sit on the text's line like an ellipsis.
+- A soft wave of opacity (0.3 to 0.8, 1.2 s, at most 30 updates a second). Reduce Motion: the three dots fade together between 1 and 0.6, no wave.
+- Hidden from VoiceOver: the header already reads "Working for Xs".
 
-- Three 8 pt circles (scaled with Dynamic Type like `.subheadline`), half a dot apart, `.secondary`, at the work rows' leading edge, in a row exactly as tall as a tool row (one `.subheadline` line plus 6 pt vertical padding), so the next row takes the slot without a jump. No text, no new chrome.
-- A soft wave of opacity (0.3 to 0.8, 1.2 s, at most 30 updates a second), so the dots stay quieter than text. Reduce Motion: the three dots fade together between 1 and 0.6, the same pulse as the "Working for" header.
-- VoiceOver: one element labelled "Thinking".
-- Light and dark: secondary on the system background, checked in renders.
+## Surfaces and states
 
-## Surfaces
-
-- Bot chats on iPhone and Mac: the last live turn's expanded work log. The header is unchanged: "Working for", then `status.update` text or "Preparing <tool>", and Stop.
-- Group rooms: the room's "working" turn has no items, so the dots show for the whole turn, which is right since rooms get no live items.
-- Turns started by another bot's message: no dots, even when expanded; their pulsing "Message from" header stands in.
-- History, finished, stopped and failed turns: none (not streaming). A reconnect replay rebuilds the turn and stamps the replayed items with the replay time, so the rule applies again from there.
-- Offline: a live turn stays streaming while Crew reconnects (as the "Working for" header does today), so the dots keep going until the reconnect settles the turn.
+- Bot chats on iPhone and Mac, light and dark: the last live turn's header.
+- Approval and question cards, Stop, Steer and Queue are unchanged; a steer still splits the turn (the old turn becomes "Worked for", the steer turn starts its own "Working for"), and the steer's answer still shows as full text under its bubble.
+- Mid-turn commentary (`message.interim`) and thinking rows are now inside the collapsed log while live, one tap away, instead of showing under the header.
+- Turns from another bot keep their pulsing "Message from" header, collapsed as before.
+- Group rooms: the working turn shows the same header with dots.
+- Stopped and failed turns: "Worked for Xs ›" with the "Stopped" or error line under it, as before.
+- Offline: a live turn stays streaming while Crew reconnects (as before), so the header keeps counting until the reconnect settles the turn.
 - Bot list, push and inspector: unchanged.

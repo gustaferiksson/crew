@@ -32,20 +32,6 @@ nonisolated struct Turn: Identifiable, Codable, Sendable, Equatable {
     var pending: Pending?
     var isSteer = false
     var answer: String?
-    var updatedAt: Date?
-
-    static let quietGap: TimeInterval = 2
-
-    var quietSince: Date? {
-        guard status == .streaming, reply.isEmpty, agentMessage == nil else { return nil }
-        if case .tool(let call) = work.last?.kind, call.status == .running { return nil }
-        return updatedAt ?? startedAt
-    }
-
-    func isQuiet(at now: Date) -> Bool {
-        guard let quietSince else { return false }
-        return updatedAt == nil || now >= quietSince.addingTimeInterval(Self.quietGap)
-    }
 }
 
 nonisolated struct Prompt: Codable, Sendable, Equatable {
@@ -360,7 +346,6 @@ extension Transcript {
         let isTool = if case .toolStart = event { true } else if case .toolComplete = event { true } else { false }
         if !isTool { takeSteers(at: date) }
         guard let index = turns.indices.last, turns[index].status == .streaming else { return }
-        turns[index].updatedAt = date
         if case .messageDelta(let text) = event {
             turns[index].reply += text
             return

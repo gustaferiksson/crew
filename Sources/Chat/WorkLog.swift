@@ -71,7 +71,7 @@ struct WorkLog: View {
     @Environment(BotStore.self) private var bots
 
     private var isLive: Bool { turn.status == .streaming }
-    private var isExpanded: Bool { (isLive && turn.agentMessage == nil) || expandedTurns.contains(turn.id) }
+    private var isExpanded: Bool { expandedTurns.contains(turn.id) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -107,18 +107,6 @@ struct WorkLog: View {
                             runToggle("Show fewer tool calls", systemImage: "chevron.up", runID: runID)
                         }
                     }
-                    if isLive {
-                        TimelineView(.explicit(turn.quietSince.map { [$0.addingTimeInterval(Turn.quietGap)] } ?? [])) { context in
-                            let isQuiet = turn.isQuiet(at: context.date)
-                            VStack(spacing: 0) {
-                                if isQuiet {
-                                    WaitingDots()
-                                        .transition(.asymmetric(insertion: .opacity, removal: .identity))
-                                }
-                            }
-                            .animation(.easeOut(duration: 0.3), value: isQuiet)
-                        }
-                    }
                 }
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
@@ -142,17 +130,14 @@ struct WorkLog: View {
                         } animation: { _ in
                             .easeInOut(duration: 1)
                         }
-                    Image(systemName: "chevron.right")
-                        .font(.caption.weight(.semibold))
-                        .rotationEffect(.degrees(isExpanded ? 90 : 0))
                 } else if isLive {
                     TimelineView(.periodic(from: turn.startedAt, by: 1)) { context in
                         Text("Working for \(Duration.seconds(Int(context.date.timeIntervalSince(turn.startedAt))).formatted(elapsedStyle))")
+                            .monospacedDigit()
                     }
-                    .phaseAnimator([1, 0.6]) { content, opacity in
-                        content.opacity(opacity)
-                    } animation: { _ in
-                        .easeInOut(duration: 1)
+                    if turn.reply.isEmpty {
+                        WaitingDots()
+                            .padding(.horizontal, 4)
                     }
                     if let activity {
                         Text(verbatim: "· \(activity)")
@@ -162,10 +147,10 @@ struct WorkLog: View {
                     }
                 } else {
                     Text("Worked for \(Duration.seconds(Int((turn.finishedAt ?? turn.startedAt).timeIntervalSince(turn.startedAt))).formatted(elapsedStyle))")
-                    Image(systemName: "chevron.right")
-                        .font(.caption.weight(.semibold))
-                        .rotationEffect(.degrees(isExpanded ? 90 : 0))
                 }
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .rotationEffect(.degrees(isExpanded ? 90 : 0))
             }
             .font(.subheadline.weight(.medium))
             .foregroundStyle(.secondary)
@@ -173,7 +158,6 @@ struct WorkLog: View {
             .contentShape(.rect)
         }
         .buttonStyle(.plain)
-        .disabled(isLive && turn.agentMessage == nil)
     }
 
     private func runToggle(_ title: String, systemImage: String, runID: String) -> some View {
@@ -194,13 +178,10 @@ struct WorkLog: View {
 
 private struct WaitingDots: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @ScaledMetric(relativeTo: .subheadline) private var size = 8.0
+    @ScaledMetric(relativeTo: .subheadline) private var size = 4.0
 
     var body: some View {
-        ZStack(alignment: .leading) {
-            Text(verbatim: " ")
-                .font(.subheadline)
-                .hidden()
+        Group {
             if reduceMotion {
                 dots(phase: nil)
                     .phaseAnimator([1, 0.6]) { content, opacity in
@@ -214,9 +195,7 @@ private struct WaitingDots: View {
                 }
             }
         }
-        .padding(.vertical, 6)
-        .accessibilityElement()
-        .accessibilityLabel("Thinking")
+        .accessibilityHidden(true)
     }
 
     private func dots(phase: Double?) -> some View {

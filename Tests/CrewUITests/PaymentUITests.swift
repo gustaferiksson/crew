@@ -18,31 +18,28 @@ final class PaymentUITests: XCTestCase {
         return XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: predicate, object: element)], timeout: 10) == .completed
     }
 
-    @MainActor func testCardShowsHostTotalAndClaim() {
+    @MainActor func testCardShowsTheClaimAndOnlyAConfirmedTapPays() {
         let app = launch("chat-payment")
+        let pay = app.buttons["Hold to Pay"]
+        let dialog = app.staticTexts["Pay 499 kr at www.zalando.se?"]
         XCTAssertTrue(app.staticTexts["www.zalando.se"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.staticTexts["499 kr"].exists)
         XCTAssertTrue(app.staticTexts["Hermes states the amount and the shop. The card fills only on www.zalando.se."].exists)
-        XCTAssertTrue(app.buttons["Hold to Pay"].exists)
+        XCTAssertTrue(pay.exists)
         XCTAssertTrue(app.buttons["Deny payment"].exists)
-    }
 
-    @MainActor func testTapAsksForConfirmationAndCancelKeepsTheCard() {
-        let app = launch("chat-payment")
-        let pay = app.buttons["Hold to Pay"]
-        XCTAssertTrue(pay.waitForExistence(timeout: 10))
-        pay.tap()
-        XCTAssertTrue(app.staticTexts["Pay 499 kr at www.zalando.se?"].waitForExistence(timeout: 5))
-        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.2)).tap()
-        XCTAssertTrue(app.staticTexts["Pay 499 kr at www.zalando.se?"].waitForNonExistence(timeout: 5))
+        pay.press(forDuration: 0.6)
+        XCTAssertFalse(dialog.waitForExistence(timeout: 1))
         XCTAssertEqual(log(in: app), "none")
         XCTAssertTrue(pay.exists)
-    }
 
-    @MainActor func testTapThenPayApprovesOnce() {
-        let app = launch("chat-payment")
-        let pay = app.buttons["Hold to Pay"]
-        XCTAssertTrue(pay.waitForExistence(timeout: 10))
+        pay.tap()
+        XCTAssertTrue(dialog.waitForExistence(timeout: 5))
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.2)).tap()
+        XCTAssertTrue(dialog.waitForNonExistence(timeout: 5))
+        XCTAssertEqual(log(in: app), "none")
+        XCTAssertTrue(pay.exists)
+
         pay.tap()
         let confirm = app.buttons["Pay"]
         XCTAssertTrue(confirm.waitForExistence(timeout: 5))
@@ -58,16 +55,6 @@ final class PaymentUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["Pay 499 kr at www.zalando.se?"].exists)
         XCTAssertTrue(waitForLog("approval.respond once", in: app))
         XCTAssertTrue(app.staticTexts["www.zalando.se"].waitForNonExistence(timeout: 15))
-    }
-
-    @MainActor func testShortPressSendsNothing() {
-        let app = launch("chat-payment")
-        let pay = app.buttons["Hold to Pay"]
-        XCTAssertTrue(pay.waitForExistence(timeout: 10))
-        pay.press(forDuration: 0.6)
-        XCTAssertFalse(app.staticTexts["Pay 499 kr at www.zalando.se?"].waitForExistence(timeout: 1))
-        XCTAssertEqual(log(in: app), "none")
-        XCTAssertTrue(pay.exists)
     }
 
     @MainActor func testDenyAnswersAtOnce() {

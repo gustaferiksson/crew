@@ -26,6 +26,5 @@ final class ChatInspectorUITests: XCTestCase {
         let shot = XCTAttachment(screenshot: app.screenshot())
         shot.lifetime = .keepAlways
         add(shot)
-        print(app.debugDescription)
     }
 }

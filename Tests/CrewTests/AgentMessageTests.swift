@@ -48,7 +48,7 @@ func notes(_ turn: Turn) -> [String?] {
     let exchange = transcript.visible.turns.last
     #expect(exchange?.status == .streaming)
     #expect(exchange.map(notes) == ["> Flights found.", "Thanks, Scout."])
-    #expect(transcript.preview == "Message from Scout")
+    #expect(transcript.preview?.text == "Message from Scout")
 }
 
 @Test func replyToOwnMessageStaysHiddenButASecondMessageShows() {

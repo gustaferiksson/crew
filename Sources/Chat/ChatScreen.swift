@@ -25,7 +25,6 @@ struct ChatScreen: View {
 
     private var status: BotStatus {
         if session?.request != nil { return .waiting(nil) }
-        if session?.isRunning == true { return .working }
         return chats.status(of: bot.id, in: bots)
     }
 

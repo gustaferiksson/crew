@@ -200,6 +200,97 @@ if phases.contains("fresh") {
     exit(0)
 }
 
+if phases.contains("cold-open") {
+    let name = "crew-test-\(UUID().uuidString.prefix(6).lowercased())"
+    let folder = URL(fileURLWithPath: #filePath).appending(path: "../../fixtures/scenarios/cold-open").standardized
+    try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+    let pretty = JSONEncoder()
+    pretty.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+    let scrubs = [(server.host() ?? "", "hermes.example.com"), (env["HERMES_USER"] ?? "", "user"), (name, "crew-test-peer")].filter { $0.0.count > 2 }
+    func save(_ file: String, _ value: JSONValue) throws {
+        let text = scrubs.reduce(String(decoding: try pretty.encode(value), as: UTF8.self)) { $0.replacingOccurrences(of: $1.0, with: $1.1) }.replacing(/\/opt\/data\/[^\s"'\\]*/, with: "/opt/hermes/data")
+        try Data((text + "\n").utf8).write(to: folder.appending(path: "\(file).json"))
+        print("RECORDED \(file).json")
+    }
+    func roster() async throws -> (raw: JSONValue, bot: Bot?) {
+        let raw = try await gateway.call("profiles.list", ["include_sessions": true], as: JSONValue.self)
+        guard case .object(let object) = raw, case .array(let profiles) = object["profiles"] else { return (.object(["profiles": .array([])]), nil) }
+        let kept = profiles.filter { if case .object(let profile) = $0, case .string(name) = profile["name"] { true } else { false } }
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .secondsSince1970
+        return (.object(["profiles": .array(kept)]), try decoder.decode([Bot].self, from: encoder.encode(JSONValue.array(kept))).first)
+    }
+    func live(of key: String) async throws -> (raw: JSONValue, statuses: [String]) {
+        let raw = try await gateway.call("session.active_list", [String: String](), as: JSONValue.self)
+        guard case .object(let object) = raw, case .array(let sessions) = object["sessions"] else { return (.object(["sessions": .array([])]), []) }
+        let kept = sessions.filter { if case .object(let session) = $0, case .string(key) = session["session_key"] { true } else { false } }
+        let statuses = kept.compactMap { if case .object(let session) = $0, case .string(let status) = session["status"] { status } else { nil } }
+        return (.object(["sessions": .array(kept)]), statuses)
+    }
+    func rows(of key: String) async throws -> [JSONValue] {
+        let (data, _) = try await urlSession.data(for: historyRequest(of: StoredSessionID(rawValue: key), profile: name, on: server, limit: 500))
+        guard case .object(let page) = try JSONDecoder().decode(JSONValue.self, from: data), case .array(let messages) = page["messages"] else { return [] }
+        let keys: Set = ["id", "role", "content", "tool_call_id", "tool_calls", "timestamp", "display_kind"]
+        return messages.map { row in if case .object(let object) = row { .object(object.filter { keys.contains($0.key) }) } else { row } }
+    }
+
+    let store = BotStore(fixture: [], statuses: [:])
+    Task { await store.run(gateway, urlSession: urlSession) }
+    try await Task.sleep(for: .seconds(3))
+    do {
+        try await store.create(NewProfile(name: name, description: "Crew scenario bot", soul: nil, cloneFrom: nil), via: gateway) { $0.title = "Crew Cold" }
+        let terminal = try await connectedPeer()
+        let minted = try await terminal.call("session.create", ["profile": .string(name), "source": .string("cli")] as [String: JSONValue], as: JSONValue.self)
+        guard case .object(let created) = minted, case .string(let runtime) = created["session_id"], case .string(let key) = created["stored_session_id"] else { throw HermesError.invalidResponse }
+        _ = try await terminal.call("session.title", ["session_id": runtime, "title": "Bot Chat"], as: JSONValue.self)
+        guard let made = try await roster().bot, made.canonicalSession?.id.rawValue == key else { throw HermesError.invalidResponse }
+        let cli = ChatSession(bot: made, gateway: terminal, urlSession: urlSession)
+        let cliRun = Task { await cli.run() }
+        try await Task.sleep(for: .seconds(3))
+        cli.send("Reply with just: earlier", mode: .send)
+        try await waitIdle(cli, timeout: 120)
+        cliRun.cancel()
+        await terminal.disconnect()
+        let earlier = try await rows(of: key).count
+        try await Task.sleep(for: .seconds(30))
+
+        let before = try await roster()
+        try save("profiles.before", before.raw)
+        guard let reaped = before.bot else { throw HermesError.invalidResponse }
+        let crew = ChatSession(bot: reaped, gateway: gateway, urlSession: urlSession)
+        Task { await crew.run() }
+        for _ in 0..<40 where crew.transcript.turns.isEmpty { try await Task.sleep(for: .milliseconds(250)) }
+        crew.send("Hi", mode: .send)
+        let sent = Date.now
+        var timeline: [String] = []
+        var saved: Set<String> = []
+        while Date.now.timeIntervalSince(sent) < 120, crew.isRunning || Date.now.timeIntervalSince(sent) < 2 {
+            let active = try await live(of: key)
+            let status = active.statuses.first ?? "none"
+            if timeline.last?.hasPrefix(status) != true { timeline.append(String(format: "%@ from +%.1fs", status, Date.now.timeIntervalSince(sent))) }
+            if crew.isRunning, ["starting", "working"].contains(status), !saved.contains(status) {
+                saved.insert(status)
+                try save("profiles.\(status)", try await roster().raw)
+                try save("active_list.\(status)", active.raw)
+            }
+            try await Task.sleep(for: .milliseconds(200))
+        }
+        print("COLD-OPEN live status while Crew's chat ran:", timeline.joined(separator: ", "))
+        try await Task.sleep(for: .seconds(3))
+        try save("profiles.after", try await roster().raw)
+        try save("active_list.after", try await live(of: key).raw)
+        let after = try await rows(of: key)
+        try save("crew-test-peer.history", .array(after))
+        print("COLD-OPEN rows before open \(earlier), after Hi \(after.count)")
+    } catch {
+        print("COLD-OPEN FAILED", error)
+    }
+    await store.reload(gateway)
+    if let bot = store.bots.first(where: { $0.name == name }) { try await store.delete(bot, via: gateway, urlSession: urlSession) }
+    print(store.bots.contains { $0.name == name } ? "THROWAWAY NOT DELETED: \(name)" : "throwaway deleted")
+    exit(0)
+}
+
 let bot = try await crewTest()
 print("canonical", bot.canonicalSession?.id.rawValue ?? "nil")
 let chat = try await attached(bot)

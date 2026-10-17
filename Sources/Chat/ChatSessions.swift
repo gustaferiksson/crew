@@ -37,8 +37,14 @@ final class ChatSessions {
 
     func status(of bot: Bot.ID, in store: BotStore) -> BotStatus {
         let status = store.statuses[bot] ?? .idle
-        guard status == .idle || status == .unread, sessions[bot]?.transcript.turns.last?.status == .error else { return status }
-        return .failed
+        guard status == .idle || status == .unread, let session = sessions[bot], let last = session.transcript.turns.last else { return status }
+        if last.status == .streaming, session.failure == nil { return .working }
+        return last.status == .error ? .failed : status
+    }
+
+    func summary(of bot: Bot, in store: BotStore) -> BotSummary {
+        let last = sessions[bot.id]?.transcript.preview ?? store.previews[bot.id]
+        return BotSummary(status: status(of: bot.id, in: store), preview: last?.text ?? bot.canonicalSession?.preview ?? "", time: last?.date ?? bot.canonicalSession?.lastActive)
     }
 
     func reset() {
@@ -47,4 +53,10 @@ final class ChatSessions {
         sessions = [:]
         gateway = nil
     }
+}
+
+struct BotSummary: Equatable {
+    let status: BotStatus
+    let preview: String
+    let time: Date?
 }

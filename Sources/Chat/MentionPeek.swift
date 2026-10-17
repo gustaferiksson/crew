@@ -49,7 +49,8 @@ struct MentionPeek: View {
                         }
                         outcome(exchange.outcome)
                     } else {
-                        section("Recent", date: live.canonicalSession?.lastActive, text: live.canonicalSession?.preview ?? String(localized: "No messages yet"))
+                        let summary = chats.summary(of: live, in: roster)
+                        section("Recent", date: summary.time, text: summary.preview.isEmpty ? String(localized: "No messages yet") : summary.preview)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -95,7 +96,7 @@ struct MentionPeek: View {
         if status == .failed {
             return Text("\(handle) · \(Text("Failed").foregroundStyle(.red))")
         }
-        guard exchange == nil, let date = live.canonicalSession?.lastActive else { return handle }
+        guard exchange == nil, let date = chats.summary(of: live, in: roster).time else { return handle }
         return Text("\(handle) · Active \(date, format: .relative(presentation: .named))")
     }
 

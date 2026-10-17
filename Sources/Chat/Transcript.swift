@@ -5,6 +5,11 @@ nonisolated struct Transcript: Codable, Sendable, Equatable {
     var waiting: [Turn] = []
 }
 
+nonisolated struct LastMessage: Hashable, Sendable {
+    let text: String
+    let date: Date
+}
+
 nonisolated struct Turn: Identifiable, Codable, Sendable, Equatable {
     enum Status: String, Codable, Sendable {
         case streaming, complete, error, interrupted
@@ -223,10 +228,10 @@ extension Transcript {
         return Transcript(turns: shown + waiting)
     }
 
-    var preview: String? {
-        let turn = visible.turns.last { $0.pending == nil && (!$0.reply.isEmpty || $0.prompt?.text.isEmpty == false || $0.agentMessage != nil) }
-        let text = turn.map { $0.agentMessage.map { String(localized: "Message from \($0.sender)") } ?? ($0.reply.isEmpty ? $0.prompt?.text ?? "" : $0.reply) }
-        return text?.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+    var preview: LastMessage? {
+        guard let turn = visible.turns.last(where: { $0.pending == nil && (!$0.reply.isEmpty || $0.prompt?.text.isEmpty == false || $0.agentMessage != nil) }) else { return nil }
+        let text = turn.agentMessage.map { String(localized: "Message from \($0.sender)") } ?? (turn.reply.isEmpty ? turn.prompt?.text ?? "" : turn.reply)
+        return LastMessage(text: text.split(whereSeparator: \.isWhitespace).joined(separator: " "), date: turn.finishedAt ?? turn.prompt?.sentAt ?? turn.startedAt)
     }
 
     init(history rows: [HistoryRow]) {

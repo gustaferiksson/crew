@@ -257,7 +257,7 @@ final class BotStore {
     private(set) var statuses: [Bot.ID: BotStatus]
     private(set) var isLoaded: Bool
     private(set) var photos: [Bot.ID: Image]
-    private(set) var previews: [Bot.ID: String] = [:]
+    private(set) var previews: [Bot.ID: LastMessage] = [:]
     var isForeground = true
 
     private let cacheURL: URL?

@@ -1,0 +1,48 @@
+{
+  "profiles" : [
+    {
+      "canonical_session" : {
+        "id" : "20261017_131844_990e79",
+        "last_active" : 1792243163.4107552,
+        "live_message_count" : 4,
+        "message_count" : 4,
+        "preview" : "Hi! What can I help you with?",
+        "resolved_id" : "20261017_131844_990e79",
+        "root_title" : "Bot Chat",
+        "started_at" : 1792243124.9718833,
+        "title" : "Bot Chat"
+      },
+      "description" : "Crew scenario bot",
+      "display_name" : "",
+      "has_avatar" : false,
+      "is_default" : false,
+      "last_session" : {
+        "id" : "20261017_131844_990e79",
+        "last_active" : 1792243165.67917,
+        "live_message_count" : 4,
+        "message_count" : 4,
+        "preview" : "Hi! What can I help you with?",
+        "started_at" : 1792243124.9718833,
+        "title" : "Bot Chat"
+      },
+      "model" : "gpt-6-astra",
+      "name" : "crew-test-peer",
+      "path" : "/opt/hermes/data",
+      "previous_names" : [
+
+      ],
+      "provider" : "openai-codex",
+      "skill_count" : 58,
+      "ui_meta" : {
+        "hermes-bots" : {
+          "created" : 1792243124574,
+          "title" : "Crew Cold"
+        }
+      },
+      "ui_meta_revisions" : {
+        "hermes-bots" : 1
+      },
+      "worker_session" : null
+    }
+  ]
+}

@@ -61,7 +61,15 @@ enum ChatFixture {
     var transcript: Transcript {
         let now = Date.now
         let turns = [greeting(now.addingTimeInterval(-26 * 3600)), packing(now.addingTimeInterval(-3 * 3600)), notes(now.addingTimeInterval(-2.8 * 3600)), ciFix(now.addingTimeInterval(-25 * 60))]
-        if [.offline, .history, .dictation, .composerLine, .composerLines].contains(self) { return Transcript(turns: turns) }
+        if self == .composerLine {
+            let earlier = (0..<UserDefaults.standard.integer(forKey: "earlierTurns")).map { index in
+                var turn = [packing, notes, ciFix][index % 3](now.addingTimeInterval(-30 * 3600 - Double(index) * 600))
+                turn.id = "e\(index)"
+                return turn
+            }
+            return Transcript(turns: earlier.reversed() + turns)
+        }
+        if [.offline, .history, .dictation, .composerLines].contains(self) { return Transcript(turns: turns) }
         if [.a2ui, .a2uiCards, .a2uiForm, .a2uiTable, .a2uiChart, .a2uiMap].contains(self) { return Transcript(turns: Self.a2uiTurns(now)) }
         if self == .paymentReceipts { return Transcript(turns: Self.receiptTurns(now)) }
         if self == .paymentOffer {
@@ -392,7 +400,13 @@ struct ChatFixtureScreen: View {
     private func send(_ text: String, mode: SendMode) {
         guard transcript.turns.last?.status == .streaming else {
             transcript.begin(prompt: text)
-            transcript.apply(.messageComplete(text: "On it.", status: .complete, error: nil))
+            Task {
+                for delta in ["On", " it", "."] {
+                    try? await Task.sleep(for: .milliseconds(150))
+                    transcript.apply(.messageDelta(delta))
+                }
+                transcript.apply(.messageComplete(text: "On it.", status: .complete, error: nil))
+            }
             return
         }
         transcript.wait(Prompt(text: text, sentAt: .now), as: mode == .queue ? .queued : .steer)

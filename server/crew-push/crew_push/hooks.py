@@ -246,19 +246,29 @@ class CrewPush:
         self.claims = Recent()
 
     @quiet
-    def pre_llm_call(self, *, session_id: str = "", platform: str = "", user_message: Any = "", **_: Any) -> None:
+    def pre_llm_call(self, *, session_id: str = "", platform: str = "", user_message: Any = "",
+                     **_: Any) -> dict[str, str] | None:
         if not session_id:
-            return
+            return None
         text = str(user_message or "").strip()
         delivery = DELIVERY.match(text)
+        user_turn = bool(user_message) and not (isinstance(user_message, str) and text.startswith("[")) \
+            and not AGENT_MESSAGE.match(text) and not delivery
         with self.lock:
             self.agent_turns.remember(session_id, bool(AGENT_MESSAGE.match(text))
                                       or bool(delivery and delivery[1] in self.agent_processes))
-            if user_message and not (isinstance(user_message, str) and text.startswith("[")) \
-                    and not AGENT_MESSAGE.match(text) and not delivery:
+            previous_turn = self.user_turns.get(session_id, 0.0)
+            if user_turn:
                 self.user_turns.remember(session_id, time.time())
             if platform:
                 self.platforms.remember(session_id, platform.lower())
+        if not user_turn:
+            return None
+        entries = [entry for entry in store.read_list("payments.json") if entry.get("session_id") == session_id]
+        if entries and entries[-1].get("state") in ("denied", "expired") \
+                and previous_turn <= (entries[-1].get("decided_at") or 0.0):
+            return {"context": payments.RETRY_NOTE}
+        return None
 
     @quiet
     def post_llm_call(self, *, session_id: str = "", assistant_response: Any = "", **_: Any) -> None:

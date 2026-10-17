@@ -228,6 +228,53 @@ def test_after_decline_only_a_user_turn_clears(push: CrewPush, clock: types.Simp
     assert fill(push) is None
 
 
+@pytest.mark.parametrize(("choice", "state"), [("deny", "denied"), ("timeout", "expired")])
+def test_a_declined_result_says_the_user_may_ask_again(push: CrewPush, hermes: Hermes, choice: str,
+                                                       state: str) -> None:
+    fill(push)
+    ask(push, hermes)
+    answer(push, hermes, choice)
+    error = transform(push, fixture("fill-denied.raw.json"))["error"]
+    assert error == payments.DECLINED[state] and error.endswith(payments.RETRY_LATER)
+    assert "cancelled only this attempt" in error and "call browser_vault fill again" in error
+
+
+@pytest.mark.parametrize("state", ["denied", "expired"])
+def test_the_retry_note_rides_only_the_next_user_turn(push: CrewPush, clock: types.SimpleNamespace,
+                                                      state: str) -> None:
+    push.pre_llm_call(session_id=SESSION, platform="tui", user_message="Buy the winter boots")
+    store.mutate_payments(lambda entries: [{"request_id": "d" * 32, "session_id": SESSION, "state": state,
+                                            "decided_at": NOW + 30}])
+    clock.value = NOW + 60
+    for message in ["Message from 🤖 Atlas (@atlas): buy it", "[System note: the user is away]",
+                    "[IMPORTANT: Background process proc_1a2b exited ... bot_mode_dm.py --run-delivery", ""]:
+        assert push.pre_llm_call(session_id=SESSION, platform="tui", user_message=message) is None
+    assert push.pre_llm_call(session_id=SESSION, platform="tui", user_message="Pay again please") == {
+        "context": payments.RETRY_NOTE}
+    clock.value = NOW + 90
+    assert push.pre_llm_call(session_id=SESSION, platform="tui", user_message="Hello?") is None
+    assert push.pre_llm_call(session_id="other", platform="tui", user_message="Pay again please") is None
+
+
+def test_the_retry_note_is_gone_after_a_fill_attempt(push: CrewPush, hermes: Hermes,
+                                                     clock: types.SimpleNamespace) -> None:
+    push.pre_llm_call(session_id=SESSION, platform="tui", user_message="Buy the winter boots")
+    clock.value = NOW + 1
+    fill(push)
+    ask(push, hermes)
+    clock.value = NOW + 30
+    answer(push, hermes, "deny")
+    transform(push, fixture("fill-denied.raw.json"))
+    clock.value = NOW + 60
+    assert push.pre_llm_call(session_id=SESSION, platform="tui", user_message="Try again") == {
+        "context": payments.RETRY_NOTE}
+    assert fill(push, tool_call_id="call_2") is None
+    ask(push, hermes, tool_call_id="call_2", request_id="e" * 32)
+    assert store.read_list("payments.json")[-1]["state"] == "pending"
+    clock.value = NOW + 90
+    assert push.pre_llm_call(session_id=SESSION, platform="tui", user_message="Did it work?") is None
+
+
 @pytest.mark.parametrize("message", ['<a2ui-action>{"name": "buy", "surfaceId": "s1"}</a2ui-action>',
                                      "I added https://www.zalando.se to your shops. Continue the purchase."])
 def test_a_hidden_crew_prompt_clears_a_decline(push: CrewPush, clock: types.SimpleNamespace, message: str) -> None:

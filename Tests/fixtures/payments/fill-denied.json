@@ -1,7 +1,7 @@
 {
   "success": false,
   "error_type": "payment_declined",
-  "error": "The user denied this payment. Do not retry in this turn; ask what they want instead. If they ask you to try again in a new message, you may.",
+  "error": "The user denied this payment. Do not retry in this turn; ask what they want instead. This cancelled only this attempt. \"Never retry payment_declined\" means never retry on your own; if the user later asks you to pay again, call browser_vault fill again and Crew will ask them to approve it.",
   "crew_payment": {
     "request_id": "5f0c3e9a2b7d4c18a6e1f20b9d3c7a54",
     "origin": "https://www.zalando.se",

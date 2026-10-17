@@ -72,9 +72,9 @@ jobs:
       matrix:
         include:
           - shard: composer
-            tests: -only-testing:CrewUITests/ChatSendScrollUITests -only-testing:CrewUITests/ComposerUITests
+            tests: -only-testing:CrewUITests/ChatSendScrollUITests -only-testing:CrewUITests/ComposerUITests -only-testing:CrewUITests/InAppBrowserUITests
           - shard: rest
-            tests: -skip-testing:CrewUITests/ChatSendScrollUITests -skip-testing:CrewUITests/ComposerUITests
+            tests: -skip-testing:CrewUITests/ChatSendScrollUITests -skip-testing:CrewUITests/ComposerUITests -skip-testing:CrewUITests/InAppBrowserUITests
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 

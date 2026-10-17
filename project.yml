@@ -91,6 +91,8 @@ targets:
       - Sources/BotStore.swift
       - Sources/Profile/ProfileTypes.swift
       - Sources/Chat/Transcript.swift
+      - Sources/Chat/MarkdownBlocks.swift
+      - Sources/Chat/ReplyTextView.swift
       - Sources/Chat/Attachments.swift
       - Sources/Chat/AttachmentViews.swift
       - Sources/Chat/ChatSession.swift

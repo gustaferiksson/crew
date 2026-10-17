@@ -194,9 +194,13 @@ struct WorkLog: View {
 
 private struct WaitingDots: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @ScaledMetric(relativeTo: .subheadline) private var size = 8.0
 
     var body: some View {
-        Group {
+        ZStack(alignment: .leading) {
+            Text(verbatim: " ")
+                .font(.subheadline)
+                .hidden()
             if reduceMotion {
                 dots(phase: nil)
                     .phaseAnimator([1, 0.6]) { content, opacity in
@@ -205,23 +209,22 @@ private struct WaitingDots: View {
                         .easeInOut(duration: 1)
                     }
             } else {
-                TimelineView(.animation) { context in
+                TimelineView(.animation(minimumInterval: 1.0 / 30)) { context in
                     dots(phase: context.date.timeIntervalSinceReferenceDate / 1.2)
                 }
             }
         }
-        .frame(height: 20)
         .padding(.vertical, 6)
         .accessibilityElement()
         .accessibilityLabel("Thinking")
     }
 
     private func dots(phase: Double?) -> some View {
-        HStack(spacing: 4) {
+        HStack(spacing: size / 2) {
             ForEach(0..<3, id: \.self) { index in
                 Circle()
-                    .frame(width: 8, height: 8)
-                    .opacity(phase.map { 0.65 + 0.35 * cos(2 * .pi * ($0 - Double(index) / 6)) } ?? 1)
+                    .frame(width: size, height: size)
+                    .opacity(phase.map { 0.55 + 0.25 * cos(2 * .pi * ($0 - Double(index) / 6)) } ?? 0.8)
             }
         }
         .foregroundStyle(.secondary)

@@ -66,3 +66,15 @@ private func timedEvents() throws -> [(at: TimeInterval, event: GatewayEvent)] {
     transcript.apply(.messageComplete(text: "Both files are empty.", status: .complete, error: nil), at: start.addingTimeInterval(6))
     #expect(transcript.turns[0].quietSince == nil)
 }
+
+@Test func aStalledThinkingRowGetsTheDotsButAnotherBotsTurnNever() {
+    let start = Date(timeIntervalSinceReferenceDate: 0)
+    var transcript = Transcript()
+    transcript.begin(prompt: "Plan the trip", at: start)
+    transcript.apply(.reasoningDelta("Checking the ferry times first."), at: start.addingTimeInterval(1))
+    #expect(!transcript.turns[0].isQuiet(at: start.addingTimeInterval(2.9)))
+    #expect(transcript.turns[0].isQuiet(at: start.addingTimeInterval(3)))
+
+    transcript.begin(remote: "Message from 🤖 Scout (@scout): Can you add the ferry?", displayKind: nil, at: start)
+    #expect(transcript.turns[1].quietSince == nil)
+}

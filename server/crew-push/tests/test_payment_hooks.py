@@ -275,6 +275,14 @@ def test_the_retry_note_is_gone_after_a_fill_attempt(push: CrewPush, hermes: Her
     assert push.pre_llm_call(session_id=SESSION, platform="tui", user_message="Did it work?") is None
 
 
+def test_a_newer_fill_attempt_ends_the_retry_note(push: CrewPush, clock: types.SimpleNamespace) -> None:
+    store.mutate_payments(lambda entries: [
+        {"request_id": "d" * 32, "session_id": SESSION, "state": "denied", "decided_at": NOW + 30},
+        {"request_id": "e" * 32, "session_id": SESSION, "state": "pending", "decided_at": None}])
+    clock.value = NOW + 60
+    assert push.pre_llm_call(session_id=SESSION, platform="tui", user_message="Pay again please") is None
+
+
 @pytest.mark.parametrize("message", ['<a2ui-action>{"name": "buy", "surfaceId": "s1"}</a2ui-action>',
                                      "I added https://www.zalando.se to your shops. Continue the purchase."])
 def test_a_hidden_crew_prompt_clears_a_decline(push: CrewPush, clock: types.SimpleNamespace, message: str) -> None:

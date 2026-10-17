@@ -42,6 +42,20 @@ jobs:
       - name: Build (fails on any warning)
         run: ./build.sh
 
+      - name: Build UI tests
+        run: |
+          set -euo pipefail
+          xcodebuild build-for-testing -quiet -project Crew.xcodeproj -scheme CrewUITests -derivedDataPath .build -skipPackagePluginValidation -skipMacroValidation \
+            -destination 'platform=iOS Simulator,OS=27.0,name=iPhone 18 Pro' CODE_SIGNING_ALLOWED=NO
+          cd .build/Build/Products
+          tar -cf "$GITHUB_WORKSPACE/ui-build.tar" Debug-iphonesimulator CrewUITests_*.xctestrun
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ui-build
+          path: ui-build.tar
+          retention-days: 1
+
       - name: Test
         run: xcodebuild test -project Crew.xcodeproj -scheme CrewTests -derivedDataPath .build -destination 'platform=macOS,arch=arm64' -skipPackagePluginValidation -skipMacroValidation
 
@@ -50,6 +64,9 @@ jobs:
     needs: changes
     if: ${{ !cancelled() && needs.changes.outputs.app != 'false' }}
     runs-on: xcode-27
+    permissions:
+      actions: read
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -61,8 +78,22 @@ jobs:
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
-      - name: Install build tools
-        run: brew install xcodegen
+      - name: Boot the simulator
+        run: |
+          set -euo pipefail
+          device=$(xcrun simctl create crew-ui "iPhone 18 Pro" com.apple.CoreSimulator.SimRuntime.iOS-27-0)
+          xcrun simctl bootstatus "$device" -b >/dev/null
+          echo "UI_DEVICE=$device" >> "$GITHUB_ENV"
+
+      - name: Download the build from the app job
+        timeout-minutes: 20
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          until gh run download ${{ github.run_id }} -R ${{ github.repository }} -n ui-build; do sleep 10; done
+          mkdir -p .build/Build/Products
+          tar -xf ui-build.tar -C .build/Build/Products
 
       - name: UI tests
         run: Tests/ui.sh ${{ matrix.tests }}

@@ -426,10 +426,10 @@ struct ChatFixtureScreen: View {
         draft = ([draft] + texts).filter { !$0.isEmpty }.joined(separator: "\n")
     }
 
-    private func answer(_ answers: [String: String]) {
+    private func answer(_ reply: [String: String]) {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
-        self.answers.append("clarify.respond \(String(decoding: (try? encoder.encode(answers)) ?? Data(), as: UTF8.self))")
+        answers.append("clarify.respond \(String(decoding: (try? encoder.encode(reply)) ?? Data(), as: UTF8.self))")
         request = nil
     }
 

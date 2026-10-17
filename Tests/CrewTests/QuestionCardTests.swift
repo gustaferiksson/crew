@@ -26,6 +26,12 @@ private func threeQuestions() throws -> QuestionRequest {
     #expect(question.recommended == 0)
 }
 
+@Test func onlyTheRecommendedChoiceLosesItsLabel() {
+    let question = QuestionRequest.Question(id: "q0", text: "Plan?", choices: ["Ship (Recommended)", "Wait (recommended)"])
+    #expect(question.choices == ["Ship", "Wait (recommended)"])
+    #expect(question.recommended == 0)
+}
+
 @Test func aFreeTextQuestionWithoutChoicesIsNeverMultiSelect() {
     #expect(!QuestionRequest.Question(id: "q0", text: "Name?", choices: [], isMultiSelect: true).isMultiSelect)
 }

@@ -29,14 +29,15 @@ nonisolated struct QuestionRequest: Identifiable, Sendable, Equatable {
         let isMultiSelect: Bool
 
         init(id: String, text: String, choices: [String], isMultiSelect: Bool = false) {
-            let trimmed = choices.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            var trimmed = choices.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            let recommended = trimmed.firstIndex { $0.lowercased().hasSuffix(recommendedSuffix) }
+            if let recommended {
+                trimmed[recommended] = String(trimmed[recommended].dropLast(recommendedSuffix.count)).trimmingCharacters(in: .whitespacesAndNewlines)
+            }
             self.id = id
             self.text = text
-            self.choices = trimmed.map { choice in
-                guard choice.lowercased().hasSuffix(recommendedSuffix) else { return choice }
-                return String(choice.dropLast(recommendedSuffix.count)).trimmingCharacters(in: .whitespacesAndNewlines)
-            }
-            recommended = trimmed.firstIndex { $0.lowercased().hasSuffix(recommendedSuffix) }
+            self.choices = trimmed
+            self.recommended = recommended
             self.isMultiSelect = isMultiSelect && !choices.isEmpty
         }
 
@@ -142,6 +143,7 @@ struct QuestionCard: View {
 
     @State private var progress: QuestionProgress
     @State private var isForward = true
+    @State private var autoAdvance: Task<Void, Never>?
     @AccessibilityFocusState private var isQuestionFocused: Bool
     @FocusState private var isFieldFocused: Bool
     @FocusState private var isCardFocused: Bool
@@ -214,7 +216,6 @@ struct QuestionCard: View {
         .focusEffectDisabled()
         .focused($isCardFocused)
         .onKeyPress(.return, phases: .down, action: advance(on:))
-        .onAppear(perform: focusStep)
         #endif
         .onChange(of: progress.step) {
             focusStep()
@@ -225,6 +226,7 @@ struct QuestionCard: View {
     private func page(_ question: QuestionRequest.Question) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(question.text)
+                .accessibilityLabel(request.questions.count > 1 ? "Question \(progress.step + 1) of \(request.questions.count). \(question.text)" : question.text)
                 .accessibilityFocused($isQuestionFocused)
             if question.choices.isEmpty {
                 TextField("Your answer", text: Binding { progress.texts[question.id] ?? "" } set: { progress.texts[question.id] = $0 }, axis: .vertical)
@@ -269,16 +271,17 @@ struct QuestionCard: View {
     }
 
     private func pick(_ index: Int, of question: QuestionRequest.Question) {
+        isCardFocused = true
         if question.isMultiSelect {
             progress.picks[question.id, default: []].formSymmetricDifference([index])
             return
         }
         progress.picks[question.id] = [index]
         guard !isLastStep, !isVoiceOverOn, !isSwitchControlOn else { return }
-        let step = progress.step
-        Task {
+        autoAdvance?.cancel()
+        autoAdvance = Task {
             try? await Task.sleep(for: .seconds(0.3))
-            guard progress.step == step else { return }
+            guard !Task.isCancelled else { return }
             move(by: 1)
         }
     }
@@ -296,6 +299,7 @@ struct QuestionCard: View {
     }
 
     private func move(by offset: Int) {
+        autoAdvance?.cancel()
         isForward = offset > 0
         progress.step += offset
     }

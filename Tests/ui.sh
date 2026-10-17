@@ -8,8 +8,8 @@ trap 'xcrun simctl shutdown "$device" >/dev/null 2>&1 || true; xcrun simctl dele
 
 echo "▸ Building for testing…"
 xcodegen generate --quiet
-xcodebuild build-for-testing -project Crew.xcodeproj -scheme CrewUITests -derivedDataPath .build -skipPackagePluginValidation -skipMacroValidation \
-  -destination "platform=iOS Simulator,id=$device" -showBuildTimingSummary CODE_SIGNING_ALLOWED=NO
+xcodebuild build-for-testing -quiet -project Crew.xcodeproj -scheme CrewUITests -derivedDataPath .build -skipPackagePluginValidation -skipMacroValidation \
+  -destination "platform=iOS Simulator,id=$device" CODE_SIGNING_ALLOWED=NO
 
 echo "▸ Booting the simulator…"
 xcrun simctl bootstatus "$device" -b >/dev/null

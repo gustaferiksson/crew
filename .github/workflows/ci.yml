@@ -46,25 +46,26 @@ jobs:
         run: xcodebuild test -project Crew.xcodeproj -scheme CrewTests -derivedDataPath .build -destination 'platform=macOS,arch=arm64' -skipPackagePluginValidation -skipMacroValidation
 
   ui:
-    name: UI tests (iOS Simulator)
+    name: UI tests (iOS Simulator, ${{ matrix.shard }})
     needs: changes
     if: ${{ !cancelled() && needs.changes.outputs.app != 'false' }}
     runs-on: xcode-27
     strategy:
       fail-fast: false
       matrix:
-        args: ["", "-parallel-testing-enabled YES -parallel-testing-worker-count 2"]
+        include:
+          - shard: composer
+            tests: -only-testing:CrewUITests/ChatSendScrollUITests -only-testing:CrewUITests/ComposerUITests -only-testing:CrewUITests/InAppBrowserUITests
+          - shard: rest
+            tests: -skip-testing:CrewUITests/ChatSendScrollUITests -skip-testing:CrewUITests/ComposerUITests -skip-testing:CrewUITests/InAppBrowserUITests
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
-
-      - name: Runner
-        run: sysctl hw.ncpu hw.memsize
 
       - name: Install build tools
         run: brew install xcodegen
 
       - name: UI tests
-        run: Tests/ui.sh ${{ matrix.args }}
+        run: Tests/ui.sh ${{ matrix.tests }}
 
   plugin:
     name: crew-push tests

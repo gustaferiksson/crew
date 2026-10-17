@@ -1,0 +1,5 @@
+{
+  "success": false,
+  "error_type": "origin_changed",
+  "error": "Refused: the page navigated away from the bound origin (https://www.zalando.se) before the fill could run (now on https://pay.example.com). Nothing was written."
+}

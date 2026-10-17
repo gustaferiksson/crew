@@ -1,0 +1,6 @@
+{
+  "detail": {
+    "code": "invalid_profile",
+    "message": "profile must match ^[a-z0-9][a-z0-9_-]{0,63}$"
+  }
+}

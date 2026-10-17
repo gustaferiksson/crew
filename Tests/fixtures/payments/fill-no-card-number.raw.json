@@ -1,0 +1,11 @@
+{
+  "success": true,
+  "filled_fields": 2,
+  "backend": "local",
+  "kind": "payment",
+  "origin": "https://www.zalando.se",
+  "fields": [
+    "cc-name",
+    "postal-code"
+  ]
+}

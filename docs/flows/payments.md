@@ -23,10 +23,10 @@ Scout is buying winter boots. A card slides up above the composer: a small card 
 
 ### The master card
 
-- Added once on the server (`hermes vault add`, kind payment, no origin; [plan step 4](../payments.md#4-one-card-per-shop-m-about-80-python-and-150-swift-lines)). Crew cannot add it: that would send the number through the client.
+- Added once on the server with `VaultStore.add_item` (kind payment, no origin; `hermes vault add` cannot, since 0.22.1 requires an origin for payment items; [plan step 4](../payments.md#4-one-card-per-shop-m-about-80-python-and-150-swift-lines)). Crew cannot add it: that would send the number through the client.
 - Every bot's **Shops** card starts with a card row:
   - **One card:** a small card art (rounded rect, 40 × 26 pt, a fixed graphite gradient with a 1 pt hairline so it reads in light and dark) and "Shopping card •••• 4242".
-  - **No card:** "No card on the server", footer "Add one card on the server without a website. Crew copies it to each shop you add.", and **Copy Setup Command** (copies `hermes vault add`). Add Shop is disabled.
+  - **No card:** "No card on the server", footer "Add one card on the server without a website. Crew copies it to each shop you add.", and **Copy Setup Command** (copies plan step 4's Python command that calls `VaultStore(Path("/opt/data/vault")).add_item(kind="payment", label="Shopping card", secret=...)` with hidden prompts, to run in the Hermes environment). Add Shop is disabled.
   - **Several cards without a website:** "More than one card on the server", footer "Keep one card without a website; Crew can't tell which to use." Add Shop is disabled.
 - When the master is replaced, each existing shop row shows "Old card" in orange (its copy no longer matches). Remove and add the shop again to update it. A payment item someone added by hand with another card also reads "Old card"; that is fine.
 - The default profile's own Shops card adds "Kept here, never used to pay." The master never appears as a shop.

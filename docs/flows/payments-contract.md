@@ -38,7 +38,7 @@ Request `{"profile": "scout", "site": "https://www.zalando.se/checkout?step=2"}`
 The route takes the host, IDNA-encodes a non-ASCII host, lower-cases it, and requires `https` (or no scheme), port 443 or none, a dotted public-looking name, not an IP literal and not `localhost`. Then it copies the master: `VaultStore(get_profile_dir(profile) / "vault").add_item(kind="payment", label="<master label> •••• <last4> · <host>", origin="https://<host>", secret=<master secret>)`.
 
 - `201 {"shop": <shop>}`
-- `400 invalid_site` with `"reason": "not_https" | "ip_address" | "localhost" | "no_host" | "port"`
+- `400 invalid_site` with `"reason": "not_https" | "ip_address" | "localhost" | "no_host" | "port"` inside `detail` (`localhost` also covers a single-label name such as `intranet`)
 - `409 duplicate_shop`, `409 no_card`, `409 several_cards`, `404 unknown_profile`
 
 ### `DELETE /payments/shops/{id}?profile=scout`
@@ -87,16 +87,16 @@ State shared across processes lives in files: `gate.json` and `payments.json`. O
 
 ### `pre_tool_call`
 
-On `browser_vault` with `action == "fill"` and a handle whose item is `payment`. This branch is **not** wrapped in crew-push's `quiet`: it catches its own exceptions and returns a block. Checks, in order; the first failing one returns `{"action": "block", "message": <JSON string>}`:
+On `browser_vault` with `action == "fill"` and a handle whose item is `payment`. This branch is **not** wrapped in crew-push's `quiet`: it catches its own exceptions and returns a block with `crew_check_failed` (also when the item's kind cannot be read, such as a locked password manager). Checks, in order; the first failing one returns `{"action": "block", "message": <JSON string>}`:
 
 | Code | Rule |
 |---|---|
-| `crew_gate_off` | `gate.json` does not say `auth_required: true`. Every crew-push route request writes `request.app.state.auth_required` there; Crew calls `/status` on every authenticated connect, whether or not notifications are allowed. |
+| `crew_gate_off` | `gate.json` does not say `auth_required: true`. Every crew-push route request writes `request.app.state.auth_required` there; Crew calls `/status` on every authenticated connect, whether or not notifications are allowed. The dashboard removes `gate.json` when it loads crew-push, so a restart without the login cannot inherit an old `true`. |
 | `crew_not_bot_chat` | `session_id` is empty or not the profile's Bot Chat (`is_bot_chat`). |
 | `crew_one_at_a_time` | A payment for this session is `pending` in the log, or any pending approval in the session (`list_gateway_approvals(session_key)`, key from `tools.approval_context.get_current_session_key()`) has the same `command` this fill will raise. |
 | `crew_after_decline` | This session's newest payment is `denied` or `expired`, and no user turn has started since its `decided_at`. A user turn is a `pre_llm_call` whose message is not agent-shaped, delivery-shaped or a bracketed system note. |
 | `crew_missing_details` | `amount`, `merchant` or `reason` is missing, empty after cleaning, longer than 32/64/140, or `amount` has no digit. The message names the three args with an example. |
-| `crew_no_shop_card` | Hermes' own `_focus_bound_origin(task_id, item.origin, "payment")` finds no tab on the item's origin. Adds `missing_shop` (the current origin) only when the current page has card fields. Skipped if the browser cannot be read; Hermes' check still refuses. |
+| `crew_no_shop_card` | Hermes' own `_focus_bound_origin(task_id, item.origin, "payment")` finds no tab on the item's origin. Adds `missing_shop` (the current origin) only when the current page has card fields. Skipped if the browser cannot be read; Hermes' check still refuses. Without `missing_shop` it also covers an iframe checkout on the item's origin (the probe sees no card fields in the top document), so the user is never asked. |
 
 Cleaning: strip Unicode Cc and Cf, collapse whitespace, trim. Unknown args reach the hook because `coerce_tool_args` skips keys not in the schema (`arg_coercion.py:40-43`). On allow, the hook snapshots the session's pending `request_id`s and remembers `{claim, item origin, label, snapshot}` by `tool_call_id`, then returns nothing.
 
@@ -116,7 +116,7 @@ For `vault-payment` and not `coalesced`: set `state` and `decided_at` on the ent
 
 ### `transform_tool_result` (fail-open in Hermes; Crew has a fallback)
 
-- **`fill` on a payment item:** returns Hermes' result with `"crew_payment": {"request_id", "state", "fill", "fill_error"}` added, and the bot's `error` text replaced by state: denied, "The user denied this payment. Do not retry; ask what they want instead."; expired, "Nobody answered within 5 minutes. Tell the user it expired and wait until they ask again."; cancelled, "The request was cancelled. Stop." A success without `cc-number` in `fields` becomes `"success": false` with `fill_error: "no_fields"` and "The card fields weren't found; this checkout probably puts them in a payment frame, which can't be filled. Tell the user." A real success gets "Click the shop's pay button. Never tick save card or remember card." It also writes `fill` and `fill_error` to the log.
+- **`fill` on a payment item:** returns Hermes' result with `"crew_payment": {"request_id", "origin", "state", "fill", "fill_error"}` added (`origin` is the shop the user was asked about, so a denied, expired or cancelled receipt can name the host although Hermes' raw `payment_declined` result carries no origin), and the bot's `error` text replaced by state: denied, "The user denied this payment. Do not retry; ask what they want instead."; expired, "Nobody answered within 5 minutes. Tell the user it expired and wait until they ask again."; cancelled, "The request was cancelled. Stop." A success without `cc-number` in `fields` becomes `"success": false` with `fill_error: "no_fields"` and "The card fields weren't found; this checkout probably puts them in a payment frame, which can't be filled. Tell the user." A real success gets "Click the shop's pay button. Never tick save card or remember card." It also writes `fill` and `fill_error` to the log.
 - **`list`:** when the current page has card fields (Hermes' `_TAB_PROBES["payment"]` selector, evaluated on the page) and no payment item in this profile has that origin, adds `"crew_payment": {"missing_shop": "<origin>"}` and a `hint` to ask the user to add the shop in Crew.
 
 Decorated fill result (fixture `fill-approved.json`):
@@ -124,7 +124,7 @@ Decorated fill result (fixture `fill-approved.json`):
 ```json
 {"success": true, "filled_fields": 5, "backend": "local", "kind": "payment", "origin": "https://www.zalando.se",
  "fields": ["cc-csc", "cc-exp-month", "cc-exp-year", "cc-name", "cc-number"],
- "crew_payment": {"request_id": "5f0c3e9a2b7d4c18a6e1f20b9d3c7a54", "state": "approved", "fill": "filled", "fill_error": null},
+ "crew_payment": {"request_id": "5f0c3e9a2b7d4c18a6e1f20b9d3c7a54", "origin": "https://www.zalando.se", "state": "approved", "fill": "filled", "fill_error": null},
  "next": "Click the shop's pay button. Never tick save card or remember card."}
 ```
 
@@ -144,7 +144,7 @@ Decorated fill result (fixture `fill-approved.json`):
     "interruption-level": "time-sensitive"
   },
   "crew": {"v": 1, "kind": "payment", "install_id": "9f2c41d07ab35e11", "profile": "scout",
-           "session_id": "20261016_101512_ab12cd", "event_id": "5be0c2a91f7d3e44",
+           "session_id": "20261016_101512_ab12cd", "event_id": "d53856b2866653ae",
            "request_id": "5f0c3e9a2b7d4c18a6e1f20b9d3c7a54", "expires_at": 1760610240.0}
 }
 ```
@@ -171,10 +171,10 @@ Headers: `apns-push-type: background`, `apns-priority: 5`, `apns-expiration: now
 | | `no_card`, `several_cards` | the card row's states |
 | `DELETE` | `unknown_shop` | the row leaves (already gone) |
 | `GET /payments/requests/{id}` | `unknown_request` | Deny-only card |
-| tool results | `crew_gate_off`, `crew_not_bot_chat`, `crew_one_at_a_time`, `crew_after_decline`, `crew_missing_details`, `crew_no_shop_card` | only `crew_no_shop_card` with `missing_shop` drives UI (the offer); the rest are failed tool rows and the bot's words |
+| tool results | `crew_gate_off`, `crew_not_bot_chat`, `crew_one_at_a_time`, `crew_after_decline`, `crew_missing_details`, `crew_no_shop_card`, `crew_check_failed` | only `crew_no_shop_card` with `missing_shop` drives UI (the offer); the rest are failed tool rows and the bot's words |
 | `approval.respond` | `resolved: 0`, `4001`, `5004` | state from the route; card leaves; "Couldn't reach Hermes. Try again." |
 | any 5xx or network | | "Couldn't load the amount." + Try Again; "Couldn't load shops." |
 
 ## Fixtures
 
-`Tests/fixtures/payments/`: `status.json`, `payments.json`, `payments-no-card.json`, `payments-several.json`, `shop-created.json`, one error file per route code, `request-pending.json`, `request-approved.json`, `request-expired.json`, `approval-frame.json` (recorded from a real `approval` frame on `crew-test`), `block-no-shop-card.json`, `block-missing-details.json`, a decorated and a raw fill result per outcome in the Results table, `list-missing-shop.json`, `push-payment.json`, `push-payment-previews-off.json`, `push-payment-resolved.json`.
+`Tests/fixtures/payments/`: `status.json`, `payments.json`, `payments-no-card.json`, `payments-several.json`, `shop-created.json`, `shop-removed.json`, one error file per route code (`error-<code>.json`, and `error-invalid-site-<reason>.json` per reason), `request-pending.json`, `request-approved.json`, `request-expired.json`, `approval-frame.json` (reconstructed from Hermes 0.22.1's `ServerRequest.frame()` and `_approval_request_payload`; re-record it on `crew-test` after the deploy), `block-no-shop-card.json`, `block-missing-details.json`, a decorated and a raw fill result per outcome in the Results table (`fill-<outcome>.json` and `fill-<outcome>.raw.json` for `approved`, `denied`, `expired`, `cancelled`, `origin-changed`, `origin-mismatch`, `no-fields`, `no-card-number`, `human-has-control`, `error`), `list-missing-shop.json`, `push-payment.json`, `push-payment-previews-off.json`, `push-payment-resolved.json`.

@@ -440,6 +440,10 @@ def test(body: dict):
 | POST | `/api/plugins/crew-push/devices` | `{token, platform: "ios"\|"macos", environment: "sandbox"\|"production", name, prefs: {replies, approvals, questions, routines, previews}}` | `200 {ok, install_id, apns_configured}`. Upsert by token; also the way to change prefs |
 | DELETE | `/api/plugins/crew-push/devices/{token}` | | `200 {ok}`, idempotent |
 | POST | `/api/plugins/crew-push/test` | `{token}` | `202`; sends one push to that device only |
+| GET | `/api/plugins/crew-push/payments?profile=` | | crew-push 0.4.0: the Shops card (master card row, shops, `terminal_backend`, `gate`); `/status` also reports `features: ["payments"]` and `gate`. Shapes: [flows/payments-contract.md](flows/payments-contract.md) |
+| POST | `/api/plugins/crew-push/payments/shops` | `{profile, site}` | `201 {shop}`: copies the master card to that exact `https` origin |
+| DELETE | `/api/plugins/crew-push/payments/shops/{id}?profile=` | | `200 {removed: true}`; only a payment item with an origin |
+| GET | `/api/plugins/crew-push/payments/requests/{request_id}` | | the payment request crew-push recorded for an approval, for Hold to Pay |
 
 Security: routes inherit the dashboard's auth gate, Host check and CORS (same as `/api/gateway/restart`), so only a signed-in Crew can register a token. A device token is not a secret capability (it only lets the key holder push to it), and the APNs key never leaves the host. Cap 32 devices. Validate the token as lowercase hex and the enums before writing.
 
@@ -470,7 +474,7 @@ Body (well under the 4 KB limit with the 120/400 character clips):
 }
 ```
 
-`kind`: `reply | turn_error | approval | clarify | routine`. Title is always the bot's display name; the kind shows through subtitle/body and the category. `thread-id` groups notifications per bot in Notification Center, like Messages threads.
+`kind`: `reply | turn_error | approval | clarify | routine | payment`, plus the silent `read` and `payment_resolved`. Title is always the bot's display name; the kind shows through subtitle/body and the category. `thread-id` groups notifications per bot in Notification Center, like Messages threads.
 
 ### 4.6 What is notified, and what is not
 
@@ -478,7 +482,8 @@ Body (well under the 4 KB limit with the 120/400 character clips):
 - Every completed, non-interrupted turn in a session whose platform is known and not a native chat platform (Telegram etc. already notify). That covers Crew, Hermex, Desktop and TUI turns alike, which is what the user wants from a phone. `on_session_end` with `interrupted=True` (Stop, or a socket drop on the Desktop backend) never pushes.
 - Subagent turns: muted (their parent's approval and question banners still go out).
 - Turns answering another bot (crew-push 0.3.1): muted when the turn's `user_message` is a `message_agent` delivery (`Message from 🤖 <name> (@<handle>):`, relayed `(@<handle>@<connection>)` or legacy `[Message from agent '<name>']`, Hermes Desktop's `AGENT_MESSAGE_RE`), flagged in `pre_llm_call` so a failed turn is muted too. Approvals and questions raised during such a turn still push: they block the bot until the user answers, and Crew shows them even though the turn is hidden. Since 0.3.2 the follow-up turn of such an exchange is muted too: `post_tool_call` remembers the `process_id` of every `message_agent` call made inside a muted turn, and a later `[IMPORTANT: Background process proc_… bot_mode_dm.py --run-delivery` notice for that process starts a muted turn. A delivery notice for a call the user's own turn made (the sender's chat) is unknown there, so its relay reply still pushes.
-- Approvals: all surfaces except `smart` (an auxiliary model decided, nobody waits).
+- Approvals: all surfaces except `smart` (an auxiliary model decided, nobody waits) and `vault-payment`.
+- Payments (crew-push 0.4.0): a `vault-payment` approval that crew-push bound to its own checked fill sends kind `payment` (category `CREW_PAYMENT`, time-sensitive, expiring with the request, collapse id per `request_id`); when it ends, a silent `payment_resolved` goes to every device. Spec: [flows/payments-contract.md](flows/payments-contract.md).
 - Questions: the `clarify` tool. `sudo`/`secret` prompts are out of v1; `on_human_input_request` (`kind == "sudo"`) is the hook if wanted later.
 - Routines: `platform == "cron"`, off by default per device (`prefs.routines`), passive interruption level.
 

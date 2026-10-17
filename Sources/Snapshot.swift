@@ -5,6 +5,7 @@ enum Snapshot: String {
     case loginUnreachable = "login-unreachable"
     case sidebar
     case sidebarFlat = "sidebar-flat"
+    case sidebarDraft = "sidebar-draft"
     case sidebarSearch = "sidebar-search"
     case searchResult = "search-result"
     case unreachable
@@ -19,6 +20,12 @@ enum Snapshot: String {
     case chatAttachments = "chat-attachments"
     case chatDictation = "chat-dictation"
     case chatMentions = "chat-mentions"
+    case composerLine = "composer-line"
+    case composerLines = "composer-lines"
+    case composerRunning = "composer-running"
+    case composerRunningText = "composer-running-text"
+    case chatSteer = "chat-steer"
+    case chatSteerTaken = "chat-steer-taken"
     case chatMentionPeek = "chat-mention-peek"
     case chatMentionChat = "chat-mention-chat"
     case chatAgentMessage = "chat-agent-message"
@@ -62,7 +69,7 @@ enum Snapshot: String {
     static let requested = UserDefaults.standard.string(forKey: "snapshot").flatMap(Snapshot.init(rawValue:))
 
     var chatFixture: ChatFixture? {
-        [.chat: .conversation, .chatHistory: .history, .chatTimestamps: .timestamps, .chatWorkLog: .workLog, .chatQuestion: .question, .chatOffline: .offline, .chatAttachments: .attachments, .chatDictation: .dictation, .chatMentions: .mentions, .chatMentionPeek: .mentions, .chatMentionChat: .mentions, .chatAgentMessage: .agentMessage, .chatA2UI: .a2ui, .chatA2UICards: .a2uiCards, .chatA2UIForm: .a2uiForm, .chatA2UITable: .a2uiTable, .chatA2UIChart: .a2uiChart, .chatA2UIMap: .a2uiMap, .chatPayment: .payment, .chatPaymentHolding: .paymentHolding, .chatPaymentApproved: .paymentApproved, .chatPaymentLoading: .paymentLoading, .chatPaymentFailed: .paymentFailed, .chatPaymentUnverified: .paymentUnverified, .chatPaymentPunycode: .paymentPunycode, .chatPaymentCountdown: .paymentCountdown, .chatPaymentNotice: .paymentNotice, .chatPaymentOffer: .paymentOffer, .chatPaymentReceipts: .paymentReceipts][self]
+        [.chat: .conversation, .chatHistory: .history, .chatTimestamps: .timestamps, .chatWorkLog: .workLog, .chatQuestion: .question, .chatOffline: .offline, .chatAttachments: .attachments, .chatDictation: .dictation, .chatMentions: .mentions, .composerLine: .composerLine, .composerLines: .composerLines, .composerRunning: .composerRunning, .composerRunningText: .composerRunningText, .chatSteer: .steer, .chatSteerTaken: .steerTaken, .chatMentionPeek: .mentions, .chatMentionChat: .mentions, .chatAgentMessage: .agentMessage, .chatA2UI: .a2ui, .chatA2UICards: .a2uiCards, .chatA2UIForm: .a2uiForm, .chatA2UITable: .a2uiTable, .chatA2UIChart: .a2uiChart, .chatA2UIMap: .a2uiMap, .chatPayment: .payment, .chatPaymentHolding: .paymentHolding, .chatPaymentApproved: .paymentApproved, .chatPaymentLoading: .paymentLoading, .chatPaymentFailed: .paymentFailed, .chatPaymentUnverified: .paymentUnverified, .chatPaymentPunycode: .paymentPunycode, .chatPaymentCountdown: .paymentCountdown, .chatPaymentNotice: .paymentNotice, .chatPaymentOffer: .paymentOffer, .chatPaymentReceipts: .paymentReceipts][self]
     }
 
     var isShops: Bool {
@@ -81,7 +88,7 @@ enum Snapshot: String {
         if isShops || chatFixture?.isPayment == true {
             return Connection(fixture: .connected, server: server, crewPush: PluginStatus(pluginVersion: "0.4.0", installId: "fixture", apnsConfigured: true, http2: true, devices: 2, features: ["payments"], gate: true))
         }
-        if [.sidebar, .sidebarFlat, .sidebarSearch, .searchResult, .layout, .layoutInspector, .inspectorLook, .profileSkills, .botPage, .notifications, .newBot, .groupChat, .groupWelcome, .groupInspector].contains(self) || chatFixture != nil || inspectorTab != nil { return Connection(fixture: .connected, server: server) }
+        if [.sidebar, .sidebarFlat, .sidebarDraft, .sidebarSearch, .searchResult, .layout, .layoutInspector, .inspectorLook, .profileSkills, .botPage, .notifications, .newBot, .groupChat, .groupWelcome, .groupInspector].contains(self) || chatFixture != nil || inspectorTab != nil { return Connection(fixture: .connected, server: server) }
         if self == .unreachable { return Connection(fixture: .unreachable, server: server) }
         return Connection(fixture: .signedOut, server: server)
     }
@@ -116,6 +123,13 @@ enum Snapshot: String {
             bot("ghost", 1, "Hidden bots never show.", BotMeta(title: "Ghost", hidden: true)),
             bot("pixel", 60 * 24 * 40, "Resized the screenshots for the App Store listing.", BotMeta(title: "Pixel", sectionID: "home", sectionName: "Home")),
         ], statuses: ["scout": .working, "forge": .waiting(.approval), "atlas": .unread, "default": .unread, "chef": .failed], photos: Snapshot.samplePhoto.map { ["scout": $0] } ?? [:])
+    }
+
+    var drafts: ChatDrafts {
+        ChatDrafts(fixture: self == .sidebarDraft ? [
+            "ledger": "Can you also check the trains from Bodø on Friday, and whether the night train has sleeper cabins left?",
+            "forge": "Yes, go ahead",
+        ] : [:])
     }
 
     var selectedBot: Bot.ID? {

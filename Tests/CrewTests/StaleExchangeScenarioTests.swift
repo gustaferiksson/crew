@@ -116,7 +116,7 @@ private func settle(_ session: ChatSession) async throws {
 @Test func followUpStillShowsWhenOnlyAnEarlierMentionWasAnswered() throws {
     let rows = try recorded("crew-test.history", as: [HistoryRow].self)
     let again = rows.filter { (388...391).contains($0.id) || (394...395).contains($0.id) }.map { row in
-        HistoryRow(id: row.id + 100, role: row.role, content: row.content, toolCallId: row.toolCallId.map { "\($0)-again" }, toolCalls: row.toolCalls?.map { HistoryRow.Call(id: "\($0.id)-again", function: $0.function) }, timestamp: row.timestamp + 600, reasoning: row.reasoning, reasoningContent: row.reasoningContent, displayKind: row.displayKind, displayContent: row.displayContent)
+        HistoryRow(id: row.id + 100, role: row.role, content: row.content, toolCallId: row.toolCallId.map { "\($0)-again" }, toolCalls: row.toolCalls?.map { HistoryRow.Call(id: "\($0.id)-again", function: $0.function) }, timestamp: row.timestamp + 600, reasoning: row.reasoning, reasoningContent: row.reasoningContent, displayKind: row.displayKind, displayContent: row.displayContent, displayCommentary: row.displayCommentary, displayReasoning: row.displayReasoning)
     }
     let shown = Transcript(history: rows.filter { (388...393).contains($0.id) } + again).visible.turns
     #expect(shown.last?.delivery != nil)
@@ -125,11 +125,11 @@ private func settle(_ session: ChatSession) async throws {
 @Test func failedFollowUpShowsEvenAfterAReplyFromTheSameBot() throws {
     let rows = try recorded("crew-test.history", as: [HistoryRow].self)
     let again = rows.filter { (388...391).contains($0.id) || $0.id == 394 }.map { row in
-        HistoryRow(id: row.id + 100, role: row.role, content: row.content?.replacingOccurrences(of: "completed normally (exit code 0)", with: "exited (exit code 1)"), toolCallId: row.toolCallId.map { "\($0)-again" }, toolCalls: row.toolCalls?.map { HistoryRow.Call(id: "\($0.id)-again", function: $0.function) }, timestamp: row.timestamp, reasoning: row.reasoning, reasoningContent: row.reasoningContent, displayKind: row.displayKind, displayContent: row.displayContent)
+        HistoryRow(id: row.id + 100, role: row.role, content: row.content?.replacingOccurrences(of: "completed normally (exit code 0)", with: "exited (exit code 1)"), toolCallId: row.toolCallId.map { "\($0)-again" }, toolCalls: row.toolCalls?.map { HistoryRow.Call(id: "\($0.id)-again", function: $0.function) }, timestamp: row.timestamp, reasoning: row.reasoning, reasoningContent: row.reasoningContent, displayKind: row.displayKind, displayContent: row.displayContent, displayCommentary: row.displayCommentary, displayReasoning: row.displayReasoning)
     }
     let ordered = rows.filter { (388...391).contains($0.id) } + again.filter { $0.id < 494 } + rows.filter { (392...393).contains($0.id) } + again.filter { $0.id == 494 }
     let transcript = Transcript(history: ordered.enumerated().map { index, row in
-        HistoryRow(id: index + 1, role: row.role, content: row.content, toolCallId: row.toolCallId, toolCalls: row.toolCalls, timestamp: row.timestamp, reasoning: row.reasoning, reasoningContent: row.reasoningContent, displayKind: row.displayKind, displayContent: row.displayContent)
+        HistoryRow(id: index + 1, role: row.role, content: row.content, toolCallId: row.toolCallId, toolCalls: row.toolCalls, timestamp: row.timestamp, reasoning: row.reasoning, reasoningContent: row.reasoningContent, displayKind: row.displayKind, displayContent: row.displayContent, displayCommentary: row.displayCommentary, displayReasoning: row.displayReasoning)
     })
     #expect(transcript.turns.last?.deliveryFailed == true)
     #expect(transcript.visible.turns.last?.delivery != nil)

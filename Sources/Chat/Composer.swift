@@ -4,12 +4,11 @@ import SwiftUI
 #if os(macOS)
 private let fieldHeight: CGFloat = 36
 private let rowSpacing: CGFloat = 8
-private let sideMargin: CGFloat = 16
 #else
 private let fieldHeight: CGFloat = 40
 private let rowSpacing: CGFloat = 12
-private let sideMargin: CGFloat = 28
 #endif
+private let sideMargin: CGFloat = 16
 private let holdThreshold = Duration.milliseconds(250)
 
 nonisolated enum SendMode: Sendable {
@@ -54,12 +53,13 @@ struct Composer: View {
     @State private var photos: [PhotosPickerItem] = []
     @State private var showsHoldHint = false
     @GestureState private var hold: Hold?
-    @FocusState private var isFocused: Bool
+    let isFocused: FocusState<Bool>.Binding
 
-    init(botName: String, phase: Phase, draft: Binding<String>, tray: AttachmentTray, mentionable: [Bot], features: ComposerFeatures = .all, completePath: @escaping (String) async -> [PathCompletion], dictation: Dictation? = nil, transcribe: @escaping (Data) async throws -> String, send: @escaping (SendMode) -> Void, stop: @escaping () -> Void) {
+    init(botName: String, phase: Phase, draft: Binding<String>, isFocused: FocusState<Bool>.Binding, tray: AttachmentTray, mentionable: [Bot], features: ComposerFeatures = .all, completePath: @escaping (String) async -> [PathCompletion], dictation: Dictation? = nil, transcribe: @escaping (Data) async throws -> String, send: @escaping (SendMode) -> Void, stop: @escaping () -> Void) {
         self.botName = botName
         self.phase = phase
         _draft = draft
+        self.isFocused = isFocused
         self.tray = tray
         self.mentionable = mentionable
         self.features = features
@@ -93,19 +93,21 @@ struct Composer: View {
             if let mentionQuery {
                 MentionPicker(query: mentionQuery, bots: mentionable, completePath: completePath) { tag in
                     draft = String(draft.dropLast(mentionQuery.count + 1)) + tag + " "
-                    isFocused = true
+                    isFocused.wrappedValue = true
                 }
             }
             GlassEffectContainer(spacing: rowSpacing) {
                 HStack(alignment: .bottom, spacing: rowSpacing) {
                     if features.contains(.attachments) {
                         attachMenu
+                            .disabled(isOffline)
                     }
                     field
-                        .frame(minHeight: fieldHeight)
+                        .frame(maxWidth: .infinity, minHeight: fieldHeight)
                         .glassEffect(.regular.interactive(), in: .rect(cornerRadius: fieldHeight / 2))
                         .glassEffectID("field", in: glass)
                         .background(.background.opacity(0.85), in: .rect(cornerRadius: fieldHeight / 2))
+                    #if os(macOS)
                     if phase == .running {
                         Button("Stop", systemImage: "stop.fill", action: stop)
                             .composerCircle(.regular.interactive())
@@ -114,12 +116,12 @@ struct Composer: View {
                     if dictation.phase == .idle {
                         actionButton
                     }
+                    #endif
                 }
                 .labelStyle(.iconOnly)
                 .buttonStyle(.plain)
                 .menuStyle(.button)
             }
-            .disabled(isOffline && dictation.phase == .idle)
         }
         .animation(.smooth, value: canSend)
         .animation(.smooth, value: phase)
@@ -176,7 +178,7 @@ struct Composer: View {
         #if os(macOS)
         .padding(.bottom, 8)
         #else
-        .padding(.bottom, isFocused ? 8 : 28)
+        .padding(.bottom, isFocused.wrappedValue ? 8 : 28)
         #endif
     }
 
@@ -234,10 +236,10 @@ struct Composer: View {
                     .textFieldStyle(.plain)
                     .lineLimit(1...6)
                     .padding(.vertical, 8)
-                    .frame(minHeight: fieldHeight)
-                    .focused($isFocused)
+                    .frame(maxWidth: .infinity, minHeight: fieldHeight, alignment: .leading)
+                    .focused(isFocused)
                     .onKeyPress(.return, phases: .down) { press in
-                        guard !press.modifiers.contains(.shift), canSend else { return .ignored }
+                        guard !press.modifiers.contains(.shift), canSend, !isOffline else { return .ignored }
                         send(phase == .running && features.contains(.steering) ? .steer : .send)
                         return .handled
                     }
@@ -264,9 +266,25 @@ struct Composer: View {
                         }
                     }
             }
+            #if os(iOS)
+            if dictation.phase == .idle {
+                if canSend {
+                    actionButton
+                        .opacity(isOffline ? 0.4 : 1)
+                } else if phase == .running {
+                    Button("Stop", systemImage: "stop.fill", action: stop)
+                        .actionCircle(.tint)
+                        .foregroundStyle(.white)
+                }
+            }
+            #endif
         }
         .padding(.leading, 16)
+        #if os(iOS)
+        .padding(.trailing, dictation.phase == .idle && (canSend || phase == .running) ? 0 : 12)
+        #else
         .padding(.trailing, canSend && dictation.phase == .idle ? 16 : 12)
+        #endif
     }
 
     private func beginHold(_ pressed: Hold?) {
@@ -298,9 +316,10 @@ struct Composer: View {
     @ViewBuilder private var actionButton: some View {
         if canSend && phase == .running && !tray.items.isEmpty {
             Button("Queue", systemImage: "text.line.last.and.arrowtriangle.forward") { send(.queue) }
-                .composerCircle(.regular.tint(.accentColor).interactive())
+                .actionCircle(.tint)
                 .foregroundStyle(.white)
                 .glassEffectID("action", in: glass)
+                .disabled(isOffline)
         } else if canSend && phase == .running && features.contains(.steering) {
             Menu {
                 Button("Steer", systemImage: "arrow.turn.down.right") { send(.steer) }
@@ -311,14 +330,17 @@ struct Composer: View {
                 send(.steer)
             }
             .menuIndicator(.hidden)
-            .composerCircle(.regular.tint(.accentColor).interactive())
+            .actionCircle(.tint)
             .foregroundStyle(.white)
             .glassEffectID("action", in: glass)
+            .accessibilityAction(named: "Queue") { send(.queue) }
+            .disabled(isOffline)
         } else if canSend {
             Button("Send", systemImage: "arrow.up") { send(.send) }
-                .composerCircle(.regular.tint(.accentColor).interactive())
+                .actionCircle(.tint)
                 .foregroundStyle(.white)
                 .glassEffectID("action", in: glass)
+                .disabled(isOffline)
         }
     }
 }
@@ -328,5 +350,17 @@ private extension View {
         frame(width: fieldHeight, height: fieldHeight)
             .contentShape(.circle)
             .glassEffect(glass, in: .circle)
+    }
+
+    func actionCircle(_ fill: some ShapeStyle) -> some View {
+        #if os(iOS)
+        font(.body.weight(.semibold))
+            .frame(width: 32, height: 32)
+            .background(fill, in: .circle)
+            .contentShape(.circle)
+            .padding(4)
+        #else
+        composerCircle(.regular.tint(.accentColor).interactive())
+        #endif
     }
 }

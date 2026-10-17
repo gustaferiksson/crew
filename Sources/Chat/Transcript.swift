@@ -2,11 +2,16 @@ import Foundation
 
 nonisolated struct Transcript: Codable, Sendable, Equatable {
     var turns: [Turn] = []
+    var waiting: [Turn] = []
 }
 
 nonisolated struct Turn: Identifiable, Codable, Sendable, Equatable {
     enum Status: String, Codable, Sendable {
         case streaming, complete, error, interrupted
+    }
+
+    enum Pending: String, Codable, Sendable {
+        case steer, taken, queued
     }
 
     var id: String
@@ -24,6 +29,9 @@ nonisolated struct Turn: Identifiable, Codable, Sendable, Equatable {
     var failure: String?
     var speaker: String?
     var retryID: String?
+    var pending: Pending?
+    var isSteer = false
+    var answer: String?
 }
 
 nonisolated struct Prompt: Codable, Sendable, Equatable {
@@ -87,7 +95,6 @@ nonisolated enum TurnEvent: Sendable {
     case reasoningDelta(String)
     case reasoningAvailable(String)
     case interim(String)
-    case steered(String)
     case toolStart(id: String, name: String, context: String?, arguments: String)
     case toolComplete(id: String, duration: TimeInterval?, summary: String?, result: String)
     case messageComplete(text: String, status: Turn.Status, error: String?)
@@ -114,6 +121,8 @@ nonisolated struct HistoryRow: Decodable, Sendable {
     let reasoningContent: String?
     let displayKind: String?
     let displayContent: String?
+    let displayCommentary: [String]?
+    let displayReasoning: String?
 }
 
 nonisolated func toolSubject(arguments: String) -> String {
@@ -211,11 +220,11 @@ extension Transcript {
                 shown.append(turn)
             }
         }
-        return Transcript(turns: shown)
+        return Transcript(turns: shown + waiting)
     }
 
     var preview: String? {
-        let turn = visible.turns.last { !$0.reply.isEmpty || $0.prompt?.text.isEmpty == false || $0.agentMessage != nil }
+        let turn = visible.turns.last { $0.pending == nil && (!$0.reply.isEmpty || $0.prompt?.text.isEmpty == false || $0.agentMessage != nil) }
         let text = turn.map { $0.agentMessage.map { String(localized: "Message from \($0.sender)") } ?? ($0.reply.isEmpty ? $0.prompt?.text ?? "" : $0.reply) }
         return text?.split(whereSeparator: \.isWhitespace).joined(separator: " ")
     }
@@ -226,7 +235,8 @@ extension Transcript {
             let date = Date(timeIntervalSince1970: row.timestamp)
             let text = row.displayContent ?? row.content ?? ""
             if row.role == "user", row.displayKind == "steer", !turns.isEmpty {
-                appendWork(.note(text), id: "\(row.id)-steer", at: date)
+                closeThinking(at: date)
+                turns.append(Turn(id: String(row.id), prompt: Prompt(text: text, sentAt: date), status: .complete, startedAt: date, finishedAt: date, isSteer: true))
                 continue
             }
             if row.role == "user" {
@@ -277,11 +287,47 @@ extension Transcript {
         turns.append(last)
     }
 
+    mutating func wait(_ prompt: Prompt, as pending: Turn.Pending, id: String = UUID().uuidString) {
+        let turn = Turn(id: id, prompt: prompt, status: .complete, startedAt: prompt.sentAt, pending: pending)
+        guard pending != .queued else { return waiting.append(turn) }
+        waiting.insert(turn, at: waiting.firstIndex { $0.pending == .queued } ?? waiting.endIndex)
+    }
+
+    mutating func dropWaiting(where shouldDrop: (Turn) -> Bool = { _ in true }) -> [String] {
+        let dropped = waiting.filter(shouldDrop)
+        waiting.removeAll(where: shouldDrop)
+        return dropped.compactMap(\.prompt?.text)
+    }
+
+    mutating func dequeue() -> Prompt? {
+        guard !waiting.contains(where: { $0.pending != .queued }), let index = waiting.firstIndex(where: { $0.pending == .queued }) else { return nil }
+        return waiting.remove(at: index).prompt
+    }
+
+    mutating func takeSteers(at date: Date = .now) {
+        let taken = waiting.filter { $0.pending == .taken }
+        guard let first = taken.first, let index = turns.indices.last, turns[index].status == .streaming else { return }
+        waiting.removeAll { $0.pending == .taken }
+        closeThinking(at: date)
+        turns[index].status = .complete
+        turns[index].finishedAt = date
+        let text = taken.compactMap(\.prompt?.text).joined(separator: "\n")
+        turns.append(Turn(id: first.id, prompt: Prompt(text: text, sentAt: first.startedAt), status: .streaming, startedAt: date, isSteer: true))
+    }
+
+    private mutating func narrate(_ text: String, id: String, at date: Date) {
+        let index = turns.count - 1
+        let ranTool = turns[index].work.contains { if case .tool = $0.kind { true } else { false } }
+        guard !turns[index].isSteer || turns[index].answer != nil || ranTool else { return turns[index].answer = text }
+        appendWork(.note(text), id: id, at: date)
+    }
+
     mutating func begin(prompt text: String, attachments: [Attachment] = [], id: String = UUID().uuidString, at date: Date = .now) {
         turns.append(Turn(id: id, prompt: Prompt(text: text, sentAt: date, attachments: attachments), status: .streaming, startedAt: date))
     }
 
     mutating func begin(remote user: String, displayKind: String?, at date: Date) {
+        waiting.removeAll { $0.pending != .queued }
         let delivery = deliveryProcess(in: user)
         let notice = delivery == nil ? noticeText(kind: displayKind, content: user) : nil
         let prompt = Prompt(raw: user, sentAt: date)
@@ -292,10 +338,13 @@ extension Transcript {
     mutating func apply(_ event: TurnEvent, at date: Date = .now) {
         if case .messageStart = event {
             if turns.last?.status != .streaming {
+                waiting.removeAll { $0.pending != .queued }
                 turns.append(Turn(id: UUID().uuidString, status: .streaming, startedAt: date))
             }
             return
         }
+        let isTool = if case .toolStart = event { true } else if case .toolComplete = event { true } else { false }
+        if !isTool { takeSteers(at: date) }
         guard let index = turns.indices.last, turns[index].status == .streaming else { return }
         if case .messageDelta(let text) = event {
             turns[index].reply += text
@@ -310,18 +359,16 @@ extension Transcript {
             return
         }
         if case .reasoningAvailable(let text) = event {
+            let narration = turns[index].work.compactMap { if case .note(let note) = $0.kind { note } else { nil } } + [turns[index].answer].compactMap(\.self)
+            guard !narration.contains(text), narration.joined(separator: "\n") != text, narration.joined(separator: "\n\n") != text else { return }
             appendWork(.thinking(text), id: UUID().uuidString, at: date)
             return
         }
         if case .interim(let text) = event {
             turns[index].reply = ""
-            if turns[index].work.last?.kind != .note(text) {
-                appendWork(.note(text), id: UUID().uuidString, at: date)
+            if turns[index].work.last?.kind != .note(text), turns[index].answer != text {
+                narrate(text, id: UUID().uuidString, at: date)
             }
-            return
-        }
-        if case .steered(let text) = event {
-            appendWork(.note(text), id: UUID().uuidString, at: date)
             return
         }
         if case .toolStart(let id, let name, let context, let arguments) = event {
@@ -332,6 +379,8 @@ extension Transcript {
         }
         if case .toolComplete(let id, let duration, let summary, let result) = event {
             completeTool(id: id, result: result, summary: summary, duration: duration, at: date)
+            let batchDone = !turns[index].work.contains { if case .tool(let call) = $0.kind { call.status == .running } else { false } }
+            for item in waiting.indices where batchDone && waiting[item].pending == .steer { waiting[item].pending = .taken }
             return
         }
         if case .messageComplete(let text, let status, let error) = event {
@@ -354,12 +403,16 @@ extension Transcript {
             turns.append(Turn(id: String(row.id), status: .complete, startedAt: date))
         }
         let index = turns.count - 1
-        if let reasoning = row.reasoning ?? row.reasoningContent, !reasoning.isEmpty {
+        let reasoning = row.displayCommentary == nil ? row.reasoning ?? row.reasoningContent : row.displayReasoning
+        if let reasoning, !reasoning.isEmpty {
             appendWork(.thinking(reasoning), id: "\(row.id)-thinking", at: date)
+        }
+        for (offset, text) in (row.displayCommentary ?? []).enumerated() where !text.isEmpty {
+            narrate(text, id: "\(row.id)-commentary-\(offset)", at: date)
         }
         let content = row.content ?? ""
         if let calls = row.toolCalls, !calls.isEmpty {
-            if !content.isEmpty { appendWork(.note(content), id: "\(row.id)-note", at: date) }
+            if !content.isEmpty { narrate(content, id: "\(row.id)-note", at: date) }
             for call in calls {
                 let arguments = call.function.arguments ?? ""
                 let tool = ToolCall(name: call.function.name, subject: toolSubject(arguments: arguments), arguments: arguments, status: .success)
@@ -386,7 +439,7 @@ extension Transcript {
 
     private mutating func sealReplyAsNote(at date: Date) {
         guard let index = turns.indices.last, !turns[index].reply.isEmpty else { return }
-        appendWork(.note(turns[index].reply), id: UUID().uuidString, at: date)
+        narrate(turns[index].reply, id: UUID().uuidString, at: date)
         turns[index].reply = ""
     }
 

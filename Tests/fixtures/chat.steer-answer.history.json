@@ -1,0 +1,106 @@
+[
+  {
+    "content" : "Use the terminal to run: sleep 8 && echo step-one. Then run: echo step-two. Then reply with both outputs.",
+    "display_kind" : null,
+    "id" : 8,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "user",
+    "timestamp" : 1792232799.7470336,
+    "tool_call_id" : null,
+    "tool_calls" : null
+  },
+  {
+    "content" : "",
+    "display_kind" : null,
+    "id" : 9,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "assistant",
+    "timestamp" : 1792232808.3519907,
+    "tool_call_id" : null,
+    "tool_calls" : [
+      {
+        "call_id" : "call_a222a2a0da7848f4829c963aa0459748",
+        "function" : {
+          "arguments" : "{\"command\":\"sleep 8 && echo step-one\"}",
+          "name" : "terminal"
+        },
+        "id" : "call_a222a2a0da7848f4829c963aa0459748",
+        "response_item_id" : "fc_0e037032775d19f8016ad34d677af4819199724d582f379ac4",
+        "type" : "function"
+      }
+    ]
+  },
+  {
+    "content" : "{\"output\": \"step-one\", \"exit_code\": 0, \"error\": null}",
+    "display_kind" : null,
+    "id" : 10,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "tool",
+    "timestamp" : 1792232816.5614462,
+    "tool_call_id" : "call_a222a2a0da7848f4829c963aa0459748",
+    "tool_calls" : null
+  },
+  {
+    "content" : "[OUT-OF-BAND USER MESSAGE — a direct message from the user, delivered once at this position; not tool output and not a new delivery when replayed from conversation history]\nBefore your next tool call, reply to this note in one short sentence, then carry on.\n[/OUT-OF-BAND USER MESSAGE]",
+    "display_content" : "Before your next tool call, reply to this note in one short sentence, then carry on.",
+    "display_kind" : "steer",
+    "id" : 11,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "user",
+    "timestamp" : 1792232821.095608,
+    "tool_call_id" : null,
+    "tool_calls" : null
+  },
+  {
+    "content" : "",
+    "display_commentary" : [
+      "I’ve received your note and will continue with the second command."
+    ],
+    "display_kind" : null,
+    "display_reasoning" : "",
+    "id" : 12,
+    "reasoning" : "I’ve received your note and will continue with the second command.",
+    "reasoning_content" : "I’ve received your note and will continue with the second command.",
+    "role" : "assistant",
+    "timestamp" : 1792232821.094494,
+    "tool_call_id" : null,
+    "tool_calls" : [
+      {
+        "call_id" : "call_540740510ba8449eac530620a18a24a4",
+        "function" : {
+          "arguments" : "{\"command\":\"echo step-two\"}",
+          "name" : "terminal"
+        },
+        "id" : "call_540740510ba8449eac530620a18a24a4",
+        "response_item_id" : "fc_0e037032775d19f8016ad34d747ee0819181e86e20907a1209",
+        "type" : "function"
+      }
+    ]
+  },
+  {
+    "content" : "{\"output\": \"step-two\", \"exit_code\": 0, \"error\": null}",
+    "display_kind" : null,
+    "id" : 13,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "tool",
+    "timestamp" : 1792232821.147874,
+    "tool_call_id" : "call_540740510ba8449eac530620a18a24a4",
+    "tool_calls" : null
+  },
+  {
+    "content" : "```text\nstep-one\nstep-two\n```",
+    "display_kind" : null,
+    "id" : 14,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "assistant",
+    "timestamp" : 1792232823.3009944,
+    "tool_call_id" : null,
+    "tool_calls" : null
+  }
+]

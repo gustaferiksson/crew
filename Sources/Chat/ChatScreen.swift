@@ -10,6 +10,7 @@ struct ChatScreen: View {
     @Environment(Connection.self) private var connection
     @Environment(BotStore.self) private var bots
     @Environment(ChatSessions.self) private var chats
+    @Environment(ChatDrafts.self) private var drafts
     @State private var showsOffline = false
     @State private var dismissedOffer: Turn.ID?
     @State private var addingShop: String?
@@ -46,6 +47,8 @@ struct ChatScreen: View {
             transcript: session?.transcript.visible ?? Transcript(),
             emptyState: EmptyView(),
             mentionable: bots.bots.filter { $0.id != bot.id },
+            draft: Binding(get: { drafts.texts[bot.id, default: ""] }, set: { drafts.update(bot.id, to: $0) }),
+            tray: drafts.tray(for: bot.id),
             request: session?.request,
             payment: session?.request.flatMap { session?.payments[$0.id] },
             paymentNotice: session?.endedPayment,
@@ -64,6 +67,7 @@ struct ChatScreen: View {
                 openPersona: { showsBot.toggle() },
                 changeModel: { changeModel(to: $0) },
                 respond: { session?.respond(to: $0, with: $1) },
+                unqueue: { session?.unqueue($0) },
                 answer: { session?.answer($0, with: $1) },
                 retryPayment: { session?.retryPayment($0) },
                 expirePayment: { session?.expirePayment($0) },
@@ -103,6 +107,11 @@ struct ChatScreen: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text(models.failure ?? "")
+        }
+        .onChange(of: session?.returned ?? [], initial: true) {
+            guard let returned = session?.returned, !returned.isEmpty else { return }
+            session?.returned = []
+            drafts.update(bot.id, to: ([drafts.texts[bot.id, default: ""]] + returned).filter { !$0.isEmpty }.joined(separator: "\n"))
         }
         .onChange(of: live.canonicalSession?.position, initial: true) {
             bots.markSeen(live)

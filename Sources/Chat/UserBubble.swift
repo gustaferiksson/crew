@@ -4,6 +4,8 @@ struct UserBubble: View {
     let text: String
     let mentionable: [Bot]
     let turnID: Turn.ID
+    var pending: Turn.Pending?
+    var unqueue: (() -> Void)?
 
     @Environment(BotStore.self) private var roster
     #if os(macOS)
@@ -13,9 +15,6 @@ struct UserBubble: View {
     @Environment(\.displayScale) private var displayScale
     @ScaledMetric(relativeTo: .body) private var avatarSize: CGFloat = 16
     @State private var card: MentionPick?
-    @State private var isUnfolded = false
-    @State private var fullHeight: CGFloat = 0
-    @State private var foldThreshold: CGFloat = 0
 
     private let shape = UnevenRoundedRectangle(
         cornerRadii: RectangleCornerRadii(topLeading: 19, bottomLeading: 19, bottomTrailing: 2, topTrailing: 19),
@@ -30,8 +29,6 @@ struct UserBubble: View {
         startPoint: .top,
         endPoint: .bottom
     )
-
-    private var isFoldable: Bool { fullHeight > foldThreshold + 1 }
 
     private func content(_ segments: [MentionSegment]) -> Text {
         segments.enumerated().reduce(Text(verbatim: "")) { result, item in
@@ -49,49 +46,31 @@ struct UserBubble: View {
         let segments = mentionSegments(in: text, among: mentionable)
         let content = content(segments)
         let picked = card.flatMap { pick in segments.indices.contains(pick.index) && segments[pick.index].bot?.id == pick.bot ? segments[pick.index].bot : nil }
-        VStack(alignment: .leading, spacing: 4) {
-            content
-                .lineLimit(isFoldable && !isUnfolded ? 6 : nil)
-                .textRenderer(MentionTagRenderer())
-                .overlayPreferenceValue(Text.LayoutKey.self) { tagButtons(for: $0, in: segments, picked: picked) }
-                .tint(.white)
-                .environment(\.openURL, OpenURLAction { url in
-                    guard url.scheme == "crew-mention", let index = Int(url.absoluteString.replacing("crew-mention:", with: "")),
-                          let bot = segments.indices.contains(index) ? segments[index].bot : nil
-                    else { return .systemAction }
-                    card = MentionPick(index: index, bot: bot.id)
-                    return .handled
-                })
-                .background {
-                    content
-                        .fixedSize(horizontal: false, vertical: true)
-                        .hidden()
-                        .onGeometryChange(for: CGFloat.self, of: \.size.height) { fullHeight = $0 }
+        content
+            .textRenderer(MentionTagRenderer())
+            .overlayPreferenceValue(Text.LayoutKey.self) { tagButtons(for: $0, in: segments, picked: picked) }
+            .tint(.white)
+            .environment(\.openURL, OpenURLAction { url in
+                guard url.scheme == "crew-mention", let index = Int(url.absoluteString.replacing("crew-mention:", with: "")),
+                      let bot = segments.indices.contains(index) ? segments[index].bot : nil
+                else { return .systemAction }
+                card = MentionPick(index: index, bot: bot.id)
+                return .handled
+            })
+            .foregroundStyle(pending == nil ? AnyShapeStyle(.white) : AnyShapeStyle(Self.fill))
+            #if os(macOS)
+            .textSelection(.enabled)
+            #endif
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background {
+                if pending == nil {
+                    shape.fill(Self.fill)
+                } else {
+                    shape.strokeBorder(Self.fill, lineWidth: 1)
                 }
-                .background {
-                    content
-                        .lineLimit(8)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .hidden()
-                        .onGeometryChange(for: CGFloat.self, of: \.size.height) { foldThreshold = $0 }
-                }
-            if isFoldable {
-                Button(isUnfolded ? "Show less" : "Show more") {
-                    withAnimation(.snappy) { isUnfolded.toggle() }
-                }
-                .buttonStyle(.plain)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.white.opacity(0.8))
             }
-        }
-        .foregroundStyle(.white)
-        #if os(macOS)
-        .textSelection(.enabled)
-        #endif
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .background(Self.fill, in: shape)
-        .modifier(MessageMenu(text: text, shape: shape))
+            .modifier(MessageMenu(text: text, shape: shape, remove: pending == .queued ? unqueue : nil))
         .containerRelativeFrame(.horizontal, alignment: .trailing) { length, _ in min(length * 0.75, 560) }
         .frame(maxWidth: .infinity, alignment: .trailing)
         #if os(iOS)

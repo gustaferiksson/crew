@@ -52,6 +52,7 @@ struct Composer: View {
     @State private var isImportingFiles = false
     @State private var photos: [PhotosPickerItem] = []
     @State private var showsHoldHint = false
+    @State private var selection: TextSelection?
     @GestureState private var hold: Hold?
     let isFocused: FocusState<Bool>.Binding
 
@@ -232,14 +233,18 @@ struct Composer: View {
                 }
                 .frame(maxWidth: .infinity, minHeight: fieldHeight, alignment: .leading)
             } else {
-                TextField("Message \(botName)", text: $draft, axis: .vertical)
+                TextField("Message \(botName)", text: $draft, selection: $selection, axis: .vertical)
                     .textFieldStyle(.plain)
                     .lineLimit(1...6)
                     .padding(.vertical, 8)
                     .frame(maxWidth: .infinity, minHeight: fieldHeight, alignment: .leading)
                     .focused(isFocused)
                     .onKeyPress(.return, phases: .down) { press in
-                        guard !press.modifiers.contains(.shift), canSend, !isOffline else { return .ignored }
+                        if press.modifiers.contains(.shift) {
+                            selection = draft.insertNewLine(at: selection)
+                            return .handled
+                        }
+                        guard canSend, !isOffline else { return .ignored }
                         send(phase == .running && features.contains(.steering) ? .steer : .send)
                         return .handled
                     }
@@ -342,6 +347,15 @@ struct Composer: View {
                 .glassEffectID("action", in: glass)
                 .disabled(isOffline)
         }
+    }
+}
+
+extension String {
+    mutating func insertNewLine(at selection: TextSelection?) -> TextSelection {
+        let range = if case .selection(let range)? = selection?.indices, range.upperBound <= endIndex { range } else { endIndex..<endIndex }
+        let offset = utf8.distance(from: utf8.startIndex, to: range.lowerBound)
+        replaceSubrange(range, with: "\n")
+        return TextSelection(insertionPoint: utf8.index(utf8.startIndex, offsetBy: offset + 1))
     }
 }
 

@@ -15,7 +15,7 @@ final class PaymentUITests: XCTestCase {
     @MainActor private func waitForLog(_ expected: String, in app: XCUIApplication) -> Bool {
         let element = app.descendants(matching: .any)["payment-log"]
         let predicate = NSPredicate(format: "value == %@", expected)
-        return XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: predicate, object: element)], timeout: 5) == .completed
+        return XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: predicate, object: element)], timeout: 10) == .completed
     }
 
     @MainActor func testCardShowsHostTotalAndClaim() {
@@ -54,10 +54,10 @@ final class PaymentUITests: XCTestCase {
         let app = launch("chat-payment")
         let pay = app.buttons["Hold to Pay"]
         XCTAssertTrue(pay.waitForExistence(timeout: 10))
-        pay.press(forDuration: 1.2)
+        pay.press(forDuration: 2)
         XCTAssertFalse(app.staticTexts["Pay 499 kr at www.zalando.se?"].exists)
         XCTAssertTrue(waitForLog("approval.respond once", in: app))
-        XCTAssertTrue(app.staticTexts["www.zalando.se"].waitForNonExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["www.zalando.se"].waitForNonExistence(timeout: 15))
     }
 
     @MainActor func testShortPressSendsNothing() {

@@ -73,6 +73,7 @@ struct ConversationList: View {
 struct ConversationTranscript: View {
     let bot: Bot
     let conversation: Conversation
+    var focus: String?
 
     @Environment(Connection.self) private var connection
     @Environment(BotStore.self) private var bots
@@ -83,30 +84,51 @@ struct ConversationTranscript: View {
     @State private var expandedTurns: Set<Turn.ID> = []
     @State private var expandedWork: Set<WorkItem.ID> = []
     @State private var expandedRuns: Set<String> = []
+    @State private var highlighted: Turn.ID?
 
     var body: some View {
         NavigationStack {
             Group {
                 if let transcript {
-                    ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 28) {
-                            ForEach(transcript.turns) { turn in
-                                TurnView(
-                                    turn: turn,
-                                    surfaces: surfaces,
-                                    activity: nil,
-                                    reveal: 0,
-                                    timestampWidth: 40,
-                                    mentionable: bots.bots.filter { $0.id != bot.id },
-                                    expandedTurns: $expandedTurns,
-                                    expandedWork: $expandedWork,
-                                    expandedRuns: $expandedRuns
-                                )
+                    ScrollViewReader { proxy in
+                        ScrollView {
+                            LazyVStack(alignment: .leading, spacing: 28) {
+                                ForEach(transcript.turns) { turn in
+                                    TurnView(
+                                        turn: turn,
+                                        surfaces: surfaces,
+                                        activity: nil,
+                                        reveal: 0,
+                                        timestampWidth: 40,
+                                        mentionable: bots.bots.filter { $0.id != bot.id },
+                                        expandedTurns: $expandedTurns,
+                                        expandedWork: $expandedWork,
+                                        expandedRuns: $expandedRuns
+                                    )
+                                    .background {
+                                        if highlighted == turn.id {
+                                            RoundedRectangle(cornerRadius: 12)
+                                                .fill(.tint.opacity(0.12))
+                                                .padding(-8)
+                                        }
+                                    }
+                                    .id(turn.id)
+                                }
                             }
+                            .padding(16)
                         }
-                        .padding(16)
+                        .defaultScrollAnchor(.bottom)
+                        .task {
+                            guard let focus, let target = transcript.turn(matching: focus) else { return }
+                            try? await Task.sleep(for: .milliseconds(400))
+                            guard !Task.isCancelled else { return }
+                            proxy.scrollTo(target.id, anchor: .center)
+                            highlighted = target.id
+                            try? await Task.sleep(for: .seconds(2))
+                            guard !Task.isCancelled else { return }
+                            withAnimation(.easeOut(duration: 0.6)) { highlighted = nil }
+                        }
                     }
-                    .defaultScrollAnchor(.bottom)
                 } else if let failure {
                     ContentUnavailableView("Couldn't Load Conversation", systemImage: "exclamationmark.triangle", description: Text(failure))
                 } else {
@@ -127,6 +149,10 @@ struct ConversationTranscript: View {
         .frame(minWidth: 560, minHeight: 640)
         #endif
         .task {
+            if Snapshot.requested != nil {
+                transcript = ChatFixture.history.transcript
+                return
+            }
             guard let server = connection.session?.server else { return }
             do {
                 let loaded = Transcript(history: try await history(of: conversation.id, profile: bot.name, on: server, with: connection.urlSession))

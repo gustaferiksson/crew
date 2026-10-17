@@ -1,9 +1,9 @@
 {
   "name": "crew-push",
   "label": "Crew Push",
-  "description": "Device registration for Crew push notifications. No dashboard tab.",
+  "description": "Device registration and payment shops for Crew. No dashboard tab.",
   "icon": "Smartphone",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "tab": { "hidden": true },
   "entry": "dist/index.js",
   "api": "plugin_api.py"

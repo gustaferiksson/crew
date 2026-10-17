@@ -5,6 +5,8 @@ enum Snapshot: String {
     case loginUnreachable = "login-unreachable"
     case sidebar
     case sidebarFlat = "sidebar-flat"
+    case sidebarSearch = "sidebar-search"
+    case searchResult = "search-result"
     case unreachable
     case avatars
     case avatarPicker = "avatar-picker"
@@ -79,7 +81,7 @@ enum Snapshot: String {
         if isShops || chatFixture?.isPayment == true {
             return Connection(fixture: .connected, server: server, crewPush: PluginStatus(pluginVersion: "0.4.0", installId: "fixture", apnsConfigured: true, http2: true, devices: 2, features: ["payments"], gate: true))
         }
-        if [.sidebar, .sidebarFlat, .layout, .layoutInspector, .inspectorLook, .profileSkills, .botPage, .notifications, .newBot, .groupChat, .groupWelcome, .groupInspector].contains(self) || chatFixture != nil || inspectorTab != nil { return Connection(fixture: .connected, server: server) }
+        if [.sidebar, .sidebarFlat, .sidebarSearch, .searchResult, .layout, .layoutInspector, .inspectorLook, .profileSkills, .botPage, .notifications, .newBot, .groupChat, .groupWelcome, .groupInspector].contains(self) || chatFixture != nil || inspectorTab != nil { return Connection(fixture: .connected, server: server) }
         if self == .unreachable { return Connection(fixture: .unreachable, server: server) }
         return Connection(fixture: .signedOut, server: server)
     }
@@ -117,7 +119,35 @@ enum Snapshot: String {
     }
 
     var selectedBot: Bot.ID? {
-        [.layout: "ada", .layoutInspector: "pixel"][self]
+        [.layout: "ada", .layoutInspector: "pixel", .searchResult: "default"][self]
+    }
+
+    var searchQuery: String? {
+        [.sidebarSearch: "boat", .searchResult: "boat"][self]
+    }
+
+    var searchFocus: SearchFocus? {
+        guard self == .searchResult, let hit = searchHits?.first else { return nil }
+        return SearchFocus(bot: hit.bot, snippet: hit.snippet)
+    }
+
+    var searchHits: [MessageHit]? {
+        guard searchQuery != nil else { return nil }
+        let roster = bots.bots
+        let hit = { (bot: String, session: String, title: String, role: String, hoursAgo: Double, snippet: String) in
+            roster.first { $0.id == bot }.flatMap { found in
+                MessageHit(bot: found, match: SessionMatch(
+                    sessionId: StoredSessionID(rawValue: session), lineageRoot: nil, title: title, snippet: snippet, role: role,
+                    lastActive: Date.now.addingTimeInterval(-hoursAgo * 3600).timeIntervalSince1970, sessionStarted: nil, startedAt: nil
+                ))
+            }
+        }
+        return [
+            hit("default", "s-default", "Bot Chat", "assistant", 0.05, "...Trail shoes with grip; the rock is slick when wet\n- Headlamp, daylight is only about **8 hours**\n- Dry bag for the >>>boat<<< trip\n\n> Book the >>>boat<<< early; tours thin out after the season ends."),
+            hit("scout", "s-scout-reine", "Ferries around Reine", "assistant", 20, "The Reine to Vindstad >>>boat<<< runs twice a day until the end of October, so plan the Bunes beach hike around the 10:15 departure..."),
+            hit("chef", "s-chef", "Bot Chat", "user", 50, "Pack something for a >>>boat<<< picnic on Saturday, nothing that needs a fridge"),
+            hit("ledger", "s-ledger-q3", "Q3 expenses", "assistant", 24 * 9, "...the >>>boat<<< rental in Lofoten (1 450 kr) is filed under travel, not entertainment."),
+        ].compactMap(\.self)
     }
 
     var chats: ChatSessions {
@@ -130,7 +160,7 @@ enum Snapshot: String {
             )
             return ChatSessions(fixture: ["scout": ChatSession(fixture: scout, transcript: Transcript(turns: [turn]), todos: [])])
         }
-        guard let id = selectedBot, let bot = bots.bots.first(where: { $0.id == id }) else { return ChatSessions() }
+        guard let id = selectedBot ?? (self == .sidebarSearch ? "default" : nil), let bot = bots.bots.first(where: { $0.id == id }) else { return ChatSessions() }
         return ChatSessions(fixture: [id: ChatSession(fixture: bot, transcript: ChatFixture.history.transcript, todos: [])])
     }
 

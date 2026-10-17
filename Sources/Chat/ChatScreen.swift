@@ -4,6 +4,7 @@ struct ChatScreen: View {
     let bot: Bot
     let models: ModelSwitcher
     @Binding var showsBot: Bool
+    var focus: SearchFocus?
     let select: (Bot.ID) -> Void
 
     @Environment(Connection.self) private var connection
@@ -52,6 +53,7 @@ struct ChatScreen: View {
             offlineReason: offlineReason,
             activity: session?.statusLine ?? session?.generatingTool.map { String(localized: "Preparing \($0.replacing("_", with: " "))") },
             models: models,
+            focus: focus,
             presentation: Snapshot.requested == .layoutInspector ? ChatPresentation(scrollTarget: "t1") : ChatPresentation(),
             actions: ChatActions(
                 send: { session?.send($0, attachments: $1, mentioning: $2, mode: $3) },

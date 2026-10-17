@@ -109,6 +109,7 @@ targets:
       - Sources/Chat/A2UI/MapPinPoint.swift
       - Sources/Groups/GroupStore.swift
       - Sources/Groups/GroupSession.swift
+      - Sources/Search/MessageSearch.swift
       - Tests/CrewTests
     settings:
       base:

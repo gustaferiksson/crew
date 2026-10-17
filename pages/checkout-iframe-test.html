@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; frame-src 'self'">
+<title>Crew Test Checkout (Frame)</title>
+<style>
+  :root { color-scheme: light dark; --bg: #f5f5f7; --fg: #1d1d1f; --muted: #6e6e73; --line: #d2d2d7; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #000; --fg: #f5f5f7; --muted: #a1a1a6; --line: #3a3a3c; } }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 17px/1.4 -apple-system, system-ui, sans-serif; }
+  main { max-width: 420px; margin: 0 auto; padding: 32px 16px; }
+  h1 { font-size: 28px; margin: 0 0 4px; }
+  p { color: var(--muted); margin: 0 0 24px; }
+  iframe { width: 100%; height: 480px; box-sizing: border-box; border: 1px solid var(--line); border-radius: 12px; }
+  .total { display: flex; justify-content: space-between; font-size: 20px; font-weight: 600; margin: 16px 0; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Test Checkout (Frame)</h1>
+  <p>The card fields live in a same-origin frame, like a payment provider's form. Crew can't fill them. There is no Pay button; nothing is sent anywhere.</p>
+  <iframe title="Card details" srcdoc="<!doctype html><meta charset=utf-8><style>:root{color-scheme:light dark}body{margin:0;padding:16px;display:grid;gap:12px;font:17px/1.4 -apple-system,system-ui,sans-serif}label{display:grid;gap:4px;font-size:13px}input{font:inherit;padding:8px 12px;border:1px solid #d2d2d7;border-radius:8px}</style><label>Name on card <input name=cc-name autocomplete=cc-name></label><label>Card number <input name=cc-number autocomplete=cc-number inputmode=numeric></label><label>Month <input name=cc-exp-month autocomplete=cc-exp-month inputmode=numeric></label><label>Year <input name=cc-exp-year autocomplete=cc-exp-year inputmode=numeric></label><label>CVC <input name=cc-csc autocomplete=cc-csc inputmode=numeric></label><label>Postal code <input name=postal-code autocomplete=postal-code></label>"></iframe>
+  <div class="total"><span>Total</span><span>499 kr</span></div>
+</main>
+</body>
+</html>

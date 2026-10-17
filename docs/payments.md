@@ -93,12 +93,19 @@ ssh mainframe systemctl restart hermes.service
 - **Files:** `server/crew-push/dashboard/plugin_api.py`, `tests/test_routes.py`, version files; `Sources/Inspector/BotInspector.swift`, new `Sources/Inspector/Shops.swift`, `Sources/Inspector/InspectorSnapshots.swift`, a Decisions line in `docs/PLAN.md`.
 - **Server:** add the master card once, to the launch profile's vault, with no origin. Use the 4242 test card until step 4 is verified, then replace it with the real virtual card. Remove the step 1 card. Deploy crew-push.
   ```sh
-  ssh -t mainframe podman exec -it <ctr> hermes vault add      # kind payment, label Shopping card, origin empty
-  ssh -t mainframe podman exec -it <ctr> hermes vault list
-  ssh -t mainframe podman exec -it <ctr> hermes -p crew-test vault list
-  ssh -t mainframe podman exec -it <ctr> hermes -p crew-test vault rm <id of Test 4242>
+  ssh -t mainframe podman exec -it --user 10000:10000 -w /opt/hermes hermes /opt/hermes/.venv/bin/python -c '
+  import getpass
+  from pathlib import Path
+  from agent.vault_store import VaultStore
+  fields = ("card_number", "exp_month", "exp_year", "cvc", "cardholder_name")
+  secret = {field: getpass.getpass(field.replace("_", " ") + ": ").strip() for field in fields}
+  item = VaultStore(Path("/opt/data/vault")).add_item(kind="payment", label="Shopping card", secret=secret)
+  print(item.id, item.label, item.origin)'
+  ssh -t mainframe podman exec -it hermes hermes vault list
+  ssh -t mainframe podman exec -it hermes hermes -p crew-test vault list
+  ssh -t mainframe podman exec -it hermes hermes -p crew-test vault rm <id of Test 4242>
   ```
-  `hermes vault add` is interactive only (`getpass`). The non-interactive path, for the planned 1Password export CLI, is `VaultStore(Path("/opt/data/vault")).add_item(kind="payment", label=..., secret={"card_number", "exp_month", "exp_year", "cvc", "cardholder_name"})` from `agent.vault_store`, run with `/opt/hermes/.venv/bin/python` in `/opt/hermes` inside the container, without `origin` for the master.
+  `hermes vault add` cannot create the master in Hermes 0.22.1: it insists on an origin for payment items. The command above calls `VaultStore.add_item` without `origin` and reads the values hidden, so they never reach argv or the shell history. The vault files must stay owned by 10000 (`ssh mainframe chown -R 10000:10000 /root/hermes/data/vault` if not).
 
   If the default profile is a bot, it sees "Shopping card" in `browser_vault list` but cannot fill it (`no_origin`).
 - **Verify on crew-test:** add `gustaferiksson.github.io` in the inspector, then the step 1 purchase works end to end; adding it twice, `http://` or an IP is refused; POST without a login gives 401; `hermes -p crew-test vault list` shows the copy with its origin.
@@ -130,3 +137,5 @@ With `terminal.backend: docker`, a bot's commands run in a separate sandbox cont
 | C. Accept the risk | No. The worst case is one month's limit on the virtual card until it is frozen in the bank app. | Nothing. The inspector footnote from step 4 keeps the risk visible. |
 
 **Recommendation: C now.** Keep the virtual card's monthly limit low (for example 1 000 kr) and freeze it when not shopping. Move to B if the limit grows or more bots browse untrusted sites. A alone is not worth the setup, because it adds a root path through the socket and still leaves the card readable.
+
+**Planned hardening (with C):** only the "chief of staff" bot keeps a Hermes terminal (`local`, inside the podman container). Shopping bots keep just the browser and `browser_vault`, with the terminal, code-execution and browser console/CDP toolsets off, set per bot in the inspector's Toolsets (no code changes). The container isolates Hermes from mainframe, not bots from each other.

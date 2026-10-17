@@ -1,6 +1,6 @@
 # crew-push
 
-Hermes plugin that sends APNs notifications to Crew (finished turns, failed turns, approvals and questions in each bot's Bot Chat, plus opt-in routines). Design: [`docs/push.md`](../../docs/push.md). Needs Hermes v0.21.7 or later.
+Hermes plugin that sends APNs notifications to Crew (finished turns, failed turns, approvals and questions in each bot's Bot Chat, plus opt-in routines) and guards payments: every card fill needs the amount, merchant and reason, runs only in Bot Chat, and is approved in Crew ([`docs/flows/payments.md`](../../docs/flows/payments.md)). Design: [`docs/push.md`](../../docs/push.md). Needs Hermes v0.21.7 or later.
 
 ## Install (once)
 
@@ -52,7 +52,7 @@ Then restart as in step 6. Registered devices, the key and `install_id` live in 
 
 ## Routes
 
-All under `/api/plugins/crew-push/`, behind the dashboard login: `GET status`, `POST devices`, `DELETE devices/{token}`, `POST test`, `POST read` (`{token, profile, session_id, read_at}`: a silent push to every other device so they clear that bot's notifications). Shapes are in `docs/push.md` section 4.4.
+All under `/api/plugins/crew-push/`, behind the dashboard login: `GET status`, `POST devices`, `DELETE devices/{token}`, `POST test`, `POST read` (`{token, profile, session_id, read_at}`: a silent push to every other device so they clear that bot's notifications), and since 0.4.0 `GET payments`, `POST payments/shops`, `DELETE payments/shops/{id}` and `GET payments/requests/{request_id}` for payments. Shapes are in `docs/push.md` section 4.4 and `docs/flows/payments-contract.md`.
 
 ## Tests
 

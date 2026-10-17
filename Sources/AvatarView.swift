@@ -30,8 +30,9 @@ struct AvatarView: View {
             photo
                 .resizable()
                 .scaledToFill()
+                .frame(width: size * 0.84, height: size * 0.84)
+                .clipShape(.rect(cornerRadius: size * 0.28, style: .continuous))
                 .frame(width: size, height: size)
-                .clipShape(.rect(cornerRadius: size * 0.22, style: .continuous))
                 .accessibilityHidden(true)
         } else {
             TimelineView(.animation(minimumInterval: 1.0 / 15, paused: !swaying)) { context in

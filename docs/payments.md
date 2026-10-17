@@ -1,6 +1,6 @@
 # Payments: approve every purchase
 
-Plan for [#9](https://github.com/gustaferiksson/crew/issues/9). Researched against Hermes **0.22.1** (the version mainframe runs). Nothing is built yet; each step below is one PR.
+Plan for [#9](https://github.com/gustaferiksson/crew/issues/9). Researched against Hermes **0.22.1**. Nothing is built yet; each step below is one PR.
 
 ## Summary
 
@@ -42,14 +42,15 @@ Plan for [#9](https://github.com/gustaferiksson/crew/issues/9). Researched again
 
 ## Server commands
 
-Hermes runs in a podman container on mainframe (quadlet `hermes.service`). Data is `/root/hermes/data` on the host and `/opt/data` (`HERMES_HOME`) inside the container. `mainframe` below is your ssh target and `<ctr>` the container name from `podman ps` (a quadlet without `ContainerName=` uses `systemd-hermes`). Note that `docs/push.md` still says `~/.hermes`; the paths here are the ones for mainframe.
+`<host>` below is the ssh name of the Hermes machine and `<hermes-data-dir>` the Hermes data directory (`HERMES_HOME`) on that host. "The Hermes environment" means a shell on `<host>` as the user Hermes runs as, inside its container if it runs in one (for example `ssh -t <host> podman exec -it --user <uid>:<gid> <ctr> sh`). The paths `/opt/hermes` and `/opt/data` are where the official container image keeps the Hermes checkout and `HERMES_HOME`; on another install use yours. `docs/push.md` uses `~/.hermes`, the default for an install without a container.
 
 Deploy crew-push (steps 2 and 4):
 
 ```sh
-rsync -a --delete server/crew-push/ mainframe:/root/hermes/data/plugins/crew-push/
-ssh mainframe systemctl restart hermes.service
+rsync -a --delete server/crew-push/ <host>:<hermes-data-dir>/plugins/crew-push/
 ```
+
+Then restart Hermes the way it runs on `<host>` (for example its systemd service).
 
 ## Steps
 
@@ -62,7 +63,8 @@ ssh mainframe systemctl restart hermes.service
 - **Files:** `pages/checkout-test.html`, `docs/payments.md`.
 - **Server:** Pages deploys only on a `v*` tag, so the page is live at `https://gustaferiksson.github.io/crew/checkout-test.html` after the next release. Then add the test card to crew-test by hand (the only time a card is added by hand):
   ```sh
-  ssh -t mainframe podman exec -it <ctr> hermes -p crew-test vault add
+  # in the Hermes environment
+  hermes -p crew-test vault add
   # kind payment, label Test 4242, origin https://gustaferiksson.github.io
   # card 4242424242424242, exp 12 / 2030, cvc 123
   ```
@@ -93,7 +95,8 @@ ssh mainframe systemctl restart hermes.service
 - **Files:** `server/crew-push/dashboard/plugin_api.py`, `tests/test_routes.py`, version files; `Sources/Inspector/BotInspector.swift`, new `Sources/Inspector/Shops.swift`, `Sources/Inspector/InspectorSnapshots.swift`, a Decisions line in `docs/PLAN.md`.
 - **Server:** add the master card once, to the launch profile's vault, with no origin. Use the 4242 test card until step 4 is verified, then replace it with the real virtual card. Remove the step 1 card. Deploy crew-push.
   ```sh
-  ssh -t mainframe podman exec -it --user 10000:10000 -w /opt/hermes hermes /opt/hermes/.venv/bin/python -c '
+  # in the Hermes environment
+  cd /opt/hermes && /opt/hermes/.venv/bin/python -c '
   import getpass
   from pathlib import Path
   from agent.vault_store import VaultStore
@@ -101,11 +104,11 @@ ssh mainframe systemctl restart hermes.service
   secret = {field: getpass.getpass(field.replace("_", " ") + ": ").strip() for field in fields}
   item = VaultStore(Path("/opt/data/vault")).add_item(kind="payment", label="Shopping card", secret=secret)
   print(item.id, item.label, item.origin)'
-  ssh -t mainframe podman exec -it hermes hermes vault list
-  ssh -t mainframe podman exec -it hermes hermes -p crew-test vault list
-  ssh -t mainframe podman exec -it hermes hermes -p crew-test vault rm <id of Test 4242>
+  hermes vault list
+  hermes -p crew-test vault list
+  hermes -p crew-test vault rm <id of Test 4242>
   ```
-  `hermes vault add` cannot create the master in Hermes 0.22.1: it insists on an origin for payment items. The command above calls `VaultStore.add_item` without `origin` and reads the values hidden, so they never reach argv or the shell history. The vault files must stay owned by 10000 (`ssh mainframe chown -R 10000:10000 /root/hermes/data/vault` if not).
+  `hermes vault add` cannot create the master in Hermes 0.22.1: it insists on an origin for payment items. The command above calls `VaultStore.add_item` without `origin` and reads the values hidden, so they never reach argv or the shell history. The vault files must stay owned by the user Hermes runs as (`ssh <host> chown -R <uid>:<gid> <hermes-data-dir>/vault` if not).
 
   If the default profile is a bot, it sees "Shopping card" in `browser_vault list` but cannot fill it (`no_origin`).
 - **Verify on crew-test:** add `gustaferiksson.github.io` in the inspector, then the step 1 purchase works end to end; adding it twice, `http://` or an IP is refused; POST without a login gives 401; `hermes -p crew-test vault list` shows the copy with its origin.
@@ -118,7 +121,7 @@ ssh mainframe systemctl restart hermes.service
 
 ### 6. Crew: detect by surface (S)
 
-- **Changes:** once mainframe runs a Hermes release with step 5, detect `surface == "vault-payment"` instead of the command prefix.
+- **Changes:** once the server runs a Hermes release with step 5, detect `surface == "vault-payment"` instead of the command prefix.
 - **Files:** `Sources/Chat/ChatSession.swift`, `Sources/Chat/RequestCards.swift`, the parser test.
 - **Verify:** the step 1 flow on crew-test still shows the payment card.
 
@@ -126,16 +129,16 @@ ssh mainframe systemctl restart hermes.service
 
 ### Where the bot's shell runs
 
-Each bot can run shell commands. Today every profile uses `terminal.backend: local`, which means those commands run inside the Hermes container, as the same user as Hermes. From there everything in `/opt/data` is readable, including each `vault.key` next to its encrypted cards. One `cat` and a few lines of Python decrypt the master card and every copy. Hermes' file tools refuse the `vault/` folder, but the shell and `execute_code` do not. A bot only does this if a web page, email or message tricks it (prompt injection), or if the model misbehaves. This applies to every bot on the server, not just shopping bots, since they all share the same files.
+Each bot can run shell commands. With the default `terminal.backend: local`, those commands run in the Hermes environment, as the same user as Hermes. From there everything in `HERMES_HOME` is readable, including each `vault.key` next to its encrypted cards. One `cat` and a few lines of Python decrypt the master card and every copy. Hermes' file tools refuse the `vault/` folder, but the shell and `execute_code` do not. A bot only does this if a web page, email or message tricks it (prompt injection), or if the model misbehaves. This applies to every bot on the server, not just shopping bots, since they all share the same files.
 
-With `terminal.backend: docker`, a bot's commands run in a separate sandbox container that only sees its own workspace, so the vault is out of reach. On mainframe this needs setup, because Hermes itself is a podman container. It has to start sibling containers through the host's podman socket: mount `/run/podman/podman.sock` into the Hermes container as `/var/run/docker.sock` (the image already has the docker CLI) and set `terminal.backend: docker` per profile. Workspace bind mounts are resolved on the host, so paths under `/opt/data` probably need to exist at the same path on the host. The data dir must never be listed in `docker_volumes`.
+With `terminal.backend: docker`, a bot's commands run in a separate sandbox container that only sees its own workspace, so the vault is out of reach. When Hermes itself runs in a container, this needs setup. It has to start sibling containers through the host's container socket: mount it into the Hermes container as `/var/run/docker.sock` (for podman, `/run/podman/podman.sock`; the official image already has the docker CLI) and set `terminal.backend: docker` per profile. Workspace bind mounts are resolved on the host, so paths under `HERMES_HOME` probably need to exist at the same path on the host. The data dir must never be listed in `docker_volumes`.
 
 | Option | Protects the card | What it breaks or costs |
 |---|---|---|
-| A. Docker for shopping bots only | Barely. The other bots stay `local` and can still read the vault. Worse, with the podman socket mounted, a `local` bot can use it to get root on mainframe. | Setup above. |
+| A. Docker for shopping bots only | Barely. The other bots stay `local` and can still read the vault. Worse, with the container socket mounted, a `local` bot can use it to get root on the host. | Setup above. |
 | B. Docker for every bot | Yes. | Setup above, for every profile. Bots can no longer use tools or files of the Hermes container, background processes live in the sandbox, and each profile costs a running container. Every bot needs a quick check that its workflows still work. |
 | C. Accept the risk | No. The worst case is one month's limit on the virtual card until it is frozen in the bank app. | Nothing. The inspector footnote from step 4 keeps the risk visible. |
 
 **Recommendation: C now.** Keep the virtual card's monthly limit low (for example 1 000 kr) and freeze it when not shopping. Move to B if the limit grows or more bots browse untrusted sites. A alone is not worth the setup, because it adds a root path through the socket and still leaves the card readable.
 
-**Planned hardening (with C):** only the "chief of staff" bot keeps a Hermes terminal (`local`, inside the podman container). Shopping bots keep just the browser and `browser_vault`, with the terminal, code-execution and browser console/CDP toolsets off, set per bot in the inspector's Toolsets (no code changes). The container isolates Hermes from mainframe, not bots from each other.
+**Planned hardening (with C):** only the "chief of staff" bot keeps a Hermes terminal (`local`, in the Hermes environment). Shopping bots keep just the browser and `browser_vault`, with the terminal, code-execution and browser console/CDP toolsets off, set per bot in the inspector's Toolsets (no code changes). A container around Hermes isolates it from the host, not bots from each other.

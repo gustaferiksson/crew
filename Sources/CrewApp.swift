@@ -36,6 +36,7 @@ struct CrewApp: App {
                 .environment(appDelegate.updater)
                 #else
                 .environment(updates)
+                .environment(\.openURL, .inAppBrowser)
                 .task(id: scenePhase) {
                     guard scenePhase == .active else { return }
                     await updates.checkOnForeground()

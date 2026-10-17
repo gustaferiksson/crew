@@ -1,0 +1,77 @@
+[
+  {
+    "content" : "Message from 🤖 Crew Test (@crew-test): The user sends you a greeting; please respond with a brief hello.",
+    "display_kind" : null,
+    "id" : 1,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "user",
+    "timestamp" : 1792183782.5752282,
+    "tool_call_id" : null,
+    "tool_calls" : null
+  },
+  {
+    "content" : "",
+    "display_kind" : null,
+    "id" : 2,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "assistant",
+    "timestamp" : 1792183785.5297482,
+    "tool_call_id" : null,
+    "tool_calls" : [
+      {
+        "function" : {
+          "arguments" : "{\"target\":\"crew-test\",\"message\":\"Hello! Glad to hear from you.\"}",
+          "name" : "message_agent"
+        },
+        "id" : "call_91972424fae14deb8126e467f6c08b87",
+        "type" : "function"
+      }
+    ]
+  },
+  {
+    "content" : "{\"status\": \"queued\", \"delivery_id\": \"ff2f7b3531749a487767405d018efba1ac1891b831982f629f7ae5c12db88dce\", \"to\": \"@crew-test\", \"detail\": \"Durably queued for the live Bot Chat owner. Do NOT wait or resend; finish your turn.\", \"process_id\": \"proc_8dd5014eb8df\", \"reply_delivery\": \"notification\"}",
+    "display_kind" : null,
+    "id" : 3,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "tool",
+    "timestamp" : 1792183785.7073336,
+    "tool_call_id" : "call_91972424fae14deb8126e467f6c08b87",
+    "tool_calls" : null
+  },
+  {
+    "content" : "Hello!",
+    "display_kind" : null,
+    "id" : 4,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "assistant",
+    "timestamp" : 1792183787.3281448,
+    "tool_call_id" : null,
+    "tool_calls" : null
+  },
+  {
+    "content" : "[IMPORTANT: Background process proc_8dd5014eb8df completed normally (exit code 0).\nCommand: /opt/hermes/.venv/bin/python /opt/hermes/tools/bot_mode_dm.py --run-delivery --author '{\"id\":\"bot:crew-test-peer\",\"name\":\"crew-test-peer\",\"is_bot\":true}' query-file /opt/hermes/data --profile-home /opt/hermes/data /opt/hermes/.venv/bin/hermes -p crew-test chat --in '~' -c 'Bot Chat' --create-if-missing -Q\nOutput:\n{\"reply\": \"@crew-test-peer: \\u201cHello! Glad to hear from you.\\u201d\", \"status\": \"settled\", \"delivery_id\": \"ff2f7b3531749a487767405d018efba1ac1891b831982f629f7ae5c12db88dce\"}\n]",
+    "display_kind" : null,
+    "id" : 5,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "user",
+    "timestamp" : 1792183794.4252295,
+    "tool_call_id" : null,
+    "tool_calls" : null
+  },
+  {
+    "content" : "Greeting delivered to @crew-test.",
+    "display_kind" : null,
+    "id" : 6,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "assistant",
+    "timestamp" : 1792183797.1870666,
+    "tool_call_id" : null,
+    "tool_calls" : null
+  }
+]

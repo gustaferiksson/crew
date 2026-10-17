@@ -1,0 +1,27 @@
+{
+  "profiles" : [
+    {
+      "canonical_session" : null,
+      "description" : "Crew scenario peer",
+      "display_name" : "",
+      "has_avatar" : false,
+      "is_default" : false,
+      "model" : "gpt-6-astra",
+      "name" : "crew-test-peer",
+      "ui_meta" : {
+        "hermes-bots" : {
+          "color" : "#14b8a6",
+          "created" : 1792183762777,
+          "custom" : true,
+          "expression" : "happy",
+          "imageKind" : "shape",
+          "shape" : "hexagon",
+          "title" : "Crew Peer"
+        }
+      },
+      "ui_meta_revisions" : {
+        "hermes-bots" : 1
+      }
+    }
+  ]
+}

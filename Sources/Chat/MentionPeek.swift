@@ -30,6 +30,12 @@ struct MentionPeek: View {
                     Text(live.title)
                         .font(.headline)
                         .lineLimit(2)
+                    if let role = live.role {
+                        Text(role)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                    }
                     statusText
                         .font(.subheadline)
                         .foregroundStyle(.secondary)

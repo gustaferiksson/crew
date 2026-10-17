@@ -106,16 +106,16 @@ enum Snapshot: String {
         }
         return BotStore(fixture: [
             bot("default", 2, "Summarised the inbox: two invoices need approval.", BotMeta(pinned: true)),
-            bot("ada", 12, "Running the migration dry run now.", BotMeta(title: "Ada Lovelace", color: "#8b5cf6", pinned: true)),
-            bot("scout", 45, "Found three flights under 2 000 kr for the weekend.", BotMeta(title: "Scout", color: "#38bdf8", pinned: true)),
-            bot("forge", 5, "Can I run `npm publish` for 0.4.2?", BotMeta(title: "Forge", color: "#f97316", sectionID: "work", sectionName: "Work")),
-            bot("ledger", 60 * 26, "Q3 numbers reconciled against the bank export.", BotMeta(title: "Ledger", color: "#22c55e", sectionID: "work", sectionName: "Work")),
+            bot("ada", 12, "Running the migration dry run now.", BotMeta(title: "Ada Lovelace", role: "Head of Research and Analytics", color: "#8b5cf6", pinned: true)),
+            bot("scout", 45, "Found three flights under 2 000 kr for the weekend.", BotMeta(title: "Scout", role: "Travel Planner", color: "#38bdf8", pinned: true)),
+            bot("forge", 5, "Can I run `npm publish` for 0.4.2?", BotMeta(title: "Forge", role: "Release Engineer", color: "#f97316", sectionID: "work", sectionName: "Work")),
+            bot("ledger", 60 * 26, "Q3 numbers reconciled against the bank export.", BotMeta(title: "Ledger", role: "Bookkeeper and Finance Controller", color: "#22c55e", sectionID: "work", sectionName: "Work")),
             bot("atlas", 60 * 3, "Tuesday's standup notes are filed.", BotMeta(title: "Atlas", color: "#14b8a6", sectionID: "work", sectionName: "Work")),
             bot("chef", 60 * 24 * 3, "Shopping list for the week is in Reminders.", BotMeta(title: "Chef", color: "#f59e0b", sectionID: "home", sectionName: "Home")),
             bot("quill", 60 * 24 * 12, "Draft two is ready for review.", BotMeta(title: "Quill", color: "#ec4899")),
             bot("ghost", 1, "Hidden bots never show.", BotMeta(title: "Ghost", hidden: true)),
             bot("pixel", 60 * 24 * 40, "Resized the screenshots for the App Store listing.", BotMeta(title: "Pixel", sectionID: "home", sectionName: "Home")),
-        ], statuses: ["ada": .working, "forge": .waiting(.approval), "atlas": .unread, "default": .unread, "chef": .failed], photos: Snapshot.samplePhoto.map { ["scout": $0] } ?? [:])
+        ], statuses: ["scout": .working, "forge": .waiting(.approval), "atlas": .unread, "default": .unread, "chef": .failed], photos: Snapshot.samplePhoto.map { ["scout": $0] } ?? [:])
     }
 
     var selectedBot: Bot.ID? {

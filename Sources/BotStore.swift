@@ -5,6 +5,7 @@ import SwiftUI
 
 nonisolated struct BotMeta: Hashable, Sendable {
     var title: String?
+    var role: String?
     var description: String?
     var shape: String?
     var color: String?
@@ -20,13 +21,14 @@ nonisolated struct BotMeta: Hashable, Sendable {
 
 nonisolated extension BotMeta: Codable {
     private enum CodingKeys: String, CodingKey {
-        case title, description, shape, color, custom, imageKind, expression, pinned, hidden, sectionName
+        case title, role, description, shape, color, custom, imageKind, expression, pinned, hidden, sectionName
         case sectionID = "sectionId"
     }
 
     init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         title = try? container.decodeIfPresent(String.self, forKey: .title)
+        role = try? container.decodeIfPresent(String.self, forKey: .role)
         description = try? container.decodeIfPresent(String.self, forKey: .description)
         shape = try? container.decodeIfPresent(String.self, forKey: .shape)
         color = try? container.decodeIfPresent(String.self, forKey: .color)
@@ -43,6 +45,7 @@ nonisolated extension BotMeta: Codable {
     func encode(to encoder: any Encoder) throws {
         var object = extra
         object[CodingKeys.title.stringValue] = title.map(JSONValue.string)
+        object[CodingKeys.role.stringValue] = role.map(JSONValue.string)
         object[CodingKeys.description.stringValue] = description.map(JSONValue.string)
         object[CodingKeys.shape.stringValue] = shape.map(JSONValue.string)
         object[CodingKeys.color.stringValue] = color.map(JSONValue.string)
@@ -94,6 +97,11 @@ nonisolated struct Bot: Identifiable, Hashable, Sendable {
     var title: String {
         [meta.title, displayName].compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }.first { !$0.isEmpty }
             ?? (name == "default" ? "Hermes" : name)
+    }
+
+    var role: String? {
+        let role = (meta.role ?? "").split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        return role.isEmpty ? nil : role
     }
 }
 

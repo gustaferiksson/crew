@@ -7,7 +7,7 @@ private let ada = Bot(
         id: StoredSessionID(rawValue: "s-ada"), resolvedID: StoredSessionID(rawValue: "s-ada"), preview: "Running the migration dry run now.",
         lastActive: .now.addingTimeInterval(-12 * 60), messageCount: 148
     ),
-    meta: BotMeta(title: "Ada", shape: "blob", color: "#8b5cf6", expression: "happy"), metaRevision: 1
+    meta: BotMeta(title: "Ada", role: "Research Lead", shape: "blob", color: "#8b5cf6", expression: "happy"), metaRevision: 1
 )
 
 private let adaTodos = [

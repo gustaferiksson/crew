@@ -14,6 +14,7 @@ struct NewBotSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var name = ""
     @State private var title = ""
+    @State private var role = ""
     @State private var description = ""
     @State private var instructions = ""
     @State private var source: Bot.ID?
@@ -46,8 +47,10 @@ struct NewBotSheet: View {
     }
 
     private var look: BotMeta {
-        BotMeta(
+        let role = role.trimmingCharacters(in: .whitespacesAndNewlines)
+        return BotMeta(
             title: resolvedTitle,
+            role: role.isEmpty ? nil : role,
             shape: isCustom ? shape.rawValue : nil,
             color: isCustom ? color : nil,
             custom: isCustom,
@@ -76,6 +79,11 @@ struct NewBotSheet: View {
                         Text(resolvedTitle ?? (slug.isEmpty ? String(localized: "New Bot") : slug))
                             .font(.title2.bold())
                             .multilineTextAlignment(.center)
+                        if let role = preview.role {
+                            Text(role)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                        }
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 8)
@@ -91,6 +99,7 @@ struct NewBotSheet: View {
                     TextField("Name", text: $name, prompt: Text("Research Assistant"))
                         .autocorrectionDisabled()
                     TextField("Display Title", text: $title, prompt: Text(resolvedTitle ?? String(localized: "Display Title")))
+                    TextField("Role", text: $role, prompt: Text("Role"))
                 } header: {
                     Text("Name")
                 } footer: {

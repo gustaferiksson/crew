@@ -54,12 +54,13 @@ struct Composer: View {
     @State private var photos: [PhotosPickerItem] = []
     @State private var showsHoldHint = false
     @GestureState private var hold: Hold?
-    @FocusState private var isFocused: Bool
+    let isFocused: FocusState<Bool>.Binding
 
-    init(botName: String, phase: Phase, draft: Binding<String>, tray: AttachmentTray, mentionable: [Bot], features: ComposerFeatures = .all, completePath: @escaping (String) async -> [PathCompletion], dictation: Dictation? = nil, transcribe: @escaping (Data) async throws -> String, send: @escaping (SendMode) -> Void, stop: @escaping () -> Void) {
+    init(botName: String, phase: Phase, draft: Binding<String>, isFocused: FocusState<Bool>.Binding, tray: AttachmentTray, mentionable: [Bot], features: ComposerFeatures = .all, completePath: @escaping (String) async -> [PathCompletion], dictation: Dictation? = nil, transcribe: @escaping (Data) async throws -> String, send: @escaping (SendMode) -> Void, stop: @escaping () -> Void) {
         self.botName = botName
         self.phase = phase
         _draft = draft
+        self.isFocused = isFocused
         self.tray = tray
         self.mentionable = mentionable
         self.features = features
@@ -93,7 +94,7 @@ struct Composer: View {
             if let mentionQuery {
                 MentionPicker(query: mentionQuery, bots: mentionable, completePath: completePath) { tag in
                     draft = String(draft.dropLast(mentionQuery.count + 1)) + tag + " "
-                    isFocused = true
+                    isFocused.wrappedValue = true
                 }
             }
             GlassEffectContainer(spacing: rowSpacing) {
@@ -176,7 +177,7 @@ struct Composer: View {
         #if os(macOS)
         .padding(.bottom, 8)
         #else
-        .padding(.bottom, isFocused ? 8 : 28)
+        .padding(.bottom, isFocused.wrappedValue ? 8 : 28)
         #endif
     }
 
@@ -235,7 +236,7 @@ struct Composer: View {
                     .lineLimit(1...6)
                     .padding(.vertical, 8)
                     .frame(minHeight: fieldHeight)
-                    .focused($isFocused)
+                    .focused(isFocused)
                     .onKeyPress(.return, phases: .down) { press in
                         guard !press.modifiers.contains(.shift), canSend else { return .ignored }
                         send(phase == .running && features.contains(.steering) ? .steer : .send)

@@ -76,6 +76,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
     @State private var surfaces = SurfaceStore()
     @State private var highlighted: Turn.ID?
     @State private var handledFocus: UUID?
+    @FocusState private var isComposerFocused: Bool
     private let presentation: ChatPresentation
 
     init(botName: String, avatar: Avatar, transcript: Transcript, emptyState: EmptyState, mentionable: [Bot], features: ComposerFeatures = .all, request: PendingRequest? = nil, payment: PaymentCardState? = nil, paymentNotice: String? = nil, shopOffer: String? = nil, offlineReason: String? = nil, activity: String? = nil, models: ModelSwitcher? = nil, focus: SearchFocus? = nil, presentation: ChatPresentation = ChatPresentation(), actions: ChatActions = ChatActions()) {
@@ -167,7 +168,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
                 BottomEdge(distance: geometry.contentSize.height - geometry.visibleRect.maxY + geometry.contentInsets.bottom, inset: geometry.contentInsets.bottom)
             } action: { old, new in
                 isAtBottom = new.distance < 40
-                if new.inset > old.inset, old.distance < 40 { position.scrollTo(edge: .bottom) }
+                if new.inset > old.inset, old.distance < 40 { proxy.scrollTo(bottomID, anchor: .bottom) }
             }
             .simultaneousGesture(
                 DragGesture(minimumDistance: 16, inputKinds: [.directTouch, .indirectTouch])
@@ -190,7 +191,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
             }
             #endif
             .onChange(of: transcript) {
-                if isAtBottom { position.scrollTo(edge: .bottom) }
+                if isAtBottom { proxy.scrollTo(bottomID, anchor: .bottom) }
             }
             .onChange(of: transcript, initial: true) {
                 surfaces.send = actions.sendHidden
@@ -240,7 +241,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
                             .frame(maxWidth: 560)
                             .padding(.horizontal, 16)
                     }
-                    Composer(botName: botName, phase: composerPhase, draft: $draft, tray: tray, mentionable: mentionable, features: features, completePath: actions.completePath, dictation: presentation.dictation, transcribe: actions.transcribe) { mode in
+                    Composer(botName: botName, phase: composerPhase, draft: $draft, isFocused: $isComposerFocused, tray: tray, mentionable: mentionable, features: features, completePath: actions.completePath, dictation: presentation.dictation, transcribe: actions.transcribe) { mode in
                         actions.send(draft, tray.take(), mentionedBots(in: draft, among: mentionable), mode)
                         draft = ""
                     } stop: {
@@ -276,7 +277,10 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
             .scrollEdgeEffectHidden(true, for: .bottom)
             .toolbar {
                 ToolbarItem(placement: .principal) {
-                    PersonaPill(botName: botName, avatar: avatar, action: actions.openPersona)
+                    PersonaPill(botName: botName, avatar: avatar) {
+                        isComposerFocused = false
+                        actions.openPersona()
+                    }
                         .contextMenu {
                             if let models, !models.providers.isEmpty {
                                 ModelPicker(
@@ -312,7 +316,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
                 withAnimation(.easeOut(duration: 0.6)) { highlighted = nil }
             }
             .task(id: surfaces.blocks.count) {
-                guard let target = presentation.scrollTarget else { return isAtBottom ? position.scrollTo(edge: .bottom) : () }
+                guard let target = presentation.scrollTarget else { return isAtBottom ? proxy.scrollTo(bottomID, anchor: .bottom) : () }
                 position.scrollTo(id: target, anchor: .top)
             }
         }

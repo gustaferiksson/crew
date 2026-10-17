@@ -135,6 +135,7 @@ struct WorkLog: View {
                         Text("Working for \(Duration.seconds(Int(context.date.timeIntervalSince(turn.startedAt))).formatted(elapsedStyle))")
                             .monospacedDigit()
                     }
+                    .fixedSize()
                     if turn.reply.isEmpty {
                         WaitingDots()
                             .padding(.horizontal, 4)
@@ -148,9 +149,11 @@ struct WorkLog: View {
                 } else {
                     Text("Worked for \(Duration.seconds(Int((turn.finishedAt ?? turn.startedAt).timeIntervalSince(turn.startedAt))).formatted(elapsedStyle))")
                 }
-                Image(systemName: "chevron.right")
-                    .font(.caption.weight(.semibold))
-                    .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                if !turn.work.isEmpty || turn.agentMessage != nil {
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.semibold))
+                        .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                }
             }
             .font(.subheadline.weight(.medium))
             .foregroundStyle(.secondary)
@@ -158,6 +161,7 @@ struct WorkLog: View {
             .contentShape(.rect)
         }
         .buttonStyle(.plain)
+        .accessibilityValue(turn.work.isEmpty && turn.agentMessage == nil ? "" : isExpanded ? String(localized: "Expanded") : String(localized: "Collapsed"))
     }
 
     private func runToggle(_ title: String, systemImage: String, runID: String) -> some View {

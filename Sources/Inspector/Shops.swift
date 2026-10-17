@@ -1,15 +1,6 @@
 import SwiftUI
 
-private let masterCardSetupCommand = """
-cd /opt/hermes && /opt/hermes/.venv/bin/python -c '
-import getpass
-from pathlib import Path
-from agent.vault_store import VaultStore
-fields = ("card_number", "exp_month", "exp_year", "cvc", "cardholder_name")
-secret = {field: getpass.getpass(field.replace("_", " ") + ": ").strip() for field in fields}
-item = VaultStore(Path("/opt/data/vault")).add_item(kind="payment", label="Shopping card", secret=secret)
-print(item.id, item.label, item.origin)'
-"""
+typealias CardSender = @MainActor ([String: String]) async throws -> MasterCard
 
 struct ShopsCard: View {
     let bot: Bot
@@ -21,16 +12,26 @@ struct ShopsCard: View {
     @State private var removing: Set<Shop.ID> = []
     @State private var removeFailures: [Shop.ID: String] = [:]
     @State private var isAdding = false
-    @State private var highlighted: Shop.ID?
+    @State private var isEditingCard = false
+    @State private var isUpdating = false
+    @State private var updateFailure: String?
+    @State private var highlighted: Set<Shop.ID> = []
+    private let sendCard: CardSender?
 
-    init(bot: Bot, isBrowserOff: Bool, fixture: ShopList? = nil) {
+    init(bot: Bot, isBrowserOff: Bool, fixture: ShopList? = nil, updateFailure: String? = nil, sendCard: CardSender? = nil) {
         self.bot = bot
         self.isBrowserOff = isBrowserOff
+        self.sendCard = sendCard
         _list = State(initialValue: fixture)
+        _updateFailure = State(initialValue: updateFailure)
     }
 
     private var isOnline: Bool {
         connection.state == .connected
+    }
+
+    private func controls(_ list: ShopList) -> ShopsControls {
+        ShopsControls(list: list, isOnline: isOnline, supportsCardEntry: connection.crewPush?.supportsCardEntry == true)
     }
 
     var body: some View {
@@ -38,13 +39,17 @@ struct ShopsCard: View {
             Card(title: "Shops") {
                 if let list {
                     VStack(alignment: .leading, spacing: 12) {
-                        cardRow(list.card)
+                        cardRow(list.card, controls: controls(list))
                         Divider()
                         shopRows(list.shops)
+                        if controls(list).showsUpdateShops {
+                            Divider()
+                            updateShopsRow(controls(list))
+                        }
                         Divider()
                         Button("Add Shop…", systemImage: "plus.circle") { isAdding = true }
                             .buttonStyle(.borderless)
-                            .disabled(list.card.problem != nil || list.card.label == nil || !isOnline)
+                            .disabled(!controls(list).canAddShop)
                     }
                 } else if loadFailed {
                     HStack(spacing: 8) {
@@ -75,18 +80,34 @@ struct ShopsCard: View {
             AddShopSheet(profile: bot.name) { shop in
                 list?.shops.removeAll { $0.id == shop.id }
                 list?.shops.append(shop)
-                highlight(shop.id)
+                highlight([shop.id])
+            }
+        }
+        .sheet(isPresented: $isEditingCard) {
+            CardSheet(currentLabel: list.flatMap { controls($0).hasCard ? $0.card.label : nil }, send: sendCard) { card in
+                list?.card = card
+                guard Snapshot.requested == nil else { return }
+                Task { await load() }
             }
         }
     }
 
     @ViewBuilder
-    private func cardRow(_ card: MasterCard) -> some View {
-        if let label = card.label, card.problem == nil {
+    private func cardRow(_ card: MasterCard, controls: ShopsControls) -> some View {
+        if let label = card.label, controls.hasCard {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 12) {
                     CardArt(width: 40, height: 26)
                     Text("\(label) •••• \(card.last4 ?? "")")
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    if controls.showsCardButton {
+                        Spacer(minLength: 8)
+                        Button("Replace…") { isEditingCard = true }
+                            .buttonStyle(.borderless)
+                            .accessibilityLabel("Replace Card")
+                            .disabled(!controls.canEditCard)
+                    }
                 }
                 if bot.isDefault {
                     Text("Kept here, never used to pay.")
@@ -98,13 +119,35 @@ struct ShopsCard: View {
             VStack(alignment: .leading, spacing: 8) {
                 Label(card.problem == "several" ? "More than one card on the server" : "No card on the server", systemImage: "creditcard.trianglebadge.exclamationmark")
                     .symbolRenderingMode(.multicolor)
-                Text(card.problem == "several" ? "Keep one card without a website; Crew can't tell which to use." : "Add one card on the server without a website. Crew copies it to each shop you add.")
+                Text(controls.noCardText)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
-                if card.problem != "several" {
-                    Button("Copy Setup Command", systemImage: "doc.on.doc") { copySetupCommand() }
+                if controls.showsCardButton {
+                    Button("Add Card…", systemImage: "plus.circle") { isEditingCard = true }
                         .buttonStyle(.borderless)
+                        .disabled(!controls.canEditCard)
                 }
+            }
+        }
+    }
+
+    private func updateShopsRow(_ controls: ShopsControls) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            if isUpdating {
+                ProgressView()
+                    .controlSize(.small)
+            } else {
+                Button("Update Shops", systemImage: "arrow.triangle.2.circlepath", action: updateShops)
+                    .buttonStyle(.borderless)
+                    .disabled(!controls.canUpdateShops)
+            }
+            Text(controls.staleText)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            if let updateFailure {
+                Text(updateFailure)
+                    .font(.footnote)
+                    .foregroundStyle(.red)
             }
         }
     }
@@ -120,7 +163,7 @@ struct ShopsCard: View {
                     if shop.id != shops.first?.id {
                         Divider()
                     }
-                    ShopRow(shop: shop, isRemoving: removing.contains(shop.id), failure: removeFailures[shop.id], isHighlighted: highlighted == shop.id)
+                    ShopRow(shop: shop, isRemoving: removing.contains(shop.id), failure: removeFailures[shop.id], isHighlighted: highlighted.contains(shop.id))
                         .contextMenu {
                             Button("Remove Shop", systemImage: "trash", role: .destructive) { remove(shop) }
                                 .disabled(!isOnline)
@@ -170,21 +213,30 @@ struct ShopsCard: View {
         }
     }
 
-    private func highlight(_ id: Shop.ID) {
-        withAnimation(.smooth) { highlighted = id }
+    private func updateShops() {
+        guard let server = connection.session?.server, !isUpdating else { return }
+        let before = Set(list?.shops.map(\.id) ?? [])
+        isUpdating = true
+        updateFailure = nil
         Task {
-            try? await Task.sleep(for: .seconds(1.5))
-            withAnimation(.smooth) { highlighted = nil }
+            defer { isUpdating = false }
+            do {
+                let updated = try await paymentsCall("payments/shops/update", body: ["profile": bot.name], on: server, with: connection.urlSession, as: ShopsUpdated.self)
+                list?.shops = updated.shops
+                highlight(Set(updated.shops.map(\.id)).subtracting(before))
+            } catch {
+                updateFailure = (error as? PaymentsError)?.code == "payment_pending" ? String(localized: "Finish or deny the waiting payment first.") : String(localized: "Couldn't update shops. Try again.")
+                await load()
+            }
         }
     }
 
-    private func copySetupCommand() {
-        #if os(iOS)
-        UIPasteboard.general.string = masterCardSetupCommand
-        #else
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(masterCardSetupCommand, forType: .string)
-        #endif
+    private func highlight(_ ids: Set<Shop.ID>) {
+        withAnimation(.smooth) { highlighted = ids }
+        Task {
+            try? await Task.sleep(for: .seconds(1.5))
+            withAnimation(.smooth) { highlighted = [] }
+        }
     }
 }
 
@@ -343,3 +395,240 @@ struct AddShopSheet: View {
         }
     }
 }
+
+struct CardSheet: View {
+    let currentLabel: String?
+    let send: CardSender?
+    let saved: (MasterCard) -> Void
+
+    @Environment(Connection.self) private var connection
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var number: String
+    @State private var expiry: String
+    @State private var cvc: String
+    @State private var name = ""
+    @State private var label: String
+    @State private var failure: String?
+    @State private var isSaving = false
+    @State private var visited: Set<CardField>
+    @State private var isCovered: Bool
+    @FocusState private var focus: CardField?
+
+    init(currentLabel: String?, send: CardSender? = nil, fixture: CardEntry? = nil, failure: String? = nil, isCovered: Bool = false, saved: @escaping (MasterCard) -> Void) {
+        self.currentLabel = currentLabel
+        self.send = send
+        self.saved = saved
+        _number = State(initialValue: fixture?.number ?? "")
+        _expiry = State(initialValue: fixture?.expiry ?? "")
+        _cvc = State(initialValue: fixture?.cvc ?? "")
+        _label = State(initialValue: fixture?.label ?? currentLabel ?? String(localized: "Shopping card"))
+        _visited = State(initialValue: fixture == nil ? [] : Set(CardField.allCases))
+        _failure = State(initialValue: failure)
+        _isCovered = State(initialValue: isCovered)
+    }
+
+    private var entry: CardEntry {
+        CardEntry(number: number, expiry: expiry, cvc: cvc, name: name, label: label)
+    }
+
+    private var isHTTPS: Bool {
+        connection.session?.server.scheme?.lowercased() == "https"
+    }
+
+    private var notice: String? {
+        if let failure { return failure }
+        if !isHTTPS { return String(localized: "Adding a card needs an https connection to Hermes.") }
+        if connection.state != .connected { return String(localized: "You're offline.") }
+        return nil
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                if let notice {
+                    Section {
+                        Label(notice, systemImage: "exclamationmark.circle.fill")
+                            .foregroundStyle(.red)
+                    }
+                }
+                Section {
+                    field(.number, title: "Card Number") {
+                        TextField("Card Number", text: $number, prompt: Text(verbatim: "1234 5678 9012 3456"))
+                            .monospacedDigit()
+                            #if os(iOS)
+                            .keyboardType(.numberPad)
+                            .textContentType(.creditCardNumber)
+                            #endif
+                    }
+                    field(.expiry, title: "Expiry") {
+                        TextField("Expiry", text: $expiry, prompt: Text(verbatim: "MM/YY"))
+                            .monospacedDigit()
+                            #if os(iOS)
+                            .keyboardType(.numberPad)
+                            .textContentType(.creditCardExpiration)
+                            #endif
+                    }
+                    field(.cvc, title: "Security Code") {
+                        SecureField("Security Code", text: $cvc, prompt: Text(verbatim: "CVC"))
+                            #if os(iOS)
+                            .keyboardType(.numberPad)
+                            .textContentType(.creditCardSecurityCode)
+                            #endif
+                    }
+                    field(.name, title: "Name on Card") {
+                        TextField("Name on Card", text: $name, prompt: Text("Optional"))
+                            #if os(iOS)
+                            .textContentType(.creditCardName)
+                            #endif
+                    }
+                } footer: {
+                    Text(currentLabel == nil
+                        ? String(localized: "Crew sends the card once to your Hermes server, which keeps it encrypted. Crew doesn't store it, and bots never see the number.")
+                        : String(localized: "Crew sends the card once to your Hermes server, which keeps it encrypted. Crew doesn't store it, and bots never see the number. Each bot's shops keep the old card until you update them in its Shops card."))
+                }
+                Section {
+                    field(.label, title: "Label") {
+                        TextField("Label", text: $label, prompt: Text("Shopping card"))
+                    }
+                } footer: {
+                    Text("Shown in Crew and to bots with the last four digits, such as Shopping card •••• 4242.")
+                }
+            }
+            .formStyle(.grouped)
+            .disabled(isSaving)
+            .privacySensitive()
+            .onChange(of: number) {
+                let formatted = CardEntry.formattedNumber(number)
+                if formatted != number { number = formatted }
+                if entry.isNumberComplete, focus == .number { focus = .expiry }
+            }
+            .onChange(of: expiry) {
+                let formatted = CardEntry.formattedExpiry(expiry)
+                if formatted != expiry { expiry = formatted }
+                if expiry.count == 5, focus == .expiry { focus = .cvc }
+            }
+            .onChange(of: focus) { previous, _ in
+                if let previous { visited.insert(previous) }
+            }
+            .onChange(of: [number, expiry, cvc, name, label]) { failure = nil }
+            .navigationTitle(currentLabel == nil ? "Add Card" : "Replace Card")
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel", systemImage: "xmark", role: .cancel) { dismiss() }
+                        .disabled(isSaving)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    if isSaving {
+                        ProgressView()
+                    } else {
+                        Button(currentLabel == nil ? "Add" : "Replace", systemImage: "checkmark", role: .confirm, action: save)
+                            .disabled(!entry.isValid() || !isHTTPS || connection.state != .connected)
+                    }
+                }
+                #if os(iOS)
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    if let next = focus.flatMap(nextField) {
+                        Button("Next") { focus = next }
+                    }
+                    Button("Done") { focus = nil }
+                }
+                #endif
+            }
+        }
+        .interactiveDismissDisabled(isSaving)
+        #if os(iOS)
+        .overlay {
+            if isCovered || scenePhase != .active {
+                ZStack {
+                    Rectangle().fill(.regularMaterial)
+                    Image(systemName: "creditcard")
+                        .font(.largeTitle)
+                        .foregroundStyle(.secondary)
+                }
+                .ignoresSafeArea()
+                .accessibilityHidden(true)
+            }
+        }
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
+        #else
+        .background(HiddenFromScreenCapture())
+        .frame(width: 400)
+        .frame(minHeight: 420)
+        #endif
+    }
+
+    private func field(_ field: CardField, title: LocalizedStringKey, @ViewBuilder content: () -> some View) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            LabeledContent(title) {
+                content()
+                    .labelsHidden()
+                    .multilineTextAlignment(.trailing)
+                    .autocorrectionDisabled()
+                    #if os(iOS)
+                    .textInputAutocapitalization(field == .name ? .words : .never)
+                    #endif
+                    .focused($focus, equals: field)
+                    .onSubmit(save)
+            }
+            if visited.contains(field), focus != field, let problem = entry.problem(field) {
+                Text(problem)
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+            }
+        }
+    }
+
+    private func nextField(after field: CardField) -> CardField? {
+        CardField.allCases.firstIndex(of: field).flatMap { CardField.allCases.dropFirst($0 + 1).first }
+    }
+
+    private func save() {
+        guard let server = connection.session?.server, isHTTPS, connection.state == .connected, entry.isValid(), !isSaving else { return }
+        let body = entry.body
+        number = ""
+        expiry = ""
+        cvc = ""
+        name = ""
+        visited = []
+        focus = nil
+        isSaving = true
+        Task {
+            defer { isSaving = false }
+            do {
+                let card = if let send { try await send(body) } else {
+                    try await paymentsCall("payments/card", method: "PUT", body: body, on: server, with: connection.urlSession, as: CardSet.self).card
+                }
+                saved(card)
+                dismiss()
+            } catch let error as PaymentsError {
+                failure = error.message(host: nil)
+            } catch {
+                failure = String(localized: "Couldn't reach Hermes. Try again.")
+            }
+        }
+    }
+}
+
+#if os(macOS)
+private struct HiddenFromScreenCapture: NSViewRepresentable {
+    final class WindowWatcher: NSView {
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            guard Snapshot.requested == nil else { return }
+            window?.sharingType = .none
+        }
+    }
+
+    func makeNSView(context: Context) -> NSView {
+        WindowWatcher()
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {}
+}
+#endif

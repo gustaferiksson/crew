@@ -240,7 +240,7 @@ func offerComesFromTheLastVaultResult(name: String) throws {
     ("error-invalid-site-no-host", "Enter a website."),
     ("error-invalid-site-port", "Use the standard https port."),
     ("error-duplicate-shop", "www.zalando.se is already a shop."),
-    ("error-no-card", "Add a card on the server first."),
+    ("error-no-card", "Add a card first."),
     ("error-several-cards", "Keep one card without a website on the server."),
     ("error-invalid-profile", "Couldn't load shops."),
     ("error-unknown-profile", "Couldn't load shops."),
@@ -362,7 +362,7 @@ nonisolated final class StubProtocol: URLProtocol {
 }
 
 @Test func deployedServerErrorsKeepTheirCodes() async throws {
-    for (name, code, text) in [("real-error-no-card", "no_card", "Add a card on the server first."), ("real-error-unknown-request", "unknown_request", "Couldn't reach Hermes. Try again.")] {
+    for (name, code, text) in [("real-error-no-card", "no_card", "Add a card first."), ("real-error-unknown-request", "unknown_request", "Couldn't reach Hermes. Try again.")] {
         do {
             _ = try await paymentsCall("error/real/\(name)", on: URL(string: "https://errors.test")!, with: StubProtocol.session, as: ShopList.self)
             Issue.record("no error")

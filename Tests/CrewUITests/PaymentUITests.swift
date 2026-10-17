@@ -91,4 +91,62 @@ final class PaymentUITests: XCTestCase {
         XCTAssertTrue(field.waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["https://www.zalando.de"].exists)
     }
+
+    @MainActor func testAddCardValidatesSendsOnceAndForgetsTheFields() {
+        let app = launch("inspector-shops-no-card")
+        let addCard = app.buttons["Add Card…"]
+        let number = app.textFields["Card Number"]
+        let expiry = app.textFields["Expiry"]
+        let code = app.secureTextFields["Security Code"]
+        let add = app.buttons["Add"]
+        XCTAssertTrue(addCard.waitForExistence(timeout: 10))
+        addCard.tap()
+        XCTAssertTrue(number.waitForExistence(timeout: 5))
+        XCTAssertFalse(add.isEnabled)
+
+        number.tap()
+        number.typeText("4242424242424241")
+        expiry.tap()
+        XCTAssertTrue(app.staticTexts["Check the card number."].waitForExistence(timeout: 5))
+        expiry.typeText("0825")
+        code.tap()
+        XCTAssertTrue(app.staticTexts["This card has expired."].waitForExistence(timeout: 5))
+        code.typeText("123")
+        XCTAssertFalse(add.isEnabled)
+        app.buttons["Cancel"].tap()
+        XCTAssertTrue(number.waitForNonExistence(timeout: 5))
+        XCTAssertEqual(log(in: app), "none")
+
+        addCard.tap()
+        XCTAssertTrue(number.waitForExistence(timeout: 5))
+        XCTAssertNotEqual(number.value as? String, "4242 4242 4242 4241")
+        XCTAssertFalse(app.staticTexts["Check the card number."].exists)
+        number.tap()
+        number.typeText("4242424242424242")
+        XCTAssertEqual(number.value as? String, "4242 4242 4242 4242")
+        let expiryFocused = XCTNSPredicateExpectation(predicate: NSPredicate(format: "hasKeyboardFocus == true"), object: expiry)
+        XCTAssertEqual(XCTWaiter().wait(for: [expiryFocused], timeout: 5), .completed)
+        expiry.typeText("1230")
+        XCTAssertEqual(expiry.value as? String, "12/30")
+        let focused = XCTNSPredicateExpectation(predicate: NSPredicate(format: "hasKeyboardFocus == true"), object: code)
+        XCTAssertEqual(XCTWaiter().wait(for: [focused], timeout: 5), .completed)
+        code.typeText("123")
+        XCTAssertFalse(app.staticTexts["Check the card number."].exists)
+        XCTAssertFalse(app.staticTexts["This card has expired."].exists)
+        XCTAssertTrue(add.isEnabled)
+        add.tap()
+
+        XCTAssertTrue(waitForLog("card Shopping card 12/2030", in: app))
+        XCTAssertTrue(number.waitForNonExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Shopping card •••• 4242"].waitForExistence(timeout: 5))
+
+        app.buttons["Replace Card"].tap()
+        XCTAssertTrue(number.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Replace Card"].exists)
+        XCTAssertNotEqual(number.value as? String, "4242 4242 4242 4242")
+        XCTAssertNotEqual(expiry.value as? String, "12/30")
+        app.buttons["Cancel"].tap()
+        XCTAssertTrue(number.waitForNonExistence(timeout: 5))
+        XCTAssertEqual(log(in: app), "card Shopping card 12/2030")
+    }
 }

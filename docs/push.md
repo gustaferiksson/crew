@@ -444,6 +444,8 @@ def test(body: dict):
 | POST | `/api/plugins/crew-push/payments/shops` | `{profile, site}` | `201 {shop}`: copies the master card to that exact `https` origin |
 | DELETE | `/api/plugins/crew-push/payments/shops/{id}?profile=` | | `200 {removed: true}`; only a payment item with an origin |
 | GET | `/api/plugins/crew-push/payments/requests/{request_id}` | | the payment request crew-push recorded for an approval, for Hold to Pay |
+| PUT | `/api/plugins/crew-push/payments/card` | `{card_number, exp_month, exp_year, cvc, cardholder_name, label}` | crew-push 0.5.0: `200 {card: {label, last4}}`; adds or replaces the master card without origin. Never logged or echoed; `403 login_off` without the login gate |
+| POST | `/api/plugins/crew-push/payments/shops/update` | `{profile}` | `200 {shops}`: re-copies the current card into that bot's stale shops |
 
 Security: routes inherit the dashboard's auth gate, Host check and CORS (same as `/api/gateway/restart`), so only a signed-in Crew can register a token. A device token is not a secret capability (it only lets the key holder push to it), and the APNs key never leaves the host. Cap 32 devices. Validate the token as lowercase hex and the enums before writing.
 

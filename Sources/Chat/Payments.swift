@@ -92,6 +92,10 @@ nonisolated struct PluginStatus: Decodable, Equatable, Sendable {
     var supportsPayments: Bool {
         features?.contains("payments") == true
     }
+
+    var supportsCardEntry: Bool {
+        features?.contains("card") == true
+    }
 }
 
 nonisolated struct VaultResult: Decodable, Sendable {
@@ -260,6 +264,151 @@ nonisolated struct ShopCreated: Decodable, Sendable {
     let shop: Shop
 }
 
+nonisolated struct CardSet: Decodable, Sendable {
+    let card: MasterCard
+}
+
+nonisolated struct ShopsUpdated: Decodable, Sendable {
+    let shops: [Shop]
+}
+
+nonisolated struct ShopsControls: Equatable {
+    let list: ShopList
+    let isOnline: Bool
+    let supportsCardEntry: Bool
+
+    private var canWriteCard: Bool {
+        isOnline && supportsCardEntry && list.gate == true
+    }
+
+    var hasCard: Bool {
+        list.card.problem == nil && list.card.label != nil
+    }
+
+    var showsCardButton: Bool {
+        supportsCardEntry && list.card.problem != "several"
+    }
+
+    var canEditCard: Bool {
+        canWriteCard && list.card.problem != "several"
+    }
+
+    var staleCount: Int {
+        list.shops.filter(\.stale).count
+    }
+
+    var showsUpdateShops: Bool {
+        supportsCardEntry && hasCard && staleCount > 0
+    }
+
+    var canUpdateShops: Bool {
+        canWriteCard && showsUpdateShops
+    }
+
+    var canAddShop: Bool {
+        isOnline && hasCard
+    }
+
+    var noCardText: String {
+        if list.card.problem == "several" { return String(localized: "Keep one card without a website; Crew can't tell which to use.") }
+        if supportsCardEntry { return String(localized: "Add the card Crew copies to each shop you add. Bots never see the number.") }
+        return String(localized: "Add one card on the server without a website. Update crew-push to add it from Crew.")
+    }
+
+    var staleText: String {
+        staleCount == 1
+            ? String(localized: "1 shop still uses the old card. Update Shops copies the current card to it.")
+            : String(localized: "\(staleCount) shops still use the old card. Update Shops copies the current card to them.")
+    }
+}
+
+nonisolated enum CardField: CaseIterable, Hashable, Sendable {
+    case number, expiry, cvc, name, label
+}
+
+nonisolated struct CardEntry: Equatable, Sendable {
+    let number: String
+    let expiry: String
+    let cvc: String
+    let name: String
+    let label: String
+
+    private var cleanNumber: String {
+        number.replacing(" ", with: "").replacing("-", with: "")
+    }
+
+    var isAmex: Bool {
+        cleanNumber.hasPrefix("34") || cleanNumber.hasPrefix("37")
+    }
+
+    var isNumberComplete: Bool {
+        cleanNumber.count == (isAmex ? 15 : 16) && problem(.number) == nil
+    }
+
+    private var expiryParts: (month: Int, year: Int)? {
+        let parts = expiry.split(separator: "/", omittingEmptySubsequences: false)
+        guard parts.count == 2, (1...2).contains(parts[0].count), [2, 4].contains(parts[1].count),
+              parts.allSatisfy({ $0.allSatisfy(\.isASCIIDigit) }), let month = Int(parts[0]), (1...12).contains(month), let year = Int(parts[1])
+        else { return nil }
+        return (month, parts[1].count == 2 ? 2000 + year : year)
+    }
+
+    func problem(_ field: CardField, now: Date = .now, calendar: Calendar = .current) -> String? {
+        if field == .number {
+            let digits = cleanNumber
+            let doubled = digits.reversed().enumerated().map { index, digit in (digit.wholeNumberValue ?? 0) * (1 + index % 2) }
+            let isValid = (12...19).contains(digits.count) && digits.allSatisfy(\.isASCIIDigit) && doubled.map { $0 > 9 ? $0 - 9 : $0 }.reduce(0, +) % 10 == 0
+            return isValid ? nil : String(localized: "Check the card number.")
+        }
+        if field == .expiry {
+            let today = calendar.dateComponents([.year, .month], from: now)
+            guard let parts = expiryParts, let year = today.year, let month = today.month, parts.year <= year + 20 else { return String(localized: "Check the expiry date.") }
+            return (parts.year, parts.month) < (year, month) ? String(localized: "This card has expired.") : nil
+        }
+        if field == .cvc {
+            return cvc.count == (isAmex ? 4 : 3) && cvc.allSatisfy(\.isASCIIDigit) ? nil : String(localized: "Enter the 3 or 4 digit code.")
+        }
+        if field == .name {
+            return name.trimmingCharacters(in: .whitespaces).count <= 64 && !name.unicodeScalars.contains(where: { [.control, .format].contains($0.properties.generalCategory) }) ? nil : String(localized: "Use a shorter name.")
+        }
+        let trimmed = label.trimmingCharacters(in: .whitespaces)
+        let isForbidden = { (scalar: Unicode.Scalar) in "•·'".unicodeScalars.contains(scalar) || (scalar.properties.isWhitespace && scalar != " ") || [.control, .format].contains(scalar.properties.generalCategory) }
+        return (1...40).contains(trimmed.count) && !trimmed.unicodeScalars.contains(where: isForbidden) ? nil : String(localized: "Use up to 40 letters, digits and spaces.")
+    }
+
+    func isValid(now: Date = .now) -> Bool {
+        CardField.allCases.allSatisfy { problem($0, now: now) == nil }
+    }
+
+    var body: [String: String] {
+        let parts = expiryParts
+        return [
+            "card_number": cleanNumber, "exp_month": parts.map { String(format: "%02d", $0.month) } ?? "", "exp_year": parts.map { String($0.year) } ?? "",
+            "cvc": cvc, "cardholder_name": name.trimmingCharacters(in: .whitespaces), "label": label.trimmingCharacters(in: .whitespaces),
+        ]
+    }
+
+    static func formattedNumber(_ text: String) -> String {
+        let digits = String(text.filter(\.isASCIIDigit).prefix(19))
+        let groups = digits.hasPrefix("34") || digits.hasPrefix("37") ? [4, 6, 5] : [4, 4, 4, 4, 3]
+        let starts = groups.indices.map { groups[..<$0].reduce(0, +) }
+        return zip(starts, groups).compactMap { start, size in
+            start < digits.count ? String(digits.dropFirst(start).prefix(size)) : nil
+        }.joined(separator: " ")
+    }
+
+    static func formattedExpiry(_ text: String) -> String {
+        let digits = String(text.filter(\.isASCIIDigit).prefix(6))
+        return digits.count > 2 ? "\(digits.prefix(2))/\(digits.dropFirst(2))" : digits
+    }
+}
+
+nonisolated private extension Character {
+    var isASCIIDigit: Bool {
+        isASCII && isNumber
+    }
+}
+
 nonisolated struct PaymentsError: LocalizedError, Equatable {
     let code: String
     let reason: String?
@@ -273,8 +422,19 @@ nonisolated struct PaymentsError: LocalizedError, Equatable {
             return String(localized: "Enter a website.")
         }
         if code == "duplicate_shop" { return String(localized: "\(host ?? String(localized: "This site")) is already a shop.") }
-        if code == "no_card" { return String(localized: "Add a card on the server first.") }
+        if code == "no_card" { return String(localized: "Add a card first.") }
         if code == "several_cards" { return String(localized: "Keep one card without a website on the server.") }
+        if code == "invalid_card" {
+            if reason == "number" { return String(localized: "Check the card number.") }
+            if reason == "expiry" { return String(localized: "Check the expiry date.") }
+            if reason == "expired" { return String(localized: "This card has expired.") }
+            if reason == "cvc" { return String(localized: "Enter the 3 or 4 digit code.") }
+            if reason == "name" { return String(localized: "Use a shorter name.") }
+            if reason == "label" { return String(localized: "Use up to 40 letters, digits and spaces.") }
+        }
+        if code == "login_off" { return String(localized: "Payments are off: this server has no dashboard login.") }
+        if code == "payment_pending" { return String(localized: "Finish or deny the waiting payment first.") }
+        if code == "vault_error" { return String(localized: "Couldn't save the card on the server.") }
         if ["invalid_profile", "unknown_profile"].contains(code) { return String(localized: "Couldn't load shops.") }
         return String(localized: "Couldn't reach Hermes. Try again.")
     }
@@ -293,11 +453,17 @@ nonisolated private struct PaymentsErrorBody: Decodable {
     let detail: Detail
 }
 
+nonisolated private final class RefusingRedirects: NSObject, URLSessionTaskDelegate, Sendable {
+    func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse, newRequest request: URLRequest, completionHandler: @escaping @Sendable (URLRequest?) -> Void) {
+        completionHandler(nil)
+    }
+}
+
 nonisolated func paymentsCall<Response: Decodable>(_ path: String, query: [URLQueryItem] = [], method: String? = nil, body: [String: String]? = nil, on server: URL, with urlSession: URLSession, as type: Response.Type = Response.self) async throws -> Response {
     var request = hermesRequest("api/plugins/crew-push/\(path)", on: server, json: body)
     if let method { request.httpMethod = method }
     if !query.isEmpty { request.url?.append(queryItems: query) }
-    let (data, response) = try await urlSession.data(for: request)
+    let (data, response) = try await urlSession.data(for: request, delegate: RefusingRedirects())
     let status = (response as? HTTPURLResponse)?.statusCode ?? 0
     guard (200..<300).contains(status) else {
         if let error = try? JSONDecoder().decode(PaymentsErrorBody.self, from: data) { throw PaymentsError(code: error.detail.code, reason: error.detail.reason) }

@@ -7,12 +7,12 @@
       "has_avatar" : false,
       "is_default" : false,
       "last_session" : {
-        "id" : "20261017_092511_8c93b9",
-        "last_active" : 1792229143.663171,
+        "id" : "20261017_093914_f8ab97",
+        "last_active" : 1792229985.0586984,
         "live_message_count" : 0,
         "message_count" : 0,
         "preview" : "",
-        "started_at" : 1792229143.663171,
+        "started_at" : 1792229985.0586984,
         "title" : ""
       },
       "model" : "gpt-6-astra",
@@ -26,7 +26,7 @@
       "ui_meta" : {
         "hermes-bots" : {
           "color" : "#14b8a6",
-          "created" : 1792229111473,
+          "created" : 1792229954194,
           "custom" : true,
           "expression" : "happy",
           "imageKind" : "shape",

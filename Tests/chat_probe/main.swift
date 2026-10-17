@@ -158,7 +158,9 @@ if phases.contains("fresh") {
         firstRun.cancel()
         await leaving.disconnect()
         try await Task.sleep(for: .seconds(30))
-        guard let titled = try await roster().bot, let session = titled.canonicalSession else { throw HermesError.invalidResponse }
+        let opened = try await roster()
+        try save("profiles.opened", opened.raw)
+        guard let titled = opened.bot, let session = titled.canonicalSession else { throw HermesError.invalidResponse }
         print("WITH session.title, reaped:", try await describe(session.id.rawValue))
 
         let chat = try await attached(titled)

@@ -6,8 +6,32 @@ on:
   pull_request:
 
 jobs:
+  changes:
+    name: Detect app changes
+    runs-on: ubuntu-latest
+    outputs:
+      app: ${{ steps.diff.outputs.app }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 2
+
+      - id: diff
+        run: |
+          set -euo pipefail
+          files=$(git diff --name-only HEAD^1 HEAD)
+          echo "$files"
+          if echo "$files" | grep -vE '^(docs|server/crew-push)/|\.md$' | grep -q . || echo "$files" | grep -qE '^(Sources|Tests/fixtures)/.*\.md$'; then
+            echo "app=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "app=false" >> "$GITHUB_OUTPUT"
+          fi
+          cat "$GITHUB_OUTPUT"
+
   app:
     name: Build macOS and iOS (unsigned)
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.app != 'false' }}
     runs-on: xcode-27
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
@@ -21,7 +45,18 @@ jobs:
       - name: Test
         run: xcodebuild test -project Crew.xcodeproj -scheme CrewTests -derivedDataPath .build -destination 'platform=macOS,arch=arm64' -skipPackagePluginValidation -skipMacroValidation
 
-      - name: UI tests (iOS Simulator)
+  ui:
+    name: UI tests (iOS Simulator)
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.app != 'false' }}
+    runs-on: xcode-27
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - name: Install build tools
+        run: brew install xcodegen; sysctl -n hw.ncpu hw.memsize
+
+      - name: UI tests
         run: Tests/ui.sh
 
   plugin:

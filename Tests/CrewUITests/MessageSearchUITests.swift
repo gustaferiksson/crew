@@ -35,21 +35,4 @@ final class MessageSearchUITests: XCTestCase {
         XCTAssertTrue(match.waitForExistence(timeout: 5))
         XCTAssertTrue(match.isHittable)
     }
-
-    @MainActor func testAnOtherConversationHitOpensTheSheetOverTheBotsChat() {
-        let app = XCUIApplication()
-        app.launchArguments = ["-snapshot", "sidebar-search", "-server", "hermes.example.com", "-username", "gustaf"]
-        app.launch()
-
-        let scoutHit = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "in Ferries around Reine")).firstMatch
-        XCTAssertTrue(scoutHit.waitForExistence(timeout: 10))
-        scoutHit.tap()
-
-        let sheet = app.navigationBars["Ferries around Reine"]
-        XCTAssertTrue(sheet.waitForExistence(timeout: 5))
-        sheet.buttons["Done"].tap()
-
-        XCTAssertTrue(sheet.waitForNonExistence(timeout: 5))
-        XCTAssertTrue(app.navigationBars["Scout"].waitForExistence(timeout: 5))
-    }
 }

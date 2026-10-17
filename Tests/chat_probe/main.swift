@@ -92,6 +92,109 @@ func show(_ label: String, _ chat: ChatSession) {
     for line in summary(chat.transcript).suffix(4) { print("  ", line) }
 }
 
+if phases.contains("fresh") {
+    let name = "crew-test-\(UUID().uuidString.prefix(6).lowercased())"
+    let folder = URL(fileURLWithPath: #filePath).appending(path: "../../fixtures/scenarios/new-bot-chat").standardized
+    try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+    let pretty = JSONEncoder()
+    pretty.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+    let scrubs = [(server.host() ?? "", "hermes.example.com"), (env["HERMES_USER"] ?? "", "user"), (name, "crew-test-peer")].filter { $0.0.count > 2 }
+    func save(_ file: String, _ value: JSONValue) throws {
+        let text = scrubs.reduce(String(decoding: try pretty.encode(value), as: UTF8.self)) { $0.replacingOccurrences(of: $1.0, with: $1.1) }.replacing(/\/opt\/data\/[^\s"'\\]*/, with: "/opt/hermes/data")
+        try Data((text + "\n").utf8).write(to: folder.appending(path: "\(file).json"))
+        print("RECORDED \(file).json")
+    }
+    func roster() async throws -> (raw: JSONValue, bot: Bot?) {
+        let raw = try await gateway.call("profiles.list", ["include_sessions": true], as: JSONValue.self)
+        guard case .object(let object) = raw, case .array(let profiles) = object["profiles"] else { return (.object(["profiles": .array([])]), nil) }
+        let kept = profiles.filter { if case .object(let profile) = $0, case .string(name) = profile["name"] { true } else { false } }
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .secondsSince1970
+        return (.object(["profiles": .array(kept)]), try decoder.decode([Bot].self, from: encoder.encode(JSONValue.array(kept))).first)
+    }
+    func live(of bot: Bot?) async throws -> (raw: JSONValue, statuses: [String]) {
+        let keys = [bot?.canonicalSession?.id.rawValue, bot?.canonicalSession?.resolvedID.rawValue].compactMap(\.self)
+        let raw = try await gateway.call("session.active_list", [String: String](), as: JSONValue.self)
+        guard case .object(let object) = raw, case .array(let sessions) = object["sessions"] else { return (.object(["sessions": .array([])]), []) }
+        let kept = sessions.filter { if case .object(let session) = $0, case .string(let key) = session["session_key"] { keys.contains(key) } else { false } }
+        let statuses = kept.compactMap { if case .object(let session) = $0, case .string(let status) = session["status"] { status } else { nil } }
+        return (.object(["sessions": .array(kept)]), statuses)
+    }
+    func describe(_ key: String) async throws -> String {
+        let listed = try await gateway.call("session.list", ["profile": .string(name), "include_hidden": .bool(true), "limit": .number(50)] as [String: JSONValue], as: JSONValue.self)
+        var visible = URLRequest(url: URL(string: "\(server.absoluteString)/api/sessions?profile=\(name)&order=recent&limit=50")!)
+        visible.setValue("application/json", forHTTPHeaderField: "Accept")
+        let (data, _) = try await urlSession.data(for: visible)
+        guard case .object(let object) = listed, case .array(let rows) = object["sessions"],
+              case .object(let row)? = rows.first(where: { if case .object(let row) = $0, case .string(key) = row["id"] { true } else { false } })
+        else { return "no row" }
+        let title = if case .string(let title) = row["title"], !title.isEmpty { title } else { "untitled" }
+        return "\(title), \(String(decoding: data, as: UTF8.self).contains(key) ? "visible" : "hidden")"
+    }
+
+    let store = BotStore(fixture: [], statuses: [:])
+    Task { await store.run(gateway, urlSession: urlSession) }
+    try await Task.sleep(for: .seconds(3))
+    do {
+        try await store.create(NewProfile(name: name, description: "Crew scenario bot", soul: nil, cloneFrom: nil), via: gateway) { meta in
+            meta = BotMeta(title: "Crew Fresh", shape: "hexagon", color: "#14b8a6", custom: true, imageKind: "shape", expression: "happy")
+        }
+
+        let dropped = try await connectedPeer()
+        let minted = try await dropped.call("session.create", ["profile": .string(name), "title": .string("Bot Chat"), "hidden": .bool(true), "follow_profile_config": .bool(true)] as [String: JSONValue], as: JSONValue.self)
+        guard case .object(let created) = minted, case .string(let mintedKey) = created["stored_session_id"] else { throw HermesError.invalidResponse }
+        await dropped.disconnect()
+        try await Task.sleep(for: .seconds(30))
+        _ = try await gateway.call("session.resume", ["session_id": .string(mintedKey), "profile": .string(name), "omit_messages": .bool(true)] as [String: JSONValue], as: JSONValue.self)
+        print("WITHOUT session.title, reaped then resumed:", try await describe(mintedKey))
+
+        let before = try await roster()
+        try save("profiles.before", before.raw)
+        guard let fresh = before.bot, fresh.canonicalSession == nil else { throw HermesError.invalidResponse }
+        let leaving = try await connectedPeer()
+        let first = ChatSession(bot: fresh, gateway: leaving, urlSession: urlSession)
+        let firstRun = Task { await first.run() }
+        try await Task.sleep(for: .seconds(4))
+        firstRun.cancel()
+        await leaving.disconnect()
+        try await Task.sleep(for: .seconds(30))
+        guard let titled = try await roster().bot, let session = titled.canonicalSession else { throw HermesError.invalidResponse }
+        print("WITH session.title, reaped:", try await describe(session.id.rawValue))
+
+        let chat = try await attached(titled)
+        chat.send("Use your terminal tool to run: sleep 6 && echo fresh-ok. Then reply with just the output.", mode: .send)
+        var duringSaved = false
+        let started = Date.now
+        while Date.now.timeIntervalSince(started) < 180, !duringSaved || chat.isRunning {
+            try await Task.sleep(for: .milliseconds(250))
+            let current = try await roster()
+            let active = try await live(of: current.bot)
+            if !duringSaved, active.statuses.contains("working") {
+                try save("profiles.during", current.raw)
+                try save("active_list.during", active.raw)
+                duringSaved = true
+            }
+        }
+        if !duringSaved { print("WARNING: never saw the fresh Bot Chat working") }
+        try await Task.sleep(for: .seconds(5))
+        let after = try await roster()
+        try save("profiles.after", after.raw)
+        try save("active_list.after", try await live(of: after.bot).raw)
+        if let session = after.bot?.canonicalSession {
+            let (data, _) = try await urlSession.data(for: historyRequest(of: session.resolvedID, profile: name, on: server, limit: 20))
+            guard case .object(let page) = try JSONDecoder().decode(JSONValue.self, from: data), case .array(let messages) = page["messages"] else { throw HermesError.invalidResponse }
+            let keys: Set = ["id", "role", "content", "tool_call_id", "tool_calls", "timestamp", "display_kind"]
+            try save("crew-test-peer.preview", .array(messages.map { row in if case .object(let object) = row { .object(object.filter { keys.contains($0.key) }) } else { row } }))
+        }
+    } catch {
+        print("FRESH FAILED", error)
+    }
+    await store.reload(gateway)
+    if let bot = store.bots.first(where: { $0.name == name }) { try await store.delete(bot, via: gateway, urlSession: urlSession) }
+    print(store.bots.contains { $0.name == name } ? "THROWAWAY NOT DELETED: \(name)" : "throwaway deleted")
+    exit(0)
+}
+
 let bot = try await crewTest()
 print("canonical", bot.canonicalSession?.id.rawValue ?? "nil")
 let chat = try await attached(bot)

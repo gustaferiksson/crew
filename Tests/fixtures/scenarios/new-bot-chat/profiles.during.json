@@ -1,0 +1,53 @@
+{
+  "profiles" : [
+    {
+      "canonical_session" : {
+        "id" : "20261017_092544_e58048",
+        "last_active" : 1792229201.8003695,
+        "live_message_count" : 1,
+        "message_count" : 1,
+        "preview" : "Use your terminal tool to run: sleep 6 && echo fresh-ok. Then reply with just th...",
+        "resolved_id" : "20261017_092544_e58048",
+        "root_title" : "Bot Chat",
+        "started_at" : 1792229144.1390402,
+        "title" : "Bot Chat"
+      },
+      "description" : "Crew scenario bot",
+      "display_name" : "",
+      "has_avatar" : false,
+      "is_default" : false,
+      "last_session" : {
+        "id" : "20261017_092511_8c93b9",
+        "last_active" : 1792229143.663171,
+        "live_message_count" : 0,
+        "message_count" : 0,
+        "preview" : "",
+        "started_at" : 1792229143.663171,
+        "title" : ""
+      },
+      "model" : "gpt-6-astra",
+      "name" : "crew-test-peer",
+      "path" : "/opt/hermes/data",
+      "previous_names" : [
+
+      ],
+      "provider" : "openai-codex",
+      "skill_count" : 58,
+      "ui_meta" : {
+        "hermes-bots" : {
+          "color" : "#14b8a6",
+          "created" : 1792229111473,
+          "custom" : true,
+          "expression" : "happy",
+          "imageKind" : "shape",
+          "shape" : "hexagon",
+          "title" : "Crew Fresh"
+        }
+      },
+      "ui_meta_revisions" : {
+        "hermes-bots" : 1
+      },
+      "worker_session" : null
+    }
+  ]
+}

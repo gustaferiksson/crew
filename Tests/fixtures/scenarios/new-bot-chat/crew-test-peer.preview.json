@@ -1,0 +1,49 @@
+[
+  {
+    "content" : "Use your terminal tool to run: sleep 6 && echo fresh-ok. Then reply with just the output.",
+    "display_kind" : null,
+    "id" : 1,
+    "role" : "user",
+    "timestamp" : 1792229201.7754772,
+    "tool_call_id" : null,
+    "tool_calls" : null
+  },
+  {
+    "content" : "",
+    "display_kind" : null,
+    "id" : 2,
+    "role" : "assistant",
+    "timestamp" : 1792229204.8869445,
+    "tool_call_id" : null,
+    "tool_calls" : [
+      {
+        "call_id" : "call_268bc6e455e4414d8f86800e2c298b3a",
+        "function" : {
+          "arguments" : "{\"command\":\"sleep 6 && echo fresh-ok\"}",
+          "name" : "terminal"
+        },
+        "id" : "call_268bc6e455e4414d8f86800e2c298b3a",
+        "response_item_id" : "fc_02baa374841120df016ad33f5464a08191a7aa416957491599",
+        "type" : "function"
+      }
+    ]
+  },
+  {
+    "content" : "{\"output\": \"fresh-ok\", \"exit_code\": 0, \"error\": null}",
+    "display_kind" : null,
+    "id" : 3,
+    "role" : "tool",
+    "timestamp" : 1792229211.2398953,
+    "tool_call_id" : "call_268bc6e455e4414d8f86800e2c298b3a",
+    "tool_calls" : null
+  },
+  {
+    "content" : "fresh-ok",
+    "display_kind" : null,
+    "id" : 4,
+    "role" : "assistant",
+    "timestamp" : 1792229212.983328,
+    "tool_call_id" : null,
+    "tool_calls" : null
+  }
+]

@@ -105,5 +105,5 @@ private func coldOpenChat(_ store: BotStore) throws -> (ChatSessions, ChatSessio
     store.apply(live: try recorded("active_list.after", in: "cleared-bot-chat", as: ActiveList.self).sessions)
     store.showPreview(of: "vera", from: rows)
     let reply = try #require(rows.last)
-    #expect(ChatSessions().summary(of: vera, in: store) == BotSummary(status: .unread, preview: "Hi Sam! What can I help you with?", time: Date(timeIntervalSince1970: reply.timestamp)))
+    #expect(ChatSessions().summary(of: vera, in: store) == BotSummary(status: .idle, preview: "Hi Sam! What can I help you with?", time: Date(timeIntervalSince1970: reply.timestamp)))
 }

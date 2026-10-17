@@ -95,7 +95,7 @@ nonisolated struct Bot: Identifiable, Hashable, Sendable {
     var id: String { name }
 
     var lastRead: ReadPosition? {
-        readPosition?.rebased(on: canonicalSession?.position)
+        readPosition.map { read in canonicalSession?.position.map { min(read, $0) } ?? read }
     }
 
     func needsMarker(at target: ReadPosition) -> Bool {
@@ -169,12 +169,6 @@ nonisolated struct ReadPosition: Codable, Hashable, Comparable, Sendable {
 
     static func < (lhs: ReadPosition, rhs: ReadPosition) -> Bool {
         (lhs.session, lhs.messages) < (rhs.session, rhs.messages)
-    }
-
-    // Hermes can empty a Bot Chat in place (SessionDB.clear_messages), keeping its id.
-    func rebased(on position: ReadPosition?) -> ReadPosition {
-        guard let position, session == position.session, messages > position.messages else { return self }
-        return ReadPosition(session: session, messages: 0)
     }
 }
 
@@ -552,7 +546,8 @@ final class BotStore {
         }
         firstSeenActivity = firstSeenActivity.filter { seen in bots.contains { $0.id == seen.key && $0.readPosition == nil } }
         for bot in bots {
-            firstSeenActivity[bot.id] = firstSeenActivity[bot.id]?.rebased(on: bot.canonicalSession?.position)
+            guard let seen = firstSeenActivity[bot.id], let position = bot.canonicalSession?.position else { continue }
+            firstSeenActivity[bot.id] = min(seen, position)
         }
         for bot in bots where bot.readPosition == nil && seenActivity[bot.id] == nil && firstSeenActivity[bot.id] == nil {
             firstSeenActivity[bot.id] = bot.canonicalSession?.position

@@ -655,7 +655,6 @@ if phases.contains("cleared") {
     }
     let original = try await crewTest()
     guard let position = original.canonicalSession?.position, position.messages > 0 else { print("CLEARED crew-test has no Bot Chat rows"); exit(1) }
-    let session = ReadPosition(session: position.session, messages: 0)
     try await writeMarker(ReadPosition(session: position.session, messages: position.messages + 5))
     for _ in 0..<2 {
         let bot = try await crewTest()
@@ -673,14 +672,9 @@ if phases.contains("cleared") {
         }
         print("CLEARED \(label) TIMEOUT")
     }
-    try await wait("unread in a live store") { store.statuses["crew-test"] == .unread }
-    try await wait("store wrote the session start by itself") { try await crewTest().readPosition == session }
-    try await wait("still unread after the write") { store.statuses["crew-test"] == .unread }
-    print("CLEARED read pushes before a view: \(announced)")
-    if let bot = store.bots.first(where: { $0.name == "crew-test" }) { store.markSeen(bot) }
-    try await wait("viewing writes the current position") { try await crewTest().readPosition == position && store.statuses["crew-test"] == nil }
-    try await Task.sleep(for: .seconds(1))
-    print("CLEARED read pushes after the view: \(announced), count still \(try await crewTest().canonicalSession?.messageCount ?? -1)")
+    try await wait("store rewrote the marker to the current count by itself") { try await crewTest().readPosition == position }
+    try await Task.sleep(for: .seconds(3))
+    print("CLEARED status after the drop: \(store.statuses["crew-test"].map { "\($0)" } ?? "idle"), read pushes: \(announced), count still \(try await crewTest().canonicalSession?.messageCount ?? -1)")
     try await writeMarker(original.readPosition)
     print("CLEARED restored", try await crewTest().readPosition == original.readPosition)
 }

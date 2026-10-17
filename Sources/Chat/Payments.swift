@@ -100,9 +100,10 @@ nonisolated struct VaultResult: Decodable, Sendable {
         let fill: String?
         let fillError: String?
         let missingShop: String?
+        let origin: String?
 
         private enum CodingKeys: String, CodingKey {
-            case state, fill
+            case state, fill, origin
             case fillError = "fill_error"
             case missingShop = "missing_shop"
         }
@@ -146,7 +147,7 @@ nonisolated struct PaymentReceipt: Equatable, Sendable {
         let isPayment = result.kind == "payment" || result.crewPayment != nil || result.errorType == "payment_declined" || arguments["amount"] != nil
         guard isPayment, result.errorType?.hasPrefix("crew_") != true else { return nil }
         let amount = (arguments["amount"] as? String).flatMap { $0.isEmpty ? nil : $0 }
-        let host = result.origin.flatMap { URLComponents(string: $0)?.encodedHost }
+        let host = (result.origin ?? result.crewPayment?.origin).flatMap { URLComponents(string: $0)?.encodedHost }
         let total = [amount, host.map { String(localized: "at \($0)") }].compactMap(\.self).joined(separator: " ")
         let notFilled = { (reason: String) in
             PaymentReceipt(text: String(localized: "Approved, but the card wasn't filled: \(reason)"), tone: .warning)

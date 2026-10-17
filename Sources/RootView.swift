@@ -2,9 +2,6 @@ import SwiftUI
 
 struct RootView: View {
     @Environment(Connection.self) private var connection
-    @Environment(BotStore.self) private var bots
-    @Environment(ChatSessions.self) private var chats
-    @Environment(GroupStore.self) private var groups
 
     var body: some View {
         Group {
@@ -33,17 +30,15 @@ struct RootView: View {
                 GroupChatFixtureScreen()
             } else if Snapshot.requested == .groupInspector {
                 GroupInspectorFixtureScreen()
+            } else if let snapshot = Snapshot.requested, snapshot.isChatWindow {
+                #if os(macOS)
+                BotChatWindow(id: snapshot.selectedBot)
+                #endif
             } else if connection.state == .signedOut {
                 LoginView()
             } else {
                 BotsView()
             }
-        }
-        .onChange(of: connection.state == .signedOut, initial: true) { _, isSignedOut in
-            guard isSignedOut else { return }
-            bots.reset()
-            chats.reset()
-            groups.reset()
         }
     }
 }

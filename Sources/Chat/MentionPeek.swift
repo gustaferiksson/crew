@@ -194,26 +194,4 @@ struct MentionSheet: View {
         .presentationContentInteraction(.scrolls)
     }
 }
-#else
-struct BotChatWindow: View {
-    let id: Bot.ID?
-
-    @Environment(BotStore.self) private var bots
-    @State private var models = ModelSwitcher()
-    @State private var showsBot = false
-
-    var body: some View {
-        if let bot = bots.bots.first(where: { $0.id == id }) {
-            NavigationStack {
-                ChatScreen(bot: bot, models: models, showsBot: $showsBot) { _ in }
-            }
-            .inspector(isPresented: $showsBot) {
-                BotInspector(bot: bot, models: models, isPresented: $showsBot)
-                    .inspectorColumnWidth(min: inspectorWidth.min, ideal: inspectorWidth.ideal, max: inspectorWidth.max)
-            }
-        } else {
-            ContentUnavailableView("No Bot", systemImage: "person.crop.circle.badge.questionmark", description: Text("This bot is no longer on the server."))
-        }
-    }
-}
 #endif

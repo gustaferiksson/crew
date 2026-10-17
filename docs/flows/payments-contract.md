@@ -116,7 +116,7 @@ For `vault-payment` and not `coalesced`: set `state` and `decided_at` on the ent
 
 ### `transform_tool_result` (fail-open in Hermes; Crew has a fallback)
 
-- **`fill` on a payment item:** returns Hermes' result with `"crew_payment": {"request_id", "state", "fill", "fill_error"}` added, and the bot's `error` text replaced by state: denied, "The user denied this payment. Do not retry; ask what they want instead."; expired, "Nobody answered within 5 minutes. Tell the user it expired and wait until they ask again."; cancelled, "The request was cancelled. Stop." A success without `cc-number` in `fields` becomes `"success": false` with `fill_error: "no_fields"` and "The card fields weren't found; this checkout probably puts them in a payment frame, which can't be filled. Tell the user." A real success gets "Click the shop's pay button. Never tick save card or remember card." It also writes `fill` and `fill_error` to the log.
+- **`fill` on a payment item:** returns Hermes' result with `"crew_payment": {"request_id", "origin", "state", "fill", "fill_error"}` added (`origin` is the shop the user was asked about, so a denied, expired or cancelled receipt can name the host although Hermes' raw `payment_declined` result carries no origin), and the bot's `error` text replaced by state: denied, "The user denied this payment. Do not retry; ask what they want instead."; expired, "Nobody answered within 5 minutes. Tell the user it expired and wait until they ask again."; cancelled, "The request was cancelled. Stop." A success without `cc-number` in `fields` becomes `"success": false` with `fill_error: "no_fields"` and "The card fields weren't found; this checkout probably puts them in a payment frame, which can't be filled. Tell the user." A real success gets "Click the shop's pay button. Never tick save card or remember card." It also writes `fill` and `fill_error` to the log.
 - **`list`:** when the current page has card fields (Hermes' `_TAB_PROBES["payment"]` selector, evaluated on the page) and no payment item in this profile has that origin, adds `"crew_payment": {"missing_shop": "<origin>"}` and a `hint` to ask the user to add the shop in Crew.
 
 Decorated fill result (fixture `fill-approved.json`):
@@ -124,7 +124,7 @@ Decorated fill result (fixture `fill-approved.json`):
 ```json
 {"success": true, "filled_fields": 5, "backend": "local", "kind": "payment", "origin": "https://www.zalando.se",
  "fields": ["cc-csc", "cc-exp-month", "cc-exp-year", "cc-name", "cc-number"],
- "crew_payment": {"request_id": "5f0c3e9a2b7d4c18a6e1f20b9d3c7a54", "state": "approved", "fill": "filled", "fill_error": null},
+ "crew_payment": {"request_id": "5f0c3e9a2b7d4c18a6e1f20b9d3c7a54", "origin": "https://www.zalando.se", "state": "approved", "fill": "filled", "fill_error": null},
  "next": "Click the shop's pay button. Never tick save card or remember card."}
 ```
 

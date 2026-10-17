@@ -396,6 +396,17 @@ def test_fill_result_is_decorated(push: CrewPush, hermes: Hermes, outcome: str, 
     assert transform(push, fixture(f"fill-{outcome}.raw.json")) is None
 
 
+@pytest.mark.parametrize(("choice", "state"), [("deny", "denied"), ("timeout", "expired"), ("cancelled", "cancelled")])
+def test_declined_receipts_name_the_shop(push: CrewPush, hermes: Hermes, choice: str, state: str) -> None:
+    fill(push)
+    ask(push, hermes)
+    answer(push, hermes, choice)
+    raw = fixture("fill-denied.raw.json")
+    assert "origin" not in raw
+    crew_payment = transform(push, raw)["crew_payment"]
+    assert (crew_payment["origin"], crew_payment["state"]) == (ORIGIN, state)
+
+
 def test_unbound_fill_is_left_alone(push: CrewPush, hermes: Hermes) -> None:
     fill(push)
     assert transform(push, fixture("fill-approved.raw.json")) is None

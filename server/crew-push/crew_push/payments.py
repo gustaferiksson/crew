@@ -183,8 +183,8 @@ def fill_outcome(raw: dict[str, Any]) -> tuple[str, str | None]:
 
 def decorate(raw: dict[str, Any], entry: dict[str, Any]) -> dict[str, Any]:
     fill, fill_error = fill_outcome(raw)
-    out = {**raw, "crew_payment": {"request_id": entry["request_id"], "state": entry["state"], "fill": fill,
-                                   "fill_error": fill_error}}
+    out = {**raw, "crew_payment": {"request_id": entry["request_id"], "origin": entry["origin"], "state": entry["state"],
+                                   "fill": fill, "fill_error": fill_error}}
     if fill == "filled":
         out["next"] = NEXT
     if fill_error == "no_fields":

@@ -1,0 +1,45 @@
+{
+  "profiles": [
+    {
+      "canonical_session": {
+        "id": "20261017_091102_71c52a",
+        "last_active": 1792242037.9284475,
+        "live_message_count": 2,
+        "message_count": 2,
+        "preview": "Hi Gustaf! What can I help you with?",
+        "resolved_id": "20261017_091102_71c52a",
+        "root_title": "Bot Chat",
+        "started_at": 1792228262.750223,
+        "title": "Bot Chat"
+      },
+      "description": "Gustaf's personal assistant: shopping research, occasions, restaurants, reminders, personal email and calendars.",
+      "display_name": "",
+      "has_avatar": false,
+      "is_default": false,
+      "model": "gpt-6-astra",
+      "name": "vera",
+      "path": "/opt/hermes/data",
+      "previous_names": [],
+      "provider": "openai-codex",
+      "skill_count": 1,
+      "ui_meta": {
+        "crew": {
+          "messages": 17,
+          "session": "20261017_091102_71c52a"
+        },
+        "hermes-bots": {
+          "color": "#8b5cf6",
+          "custom": true,
+          "imageKind": "shape",
+          "shape": "pill",
+          "title": "Vera"
+        }
+      },
+      "ui_meta_revisions": {
+        "crew": 1,
+        "hermes-bots": 4
+      },
+      "worker_session": null
+    }
+  ]
+}

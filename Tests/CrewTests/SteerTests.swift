@@ -140,7 +140,7 @@ private func shape(_ transcript: Transcript) -> [String] {
     transcript.begin(prompt: "Summarise the inbox")
     transcript.apply(.messageComplete(text: "Two invoices.", status: .complete, error: nil))
     transcript.wait(Prompt(text: "Then archive them", sentAt: .now), as: .queued)
-    #expect(transcript.preview == "Two invoices.")
+    #expect(transcript.preview?.text == "Two invoices.")
 }
 
 @Test func stoppingKeepsASteerTheAgentAlreadyTook() {

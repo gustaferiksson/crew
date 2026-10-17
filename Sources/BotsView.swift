@@ -455,15 +455,9 @@ private struct BotRow: View {
     @Environment(ChatSessions.self) private var chats
     @Environment(ChatDrafts.self) private var drafts
 
-    private var status: BotStatus {
-        chats.status(of: bot.id, in: store)
-    }
-
-    private var preview: String {
-        chats.sessions[bot.id]?.transcript.preview ?? store.previews[bot.id] ?? bot.canonicalSession?.preview ?? ""
-    }
-
     var body: some View {
+        let summary = chats.summary(of: bot, in: store)
+        let status = summary.status
         HStack(spacing: 0) {
             Circle()
                 .fill(.tint)
@@ -487,7 +481,7 @@ private struct BotRow: View {
                     .font(.headline)
                     .lineLimit(1)
                     Spacer(minLength: 4)
-                    trailingLabel
+                    trailingLabel(summary)
                         .font(.subheadline)
                         .lineLimit(1)
                         .fixedSize()
@@ -496,7 +490,7 @@ private struct BotRow: View {
                     if !isOpen, let draft = drafts.preview(for: bot.id) {
                         Text("\(Text("Draft:").foregroundStyle(.red)) \(draft)")
                     } else {
-                        Text(preview.isEmpty ? bot.description ?? "" : preview)
+                        Text(summary.preview.isEmpty ? bot.description ?? "" : summary.preview)
                     }
                 }
                     .font(.subheadline)
@@ -517,18 +511,18 @@ private struct BotRow: View {
     }
 
     @ViewBuilder
-    private var trailingLabel: some View {
-        if case .waiting(let kind) = status {
+    private func trailingLabel(_ summary: BotSummary) -> some View {
+        if case .waiting(let kind) = summary.status {
             Text(kind == .payment ? "Wants to pay" : kind == .approval ? "Needs approval" : "Waiting for you")
                 .foregroundStyle(.orange)
-        } else if status == .working {
+        } else if summary.status == .working {
             Label("Working", systemImage: "ellipsis")
                 .symbolEffect(.variableColor.iterative)
                 .foregroundStyle(.green)
-        } else if status == .failed {
+        } else if summary.status == .failed {
             Text("Failed")
                 .foregroundStyle(.red)
-        } else if let date = bot.canonicalSession?.lastActive {
+        } else if let date = summary.time {
             Text(date.rowLabel)
                 .foregroundStyle(.secondary)
         }

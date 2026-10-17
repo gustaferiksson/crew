@@ -57,7 +57,7 @@ private func settle(_ session: ChatSession) async throws {
     store.showPreview(of: "test-bot", from: try recorded("test-bot.preview", as: [HistoryRow].self))
     let lastRow = try #require(Transcript(history: try recorded("test-bot.history", as: [HistoryRow].self)).visible.turns.last)
     let lastActive = try #require(store.bots.first { $0.name == "test-bot" }?.canonicalSession?.lastActive)
-    #expect(store.previews["test-bot"] == "Message from Crew Test")
+    #expect(store.previews["test-bot"]?.text == "Message from Crew Test")
     #expect(abs(lastActive.timeIntervalSince(lastRow.startedAt)) < 1)
 }
 
@@ -79,7 +79,7 @@ private func settle(_ session: ChatSession) async throws {
     }
     #expect(session.transcript.visible.turns.count == 5)
     #expect(session.transcript.visible.turns.last?.startedAt == Date(timeIntervalSince1970: try #require(rows.first { $0.id == 22 }).timestamp))
-    #expect(session.transcript.preview == "Message from Crew Test")
+    #expect(session.transcript.preview?.text == "Message from Crew Test")
 }
 
 @Test func freshTargetChatOpenDuringTheExchangeShowsIt() async throws {
@@ -89,7 +89,7 @@ private func settle(_ session: ChatSession) async throws {
     try await settle(session)
     #expect(session.transcript.visible.turns.count == 1)
     #expect(session.transcript.visible.turns.first?.agentMessage?.sender == "Crew Test")
-    #expect(session.transcript.preview == "Message from Crew Test")
+    #expect(session.transcript.preview?.text == "Message from Crew Test")
 }
 
 @Test func refetchKeepsLocalFailures() {
@@ -140,7 +140,7 @@ private func settle(_ session: ChatSession) async throws {
     let store = BotStore(fixture: [], statuses: [:])
     store.apply(roster: try recorded("profiles.after", as: Roster.self).profiles)
     store.showPreview(of: "crew-test", from: try recorded("crew-test.preview", as: [HistoryRow].self))
-    #expect(store.previews["crew-test"] == "@test-bot: “Hello! 👋”")
+    #expect(store.previews["crew-test"]?.text == "@test-bot: “Hello! 👋”")
     #expect(Transcript(history: try recorded("crew-test.history", as: [HistoryRow].self)).preview == store.previews["crew-test"])
 }
 

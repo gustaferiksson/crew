@@ -58,8 +58,8 @@ private func replayedStore() throws -> BotStore {
 
 @Test func botRowsShowTheLastVisibleTurn() throws {
     let store = try replayedStore()
-    #expect(store.previews["crew-test"] == "@crew-test-peer: “Hello! Great to hear from you.”")
-    #expect(store.previews["crew-test-peer"] == "Message from Crew Test")
+    #expect(store.previews["crew-test"]?.text == "@crew-test-peer: “Hello! Great to hear from you.”")
+    #expect(store.previews["crew-test-peer"]?.text == "Message from Crew Test")
     #expect(store.bots.first { $0.name == "crew-test-peer" }?.description == "Crew scenario peer")
     let open = ChatSessions(fixture: try ["crew-test", "crew-test-peer"].reduce(into: [:]) { sessions, name in
         guard let bot = store.bots.first(where: { $0.name == name }) else { return }

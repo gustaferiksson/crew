@@ -303,6 +303,10 @@ final class ChatSession {
             } else {
                 try await gateway.call("session.create", CreateParams(profile: profile), as: LiveSnapshot.self)
             }
+            if stored == nil {
+                // session.create writes no row until the first prompt; a reaped runtime then resumes the key as an untitled, visible row.
+                _ = try await gateway.call("session.title", ["session_id": snapshot.sessionID.rawValue, "title": "Bot Chat"], as: JSONValue.self)
+            }
             try await load(snapshot)
         } catch {
             failure = error.localizedDescription

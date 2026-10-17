@@ -24,7 +24,8 @@ A scenario is one real flow recorded once from the server into `Tests/fixtures/s
 
 1. Put the flow in `Tests/chat_probe/main.swift` under the `record` phase: a new `scenario` name and the steps. Mutate only `crew-test` and a throwaway `crew-test-*` bot, and delete the throwaway on every path.
 2. Run `Tests/chat_probe/run.sh record <name>` (needs `.env.test`). It writes the files above with the host, the user and the throwaway's name scrubbed (the throwaway becomes `crew-test-peer`).
-3. Read the files before committing: no other profile, no credentials, and the flow did what you meant (a failed delivery or an `ambiguous` `message_agent` result means record again).
+   `Tests/chat_probe/run.sh fresh` records `new-bot-chat` (a throwaway's first Bot Chat, with its runtime reaped before the first prompt) and needs no `crew-test`.
+3. Read the files before committing: no other profile (except read-only captures of a real bug, trimmed and with names replaced), no credentials, and the flow did what you meant (a failed delivery or an `ambiguous` `message_agent` result means record again).
 
 ### Add the tests
 

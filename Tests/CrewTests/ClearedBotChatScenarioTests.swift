@@ -4,7 +4,7 @@ import Testing
 private let scenarios = URL(filePath: #filePath).deletingLastPathComponent().deletingLastPathComponent().appending(path: "fixtures/scenarios")
 private let chat = "20261017_091102_71c52a"
 
-private func roster(_ scenario: String, messages: Int? = nil, marker: Int?? = nil, session: String = chat) throws -> [Bot] {
+private func roster(_ scenario: String, messages: Int? = nil, marker: Int?? = nil, markerSession: String = chat, session: String = chat) throws -> [Bot] {
     let data = try Data(contentsOf: scenarios.appending(path: "\(scenario)/profiles.after.json"))
     var json = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
     var profiles = try #require(json["profiles"] as? [[String: Any]])
@@ -14,7 +14,7 @@ private func roster(_ scenario: String, messages: Int? = nil, marker: Int?? = ni
     canonical["resolved_id"] = session
     profiles[index]["canonical_session"] = canonical
     var meta = try #require(profiles[index]["ui_meta"] as? [String: Any])
-    if let marker { meta["crew"] = marker.map { ["session": chat, "messages": $0] } }
+    if let marker { meta["crew"] = marker.map { ["session": markerSession, "messages": $0] } }
     profiles[index]["ui_meta"] = meta
     json["profiles"] = profiles
     let decoder = JSONDecoder()
@@ -95,6 +95,18 @@ private func step(_ store: BotStore, messages: Int, marker: Int?? = nil, live st
     #expect(try vera(in: store.bots).readPosition == nil)
     #expect(try step(store, messages: 2, marker: .some(nil)) == nil)
     #expect(try step(store, messages: 4, marker: .some(nil)) == .unread)
+}
+
+@Test func compactionAndItsReplyBetweenTwoRostersReadAsRead() throws {
+    let store = try readBeforeTheDrop()
+    #expect(try step(store, messages: 12) == nil)
+}
+
+@Test func rootReportedInPlaceOfItsTipIsNotADrop() throws {
+    let tip = "20261017_120000_abcdef"
+    let bot = try vera(in: try roster("cleared-bot-chat", marker: 20, markerSession: tip))
+    #expect(bot.lastRead == ReadPosition(session: tip, messages: 20))
+    #expect(!bot.needsMarker(at: ReadPosition(session: chat, messages: 2)))
 }
 
 @Test func compactionTipIsNotADrop() throws {

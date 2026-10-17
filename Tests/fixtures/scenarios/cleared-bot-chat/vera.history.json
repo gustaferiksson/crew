@@ -1,0 +1,20 @@
+[
+  {
+    "content" : "Hi",
+    "display_kind" : null,
+    "id" : 34,
+    "role" : "user",
+    "timestamp" : 1792242023.4513261,
+    "tool_call_id" : null,
+    "tool_calls" : null
+  },
+  {
+    "content" : "Hi Sam! What can I help you with?",
+    "display_kind" : null,
+    "id" : 35,
+    "role" : "assistant",
+    "timestamp" : 1792242041.6159153,
+    "tool_call_id" : null,
+    "tool_calls" : null
+  }
+]

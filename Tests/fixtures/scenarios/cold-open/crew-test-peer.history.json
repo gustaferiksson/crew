@@ -1,0 +1,38 @@
+[
+  {
+    "content" : "Reply with just: earlier",
+    "display_kind" : null,
+    "id" : 1,
+    "role" : "user",
+    "timestamp" : 1792243128.1845396,
+    "tool_call_id" : null,
+    "tool_calls" : null
+  },
+  {
+    "content" : "earlier",
+    "display_kind" : null,
+    "id" : 2,
+    "role" : "assistant",
+    "timestamp" : 1792243132.594206,
+    "tool_call_id" : null,
+    "tool_calls" : null
+  },
+  {
+    "content" : "Hi",
+    "display_kind" : null,
+    "id" : 3,
+    "role" : "user",
+    "timestamp" : 1792243163.374738,
+    "tool_call_id" : null,
+    "tool_calls" : null
+  },
+  {
+    "content" : "Hi! What can I help you with?",
+    "display_kind" : null,
+    "id" : 4,
+    "role" : "assistant",
+    "timestamp" : 1792243165.67917,
+    "tool_call_id" : null,
+    "tool_calls" : null
+  }
+]

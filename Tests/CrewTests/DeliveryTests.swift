@@ -37,7 +37,7 @@ private func transcript(_ json: String) throws -> Transcript {
     #expect(visible.turns[1].prompt == nil)
     #expect(visible.turns[1].agentMessage == nil)
     #expect(visible.turns[1].reply == "@test-bot replied: “Hello again! 👋”")
-    #expect(try transcript(senderRows).preview == "@test-bot replied: “Hello again! 👋”")
+    #expect(try transcript(senderRows).preview?.text == "@test-bot replied: “Hello again! 👋”")
 }
 
 private let peerRows = #"""
@@ -61,7 +61,7 @@ private let peerRows = #"""
     #expect(visible.turns.map(\.id) == ["360", "364", "366"])
     #expect(visible.turns[1].reply == "@crew-test-f0ab5f: “Hello to you and the user!”")
     #expect(visible.turns[2].agentMessage?.sender == "Crew Peer")
-    #expect(try transcript(peerRows).preview == "Message from Crew Peer")
+    #expect(try transcript(peerRows).preview?.text == "Message from Crew Peer")
 }
 
 @Test func targetFoldsItsExchangeAndDeliveryIntoOneRow() throws {
@@ -71,7 +71,7 @@ private let peerRows = #"""
     #expect(target.visible.turns.map(\.id) == ["5"])
     #expect(notes(target.visible.turns[0]) == ["> The user sends another greeting; please say hello back.", nil, "Hello again! 👋", "Crew Test confirmed receipt of my greeting."])
     #expect(target.visible.turns[0].finishedAt == Date(timeIntervalSince1970: 1792127292.1401896))
-    #expect(target.preview == "Message from Crew Test")
+    #expect(target.preview?.text == "Message from Crew Test")
 }
 
 @Test func foldedDeliveryKeepsTheExchangeFailure() throws {
@@ -139,7 +139,7 @@ private let peerRows = #"""
     ]
     """#
     #expect(try transcript(rows).visible.turns.map(\.id) == ["11"])
-    #expect(try transcript(rows).preview == "Message from Crew Test")
+    #expect(try transcript(rows).preview?.text == "Message from Crew Test")
 }
 
 @Test func onlyWorkingAndWaitingCountAsBusy() {

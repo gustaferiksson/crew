@@ -111,6 +111,7 @@ targets:
       - Sources/Groups/GroupStore.swift
       - Sources/Groups/GroupSession.swift
       - Sources/Search/MessageSearch.swift
+      - Sources/Links.swift
       - Tests/CrewTests
     settings:
       base:

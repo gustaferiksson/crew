@@ -1,0 +1,6 @@
+{
+  "detail": {
+    "code": "payment_pending",
+    "message": "a payment for this profile is waiting for an answer"
+  }
+}

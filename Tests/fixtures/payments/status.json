@@ -1,11 +1,12 @@
 {
-  "plugin_version": "0.4.0",
+  "plugin_version": "0.5.0",
   "install_id": "9f2c41d07ab35e11",
   "apns_configured": true,
   "http2": true,
   "devices": 2,
   "features": [
-    "payments"
+    "payments",
+    "card"
   ],
   "gate": true
 }

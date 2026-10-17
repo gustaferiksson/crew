@@ -1,0 +1,22 @@
+{
+  "shops": [
+    {
+      "id": "vault_1a2b3c4d5e6f",
+      "origin": "https://www.apotea.se",
+      "host": "www.apotea.se",
+      "created_at": 1760600000.0,
+      "last_paid_at": null,
+      "stale": false,
+      "punycode": false
+    },
+    {
+      "id": "vault_5e6f7a8b9c0d",
+      "origin": "https://www.zalando.se",
+      "host": "www.zalando.se",
+      "created_at": 1760620000.0,
+      "last_paid_at": null,
+      "stale": false,
+      "punycode": false
+    }
+  ]
+}

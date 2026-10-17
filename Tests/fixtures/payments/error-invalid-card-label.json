@@ -1,0 +1,7 @@
+{
+  "detail": {
+    "code": "invalid_card",
+    "reason": "label",
+    "message": "the card details are not valid"
+  }
+}

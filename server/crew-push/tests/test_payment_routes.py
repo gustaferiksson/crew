@@ -49,7 +49,7 @@ def add_shop(client: TestClient, site: str = "https://www.zalando.se/checkout?st
 def test_status_reports_payments_and_the_gate(client: TestClient, app: FastAPI) -> None:
     assert store.read_gate() is None
     body = client.get(f"{API}/status").json()
-    assert body["features"] == ["payments"] and body["gate"] is True
+    assert body["features"] == ["payments", "card"] and body["gate"] is True
     app.state.auth_required = False
     assert client.get(f"{API}/status").json()["gate"] is False
     expected = fixture("status.json")

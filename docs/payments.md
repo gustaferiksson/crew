@@ -25,13 +25,14 @@ Plan for [#9](https://github.com/gustaferiksson/crew/issues/9). Researched again
 
 **Protected**
 
-- The card number never reaches the model, the transcript, Crew or the push.
+- The card number never reaches the model, the transcript or the push. It passes through Crew once, when the user adds or replaces the master card, and Crew keeps nothing ([flows/master-card.md](flows/master-card.md)).
 - No fill without a tap on Approve in Crew. No "allow for session", no "always". Until step 5, another client attached to the same session (TUI, Desktop) could still answer with `session` or `/approve`.
 - A fill only runs on the exact origin the user added, and only from the bot's Bot Chat in Crew (step 2), so a typed reply on another platform cannot pay.
 - A bot cannot add shops: the copy route sits behind the dashboard login (only true under `docker`, see the shell below).
 
 **Not protected**
 
+- **TLS in front of the dashboard.** Adding the card sends it over HTTPS to whatever terminates TLS: a reverse proxy or tunnel in front of the dashboard sees the request body once.
 - **The amount.** Amount, merchant and reason are what the bot says. The approval covers the fill, not the cart: after a fill the bot can submit any total. The issuer limit is the only real cap.
 - **Reading the card back after a fill.** Once the number is in the page, page scripts and `browser_cdp Runtime.evaluate` can read the fields and send them anywhere. Redaction only scrubs exact copies coming back to the model; reversed or split digits pass. Model-blind stops accidents, not a determined prompt injection.
 - **Saved cards at the merchant.** If the shop stores the card, a later one-click purchase never calls `browser_vault`, so no approval fires and Hermes sees nothing. Mitigation: the bot is told never to tick "save card" (step 2), plus the issuer limit.
@@ -61,7 +62,7 @@ Then restart Hermes the way it runs on `<host>` (for example its systemd service
 
 - **Changes:** `pages/checkout-test.html`: a static checkout with `autocomplete` card fields (`cc-number`, `cc-exp-month`, `cc-exp-year`, `cc-csc`, `cc-name`), a "Total 499 kr" line, a "Save card" checkbox and a Pay button that shows "Paid with card ending 4242". No network calls. Findings go into this doc.
 - **Files:** `pages/checkout-test.html`, `docs/payments.md`.
-- **Server:** Pages deploys only on a `v*` tag, so the page is live at `https://gustaferiksson.github.io/crew/checkout-test.html` after the next release. Then add the test card to crew-test by hand (the only time a card is added by hand):
+- **Server:** Pages deploys only on a `v*` tag, so the page is live at `https://gustaferiksson.github.io/crew/checkout-test.html` after the next release. Then add the test card to crew-test by hand (shop cards are otherwise copied by crew-push):
   ```sh
   # in the Hermes environment
   hermes -p crew-test vault add
@@ -93,22 +94,7 @@ Then restart Hermes the way it runs on `<host>` (for example its systemd service
   - crew-push 0.5.0 route `POST /api/plugins/crew-push/cards {profile, site}` (dashboard login required). It turns `site` into `https://<host>` (https only, no IPs or localhost, lowercase), refuses an origin the profile already has, reads the master card (the single `payment` item without origin in `get_default_hermes_root()/vault`; 409 if there are none or several), and calls `VaultStore(get_profile_dir(profile) / "vault").add_item(kind="payment", label="<master label> · <host>", origin=..., secret=<master secret>)`. Returns metadata only.
   - Inspector "Shops" section: lists the bot's payment items (`vault.list {profile}`), "Add shop website" calls the route, swipe to delete calls `vault.remove {profile, id}`. `xn--` hosts get a warning. If the bot's `terminal.backend` is `local` (`GET /api/config?profile=`), a footnote says other bots on the server can read the card.
 - **Files:** `server/crew-push/dashboard/plugin_api.py`, `tests/test_routes.py`, version files; `Sources/Inspector/BotInspector.swift`, new `Sources/Inspector/Shops.swift`, `Sources/Inspector/InspectorSnapshots.swift`, a Decisions line in `docs/PLAN.md`.
-- **Server:** add the master card once, to the launch profile's vault, with no origin. Use the 4242 test card until step 4 is verified, then replace it with the real virtual card. Remove the step 1 card. Deploy crew-push.
-  ```sh
-  # in the Hermes environment
-  cd /opt/hermes && /opt/hermes/.venv/bin/python -c '
-  import getpass
-  from pathlib import Path
-  from agent.vault_store import VaultStore
-  fields = ("card_number", "exp_month", "exp_year", "cvc", "cardholder_name")
-  secret = {field: getpass.getpass(field.replace("_", " ") + ": ").strip() for field in fields}
-  item = VaultStore(Path("/opt/data/vault")).add_item(kind="payment", label="Shopping card", secret=secret)
-  print(item.id, item.label, item.origin)'
-  hermes vault list
-  hermes -p crew-test vault list
-  hermes -p crew-test vault rm <id of Test 4242>
-  ```
-  `hermes vault add` cannot create the master in Hermes 0.22.1: it insists on an origin for payment items. The command above calls `VaultStore.add_item` without `origin` and reads the values hidden, so they never reach argv or the shell history. The vault files must stay owned by the user Hermes runs as (`ssh <host> chown -R <uid>:<gid> <hermes-data-dir>/vault` if not).
+- **Server:** deploy crew-push. Then add the master card once from Crew: Shops > **Add Card…** (crew-push 0.5.0, [flows/master-card.md](flows/master-card.md)), which stores it in the launch profile's vault with no origin; `hermes vault add` cannot, since Hermes 0.22.1 insists on an origin for payment items. Use the 4242 test card until step 4 is verified, then **Replace…** it with the real virtual card and tap **Update Shops** in each bot's Shops card. Remove the step 1 card (`hermes -p crew-test vault rm <id of Test 4242>` in the Hermes environment). The vault files must stay owned by the user Hermes runs as (`ssh <host> chown -R <uid>:<gid> <hermes-data-dir>/vault` if not).
 
   If the default profile is a bot, it sees "Shopping card" in `browser_vault list` but cannot fill it (`no_origin`).
 - **Verify on crew-test:** add `gustaferiksson.github.io` in the inspector, then the step 1 purchase works end to end; adding it twice, `http://` or an IP is refused; POST without a login gives 401; `hermes -p crew-test vault list` shows the copy with its origin.

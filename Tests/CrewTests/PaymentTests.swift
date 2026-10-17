@@ -143,11 +143,11 @@ private func paymentApproval() throws -> ApprovalRequest {
 
 @Test(arguments: [
     ("fill-approved", "Approved 499 kr at www.zalando.se", PaymentReceipt.Tone.approved),
-    ("fill-denied", "Denied 499 kr", .denied),
+    ("fill-denied", "Denied 499 kr at www.zalando.se", .denied),
     ("fill-expired", "Payment request expired", .neutral),
     ("fill-cancelled", "Payment request cancelled", .neutral),
-    ("fill-origin-changed", "Approved, but the card wasn't filled: the page left the shop", .warning),
-    ("fill-origin-mismatch", "Approved, but the card wasn't filled: the page left the shop", .warning),
+    ("fill-origin-changed", "Approved, but the card wasn't filled: the page left www.zalando.se", .warning),
+    ("fill-origin-mismatch", "Approved, but the card wasn't filled: the page left www.zalando.se", .warning),
     ("fill-no-fields", "Approved, but the card wasn't filled: card fields not found", .warning),
     ("fill-no-card-number", "Approved, but the card wasn't filled: card fields not found", .warning),
     ("fill-human-has-control", "Approved, but the card wasn't filled: you're controlling the browser", .warning),

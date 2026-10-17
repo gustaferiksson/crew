@@ -1,5 +1,16 @@
 import SwiftUI
 
+private let masterCardSetupCommand = """
+cd /opt/hermes && /opt/hermes/.venv/bin/python -c '
+import getpass
+from pathlib import Path
+from agent.vault_store import VaultStore
+fields = ("card_number", "exp_month", "exp_year", "cvc", "cardholder_name")
+secret = {field: getpass.getpass(field.replace("_", " ") + ": ").strip() for field in fields}
+item = VaultStore(Path("/opt/data/vault")).add_item(kind="payment", label="Shopping card", secret=secret)
+print(item.id, item.label, item.origin)'
+"""
+
 struct ShopsCard: View {
     let bot: Bot
     let isBrowserOff: Bool
@@ -169,10 +180,10 @@ struct ShopsCard: View {
 
     private func copySetupCommand() {
         #if os(iOS)
-        UIPasteboard.general.string = "hermes vault add"
+        UIPasteboard.general.string = masterCardSetupCommand
         #else
         NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString("hermes vault add", forType: .string)
+        NSPasteboard.general.setString(masterCardSetupCommand, forType: .string)
         #endif
     }
 }

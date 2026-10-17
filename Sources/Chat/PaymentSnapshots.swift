@@ -74,7 +74,7 @@ extension ChatFixture {
 
     static func receiptTurns(_ now: Date) -> [Turn] {
         let outcomes: [(String, String)] = [
-            ("r1", #"{"success": false, "error_type": "payment_declined", "crew_payment": {"request_id": "a", "state": "denied", "fill": null, "fill_error": null}}"#),
+            ("r1", #"{"success": false, "error_type": "payment_declined", "crew_payment": {"request_id": "a", "origin": "https://www.zalando.se", "state": "denied", "fill": null, "fill_error": null}}"#),
             ("r2", #"{"success": false, "error_type": "payment_declined", "crew_payment": {"request_id": "b", "state": "expired", "fill": null, "fill_error": null}}"#),
             ("r3", #"{"success": false, "kind": "payment", "origin": "https://www.zalando.se", "crew_payment": {"request_id": "c", "state": "approved", "fill": "not_filled", "fill_error": "no_fields"}}"#),
             ("r4", #"{"success": true, "kind": "payment", "origin": "https://www.zalando.se", "fields": ["cc-number", "cc-csc"], "crew_payment": {"request_id": "d", "state": "approved", "fill": "filled", "fill_error": null}}"#),

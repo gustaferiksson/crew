@@ -49,8 +49,12 @@ final class ChatWindowUITests: XCTestCase {
         XCTAssertTrue(field.waitForExistence(timeout: 5))
         field.click()
         field.typeText("Move standup to 10")
-        let main = app.windows.allElementsBoundByIndex.first { $0.staticTexts[atlasPreview].exists }
-        XCTAssertEqual(main.map { composer(in: $0).value as? String }, "Move standup to 10", "both windows edit the same draft")
+        let main = app.windows.containing(NSPredicate(format: "label == %@", atlasPreview)).firstMatch
+        let sharedDraft = NSPredicate(format: "value == %@", "Move standup to 10")
+        XCTAssertTrue(
+            main.textFields.matching(sharedDraft).firstMatch.waitForExistence(timeout: 5) || main.textViews.matching(sharedDraft).firstMatch.exists,
+            "both windows edit the same draft"
+        )
         attach(window, "chat-window-light")
 
         app.staticTexts[ledgerPreview].rightClick()

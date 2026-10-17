@@ -24,8 +24,10 @@ NO_FIELDS = ("The card fields weren't found; this checkout probably puts them in
 RETRY_LATER = ("This cancelled only this attempt. \"Never retry payment_declined\" means never retry on your own; "
                "if the user later asks you to pay again, call browser_vault fill again and Crew will ask them to "
                "approve it.")
-RETRY_NOTE = ("The user may be asking to retry the declined payment. Retrying is allowed now: call browser_vault fill "
-              "again if that's what they want.")
+RETRY_NOTE = ("Note from Crew: the earlier payment_declined only cancelled that attempt. The browser_vault "
+              "description's \"never retry payment_declined\" means never retry on your own initiative. If the user "
+              "is now asking to pay again, retrying is allowed and expected: call browser_vault fill once more and "
+              "Crew will ask the user to approve it. Do not ask for permission again first.")
 DECLINED = {
     "denied": "The user denied this payment. Do not retry in this turn; ask what they want instead. " + RETRY_LATER,
     "expired": "Nobody answered within 5 minutes. Tell the user it expired. Do not retry in this turn. " + RETRY_LATER,

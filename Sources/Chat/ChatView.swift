@@ -281,7 +281,9 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
             .toolbar {
                 ToolbarItem(placement: .principal) {
                     PersonaPill(botName: botName, avatar: avatar) {
+                        #if os(iOS)
                         isComposerFocused = false
+                        #endif
                         actions.openPersona()
                     }
                         .contextMenu {
@@ -378,6 +380,7 @@ struct TurnView: View {
                             .font(.caption.weight(.medium))
                             .foregroundStyle(.secondary)
                             .frame(maxWidth: .infinity, alignment: .trailing)
+                            .offset(x: reveal)
                             .padding(.top, -12)
                     }
                 }

@@ -108,8 +108,8 @@ struct ChatScreen: View {
         } message: {
             Text(models.failure ?? "")
         }
-        .onChange(of: session?.returned ?? [], initial: true) { _, returned in
-            guard !returned.isEmpty else { return }
+        .onChange(of: session?.returned ?? [], initial: true) {
+            guard let returned = session?.returned, !returned.isEmpty else { return }
             session?.returned = []
             drafts.update(bot.id, to: ([drafts.texts[bot.id, default: ""]] + returned).filter { !$0.isEmpty }.joined(separator: "\n"))
         }

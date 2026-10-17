@@ -118,6 +118,44 @@ private func shape(_ transcript: Transcript) -> [String] {
     #expect(transcript.waiting.isEmpty)
 }
 
+@Test func aSteerWaitsForTheWholeToolBatchAndTheNextModelCall() {
+    var transcript = Transcript()
+    transcript.begin(prompt: "Tidy up")
+    transcript.wait(Prompt(text: "Skip the logs", sentAt: .now), as: .steer)
+    transcript.apply(.toolStart(id: "a", name: "terminal", context: nil, arguments: "{}"))
+    transcript.apply(.toolStart(id: "b", name: "read_file", context: nil, arguments: "{}"))
+    transcript.apply(.toolComplete(id: "a", duration: 1, summary: nil, result: "{}"))
+    #expect(transcript.waiting.map(\.pending) == [.steer])
+    transcript.apply(.toolComplete(id: "b", duration: 1, summary: nil, result: "{}"))
+    #expect(transcript.waiting.map(\.pending) == [.taken])
+    transcript.apply(.toolStart(id: "c", name: "terminal", context: nil, arguments: "{}"))
+    #expect(transcript.turns.count == 1)
+    transcript.takeSteers()
+    #expect(transcript.turns.map(\.prompt?.text) == ["Tidy up", "Skip the logs"])
+    #expect(transcript.turns[0].work.count == 3)
+}
+
+@Test func waitingMessagesNeverBecomeThePreview() {
+    var transcript = Transcript()
+    transcript.begin(prompt: "Summarise the inbox")
+    transcript.apply(.messageComplete(text: "Two invoices.", status: .complete, error: nil))
+    transcript.wait(Prompt(text: "Then archive them", sentAt: .now), as: .queued)
+    #expect(transcript.preview == "Two invoices.")
+}
+
+@Test func stoppingKeepsASteerTheAgentAlreadyTook() {
+    var transcript = Transcript()
+    transcript.begin(prompt: "Tidy up")
+    transcript.wait(Prompt(text: "Skip the logs", sentAt: .now), as: .steer)
+    transcript.apply(.toolStart(id: "a", name: "terminal", context: nil, arguments: "{}"))
+    transcript.apply(.toolComplete(id: "a", duration: 1, summary: nil, result: "{}"))
+    transcript.wait(Prompt(text: "Then the cache", sentAt: .now), as: .queued)
+    #expect(transcript.dropWaiting { $0.pending != .taken } == ["Then the cache"])
+    transcript.apply(.messageComplete(text: "", status: .interrupted, error: nil))
+    #expect(transcript.turns.map(\.prompt?.text) == ["Tidy up", "Skip the logs"])
+    #expect(transcript.waiting.isEmpty)
+}
+
 @MainActor @Test func aRecordedSteerAnswerReadsTheSameLiveAndAfterAReload() throws {
     let lines = try String(contentsOf: fixtures.appending(path: "chat.steer-answer-turn.jsonl"), encoding: .utf8).split(separator: "\n")
     let events = try lines.map { try JSONDecoder().decode(GatewayEvent.self, from: Data($0.utf8)) }

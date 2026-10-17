@@ -151,7 +151,7 @@ final class ChatSession {
 
     func stop() {
         guard let runtime else { return }
-        returned += transcript.dropWaiting()
+        returned += transcript.dropWaiting { $0.pending != .taken }
         Task {
             do {
                 _ = try await gateway.call("session.interrupt", ["session_id": runtime.rawValue], as: JSONValue.self)
@@ -351,7 +351,9 @@ final class ChatSession {
         }
         let previous = self.transcript
         transcript.waiting = previous.waiting.filter { waiting in
-            waiting.pending == .queued || snapshot.running == true && !transcript.turns.contains { $0.isSteer && $0.prompt?.text == waiting.prompt?.text }
+            guard waiting.pending != .queued else { return true }
+            let text = waiting.prompt?.text ?? ""
+            return snapshot.running == true && !transcript.turns.contains { $0.startedAt >= waiting.startedAt.addingTimeInterval(-1) && $0.prompt?.text.contains(text) == true }
         }
         self.stored = stored
         self.transcript = transcript
@@ -420,6 +422,7 @@ final class ChatSession {
         }
         let type = event.type
         if type == "message.start" { return transcript.apply(.messageStart) }
+        if type == "thinking.delta" { return transcript.takeSteers() }
         if type == "message.delta" { return transcript.apply(.messageDelta(payload.text ?? "")) }
         if type == "reasoning.delta" { return transcript.apply(.reasoningDelta(payload.text ?? "")) }
         if type == "reasoning.available" { return transcript.apply(.reasoningAvailable(payload.text ?? "")) }
@@ -455,6 +458,7 @@ final class ChatSession {
             generatingTool = nil
             statusLine = nil
             sync(to: serverPosition)
+            if status != .complete { returned += transcript.dropWaiting { $0.pending == .steer } }
             guard let next = transcript.dequeue() else { return }
             return submit(next)
         }

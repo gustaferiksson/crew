@@ -224,7 +224,7 @@ extension Transcript {
     }
 
     var preview: String? {
-        let turn = visible.turns.last { !$0.reply.isEmpty || $0.prompt?.text.isEmpty == false || $0.agentMessage != nil }
+        let turn = visible.turns.last { $0.pending == nil && (!$0.reply.isEmpty || $0.prompt?.text.isEmpty == false || $0.agentMessage != nil) }
         let text = turn.map { $0.agentMessage.map { String(localized: "Message from \($0.sender)") } ?? ($0.reply.isEmpty ? $0.prompt?.text ?? "" : $0.reply) }
         return text?.split(whereSeparator: \.isWhitespace).joined(separator: " ")
     }
@@ -288,8 +288,9 @@ extension Transcript {
     }
 
     mutating func wait(_ prompt: Prompt, as pending: Turn.Pending, id: String = UUID().uuidString) {
-        waiting.append(Turn(id: id, prompt: prompt, status: .complete, startedAt: prompt.sentAt, pending: pending))
-        waiting.sort { ($0.pending == .queued ? 1 : 0) < ($1.pending == .queued ? 1 : 0) }
+        let turn = Turn(id: id, prompt: prompt, status: .complete, startedAt: prompt.sentAt, pending: pending)
+        guard pending != .queued else { return waiting.append(turn) }
+        waiting.insert(turn, at: waiting.firstIndex { $0.pending == .queued } ?? waiting.endIndex)
     }
 
     mutating func dropWaiting(where shouldDrop: (Turn) -> Bool = { _ in true }) -> [String] {
@@ -303,7 +304,7 @@ extension Transcript {
         return waiting.remove(at: index).prompt
     }
 
-    private mutating func takeSteers(at date: Date) {
+    mutating func takeSteers(at date: Date = .now) {
         let taken = waiting.filter { $0.pending == .taken }
         guard let first = taken.first, let index = turns.indices.last, turns[index].status == .streaming else { return }
         waiting.removeAll { $0.pending == .taken }
@@ -316,7 +317,8 @@ extension Transcript {
 
     private mutating func narrate(_ text: String, id: String, at date: Date) {
         let index = turns.count - 1
-        guard !turns[index].isSteer || turns[index].answer != nil else { return turns[index].answer = text }
+        let ranTool = turns[index].work.contains { if case .tool = $0.kind { true } else { false } }
+        guard !turns[index].isSteer || turns[index].answer != nil || ranTool else { return turns[index].answer = text }
         appendWork(.note(text), id: id, at: date)
     }
 
@@ -341,8 +343,8 @@ extension Transcript {
             }
             return
         }
-        let isToolComplete = if case .toolComplete = event { true } else { false }
-        if !isToolComplete { takeSteers(at: date) }
+        let isTool = if case .toolStart = event { true } else if case .toolComplete = event { true } else { false }
+        if !isTool { takeSteers(at: date) }
         guard let index = turns.indices.last, turns[index].status == .streaming else { return }
         if case .messageDelta(let text) = event {
             turns[index].reply += text
@@ -377,7 +379,8 @@ extension Transcript {
         }
         if case .toolComplete(let id, let duration, let summary, let result) = event {
             completeTool(id: id, result: result, summary: summary, duration: duration, at: date)
-            for item in waiting.indices where waiting[item].pending == .steer { waiting[item].pending = .taken }
+            let batchDone = !turns[index].work.contains { if case .tool(let call) = $0.kind { call.status == .running } else { false } }
+            for item in waiting.indices where batchDone && waiting[item].pending == .steer { waiting[item].pending = .taken }
             return
         }
         if case .messageComplete(let text, let status, let error) = event {

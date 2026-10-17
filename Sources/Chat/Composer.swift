@@ -270,6 +270,7 @@ struct Composer: View {
             if dictation.phase == .idle {
                 if canSend {
                     actionButton
+                        .opacity(isOffline ? 0.4 : 1)
                 } else if phase == .running {
                     Button("Stop", systemImage: "stop.fill", action: stop)
                         .actionCircle(.tint)

@@ -4,11 +4,11 @@ import UniformTypeIdentifiers
 enum ChatFixture {
     case conversation, history, timestamps, workLog, question, offline, attachments, dictation, mentions, agentMessage, a2ui, a2uiCards, a2uiForm, a2uiTable, a2uiChart, a2uiMap
     case composerLine, composerLines, composerRunning, composerRunningText, steer, steerTaken
+    case payment, paymentHolding, paymentApproved, paymentLoading, paymentFailed, paymentUnverified, paymentPunycode, paymentCountdown, paymentNotice, paymentOffer, paymentReceipts
 
     var isLive: Bool {
         [.mentions, .composerLine, .composerLines, .composerRunning, .composerRunningText, .steer, .steerTaken].contains(self)
     }
-    case payment, paymentHolding, paymentApproved, paymentLoading, paymentFailed, paymentUnverified, paymentPunycode, paymentCountdown, paymentNotice, paymentOffer, paymentReceipts
 
     var presentation: ChatPresentation {
         if self == .history { return ChatPresentation(scrollTarget: "t1") }

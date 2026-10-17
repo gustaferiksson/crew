@@ -251,6 +251,9 @@ def test_the_retry_note_rides_only_the_next_user_turn(push: CrewPush, clock: typ
         assert push.pre_llm_call(session_id=SESSION, platform="tui", user_message=message) is None
     assert push.pre_llm_call(session_id=SESSION, platform="tui", user_message="Pay again please") == {
         "context": payments.RETRY_NOTE}
+    assert all(phrase in payments.RETRY_NOTE for phrase in [
+        "never retry on your own initiative", "allowed and expected", "call browser_vault fill once more",
+        "Do not ask for permission again first"])
     clock.value = NOW + 90
     assert push.pre_llm_call(session_id=SESSION, platform="tui", user_message="Hello?") is None
     assert push.pre_llm_call(session_id="other", platform="tui", user_message="Pay again please") is None

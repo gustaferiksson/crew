@@ -1,2 +1,2 @@
 PLUGIN_NAME = "crew-push"
-PLUGIN_VERSION = "0.4.2"
+PLUGIN_VERSION = "0.4.3"

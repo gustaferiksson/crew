@@ -33,30 +33,27 @@ struct UserBubble: View {
 
     private var isFoldable: Bool { fullHeight > foldThreshold + 1 }
 
-    private var segments: [MentionSegment] { mentionSegments(in: text, among: mentionable) }
-
-    private var picked: Bot? {
-        card.flatMap { pick in segments.indices.contains(pick.index) && segments[pick.index].bot?.id == pick.bot ? segments[pick.index].bot : nil }
-    }
-
-    private var content: Text {
+    private func content(_ segments: [MentionSegment]) -> Text {
         segments.enumerated().reduce(Text(verbatim: "")) { result, item in
             guard let bot = item.element.bot else { return Text("\(result)\(Text(verbatim: item.element.text))") }
             let avatar = mentionAvatar(for: bot, photo: roster.photos[bot.id], size: avatarSize, scheme: colorScheme, scale: displayScale)
                 .map { Text("\(Text($0).baselineOffset(-avatarSize / 8))\u{202F}") } ?? Text(verbatim: "")
-            var handle = AttributedString(item.element.text)
-            handle.link = URL(string: "crew-mention:\(item.offset)")
-            let tag = Text("\u{202F}\(avatar)\(Text(handle).fontWeight(.semibold))\u{202F}")
-            return Text("\(result)\(tag.customAttribute(MentionTag(index: item.offset)))")
+            var title = AttributedString(bot.title.replacing(" ", with: "\u{00A0}"))
+            title.link = URL(string: "crew-mention:\(item.offset)")
+            let tag = Text("\u{00A0}\(avatar)\(Text(title).fontWeight(.semibold))\u{00A0}")
+            return Text("\(result)@\u{00A0}\(tag.customAttribute(MentionTag(index: item.offset)))")
         }
     }
 
     var body: some View {
+        let segments = mentionSegments(in: text, among: mentionable)
+        let content = content(segments)
+        let picked = card.flatMap { pick in segments.indices.contains(pick.index) && segments[pick.index].bot?.id == pick.bot ? segments[pick.index].bot : nil }
         VStack(alignment: .leading, spacing: 4) {
             content
                 .lineLimit(isFoldable && !isUnfolded ? 6 : nil)
                 .textRenderer(MentionTagRenderer())
-                .overlayPreferenceValue(Text.LayoutKey.self, tagButtons)
+                .overlayPreferenceValue(Text.LayoutKey.self) { tagButtons(for: $0, in: segments, picked: picked) }
                 .tint(.white)
                 .environment(\.openURL, OpenURLAction { url in
                     guard url.scheme == "crew-mention", let index = Int(url.absoluteString.replacing("crew-mention:", with: "")),
@@ -110,7 +107,7 @@ struct UserBubble: View {
         }
     }
 
-    private func tagButtons(for layouts: [Text.LayoutKey.AnchoredLayout]) -> some View {
+    private func tagButtons(for layouts: [Text.LayoutKey.AnchoredLayout], in segments: [MentionSegment], picked: Bot?) -> some View {
         GeometryReader { proxy in
             let frames = layouts.flatMap { layout in
                 mentionTagFrames(in: layout.layout).map { ($0.index, $0.rect.offsetBy(dx: proxy[layout.origin].x, dy: proxy[layout.origin].y)) }
@@ -118,13 +115,13 @@ struct UserBubble: View {
             let anchors = Dictionary(frames, uniquingKeysWith: { first, _ in first })
             ForEach(anchors.keys.sorted(), id: \.self) { index in
                 if let bot = segments[index].bot, let rect = anchors[index] {
-                    tagButton(index: index, bot: bot, rect: rect)
+                    tagButton(index: index, bot: bot, rect: rect, picked: picked)
                 }
             }
         }
     }
 
-    private func tagButton(index: Int, bot: Bot, rect: CGRect) -> some View {
+    private func tagButton(index: Int, bot: Bot, rect: CGRect, picked: Bot?) -> some View {
         Button {
             card = MentionPick(index: index, bot: bot.id)
         } label: {

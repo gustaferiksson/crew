@@ -2,9 +2,13 @@
 
 A sent bubble shows each `@handle` or `@title-slug` token that names a mentionable bot as an inline tag. Tapping a tag peeks at that bot and at what the mention caused, without leaving the chat, and lets the user pull up that bot's live chat on top. Nothing navigates the main window away, and there is no bare "Open Chat" button.
 
-## Tag (unchanged from #33)
+## Tag
 
-- White-translucent capsule (sheen, 1 pt white hairline) holding the bot's 16 pt avatar (`ImageRenderer` snapshot, scaled with Dynamic Type) and the semibold token as typed; narrow no-break spaces keep it on one line. The bubble's gradient is fixed, so the capsule is the same in light and dark (checked in both renders).
+- Reads "@ (avatar) Name": a plain "@", then a white-translucent capsule (sheen, 1 pt white hairline) holding the bot's 16 pt avatar (`ImageRenderer` snapshot, scaled with Dynamic Type) and its display title in semibold. The name is `Bot.title` (profile title, then display name, then the profile name, "Hermes" for `default`), read live, so past bubbles follow a rename. The typed token (`@scout`, `@ada-lovelace`) never shows in a bubble; the composer keeps the plain `@handle` text that is sent. No-break spaces keep the "@" on the capsule's line and a multi-word title in one capsule, so a tag at a line end moves to the next line whole; a title wider than the line breaks inside it and draws one capsule per line fragment. The bubble's gradient is fixed, so the capsule is the same in light and dark (checked in both renders).
+- Why: Messages and Mail turn a mention into the person's name, not their handle, and the user asked to keep the "@" as the cue that this is a mention. Keeping the "@" outside the capsule leaves the capsule as just the bot (avatar and name, like a contact token) and keeps the line lighter; the alternative with the "@" inside the capsule was rendered next to it (both renders in the PR). The old avatar plus `@handle` is gone: handles are server ids, the title is what the user knows the bot by.
+- Copy, Share and Select (the bubble's menu) give the typed text with its `@handle`s; Mac's in-place text selection copies what it shows ("@ Scout"). Bot list previews, push and the composer keep the typed text, a known difference.
+- Accessibility: the title is the link (VoiceOver reads "at", then "Scout, link"); two bots with the same title are told apart only by avatar, a known gap.
+- Nothing else draws a tag: the peek header (avatar, title, `@handle` as the secondary line, like a contact card), the picker rows ("Scout @scout") and the plain composer stay as they are.
 - Mentionable: the roster minus the current bot in a bot chat, the members in a group room, the roster minus that bot in the inspector's conversation viewer.
 - The token is a link (`crew-mention:<index>`), so VoiceOver's Links rotor and UI tests reach it; a clear overlay over the whole capsule (avatar included) takes touch and pointer taps. Mac: link cursor; iPad: hover highlight.
 - Long press on the bubble still opens Copy, Select, Share, also when it starts on a tag.
@@ -59,11 +63,17 @@ The sender's chat still shows its own relay line ("@scout replied: …"); the pe
 ## Tests
 
 - Unit tests on the recorded `bot-mention` scenario (Message and Reply from the real rows) and hand-built rows for Sending, Waiting, Delivered, Not delivered, Relayed, the plain mention, `@hermes` and two turns mentioning the same bot.
-- UI test (iPhone simulator): tapping the tag opens the sheet with the message and the reply, and the original chat stays underneath.
-- Renders: the peek at medium and the live chat at large (iPhone, light and dark). The Mac popover and window are not rendered (no Mac window driving).
+- UI test (iPhone simulator): the tag's link reads the bot's title; tapping it opens the sheet with the message and the reply, and the original chat stays underneath.
+- Renders: the tag in the bubble (one wrapped at a line end, a two-word title), both tag variants, the peek at medium and the live chat at large (iPhone, light and dark). The Mac popover and window are not rendered (no Mac window driving).
+
+## Performance
+
+Typing in the composer, typing `@` with the picker open, scrolling a long chat full of tags and opening the peek stay smooth on a long chat (the `-mentionTurns` fixture, profiled with Time Profiler). A bubble resolves its tags once per body, never from the tap overlay that reruns on every scroll frame; avatar snapshots render once per bot, size and appearance. `MentionPerformanceTests` keeps tag resolution and the peek's exchange lookup on a 600-turn chat inside a budget. Before and after numbers are in the PR.
 
 ## Not in scope
 
+- Right-to-left bubbles: the "@" follows the system's bidi rules; not rendered.
+- Group room and inspector conversation bubbles: the same `UserBubble`, not rendered separately.
 - Opening the target's chat scrolled to the exchange row: on main that row is hidden until #32 lands; the chat opens at the bottom, where the exchange usually is.
 - A "Mention" button or a reply field in the peek: the live chat is where you write.
 - The group room peek pointing at the member's turn in the room.

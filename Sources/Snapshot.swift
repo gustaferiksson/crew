@@ -82,7 +82,7 @@ enum Snapshot: String {
         }
         return BotStore(fixture: [
             bot("default", 2, "Summarised the inbox: two invoices need approval.", BotMeta(pinned: true)),
-            bot("ada", 12, "Running the migration dry run now.", BotMeta(title: "Ada", color: "#8b5cf6", pinned: true)),
+            bot("ada", 12, "Running the migration dry run now.", BotMeta(title: "Ada Lovelace", color: "#8b5cf6", pinned: true)),
             bot("scout", 45, "Found three flights under 2 000 kr for the weekend.", BotMeta(title: "Scout", color: "#38bdf8", pinned: true)),
             bot("forge", 5, "Can I run `npm publish` for 0.4.2?", BotMeta(title: "Forge", color: "#f97316", sectionID: "work", sectionName: "Work")),
             bot("ledger", 60 * 26, "Q3 numbers reconciled against the bank export.", BotMeta(title: "Ledger", color: "#22c55e", sectionID: "work", sectionName: "Work")),

@@ -22,6 +22,12 @@ final class ChatSessions {
         runs[bot.id] = Task { await session.run() }
     }
 
+    func sync(with bots: [Bot]) {
+        for bot in bots {
+            sessions[bot.id]?.sync(to: bot.canonicalSession?.position)
+        }
+    }
+
     func status(of bot: Bot.ID, in store: BotStore) -> BotStatus {
         let status = store.statuses[bot] ?? .idle
         guard status == .idle || status == .unread, sessions[bot]?.transcript.turns.last?.status == .error else { return status }

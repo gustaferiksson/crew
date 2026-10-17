@@ -43,6 +43,7 @@ struct BotsView: View {
     @State private var showsConnectionPill = false
     @State private var showsBot = Snapshot.requested == .layoutInspector
     @State private var models = ModelSwitcher()
+    @State private var modelsBot: Bot.ID?
 
     var body: some View {
         let selected = store.bots.first { $0.id == selection }
@@ -114,7 +115,7 @@ struct BotsView: View {
             .listStyle(.plain)
             #else
             .contextMenu(forSelectionType: String.self) { ids in
-                if ids.count == 1, let bot = store.bots.first(where: { ids.contains($0.id) }) { menu(for: bot) }
+                if ids.count == 1, let bot = ids.first.flatMap({ id in store.bots.first { $0.id == id } }) { menu(for: bot) }
             } primaryAction: { ids in
                 if ids.count == 1, let id = ids.first, store.bots.contains(where: { $0.id == id }) { openWindow(value: id) }
             }
@@ -267,9 +268,12 @@ struct BotsView: View {
                 )
             }
         }
-        .onChange(of: push.pendingRoute, initial: true) {
-            guard let route = push.pendingRoute, !scenes.chatWindows.contains(route.profile) else { return }
+        .onChange(of: push.pendingRoute, initial: true) { _, route in
+            guard let route, !scenes.chatWindows.contains(route.profile) else { return }
             push.pendingRoute = nil
+            #if os(macOS)
+            openWindow(id: "main")
+            #endif
             selection = route.profile
             if route.kind == "payment", let requestID = route.requestID { chats.expectPayment(requestID, for: route.profile) }
         }
@@ -277,10 +281,12 @@ struct BotsView: View {
             NotificationSettings()
         }
         .task(id: [selected?.id, selected?.model, connection.gateway.map { "\(ObjectIdentifier($0))" }]) {
-            let switcher = ModelSwitcher()
-            models = switcher
+            if modelsBot != selected?.id {
+                models = ModelSwitcher()
+                modelsBot = selected?.id
+            }
             guard let selected, let gateway = connection.gateway else { return }
-            await switcher.load(profile: selected.name, via: gateway)
+            await models.load(profile: selected.name, via: gateway)
         }
     }
 

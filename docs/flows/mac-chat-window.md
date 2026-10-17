@@ -15,7 +15,7 @@ Like Messages on the Mac: double-clicking a bot in the sidebar opens that bot's 
 
 - The same `ChatScreen` as the main window's detail column: persona pill centred in the toolbar, transcript, composer, approval, question and payment cards, shop offer, offline line. The pill opens that bot's inspector as a trailing `.inspector` column inside the window (as #33 built it); opening it in a narrow window widens the window like Messages' Info panel (SwiftUI's inspector behaviour, rendered). The window's `ModelSwitcher` now loads that bot's models (today it never loads, so the pill's Model submenu and the inspector's Model row are empty), and both the window's and the main window's switchers reload when the bot's model changes in the roster, so changing it in one window updates the other.
 - Title: the bot's title (`ChatView`'s `navigationTitle`, hidden in the title bar by `toolbar(removing: .title)`), so the Window menu, Mission Control and Cmd-` list it by name; it follows a rename. The main window lists as "Crew".
-- Size: `defaultSize` 560 x 640 as today, no fixed minimum height and no `windowResizability` change, so the window min height work in #60/#10 applies to it unchanged. Frames come from SwiftUI.
+- Size: `defaultSize` 560 x 640 as today, a 320 pt minimum width like the main window's chat column, no fixed minimum height and no `windowResizability` change, so the window min height work in #60/#10 applies to it unchanged. Frames come from SwiftUI.
 - No sidebar and no New Bot button: one conversation, like a Messages conversation window. The chat window group adds no File > New item (`commandsRemoved()`), so there is no way to open an empty chat window.
 
 ## The main window

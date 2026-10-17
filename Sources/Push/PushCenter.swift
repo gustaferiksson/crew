@@ -201,6 +201,10 @@ final class PushCenter: NSObject {
         _ = try? await fetch(request, with: connection.urlSession, as: Empty.self)
     }
 
+    func hide(_ bot: Bot.ID) {
+        if visibleBot == bot { visibleBot = nil }
+    }
+
     func show(_ bot: Bot.ID?) {
         visibleBot = bot
         guard let bot else { return }

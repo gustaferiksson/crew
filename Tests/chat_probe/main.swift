@@ -636,7 +636,7 @@ if phases.contains("read") {
     storeB.markSeen(stale)
     try await Task.sleep(for: .seconds(4))
     print("READ stale markSeen kept marker", crew(storeA).readPosition == marker && crew(storeB).readPosition == marker)
-    print("READ unread clears announced by A: \(storeA.clearedUnread.count)")
+    print("READ unread clears queued by A: \(storeA.clearedUnread.count)")
     await peerGateway.disconnect()
 }
 

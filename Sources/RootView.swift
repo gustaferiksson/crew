@@ -30,7 +30,7 @@ struct RootView: View {
                 GroupChatFixtureScreen()
             } else if Snapshot.requested == .groupInspector {
                 GroupInspectorFixtureScreen()
-            } else if let snapshot = Snapshot.requested, snapshot.isChatWindow {
+            } else if let snapshot = Snapshot.requested, [.chatWindow, .chatWindowInspector, .chatWindowMissing].contains(snapshot) {
                 #if os(macOS)
                 BotChatWindow(id: snapshot.selectedBot)
                 #endif

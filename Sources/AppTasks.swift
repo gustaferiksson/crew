@@ -19,7 +19,7 @@ struct AppTasks: ViewModifier {
         let isLive = owns && Snapshot.requested == nil
         let gateway = isLive ? connection.gateway.map(ObjectIdentifier.init) : nil
         content
-            .onAppear { scenes.claim(scene) }
+            .onAppear { scenes.take(scene) }
             .onDisappear { scenes.release(scene) }
             .onChange(of: scenes.owner) { scenes.claim(scene) }
             .task(id: isLive) {
@@ -70,8 +70,8 @@ struct AppTasks: ViewModifier {
                 #endif
             }
             #if os(macOS)
-            .onChange(of: owns ? push.pendingRoute : nil, initial: true) {
-                guard owns, let route = push.pendingRoute else { return }
+            .onChange(of: owns ? push.pendingRoute : nil, initial: true) { _, route in
+                guard let route else { return }
                 guard scenes.chatWindows.contains(route.profile) else { return openWindow(id: "main") }
                 push.pendingRoute = nil
                 if route.kind == "payment", let requestID = route.requestID { chats.expectPayment(requestID, for: route.profile) }

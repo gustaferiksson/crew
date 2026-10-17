@@ -19,8 +19,11 @@ struct BotsView: View {
     @Environment(ChatSessions.self) private var chats
     @Environment(PushCenter.self) private var push
     @Environment(ChatDrafts.self) private var drafts
+    @Environment(Scenes.self) private var scenes
     #if os(macOS)
     @Environment(AppUpdater.self) private var updater
+    @Environment(\.openWindow) private var openWindow
+    @Environment(\.appearsActive) private var appearsActive
     #else
     @Environment(UpdateCheck.self) private var updates
     #endif
@@ -109,6 +112,12 @@ struct BotsView: View {
             }
             #if os(iOS)
             .listStyle(.plain)
+            #else
+            .contextMenu(forSelectionType: String.self) { ids in
+                if ids.count == 1, let bot = store.bots.first(where: { ids.contains($0.id) }) { menu(for: bot) }
+            } primaryAction: { ids in
+                if ids.count == 1, let id = ids.first, store.bots.contains(where: { $0.id == id }) { openWindow(value: id) }
+            }
             #endif
             .searchable(text: $query, placement: .sidebar, prompt: "Search")
             .safeAreaBar(edge: .bottom) {
@@ -243,6 +252,12 @@ struct BotsView: View {
             push.show(selection)
             if focus?.bot != selection { focus = nil }
         }
+        #if os(macOS)
+        .onChange(of: appearsActive) {
+            if appearsActive { push.show(selection) }
+        }
+        .focusedSceneValue(\.selectedBot, selected?.id)
+        #endif
         .sheet(item: $reading) { hit in
             if let bot = store.bots.first(where: { $0.id == hit.bot }) {
                 ConversationTranscript(
@@ -253,7 +268,7 @@ struct BotsView: View {
             }
         }
         .onChange(of: push.pendingRoute, initial: true) {
-            guard let route = push.pendingRoute else { return }
+            guard let route = push.pendingRoute, !scenes.chatWindows.contains(route.profile) else { return }
             push.pendingRoute = nil
             selection = route.profile
             if route.kind == "payment", let requestID = route.requestID { chats.expectPayment(requestID, for: route.profile) }
@@ -261,15 +276,7 @@ struct BotsView: View {
         .sheet(isPresented: $showsNotifications) {
             NotificationSettings()
         }
-        .task(id: connection.gateway.map(ObjectIdentifier.init)) {
-            guard let gateway = connection.gateway else { return }
-            await store.run(gateway, urlSession: connection.urlSession)
-        }
-        .task(id: connection.gateway.map(ObjectIdentifier.init)) {
-            guard let gateway = connection.gateway else { return }
-            await groups.run(gateway)
-        }
-        .task(id: [selected?.id, connection.gateway.map { "\(ObjectIdentifier($0))" }]) {
+        .task(id: [selected?.id, selected?.model, connection.gateway.map { "\(ObjectIdentifier($0))" }]) {
             let switcher = ModelSwitcher()
             models = switcher
             guard let selected, let gateway = connection.gateway else { return }
@@ -371,6 +378,9 @@ struct BotsView: View {
                     FavouriteTile(bot: bot, photo: store.photos[bot.id], isSelected: selection == bot.id)
                 }
                 .buttonStyle(.plain)
+                #if os(macOS)
+                .simultaneousGesture(TapGesture(count: 2).onEnded { openWindow(value: bot.id) })
+                #endif
                 .contextMenu { menu(for: bot) }
             }
         }
@@ -386,7 +396,9 @@ struct BotsView: View {
         BotRow(bot: bot, photo: store.photos[bot.id], isOpen: selection == bot.id)
             .tag(bot.id)
             .listRowInsets(EdgeInsets(top: rowPadding, leading: 0, bottom: rowPadding, trailing: 12))
+            #if os(iOS)
             .contextMenu { menu(for: bot) }
+            #endif
             .swipeActions(edge: .leading) {
                 pinButton(for: bot)
                     .labelStyle(.iconOnly)
@@ -403,6 +415,10 @@ struct BotsView: View {
 
     @ViewBuilder
     private func menu(for bot: Bot) -> some View {
+        #if os(macOS)
+        Button("Open in New Window", systemImage: "macwindow.badge.plus") { openWindow(value: bot.id) }
+        Divider()
+        #endif
         pinButton(for: bot)
         Group {
             Button("Duplicate", systemImage: "plus.square.on.square") {

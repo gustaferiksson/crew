@@ -49,7 +49,7 @@ The sender's chat still shows its own relay line ("@scout replied: …"); the pe
 
 - **Sender's chat:** only the peek is new; its rows are unchanged.
 - **Target's chat** in the sheet or window: unchanged (#32's collapsed exchange row once it lands). It marks the target seen like any open chat (`ChatScreen` does it on every new position), so its unread badge clears.
-- **Bot list:** keeps its selection; unread clears as above. **Push:** unchanged; foreground banners for the bot in the sheet or window are not suppressed (`PushCenter.show` tracks only the main selection), a known gap. **Inspector:** unchanged.
+- **Bot list:** keeps its selection; unread clears as above. **Push:** unchanged on iPhone and iPad (banners for the bot in the sheet are not suppressed, a known gap); on Mac the chat window reports its bot when it becomes key, so its banners are hidden like the main selection's (`docs/flows/mac-chat-window.md`). **Inspector:** unchanged.
 
 ## States
 

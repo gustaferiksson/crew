@@ -270,7 +270,7 @@ final class BotStore {
     private var firstSeenActivity: [Bot.ID: ReadPosition] = [:]
     private var readWrites: [Bot.ID: Task<Void, Never>] = [:]
     private var clearingUnread: Set<Bot.ID> = []
-    let unreadCleared = AsyncStream.makeStream(of: Bot.self)
+    private(set) var clearedUnread: [Bot] = []
     private var gateway: Gateway?
     private var urlSession: URLSession?
     private var reloadTask: Task<Void, Never>?
@@ -389,7 +389,7 @@ final class BotStore {
                 bots[index].readPosition = target
                 bots[index].readRevision = revision
                 saveCache()
-                if clearingUnread.remove(id) != nil { unreadCleared.continuation.yield(bots[index]) }
+                if clearingUnread.remove(id) != nil { clearedUnread.append(bots[index]) }
                 return true
             }
             guard applied.uiMetaConflicts != nil else { return false }
@@ -484,6 +484,11 @@ final class BotStore {
         throw GatewayError.rpc(code: 0, message: String(localized: "Another device keeps changing this bot."))
     }
 
+    func takeClearedUnread() -> [Bot] {
+        defer { clearedUnread = [] }
+        return clearedUnread
+    }
+
     func reset() {
         reloadTask?.cancel()
         bots = []
@@ -497,6 +502,7 @@ final class BotStore {
         for write in readWrites.values { write.cancel() }
         readWrites = [:]
         clearingUnread = []
+        clearedUnread = []
         seenActivity = [:]
         firstSeenActivity = [:]
         gateway = nil

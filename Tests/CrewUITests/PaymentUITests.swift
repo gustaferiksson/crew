@@ -138,9 +138,9 @@ final class PaymentUITests: XCTestCase {
 
         XCTAssertTrue(waitForLog("card Shopping card 12/2030", in: app))
         XCTAssertTrue(number.waitForNonExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Shopping card •••• 4242"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@ AND label CONTAINS %@", "Shopping card", "•••• 4242")).firstMatch.waitForExistence(timeout: 5))
 
-        app.buttons["Replace Card"].tap()
+        app.buttons["Replace Card…"].tap()
         XCTAssertTrue(number.waitForExistence(timeout: 5))
         XCTAssertTrue(app.navigationBars["Replace Card"].exists)
         XCTAssertNotEqual(number.value as? String, "4242 4242 4242 4242")

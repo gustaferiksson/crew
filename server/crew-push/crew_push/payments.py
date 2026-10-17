@@ -68,6 +68,10 @@ class InvalidCard(ValueError):
     pass
 
 
+class PaymentPending(RuntimeError):
+    pass
+
+
 def no_card_for(origin: str) -> str:
     return f"There is no card for {origin}. Tell the user they can add this shop in Crew, then wait."
 
@@ -176,10 +180,10 @@ def card_entry(body: Any, now: datetime) -> tuple[str, dict[str, str]]:
     if not isinstance(body, dict) or not all(isinstance(body.get(key, ""), str) for key in CARD_FIELDS):
         raise InvalidCard("body")
     number = re.sub(r"[ -]", "", body.get("card_number", ""))
-    if not CARD_NUMBER.match(number) or not luhn(number):
+    if not CARD_NUMBER.fullmatch(number) or not luhn(number):
         raise InvalidCard("number")
     month, year = body.get("exp_month", "").strip(), body.get("exp_year", "").strip()
-    if not EXP_MONTH.match(month) or not EXP_YEAR.match(year):
+    if not EXP_MONTH.fullmatch(month) or not EXP_YEAR.fullmatch(year):
         raise InvalidCard("expiry")
     expiry = (int(year) if len(year) == 4 else 2000 + int(year), int(month))
     if expiry[0] > now.year + 20:
@@ -223,19 +227,25 @@ def pending_payment(profile: str) -> bool:
                and (entry.get("expires_at") or 0) > now for entry in store.read_list("payments.json"))
 
 
+def copy_label(card: Any, secret: dict[str, Any], origin: str) -> str:
+    return f"{card.label} •••• {last4(secret)} · {host_of(origin)}"
+
+
 def update_shops(profile: str) -> None:
     with vault_lock():
+        if pending_payment(profile):
+            raise PaymentPending(profile)
         card, secret = master()
         vault = profile_vault(profile)
         current = shops(vault)
         for origin in dict.fromkeys(item.origin for item in current):
             items = [item for item in current if item.origin == origin]
-            stale = [item for item in items if vault.resolve_secret(item.id) != secret]
+            stale = [item for item in items
+                     if vault.resolve_secret(item.id) != secret or item.label != copy_label(card, secret, origin)]
             if not stale:
                 continue
             if len(stale) == len(items):
-                vault.add_item(kind="payment", label=f"{card.label} •••• {last4(secret)} · {host_of(origin)}",
-                               secret=secret, origin=origin)
+                vault.add_item(kind="payment", label=copy_label(card, secret, origin), secret=secret, origin=origin)
             for item in stale:
                 vault.remove_item(item.id)
 
@@ -248,13 +258,15 @@ def shops(vault: Any) -> list[Any]:
     return [item for item in vault.list_items() if item.kind == "payment" and item.origin]
 
 
-def shop(item: Any, secret: dict[str, Any], master_secret: dict[str, Any] | None, profile: str) -> dict[str, Any]:
+def shop(item: Any, secret: dict[str, Any], master_secret: dict[str, Any] | None, profile: str,
+         master_label: str | None = None) -> dict[str, Any]:
     host = host_of(item.origin)
     paid = [entry.get("decided_at") or 0.0 for entry in store.read_list("payments.json")
             if entry.get("profile") == profile and entry.get("origin") == item.origin and entry.get("state") == "approved"]
     return {"id": item.id, "origin": item.origin, "host": host,
             "created_at": datetime.fromisoformat(item.created_at).timestamp(), "last_paid_at": max(paid, default=None),
-            "stale": master_secret is not None and secret != master_secret,
+            "stale": master_secret is not None and (secret != master_secret or (
+                master_label is not None and item.label != f"{master_label} · {host}")),
             "punycode": any(label.startswith("xn--") for label in host.split("."))}
 
 

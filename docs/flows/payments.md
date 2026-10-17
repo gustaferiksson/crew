@@ -23,7 +23,7 @@ Scout is buying winter boots. A card slides up above the composer: a small card 
 
 ### The master card
 
-- Added or replaced from the Shops card with **Add Card…** / **Replace…** (crew-push 0.5.0 stores it with `VaultStore.add_item`, kind payment, no origin; `hermes vault add` cannot, since 0.22.1 requires an origin for payment items). The number passes through Crew once and is never kept there: [master-card.md](master-card.md).
+- Added or replaced from the Shops card with **Add Card…** / **Replace Card…** (crew-push 0.5.0 stores it with `VaultStore.add_item`, kind payment, no origin; `hermes vault add` cannot, since 0.22.1 requires an origin for payment items). The number passes through Crew once and is never kept there: [master-card.md](master-card.md).
 - Every bot's **Shops** card starts with a card row:
   - **One card:** a small card art (rounded rect, 40 × 26 pt, a fixed graphite gradient with a 1 pt hairline so it reads in light and dark) and "Shopping card •••• 4242".
   - **No card:** "No card on the server", footer "Add the card Crew copies to each shop you add. Bots never see the number.", and **Add Card…** ([master-card.md](master-card.md)). Add Shop is disabled.

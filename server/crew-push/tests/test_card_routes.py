@@ -151,6 +151,8 @@ def test_every_vault_write_holds_the_lock(client: TestClient, master: Path, vaul
     ({"card_number": "4242 4242 4242 4241"}, "number"),
     ({"card_number": "4242-4242-4242-424x"}, "number"),
     ({"card_number": "42424242"}, "number"),
+    ({"card_number": "4242424242424242\n"}, "number"),
+    ({"exp_month": "1\n2", "exp_year": "30"}, "expiry"),
     ({"card_number": ""}, "number"),
     ({"exp_month": "13"}, "expiry"),
     ({"exp_month": "00"}, "expiry"),
@@ -308,3 +310,16 @@ def test_update_shops_errors(client: TestClient, vaults: Vaults, hermes_root: Pa
                                   ("ghost", 404, "error-unknown-profile.json")):
         response = client.post(f"{API}/payments/shops/update", json={"profile": profile})
         assert response.status_code == status and response.json() == fixture(name)
+
+
+def test_a_new_label_makes_shops_stale(client: TestClient, master: Path, vaults: Vaults, hermes_root: Path) -> None:
+    put_card(client, card_number="4242 4242 4242 4242", exp_month="12", exp_year="30", cvc="123",
+             cardholder_name="Gustaf Eriksson", label="Shopping card")
+    add_shop(client)
+    assert not client.get(f"{API}/payments", params={"profile": "scout"}).json()["shops"][0]["stale"]
+    put_card(client, card_number="4242 4242 4242 4242", exp_month="12", exp_year="30", cvc="123",
+             cardholder_name="Gustaf Eriksson", label="Travel card")
+    assert client.get(f"{API}/payments", params={"profile": "scout"}).json()["shops"][0]["stale"]
+    client.post(f"{API}/payments/shops/update", json={"profile": "scout"})
+    [copy] = vaults.records[scout_vault(hermes_root)]
+    assert copy["label"] == "Travel card •••• 4242 · www.zalando.se"

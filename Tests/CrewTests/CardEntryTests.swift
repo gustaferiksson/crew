@@ -62,6 +62,7 @@ func expiryDates(expiry: String, expected: String?) {
     ("Résa 2026", nil),
     ("  Travel  ", nil),
     ("", "Use up to 40 letters, digits and spaces."),
+    (String(repeating: "e\u{301}", count: 21), "Use up to 40 letters, digits and spaces."),
     (String(repeating: "x", count: 41), "Use up to 40 letters, digits and spaces."),
     ("Visa •••• 9999", "Use up to 40 letters, digits and spaces."),
     ("Bob's card", "Use up to 40 letters, digits and spaces."),
@@ -77,6 +78,8 @@ func labels(label: String, expected: String?) {
     #expect(entry(name: "").problem(.name) == nil)
     #expect(entry(name: "Test Card").problem(.name) == nil)
     #expect(entry(name: String(repeating: "x", count: 65)).problem(.name) == "Use a shorter name.")
+    #expect(entry(name: "Test\u{200B}Card").problem(.name) == nil)
+    #expect(entry(name: String(repeating: "e\u{301}", count: 40)).problem(.name) == "Use a shorter name.")
 }
 
 @Test func theBodyCarriesNormalisedValues() {
@@ -94,6 +97,9 @@ func labels(label: String, expected: String?) {
     #expect(CardEntry.formattedExpiry("1230") == "12/30")
     #expect(CardEntry.formattedExpiry("12/2030") == "12/2030")
     #expect(CardEntry.formattedExpiry("1") == "1")
+    #expect(CardEntry.formattedExpiry("825") == "08/25")
+    #expect(CardEntry.formattedExpiry("08/25") == "08/25")
+    #expect(CardEntry.formattedExpiry("0") == "0")
     #expect(CardEntry.formattedExpiry("12") == "12")
     #expect(entry(number: "4242 4242 4242 4242").isNumberComplete)
     #expect(!entry(number: "4242 4242 4242 424").isNumberComplete)

@@ -164,14 +164,15 @@ def list_shops(profile: str) -> dict[str, Any]:
     try:
         card, master_secret = payments.master()
         card_row = {"label": card.label, "last4": payments.last4(master_secret), "problem": None}
+        master_label = f"{card.label} •••• {card_row['last4']}"
     except payments.CardProblem as problem:
-        card_row, master_secret = {"label": None, "last4": None, "problem": str(problem)}, None
+        card_row, master_secret, master_label = {"label": None, "last4": None, "problem": str(problem)}, None, None
     vault = payments.profile_vault(profile)
     config_path = get_profile_dir(profile) / "config.yaml"
     config = hermes_yaml.safe_load(config_path.read_text()) if config_path.is_file() else None
     terminal = config.get("terminal") if isinstance(config, dict) else None
     return {"card": card_row,
-            "shops": [payments.shop(item, vault.resolve_secret(item.id), master_secret, profile)
+            "shops": [payments.shop(item, vault.resolve_secret(item.id), master_secret, profile, master_label)
                       for item in payments.shops(vault)],
             "terminal_backend": str(terminal.get("backend") or "local") if isinstance(terminal, dict) else "local",
             "gate": store.read_gate()}
@@ -204,17 +205,18 @@ def add_shop(body: ShopIn) -> dict[str, Any]:
 def update_shops(body: ProfileIn, request: Request) -> dict[str, Any]:
     checked_gate(request)
     checked_profile(body.profile)
-    if payments.pending_payment(body.profile):
-        raise failure(409, "payment_pending")
     try:
         payments.update_shops(body.profile)
         card, master_secret = payments.master()
+    except payments.PaymentPending:
+        raise failure(409, "payment_pending") from None
     except payments.CardProblem as problem:
         raise failure(409, "no_card" if str(problem) == "missing" else "several_cards") from None
     except Exception:
         raise failure(500, "vault_error") from None
     vault = payments.profile_vault(body.profile)
-    return {"shops": [payments.shop(item, vault.resolve_secret(item.id), master_secret, body.profile)
+    master_label = f"{card.label} •••• {payments.last4(master_secret)}"
+    return {"shops": [payments.shop(item, vault.resolve_secret(item.id), master_secret, body.profile, master_label)
                       for item in payments.shops(vault)]}
 
 

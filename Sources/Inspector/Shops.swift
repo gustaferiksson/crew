@@ -98,21 +98,24 @@ struct ShopsCard: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 12) {
                     CardArt(width: 40, height: 26)
-                    Text("\(label) •••• \(card.last4 ?? "")")
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                    if controls.showsCardButton {
-                        Spacer(minLength: 8)
-                        Button("Replace…") { isEditingCard = true }
-                            .buttonStyle(.borderless)
-                            .accessibilityLabel("Replace Card")
-                            .disabled(!controls.canEditCard)
+                    HStack(spacing: 4) {
+                        Text(label)
+                            .lineLimit(1)
+                        Text(verbatim: "•••• \(card.last4 ?? "")")
+                            .fixedSize()
                     }
+                    .accessibilityElement(children: .combine)
                 }
                 if bot.isDefault {
                     Text("Kept here, never used to pay.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
+                }
+                if controls.showsCardButton {
+                    Button("Replace Card…", systemImage: "creditcard") { isEditingCard = true }
+                        .buttonStyle(.borderless)
+                        .disabled(!controls.canEditCard)
+                        .padding(.top, 4)
                 }
             }
         } else {
@@ -506,7 +509,7 @@ struct CardSheet: View {
             .onChange(of: expiry) {
                 let formatted = CardEntry.formattedExpiry(expiry)
                 if formatted != expiry { expiry = formatted }
-                if expiry.count == 5, focus == .expiry { focus = .cvc }
+                if expiry.count >= 5, entry.problem(.expiry) == nil, focus == .expiry { focus = .cvc }
             }
             .onChange(of: focus) { previous, _ in
                 if let previous { visited.insert(previous) }
@@ -574,7 +577,12 @@ struct CardSheet: View {
                     .textInputAutocapitalization(field == .name ? .words : .never)
                     #endif
                     .focused($focus, equals: field)
-                    .onSubmit(save)
+                    #if os(iOS)
+                    .submitLabel(field == .label ? .done : .next)
+                    #endif
+                    .onSubmit {
+                        if let next = nextField(after: field) { focus = next } else { save() }
+                    }
             }
             if visited.contains(field), focus != field, let problem = entry.problem(field) {
                 Text(problem)

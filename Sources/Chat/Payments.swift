@@ -369,11 +369,12 @@ nonisolated struct CardEntry: Equatable, Sendable {
             return cvc.count == (isAmex ? 4 : 3) && cvc.allSatisfy(\.isASCIIDigit) ? nil : String(localized: "Enter the 3 or 4 digit code.")
         }
         if field == .name {
-            return name.trimmingCharacters(in: .whitespaces).count <= 64 && !name.unicodeScalars.contains(where: { [.control, .format].contains($0.properties.generalCategory) }) ? nil : String(localized: "Use a shorter name.")
+            let kept = name.unicodeScalars.filter { ![.control, .format].contains($0.properties.generalCategory) }
+            return String(String.UnicodeScalarView(kept)).split(whereSeparator: \.isWhitespace).joined(separator: " ").unicodeScalars.count <= 64 ? nil : String(localized: "Use a shorter name.")
         }
         let trimmed = label.trimmingCharacters(in: .whitespaces)
         let isForbidden = { (scalar: Unicode.Scalar) in "•·'".unicodeScalars.contains(scalar) || (scalar.properties.isWhitespace && scalar != " ") || [.control, .format].contains(scalar.properties.generalCategory) }
-        return (1...40).contains(trimmed.count) && !trimmed.unicodeScalars.contains(where: isForbidden) ? nil : String(localized: "Use up to 40 letters, digits and spaces.")
+        return (1...40).contains(trimmed.unicodeScalars.count) && !trimmed.unicodeScalars.contains(where: isForbidden) ? nil : String(localized: "Use up to 40 letters, digits and spaces.")
     }
 
     func isValid(now: Date = .now) -> Bool {
@@ -398,7 +399,8 @@ nonisolated struct CardEntry: Equatable, Sendable {
     }
 
     static func formattedExpiry(_ text: String) -> String {
-        let digits = String(text.filter(\.isASCIIDigit).prefix(6))
+        let typed = text.filter(\.isASCIIDigit)
+        let digits = String((typed.first.map { $0 >= "2" } == true ? "0" + typed : typed).prefix(6))
         return digits.count > 2 ? "\(digits.prefix(2))/\(digits.dropFirst(2))" : digits
     }
 }

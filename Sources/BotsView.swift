@@ -74,6 +74,7 @@ struct BotsView: View {
                 } else if !MessageSearch.isSearchable(query) {
                     ForEach((store.favourites + store.sections.flatMap(\.bots)).filter {
                         $0.title.localizedStandardContains(query) || $0.name.localizedStandardContains(query)
+                            || $0.role?.localizedStandardContains(query) == true
                             || $0.canonicalSession?.preview?.localizedStandardContains(query) == true
                     }) { bot in
                         row(for: bot)
@@ -289,7 +290,9 @@ struct BotsView: View {
 
     private var matchingBots: [Bot] {
         let name = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        return (store.favourites + store.sections.flatMap(\.bots)).filter { $0.title.localizedStandardContains(name) || $0.name.localizedStandardContains(name) }
+        return (store.favourites + store.sections.flatMap(\.bots)).filter {
+            $0.title.localizedStandardContains(name) || $0.name.localizedStandardContains(name) || $0.role?.localizedStandardContains(name) == true
+        }
     }
 
     private var matchingRooms: [Room] {
@@ -468,13 +471,21 @@ private struct BotRow: View {
                 .padding(.trailing, 12)
             VStack(alignment: .leading, spacing: 0) {
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    Text(bot.title)
-                        .font(.headline)
-                        .lineLimit(1)
+                    Group {
+                        if let role = bot.role {
+                            Text("\(bot.title)\(Text(verbatim: " · \(role)").font(.subheadline).fontWeight(.regular).foregroundStyle(.secondary))")
+                                .accessibilityLabel(Text(verbatim: "\(bot.title), \(role)"))
+                        } else {
+                            Text(bot.title)
+                        }
+                    }
+                    .font(.headline)
+                    .lineLimit(1)
                     Spacer(minLength: 4)
                     trailingLabel
                         .font(.subheadline)
                         .lineLimit(1)
+                        .fixedSize()
                 }
                 Text(preview.isEmpty ? bot.description ?? "" : preview)
                     .font(.subheadline)
@@ -675,15 +686,27 @@ private struct FavouriteTile: View {
                     Text("Waiting").foregroundStyle(.orange)
                 } else if status == .working {
                     Text("Working").foregroundStyle(.green)
+                } else if let role = bot.role {
+                    Text(role).fontWeight(.regular).foregroundStyle(.secondary)
                 } else {
                     Text(" ")
                 }
             }
             .font(.caption2.weight(.medium))
+            .lineLimit(1)
         }
         .padding(.vertical, 8)
         .frame(maxWidth: .infinity)
         .background(.fill.quaternary.opacity(isSelected ? 1 : 0), in: .rect(cornerRadius: 12))
         .contentShape(.rect(cornerRadius: 12))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(verbatim: [bot.title, bot.role].compactMap { $0 }.joined(separator: ", ")))
+        .accessibilityValue(statusValue)
+    }
+
+    private var statusValue: Text {
+        if case .waiting = status { return Text("Waiting") }
+        if status == .working { return Text("Working") }
+        return Text(verbatim: "")
     }
 }

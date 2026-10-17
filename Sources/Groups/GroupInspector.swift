@@ -148,7 +148,15 @@ struct GroupInspector: View {
                         .foregroundStyle(.secondary)
                         .frame(width: 28, height: 28)
                 }
-                Text(bot?.title ?? member.displayName ?? member.memberID)
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(bot?.title ?? member.displayName ?? member.memberID)
+                    if let role = bot?.role {
+                        Text(role)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
                 Spacer(minLength: 8)
                 Image(systemName: "chevron.forward")
                     .font(.footnote.weight(.semibold))

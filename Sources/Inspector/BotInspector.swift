@@ -33,7 +33,7 @@ struct BotInspector: View {
     @FocusState private var focusedField: FocusedField?
 
     private enum FocusedField {
-        case name, description
+        case name, role, description
     }
 
     init(bot: Bot, tab: InspectorTab = .info, routines: RoutineStore = RoutineStore(), draft: ProfileDraft? = nil, conversations: [Conversation]? = nil, shops: ShopList? = nil, models: ModelSwitcher, isPresented: Binding<Bool>) {
@@ -91,12 +91,14 @@ struct BotInspector: View {
         .onChange(of: draft.fields) { old, new in
             var typed = old
             typed.identity.title = new.identity.title
+            typed.identity.role = new.identity.role
             typed.description = new.description
             typed.instructions = new.instructions
             typed.soul = new.soul
             scheduleSave(after: typed == new ? .milliseconds(600) : .zero)
         }
         .onChange(of: draft.photoChange) { scheduleSave(after: .zero) }
+        .onChange(of: bot.metaRevision) { draft.adopt(bot) }
         .onDisappear {
             guard draft.isDirty else { return }
             pendingSave?.cancel()
@@ -166,6 +168,17 @@ struct BotInspector: View {
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
                     .background(.fill.quaternary.opacity(focusedField == .name ? 1 : 0), in: .rect(cornerRadius: 8))
+                    .disabled(!isEditable)
+                    .submitLabel(.next)
+                    .onSubmit { focusedField = .role }
+                TextField("Role", text: $draft.fields.identity.role, prompt: Text("Add Role"))
+                    .textFieldStyle(.plain)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .focused($focusedField, equals: .role)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(.fill.quaternary.opacity(focusedField == .role ? 1 : 0), in: .rect(cornerRadius: 8))
                     .disabled(!isEditable)
                     .onSubmit { focusedField = nil }
                 saveStatus

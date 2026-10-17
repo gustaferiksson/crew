@@ -2,7 +2,7 @@ import SwiftUI
 
 extension Snapshot {
     static var profileDraft: ProfileDraft {
-        let meta = BotMeta(title: "Ada", shape: "blob", color: "#8b5cf6", custom: true, imageKind: "shape", expression: "happy", pinned: true)
+        let meta = BotMeta(title: "Ada", role: "Research Lead", shape: "blob", color: "#8b5cf6", custom: true, imageKind: "shape", expression: "happy", pinned: true)
         let bot = Bot(
             name: "ada", displayName: nil, description: "Research assistant", model: "gpt-6-astra", isDefault: false, hasAvatar: false,
             canonicalSession: nil, meta: meta, metaRevision: 3

@@ -16,6 +16,7 @@ final class ProfileDraft {
 
     struct Identity: Equatable {
         var title: String
+        var role: String
         var shape: AvatarShape
         var color: String
         var expression: AvatarExpression
@@ -25,6 +26,7 @@ final class ProfileDraft {
             let meta = bot.meta
             let look = meta.look(name: bot.name)
             title = bot.title
+            role = bot.role ?? ""
             shape = look.shape
             color = look.color
             expression = AvatarExpression.resolve(meta.expression)
@@ -233,11 +235,23 @@ final class ProfileDraft {
         removePhoto()
     }
 
-    private func outgoingMeta(_ identity: Identity) -> BotMeta {
+    func adopt(_ bot: Bot) {
+        guard bot.name == name, (bot.metaRevision ?? 0) > (revision ?? 0),fields.identity == baseline.identity, photoChange == .unchanged, !isSaving else { return }
+        meta = bot.meta
+        revision = bot.metaRevision
+        fields.identity = Identity(bot: bot)
+        baseline.identity = fields.identity
+    }
+
+    func outgoingMeta(_ identity: Identity) -> BotMeta {
         var meta = meta
         if identity.title != baseline.identity.title {
             let title = identity.title.trimmingCharacters(in: .whitespacesAndNewlines)
             meta.title = title.isEmpty ? nil : title
+        }
+        if identity.role != baseline.identity.role {
+            let role = identity.role.trimmingCharacters(in: .whitespacesAndNewlines)
+            meta.role = role.isEmpty ? nil : role
         }
         if identity.shape != baseline.identity.shape || identity.color != baseline.identity.color || identity.custom != baseline.identity.custom {
             meta.shape = identity.custom ? identity.shape.rawValue : nil
@@ -287,9 +301,9 @@ final class ProfileDraft {
                 if !(await uploadPhoto(sentPhoto, gateway)) { failed.append(String(localized: "photo")) }
             } else if applied.uiMetaConflicts != nil {
                 await reloadIdentity(gateway)
-                notice = String(localized: "This bot's name or look changed on another device. Crew loaded the latest version, so make those changes again.")
+                notice = String(localized: "This bot's name, role or look changed on another device. Crew loaded the latest version, so make those changes again.")
             } else {
-                failed.append(String(localized: "name and look"))
+                failed.append(String(localized: "name, role and look"))
             }
             return failed
         } catch {

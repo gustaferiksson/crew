@@ -40,8 +40,8 @@ private func card(_ approval: ApprovalRequest, _ lookup: PaymentLookup) -> some 
         let minimum = height(card(approval, lookup), proposing: .zero)
         let ideal = height(card(approval, lookup), proposing: CGSize(width: 560, height: CGFloat.infinity))
         #expect(minimum <= approvalCardMinimum, "\(lookup)")
-        #expect(minimum < 120, "\(lookup)")
-        #expect(ideal > 2 * minimum, "\(lookup)")
+        #expect(minimum < 160, "\(lookup) \(minimum)")
+        #expect(ideal > minimum + 60, "\(lookup) \(minimum) \(ideal)")
     }
 }
 

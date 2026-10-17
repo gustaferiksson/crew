@@ -46,6 +46,7 @@ struct PaymentCard<Avatar: View>: View {
                 ViewThatFits(in: .vertical) {
                     content
                     scrollingContent
+                        .frame(minHeight: 44)
                 }
             }
             buttons
@@ -62,6 +63,7 @@ struct PaymentCard<Avatar: View>: View {
             content
         }
         .scrollBounceBehavior(.basedOnSize)
+        .scrollIndicatorsFlash(onAppear: true)
         .onScrollGeometryChange(for: Bool.self) { $0.contentSize.height > $0.containerSize.height + 1 } action: { isClipped = $1 }
         .onDisappear { isClipped = false }
     }
@@ -202,6 +204,7 @@ struct PaymentCard<Avatar: View>: View {
             if !isUnverified {
                 HoldToPayButton(
                     confirmation: details.map { String(localized: "Pay \($0.amount) at \(host)?") } ?? "",
+                    warning: isPunycode(host) ? String(localized: "This address uses special characters and could imitate another site.") : nil,
                     isApproved: state.isApproved,
                     requiresConfirmation: isClipped,
                     initialProgress: holdProgress
@@ -245,6 +248,7 @@ struct PaymentCard<Avatar: View>: View {
 
 private struct HoldToPayButton: View {
     let confirmation: String
+    let warning: String?
     let isApproved: Bool
     let requiresConfirmation: Bool
     var initialProgress = 0.0
@@ -257,8 +261,9 @@ private struct HoldToPayButton: View {
     @State private var presses = 0
     @State private var confirming = false
 
-    init(confirmation: String, isApproved: Bool, requiresConfirmation: Bool, initialProgress: Double = 0, pay: @escaping () -> Void) {
+    init(confirmation: String, warning: String?, isApproved: Bool, requiresConfirmation: Bool, initialProgress: Double = 0, pay: @escaping () -> Void) {
         self.confirmation = confirmation
+        self.warning = warning
         self.isApproved = isApproved
         self.requiresConfirmation = requiresConfirmation
         self.pay = pay
@@ -322,6 +327,8 @@ private struct HoldToPayButton: View {
         .confirmationDialog(confirmation, isPresented: $confirming, titleVisibility: .visible) {
             Button("Pay") { approve() }
             Button("Cancel", role: .cancel) {}
+        } message: {
+            if let warning { Text(warning) }
         }
         .accessibilityLabel(isApproved ? "Approved" : title)
         .accessibilityHint("Double-tap to confirm the payment.")

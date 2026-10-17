@@ -116,6 +116,20 @@ final class PaymentUITests: XCTestCase {
         XCTAssertTrue(waitForLog("approval.respond once", in: app))
     }
 
+    @MainActor func testShortLayoutDialogWarnsAboutAPunycodeHost() {
+        XCUIDevice.shared.orientation = .portrait
+        let app = launch("chat-payment-punycode")
+        XCTAssertTrue(app.buttons["Hold to Pay"].waitForExistence(timeout: 10))
+        XCUIDevice.shared.orientation = .landscapeLeft
+        defer { XCUIDevice.shared.orientation = .portrait }
+        let pay = app.buttons["Pay…"]
+        XCTAssertTrue(pay.waitForExistence(timeout: 5))
+        pay.tap()
+        XCTAssertTrue(app.staticTexts["Pay 499 kr at xn--zaando-5ve.se?"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["This address uses special characters and could imitate another site."].exists)
+        XCTAssertEqual(log(in: app), "none")
+    }
+
     @MainActor func testOfferOpensAddShopFilledIn() {
         let app = launch("chat-payment-offer")
         let add = app.buttons["Add Shop…"]

@@ -213,8 +213,8 @@ extension Snapshot {
     }
 
     func capture() async {
-        guard !Snapshot.isInteractive else { return }
         NSApp.appearance = NSAppearance(named: UserDefaults.standard.string(forKey: "AppleInterfaceStyle") == "Dark" ? .darkAqua : .aqua)
+        guard !Snapshot.isInteractive else { return }
         guard let window = NSApp.windows.first(where: \.isVisible) else { exit(1) }
         window.isRestorable = false
         window.setFrameOrigin(NSPoint(x: -4000, y: 0))

@@ -37,8 +37,8 @@ final class ChatSessions {
 
     func status(of bot: Bot.ID, in store: BotStore) -> BotStatus {
         let status = store.statuses[bot] ?? .idle
-        guard status == .idle || status == .unread, let last = sessions[bot]?.transcript.turns.last else { return status }
-        if last.status == .streaming { return .working }
+        guard status == .idle || status == .unread, let session = sessions[bot], let last = session.transcript.turns.last else { return status }
+        if last.status == .streaming, session.failure == nil { return .working }
         return last.status == .error ? .failed : status
     }
 

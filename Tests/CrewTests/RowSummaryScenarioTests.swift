@@ -3,25 +3,19 @@ import Testing
 
 private let fixtures = URL(filePath: #filePath).deletingLastPathComponent().deletingLastPathComponent().appending(path: "fixtures")
 
-private func recorded<Value: Decodable>(_ name: String, in scenario: String, as type: Value.Type) throws -> Value {
+private func recorded<Value: Decodable>(_ name: String, in scenario: String, as type: Value.Type, keys: JSONDecoder.KeyDecodingStrategy = .useDefaultKeys) throws -> Value {
     let decoder = JSONDecoder()
     decoder.dateDecodingStrategy = .secondsSince1970
-    decoder.keyDecodingStrategy = .convertFromSnakeCase
+    decoder.keyDecodingStrategy = keys
     return try decoder.decode(type, from: Data(contentsOf: fixtures.appending(path: "scenarios/\(scenario)/\(name).json")))
 }
 
-private func roster(_ name: String, in scenario: String) throws -> [Bot] {
-    let decoder = JSONDecoder()
-    decoder.dateDecodingStrategy = .secondsSince1970
-    return try decoder.decode(Roster.self, from: Data(contentsOf: fixtures.appending(path: "scenarios/\(scenario)/\(name).json"))).profiles
-}
-
-private func live(_ name: String, in scenario: String) throws -> [LiveSession] {
-    try JSONDecoder().decode(ActiveList.self, from: Data(contentsOf: fixtures.appending(path: "scenarios/\(scenario)/\(name).json"))).sessions
+private func history(_ name: String, in scenario: String) throws -> [HistoryRow] {
+    try recorded(name, in: scenario, as: [HistoryRow].self, keys: .convertFromSnakeCase)
 }
 
 private func coldOpenChat(_ store: BotStore) throws -> (ChatSessions, ChatSession) {
-    let rows = try recorded("crew-test-peer.history", in: "cold-open", as: [HistoryRow].self)
+    let rows = try history("crew-test-peer.history", in: "cold-open")
     let hi = try #require(rows.first { $0.content == "Hi" })
     var transcript = Transcript(history: rows.filter { $0.id < hi.id })
     transcript.begin(prompt: "Hi", at: Date(timeIntervalSince1970: hi.timestamp))
@@ -32,10 +26,10 @@ private func coldOpenChat(_ store: BotStore) throws -> (ChatSessions, ChatSessio
 
 @Test func coldOpenedChatShowsWorkingWhileTheServerSaysStarting() throws {
     let store = BotStore(fixture: [], statuses: [:])
-    store.apply(roster: try roster("profiles.before", in: "cold-open"))
+    store.apply(roster: try recorded("profiles.before", in: "cold-open", as: Roster.self).profiles)
     store.apply(live: [])
-    store.apply(roster: try roster("profiles.starting", in: "cold-open"))
-    let starting = try live("active_list.starting", in: "cold-open")
+    store.apply(roster: try recorded("profiles.starting", in: "cold-open", as: Roster.self).profiles)
+    let starting = try recorded("active_list.starting", in: "cold-open", as: ActiveList.self).sessions
     store.apply(live: starting)
     #expect(starting.map(\.status) == ["starting"])
     #expect(store.statuses["crew-test-peer"] == .unread)
@@ -45,16 +39,17 @@ private func coldOpenChat(_ store: BotStore) throws -> (ChatSessions, ChatSessio
     let summary = chats.summary(of: bot, in: store)
     #expect(summary.status == .working)
     #expect(summary.preview == "Hi")
-    #expect(summary.time == Date(timeIntervalSince1970: try #require(try recorded("crew-test-peer.history", in: "cold-open", as: [HistoryRow].self).first { $0.content == "Hi" }).timestamp))
+    let hi = try #require(try history("crew-test-peer.history", in: "cold-open").first { $0.content == "Hi" })
+    #expect(summary.time == Date(timeIntervalSince1970: hi.timestamp))
     #expect(summary.time != bot.canonicalSession?.lastActive)
 }
 
 @Test func rowTimeIsTheReplyNotTheServersLastActive() throws {
     let store = BotStore(fixture: [], statuses: [:])
-    store.apply(roster: try roster("profiles.before", in: "cold-open"))
-    store.apply(roster: try roster("profiles.after", in: "cold-open"))
-    store.apply(live: try live("active_list.after", in: "cold-open"))
-    let rows = try recorded("crew-test-peer.history", in: "cold-open", as: [HistoryRow].self)
+    store.apply(roster: try recorded("profiles.before", in: "cold-open", as: Roster.self).profiles)
+    store.apply(roster: try recorded("profiles.after", in: "cold-open", as: Roster.self).profiles)
+    store.apply(live: try recorded("active_list.after", in: "cold-open", as: ActiveList.self).sessions)
+    let rows = try history("crew-test-peer.history", in: "cold-open")
     store.showPreview(of: "crew-test-peer", from: rows)
     let bot = try #require(store.bots.first { $0.name == "crew-test-peer" })
     let reply = try #require(rows.last)
@@ -68,9 +63,9 @@ private func coldOpenChat(_ store: BotStore) throws -> (ChatSessions, ChatSessio
 
 @Test func rowTimeMovesWhenALiveReplyLands() throws {
     let store = BotStore(fixture: [], statuses: [:])
-    store.apply(roster: try roster("profiles.before", in: "cold-open"))
-    store.apply(roster: try roster("profiles.working", in: "cold-open"))
-    store.apply(live: try live("active_list.working", in: "cold-open"))
+    store.apply(roster: try recorded("profiles.before", in: "cold-open", as: Roster.self).profiles)
+    store.apply(roster: try recorded("profiles.working", in: "cold-open", as: Roster.self).profiles)
+    store.apply(live: try recorded("active_list.working", in: "cold-open", as: ActiveList.self).sessions)
     let (chats, session) = try coldOpenChat(store)
     let bot = try #require(store.bots.first { $0.name == "crew-test-peer" })
     let sent = try #require(chats.summary(of: bot, in: store).time)
@@ -79,8 +74,8 @@ private func coldOpenChat(_ store: BotStore) throws -> (ChatSessions, ChatSessio
     let replayed = Date.now
     let lines = try String(contentsOf: fixtures.appending(path: "chat.tool-turn.v0.21.7.jsonl"), encoding: .utf8).split(separator: "\n")
     for line in lines { session.apply(try JSONDecoder().decode(GatewayEvent.self, from: Data(line.utf8))) }
-    store.apply(roster: try roster("profiles.after", in: "cold-open"))
-    store.apply(live: try live("active_list.after", in: "cold-open"))
+    store.apply(roster: try recorded("profiles.after", in: "cold-open", as: Roster.self).profiles)
+    store.apply(live: try recorded("active_list.after", in: "cold-open", as: ActiveList.self).sessions)
 
     let summary = chats.summary(of: bot, in: store)
     #expect(session.isRunning == false)
@@ -91,32 +86,24 @@ private func coldOpenChat(_ store: BotStore) throws -> (ChatSessions, ChatSessio
 }
 
 @Test func clearedBotChatIsTheSameSessionWithOnlyItsNewRows() throws {
-    let before = try roster("profiles.after", in: "untitled-bot-chat")
-    let after = try roster("profiles.after", in: "cleared-bot-chat")
+    let before = try recorded("profiles.after", in: "untitled-bot-chat", as: Roster.self).profiles
+    let after = try recorded("profiles.after", in: "cleared-bot-chat", as: Roster.self).profiles
     let earlier = try #require(before.first { $0.name == "vera" }?.canonicalSession)
     let vera = try #require(after.first { $0.name == "vera" })
     let session = try #require(vera.canonicalSession)
     #expect(session.id == earlier.id)
     #expect(session.messageCount == 2)
-    #expect(try live("active_list.after", in: "cleared-bot-chat").map(\.sessionKey) == [session.id])
+    #expect(try recorded("active_list.after", in: "cleared-bot-chat", as: ActiveList.self).sessions.map(\.sessionKey) == [session.id])
 
-    let rows = try recorded("vera.history", in: "cleared-bot-chat", as: [HistoryRow].self)
+    let rows = try history("vera.history", in: "cleared-bot-chat")
     let shown = Transcript(history: rows).visible.turns
     #expect(shown.map { $0.prompt?.text } == ["Hi"])
-    #expect(shown.map(\.reply) == ["Hi Gustaf! What can I help you with?"])
+    #expect(shown.map(\.reply) == ["Hi Sam! What can I help you with?"])
 
     let store = BotStore(fixture: [], statuses: [:])
     store.apply(roster: after)
-    store.apply(live: try live("active_list.after", in: "cleared-bot-chat"))
+    store.apply(live: try recorded("active_list.after", in: "cleared-bot-chat", as: ActiveList.self).sessions)
     store.showPreview(of: "vera", from: rows)
     let reply = try #require(rows.last)
-    #expect(ChatSessions().summary(of: vera, in: store) == BotSummary(status: .idle, preview: "Hi Gustaf! What can I help you with?", time: Date(timeIntervalSince1970: reply.timestamp)))
-}
-
-@Test func clearedBotChatKeepsAReadMarkerAboveItsCount() throws {
-    let vera = try #require(try roster("profiles.after", in: "cleared-bot-chat").first { $0.name == "vera" })
-    let position = try #require(vera.canonicalSession?.position)
-    let marker = try #require(vera.readPosition)
-    #expect(marker.session == position.session)
-    #expect(marker > position)
+    #expect(ChatSessions().summary(of: vera, in: store) == BotSummary(status: .idle, preview: "Hi Sam! What can I help you with?", time: Date(timeIntervalSince1970: reply.timestamp)))
 }

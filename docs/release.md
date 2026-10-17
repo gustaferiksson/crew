@@ -102,3 +102,4 @@ From the first push on, `main` only moves through pull requests.
 ## Resolved questions
 
 - Developer ID + Time Sensitive Notifications: the `Crew Developer ID` profile grants `com.apple.developer.usernotifications.time-sensitive`, so macOS keeps it in `Crew-macOS.entitlements`.
+

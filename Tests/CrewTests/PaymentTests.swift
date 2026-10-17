@@ -335,7 +335,7 @@ nonisolated final class StubProtocol: URLProtocol {
         let server = url.host() ?? ""
         let path = url.path()
         let (status, name): (Int, String) = if server == "errors.test" {
-            (path.contains("unknown") ? 404 : path.contains("duplicate") || path.contains("card") ? 409 : 400, String(path.split(separator: "/").last ?? ""))
+            (path.contains("unknown") ? 404 : path.contains("duplicate") || path.contains("card") ? 409 : 400, (path.contains("/real/") ? "real/" : "") + String(path.split(separator: "/").last ?? ""))
         } else if path.hasSuffix("/status") {
             server == "absent.test" ? (404, "") : server == "down.test" ? (500, "") : (200, server == "missing.test" ? "status-old" : "status")
         } else {
@@ -345,5 +345,30 @@ nonisolated final class StubProtocol: URLProtocol {
         client?.urlProtocol(self, didReceive: HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: nil)!, cacheStoragePolicy: .notAllowed)
         client?.urlProtocol(self, didLoad: body)
         client?.urlProtocolDidFinishLoading(self)
+    }
+}
+
+@Test func deployedCrewPushAnnouncesPaymentsWithTheGateOn() throws {
+    let status = try decoded("real/real-status", as: PluginStatus.self)
+    #expect(status.supportsPayments)
+    #expect(status.gate == true)
+}
+
+@Test func deployedServerWithoutAMasterCardShowsTheNoCardRow() throws {
+    let list = try decoded("real/real-payments-crew-test", as: ShopList.self)
+    #expect(list.card == MasterCard(label: nil, last4: nil, problem: "missing"))
+    #expect(list.shops.isEmpty)
+    #expect(list.terminalBackend == "local")
+}
+
+@Test func deployedServerErrorsKeepTheirCodes() async throws {
+    for (name, code, text) in [("real-error-no-card", "no_card", "Add a card on the server first."), ("real-error-unknown-request", "unknown_request", "Couldn't reach Hermes. Try again.")] {
+        do {
+            _ = try await paymentsCall("error/real/\(name)", on: URL(string: "https://errors.test")!, with: StubProtocol.session, as: ShopList.self)
+            Issue.record("no error")
+        } catch let error as PaymentsError {
+            #expect(error.code == code)
+            #expect(error.message(host: nil) == text)
+        }
     }
 }

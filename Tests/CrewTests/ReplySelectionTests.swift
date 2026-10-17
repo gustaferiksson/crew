@@ -97,6 +97,22 @@ struct ReplySelectionTests {
         #expect(link == URL(string: "https://example.com/docs"))
     }
 
+    @Test func longNumberedListKeepsAGapAfterEachNumber() throws {
+        let view = try textView((1...11).map { "\($0). Step" }.joined(separator: "\n"))
+        let string = view.string as NSString
+        let layout = try #require(view.layoutManager)
+        let container = try #require(view.textContainer)
+        container.size = NSSize(width: 420, height: 10_000)
+        layout.ensureLayout(for: container)
+        for number in [9, 10, 11] {
+            let marker = string.range(of: "\(number).")
+            let step = NSRange(location: NSMaxRange(marker) + 1, length: 4)
+            let markerEnd = layout.boundingRect(forGlyphRange: layout.glyphRange(forCharacterRange: marker, actualCharacterRange: nil), in: container).maxX
+            let stepStart = layout.boundingRect(forGlyphRange: layout.glyphRange(forCharacterRange: step, actualCharacterRange: nil), in: container).minX
+            #expect(stepStart - markerEnd >= 7.5, "\(number). ends at \(markerEnd), text starts at \(stepStart)")
+        }
+    }
+
     @Test func copiedRichTextCarriesNoLabelColourInDarkMode() throws {
         let view = try textView(try checklistReply())
         view.appearance = NSAppearance(named: .darkAqua)
@@ -123,9 +139,11 @@ struct ReplySelectionTests {
     @Test func rightClickOffersMessageActionsAndTheTextMenu() throws {
         let view = try textView("Hello **there**.")
         let event = try #require(NSEvent.mouseEvent(with: .rightMouseDown, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: 0, context: nil, eventNumber: 0, clickCount: 1, pressure: 1))
-        let titles = try #require(view.menu(for: event)).items.map(\.title)
-        #expect(Array(titles.prefix(2)) == ["Copy Message", "Share Message"])
-        #expect(titles.dropFirst(2).contains("Copy"))
+        let titles = try #require(view.menu(for: event)).items.map { $0.isSeparatorItem ? "-" : $0.title }
+        #expect(Array(titles.prefix(3)) == ["Copy Message", "Share Message", "-"])
+        #expect(titles.contains("Copy"))
+        #expect(titles.filter { ["Cut", "Paste", "Paste and Match Style", "Font", "Spelling and Grammar", "Substitutions"].contains($0) }.isEmpty)
+        #expect(!zip(titles, titles.dropFirst()).contains { $0 == "-" && $1 == "-" } && titles.last != "-")
     }
 
     @Test func heightFollowsTheColumnWidth() throws {

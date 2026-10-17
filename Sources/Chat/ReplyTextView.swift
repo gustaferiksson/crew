@@ -50,11 +50,12 @@ nonisolated private func replyParagraphs(_ block: MarkdownBlock, spacing: CGFloa
         let bold = NSFont(descriptor: font.fontDescriptor.withSymbolicTraits(.bold), size: font.pointSize) ?? font
         return replyInline(block.content, font: bold, color: .labelColor, style: style)
     case .listItem(let marker, let depth):
-        let indent = CGFloat(depth - 1) * 20
-        style.tabStops = [NSTextTab(textAlignment: .right, location: indent + 12), NSTextTab(textAlignment: .left, location: indent + 20)]
-        style.headIndent = indent + 20
+        let markerFont = NSFont.monospacedDigitSystemFont(ofSize: body.pointSize, weight: .regular)
+        let column = CGFloat(depth - 1) * 20 + max(12, ceil((marker as NSString).size(withAttributes: [.font: markerFont]).width))
+        style.tabStops = [NSTextTab(textAlignment: .right, location: column), NSTextTab(textAlignment: .left, location: column + 8)]
+        style.headIndent = column + 8
         let item = NSMutableAttributedString(string: "\t\(marker)\t", attributes: [
-            .font: NSFont.monospacedDigitSystemFont(ofSize: body.pointSize, weight: .regular),
+            .font: markerFont,
             .foregroundColor: NSColor.secondaryLabelColor,
             .paragraphStyle: style,
             .replyPlainText: "\(marker) ",
@@ -103,8 +104,7 @@ nonisolated private func replyInline(_ content: AttributedString, font: NSFont, 
         ]
         if intent.contains(.strikethrough) { attributes[.strikethroughStyle] = NSUnderlineStyle.single.rawValue }
         if let link = run.link { attributes[.link] = link }
-        let text = String(content[run.range].characters).replacing("\n", with: "\u{2028}")
-        result.append(NSAttributedString(string: text, attributes: attributes))
+        result.append(NSAttributedString(string: String(content[run.range].characters), attributes: attributes))
     }
     return result
 }
@@ -201,7 +201,7 @@ final class ReplyTextView: NSTextView {
         view.textContainerInset = .zero
         view.textContainer?.lineFragmentPadding = 0
         view.textContainer?.widthTracksTextView = true
-        view.linkTextAttributes = [.foregroundColor: NSColor.linkColor, .cursor: NSCursor.pointingHand]
+        view.linkTextAttributes = [.foregroundColor: NSColor.controlAccentColor, .cursor: NSCursor.pointingHand]
         return view
     }
 
@@ -229,6 +229,15 @@ final class ReplyTextView: NSTextView {
 
     override func menu(for event: NSEvent) -> NSMenu? {
         let menu = super.menu(for: event) ?? NSMenu()
+        let editing: Set<Selector> = [#selector(cut(_:)), #selector(paste(_:)), #selector(pasteAsPlainText(_:)), #selector(pasteAsRichText(_:)), #selector(NSFontManager.addFontTrait(_:)), #selector(showGuessPanel(_:)), #selector(orderFrontSubstitutionsPanel(_:))]
+        let kept = menu.items.filter { item in
+            item.action.map(editing.contains) != true && item.submenu?.items.contains { $0.action.map(editing.contains) == true } != true
+        }
+        menu.removeAllItems()
+        for item in kept where !(item.isSeparatorItem && menu.items.last?.isSeparatorItem != false) {
+            menu.addItem(item)
+        }
+        if menu.items.last?.isSeparatorItem == true { menu.removeItem(at: menu.numberOfItems - 1) }
         let copy = NSMenuItem(title: "Copy Message", action: #selector(copyMessage), keyEquivalent: "")
         copy.target = self
         let share = NSSharingServicePicker(items: [source]).standardShareMenuItem
@@ -262,7 +271,7 @@ final class ReplyTextView: NSTextView {
         selection.removeAttribute(.replyPlainText, range: whole)
         pboard.declareTypes([.rtf, .string], owner: nil)
         if let rtf = selection.rtf(from: whole) { pboard.setData(rtf, forType: .rtf) }
-        return pboard.setString((plain as String).replacing("\u{2028}", with: "\n"), forType: .string)
+        return pboard.setString(plain as String, forType: .string)
     }
 }
 
@@ -300,6 +309,7 @@ struct ReplySegmentText: NSViewRepresentable {
         container.size = NSSize(width: width ?? .greatestFiniteMagnitude, height: .greatestFiniteMagnitude)
         layout.ensureLayout(for: container)
         let used = layout.usedRect(for: container)
+        if view.frame.width > 0 { container.size.width = view.frame.width }
         let size = CGSize(width: width ?? ceil(used.width), height: ceil(used.height))
         context.coordinator.measured = (width, size)
         return size

@@ -11,6 +11,11 @@ nonisolated struct ApprovalRequest: Identifiable, Sendable, Equatable {
     let toolName: String?
     let choices: [ApprovalChoice]
     var requester: String?
+    var requestID: String?
+
+    var isPayment: Bool {
+        command.hasPrefix(paymentCommandPrefix)
+    }
 }
 
 nonisolated struct QuestionRequest: Identifiable, Sendable, Equatable {
@@ -33,6 +38,11 @@ nonisolated enum PendingRequest: Identifiable, Sendable, Equatable {
         case .approval(let request): request.id
         case .question(let request): request.id
         }
+    }
+
+    var isPayment: Bool {
+        guard case .approval(let request) = self else { return false }
+        return request.isPayment
     }
 }
 

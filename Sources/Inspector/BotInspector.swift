@@ -29,14 +29,16 @@ struct BotInspector: View {
     @State private var conversations: [Conversation]?
     @State private var conversationFailure: String?
     @State private var openedConversation: Conversation?
+    private let shopsFixture: ShopList?
     @FocusState private var focusedField: FocusedField?
 
     private enum FocusedField {
         case name, description
     }
 
-    init(bot: Bot, tab: InspectorTab = .info, routines: RoutineStore = RoutineStore(), draft: ProfileDraft? = nil, conversations: [Conversation]? = nil, models: ModelSwitcher, isPresented: Binding<Bool>) {
+    init(bot: Bot, tab: InspectorTab = .info, routines: RoutineStore = RoutineStore(), draft: ProfileDraft? = nil, conversations: [Conversation]? = nil, shops: ShopList? = nil, models: ModelSwitcher, isPresented: Binding<Bool>) {
         self.bot = bot
+        self.shopsFixture = shops
         self.models = models
         _isPresented = isPresented
         _tab = State(initialValue: tab)
@@ -301,6 +303,9 @@ struct BotInspector: View {
                     .disabled(!isEditable)
                 }
             }
+        }
+        if connection.supportsPayments {
+            ShopsCard(bot: bot, isBrowserOff: isEditable && !draft.fields.toolsets.contains { $0.name == "browser" && $0.enabled }, fixture: shopsFixture)
         }
         Card(title: "Other Conversations", footer: "Sessions from other apps, the server and routines. Read only.") {
             ConversationList(conversations: conversations, failure: conversationFailure) { openedConversation = $0 }

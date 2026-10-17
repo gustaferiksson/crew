@@ -12,6 +12,8 @@ struct RootView: View {
                 ChatFixtureScreen(fixture: fixture)
             } else if let tab = Snapshot.requested?.inspectorTab {
                 InspectorFixtureScreen(tab: tab)
+            } else if let snapshot = Snapshot.requested, snapshot.isShops {
+                ShopsFixtureScreen(snapshot: snapshot)
             } else if Snapshot.requested == .botPage {
                 BotPageFixtureScreen()
             } else if Snapshot.requested == .notifications {

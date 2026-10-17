@@ -3,7 +3,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-ALL=( login login-unreachable sidebar sidebar-flat sidebar-search search-result unreachable avatars avatar-picker chat chat-history chat-timestamps chat-worklog chat-question chat-offline chat-attachments chat-dictation chat-mentions chat-mention-peek chat-mention-chat chat-a2ui chat-a2ui-cards chat-a2ui-form chat-a2ui-table chat-a2ui-chart chat-a2ui-map layout layout-inspector inspector-info inspector-tasks inspector-routines inspector-look profile-skills bot-page notifications new-bot group-chat group-welcome group-inspector )
+ALL=( login login-unreachable sidebar sidebar-flat sidebar-search search-result unreachable avatars avatar-picker chat chat-history chat-timestamps chat-worklog chat-question chat-offline chat-attachments chat-dictation chat-mentions chat-mention-peek chat-mention-chat chat-a2ui chat-a2ui-cards chat-a2ui-form chat-a2ui-table chat-a2ui-chart chat-a2ui-map layout layout-inspector inspector-info inspector-tasks inspector-routines inspector-look profile-skills bot-page notifications new-bot group-chat group-welcome group-inspector chat-payment chat-payment-holding chat-payment-approved chat-payment-loading chat-payment-failed chat-payment-unverified chat-payment-punycode chat-payment-countdown chat-payment-notice chat-payment-offer chat-payment-receipts inspector-shops inspector-shops-empty inspector-shops-no-card inspector-shops-several add-shop add-shop-error )
 SCREENS=( "${@:-${ALL[@]}}" )
 FIXTURE_ARGS=( -server hermes.example.com -username gustaf )
 MAC_APP=.build/Build/Products/Debug/Crew.app/Contents/MacOS/Crew

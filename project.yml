@@ -98,6 +98,8 @@ targets:
       - Sources/Chat/Composer.swift
       - Sources/Chat/Dictation.swift
       - Sources/Chat/RequestCards.swift
+      - Sources/Chat/Payments.swift
+      - Sources/Push/PushRoute.swift
       - Sources/Chat/Mentions.swift
       - Sources/Profile/ProfileDraft.swift
       - Sources/Profile/CrewUISkill.swift

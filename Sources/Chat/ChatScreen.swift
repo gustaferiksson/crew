@@ -11,6 +11,8 @@ struct ChatScreen: View {
     @Environment(BotStore.self) private var bots
     @Environment(ChatSessions.self) private var chats
     @State private var showsOffline = false
+    @State private var dismissedOffer: Turn.ID?
+    @State private var addingShop: String?
 
     private var session: ChatSession? {
         chats.sessions[bot.id]
@@ -32,6 +34,11 @@ struct ChatScreen: View {
         return String(localized: "Can't reach \(connection.session?.server.host() ?? String(localized: "the server"))")
     }
 
+    private var shopOffer: String? {
+        guard connection.supportsPayments, let turn = session?.transcript.turns.last, turn.id != dismissedOffer else { return nil }
+        return turn.missingShop
+    }
+
     var body: some View {
         ChatView(
             botName: live.title,
@@ -40,6 +47,9 @@ struct ChatScreen: View {
             emptyState: EmptyView(),
             mentionable: bots.bots.filter { $0.id != bot.id },
             request: session?.request,
+            payment: session?.request.flatMap { session?.payments[$0.id] },
+            paymentNotice: session?.endedPayment,
+            shopOffer: shopOffer,
             offlineReason: offlineReason,
             activity: session?.statusLine ?? session?.generatingTool.map { String(localized: "Preparing \($0.replacing("_", with: " "))") },
             models: models,
@@ -54,10 +64,20 @@ struct ChatScreen: View {
                 openPersona: { showsBot.toggle() },
                 changeModel: { changeModel(to: $0) },
                 respond: { session?.respond(to: $0, with: $1) },
-                answer: { session?.answer($0, with: $1) }
+                answer: { session?.answer($0, with: $1) },
+                retryPayment: { session?.retryPayment($0) },
+                expirePayment: { session?.expirePayment($0) },
+                dismissPaymentNotice: { session?.dismissEndedPayment() },
+                addShop: { addingShop = $0 },
+                dismissShopOffer: { dismissedOffer = session?.transcript.turns.last?.id }
             )
         )
         .environment(\.chatSession, session)
+        .sheet(item: Binding(get: { addingShop.map(ShopSite.init) }, set: { addingShop = $0?.id })) { site in
+            AddShopSheet(profile: bot.name, site: site.id) { shop in
+                session?.sendHidden("I added \(shop.origin) to your shops. Continue the purchase.")
+            }
+        }
         #if os(iOS)
         .navigationDestination(isPresented: $showsBot) {
             BotInspector(bot: live, models: models, isPresented: $showsBot)
@@ -105,4 +125,8 @@ struct ChatScreen: View {
             await bots.reload(gateway)
         }
     }
+}
+
+private struct ShopSite: Identifiable {
+    let id: String
 }

@@ -61,6 +61,7 @@ struct CrewApp: App {
                 }
                 .onChange(of: scenePhase) { old, new in
                     bots.isForeground = new == .active
+                    if new == .active, Snapshot.requested == nil { Task { await appDelegate.push.removeStalePayments() } }
                     #if os(iOS)
                     if new == .background { return connection.suspend() }
                     if old == .background { connection.retry() }

@@ -11,6 +11,11 @@ struct ChatActions {
     var respond: (ApprovalRequest.ID, ApprovalChoice) -> Void = { _, _ in }
     var retry: (String) -> Void = { _ in }
     var answer: (QuestionRequest.ID, [String: String]) -> Void = { _, _ in }
+    var retryPayment: (ApprovalRequest.ID) -> Void = { _ in }
+    var expirePayment: (ApprovalRequest.ID) -> Void = { _ in }
+    var dismissPaymentNotice: () -> Void = {}
+    var addShop: (String) -> Void = { _ in }
+    var dismissShopOffer: () -> Void = {}
 }
 
 struct ChatPresentation {
@@ -21,6 +26,7 @@ struct ChatPresentation {
     var attachments: [Attachment] = []
     var draft = ""
     var dictation: Dictation?
+    var holdProgress = 0.0
 }
 
 private let separatorGap: TimeInterval = 60 * 60
@@ -48,6 +54,9 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
     let mentionable: [Bot]
     var features: ComposerFeatures
     var request: PendingRequest?
+    var payment: PaymentCardState?
+    var paymentNotice: String?
+    var shopOffer: String?
     var offlineReason: String?
     var activity: String?
     var models: ModelSwitcher?
@@ -69,7 +78,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
     @State private var handledFocus: UUID?
     private let presentation: ChatPresentation
 
-    init(botName: String, avatar: Avatar, transcript: Transcript, emptyState: EmptyState, mentionable: [Bot], features: ComposerFeatures = .all, request: PendingRequest? = nil, offlineReason: String? = nil, activity: String? = nil, models: ModelSwitcher? = nil, focus: SearchFocus? = nil, presentation: ChatPresentation = ChatPresentation(), actions: ChatActions = ChatActions()) {
+    init(botName: String, avatar: Avatar, transcript: Transcript, emptyState: EmptyState, mentionable: [Bot], features: ComposerFeatures = .all, request: PendingRequest? = nil, payment: PaymentCardState? = nil, paymentNotice: String? = nil, shopOffer: String? = nil, offlineReason: String? = nil, activity: String? = nil, models: ModelSwitcher? = nil, focus: SearchFocus? = nil, presentation: ChatPresentation = ChatPresentation(), actions: ChatActions = ChatActions()) {
         self.botName = botName
         self.avatar = avatar
         self.transcript = transcript
@@ -77,6 +86,9 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
         self.mentionable = mentionable
         self.features = features
         self.request = request
+        self.payment = payment
+        self.paymentNotice = paymentNotice
+        self.shopOffer = shopOffer
         self.offlineReason = offlineReason
         self.activity = activity
         self.models = models
@@ -194,8 +206,32 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
             }
             .safeAreaBar(edge: .bottom) {
                 VStack(spacing: 8) {
-                    if case .approval(let approval) = request {
+                    if let paymentNotice {
+                        PaymentNoticeCard(text: paymentNotice, dismiss: actions.dismissPaymentNotice)
+                            .frame(maxWidth: 560)
+                            .padding(.horizontal, 16)
+                    } else if case .approval(let approval) = request, approval.isPayment {
+                        PaymentCard(
+                            request: approval,
+                            state: payment ?? PaymentCardState(lookup: .unverified(featureMissing: false)),
+                            botName: botName,
+                            avatar: avatar.scaleEffect(20 / 28).frame(width: 20, height: 20),
+                            holdProgress: presentation.holdProgress,
+                            respond: { actions.respond(approval.id, $0) },
+                            retry: { actions.retryPayment(approval.id) },
+                            expire: { actions.expirePayment(approval.id) }
+                        )
+                        .disabled(offlineReason != nil)
+                        .id(approval.id)
+                        .frame(maxWidth: 560)
+                        .padding(.horizontal, 16)
+                        .transition(.blurReplace)
+                    } else if case .approval(let approval) = request {
                         ApprovalCard(request: approval, botName: botName) { actions.respond(approval.id, $0) }
+                            .frame(maxWidth: 560)
+                            .padding(.horizontal, 16)
+                    } else if request == nil, let shopOffer {
+                        ShopOfferCard(botName: botName, host: shopOffer, notNow: actions.dismissShopOffer) { actions.addShop(shopOffer) }
                             .frame(maxWidth: 560)
                             .padding(.horizontal, 16)
                     }
@@ -211,6 +247,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
                         actions.stop()
                     }
                 }
+                .animation(.smooth, value: request?.id)
                 .overlay(alignment: .top) {
                     if !isAtBottom {
                         Button("Jump to Latest", systemImage: "arrow.down") {
@@ -275,7 +312,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
                 withAnimation(.easeOut(duration: 0.6)) { highlighted = nil }
             }
             .task(id: surfaces.blocks.count) {
-                guard let target = presentation.scrollTarget else { return }
+                guard let target = presentation.scrollTarget else { return isAtBottom ? position.scrollTo(edge: .bottom) : () }
                 position.scrollTo(id: target, anchor: .top)
             }
         }
@@ -331,6 +368,9 @@ struct TurnView: View {
                 if !turn.work.isEmpty || turn.status == .streaming {
                     WorkLog(turn: turn, activity: activity, expandedTurns: $expandedTurns, expandedWork: $expandedWork, expandedRuns: $expandedRuns)
                         .modifier(Timestamp(date: turn.startedAt, reveal: reveal, width: timestampWidth))
+                }
+                ForEach(Array(turn.paymentReceipts.enumerated()), id: \.offset) { _, receipt in
+                    PaymentReceiptRow(receipt: receipt)
                 }
                 if !turn.reply.isEmpty {
                     MarkdownText(source: a2uiFenced(turn.reply))

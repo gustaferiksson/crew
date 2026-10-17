@@ -3,6 +3,7 @@ import UniformTypeIdentifiers
 
 enum ChatFixture {
     case conversation, history, timestamps, workLog, question, offline, attachments, dictation, mentions, agentMessage, a2ui, a2uiCards, a2uiForm, a2uiTable, a2uiChart, a2uiMap
+    case payment, paymentHolding, paymentApproved, paymentLoading, paymentFailed, paymentUnverified, paymentPunycode, paymentCountdown, paymentNotice, paymentOffer, paymentReceipts
 
     var presentation: ChatPresentation {
         if self == .history { return ChatPresentation(scrollTarget: "t1") }
@@ -22,6 +23,7 @@ enum ChatFixture {
         }
         if self == .mentions { return ChatPresentation(draft: "Loop in @ada and @sc") }
         if self == .agentMessage { return ChatPresentation(expandedTurns: ["m2"]) }
+        if self == .paymentHolding { return ChatPresentation(holdProgress: 0.55) }
         if self == .dictation {
             let levels = (0..<Dictation.levelCount).map { 0.25 + 0.6 * abs(sin(Double($0) * 0.7)) * Double($0 % 5 + 1) / 5 }
             return ChatPresentation(dictation: Dictation(fixture: levels, startedAt: .now.addingTimeInterval(-7)))
@@ -39,6 +41,7 @@ enum ChatFixture {
                 choices: [.once, .session, .always, .deny]
             ))
         }
+        if let paymentRequest { return paymentRequest }
         if self == .question {
             return .question(QuestionRequest(id: "srq-9f8e7d6c5b4a", questions: [
                 .init(id: "env", text: "Which environment should I deploy to?", choices: ["Staging", "Production", "Both, staging first"]),
@@ -52,6 +55,19 @@ enum ChatFixture {
         let turns = [greeting(now.addingTimeInterval(-26 * 3600)), packing(now.addingTimeInterval(-3 * 3600)), notes(now.addingTimeInterval(-2.8 * 3600)), ciFix(now.addingTimeInterval(-25 * 60))]
         if [.offline, .history, .dictation].contains(self) { return Transcript(turns: turns) }
         if [.a2ui, .a2uiCards, .a2uiForm, .a2uiTable, .a2uiChart, .a2uiMap].contains(self) { return Transcript(turns: Self.a2uiTurns(now)) }
+        if self == .paymentReceipts { return Transcript(turns: Self.receiptTurns(now)) }
+        if self == .paymentOffer {
+            let offer = #"{"error": "{\"success\": false, \"error_type\": \"crew_no_shop_card\", \"crew_payment\": {\"missing_shop\": \"https://www.zalando.de\"}, \"error\": \"There is no card for https://www.zalando.de.\"}"}"#
+            var turns = Self.shoppingTurns(now, fill: offer)
+            turns[1].reply = "I have no card for that shop yet. Add it in Crew?"
+            return Transcript(turns: turns)
+        }
+        if self == .paymentNotice {
+            var turns = Self.shoppingTurns(now, fill: #"{"success": false, "error_type": "payment_declined", "crew_payment": {"request_id": "x", "state": "expired", "fill": null, "fill_error": null}}"#)
+            turns[1].reply = "Nobody answered within 5 minutes, so the payment request expired. Tell me when you want to try again."
+            return Transcript(turns: turns)
+        }
+        if isPayment { return Transcript(turns: Self.shoppingTurns(now, fill: nil)) }
         if self == .attachments { return Transcript(turns: [greeting(now.addingTimeInterval(-26 * 3600)), receipt(now.addingTimeInterval(-6 * 60))]) }
         if self == .mentions {
             let reply = Turn(id: "t8", agentMessage: AgentMessage("Message from 🤖 Scout (@scout): Found three options under 2 000 kr: SAS on Friday at 07:10, Norwegian on Saturday at 09:45, and Widerøe via Bodø."), status: .complete, startedAt: now.addingTimeInterval(-4 * 60))
@@ -264,6 +280,12 @@ struct ChatFixtureScreen: View {
 
     @Environment(BotStore.self) private var bots
     @State private var session: ChatSession?
+    @State private var request: PendingRequest?
+    @State private var payment: PaymentCardState?
+    @State private var answers: [String] = []
+    @State private var paymentNotice: String?
+    @State private var shopOffer: String?
+    @State private var addingShop = false
 
     private static let hermes = Bot(
         name: "default", displayName: "Hermes", description: nil, model: nil, isDefault: true, hasAvatar: false, canonicalSession: nil,
@@ -273,6 +295,10 @@ struct ChatFixtureScreen: View {
     init(fixture: ChatFixture) {
         self.fixture = fixture
         _session = State(initialValue: fixture == .mentions ? ChatSession(fixture: Self.hermes, transcript: fixture.transcript, todos: []) : nil)
+        _request = State(initialValue: fixture.request)
+        _payment = State(initialValue: fixture.paymentState)
+        _paymentNotice = State(initialValue: fixture.paymentNotice)
+        _shopOffer = State(initialValue: fixture.shopOffer)
     }
 
     var body: some View {
@@ -299,11 +325,44 @@ struct ChatFixtureScreen: View {
             transcript: fixture == .mentions ? fixture.transcript.visible : fixture.transcript,
             emptyState: EmptyView(),
             mentionable: bots.bots.filter { $0.id != "default" },
-            request: fixture.request,
+            request: request,
+            payment: payment,
+            paymentNotice: paymentNotice,
+            shopOffer: shopOffer,
             offlineReason: fixture == .offline ? "Can't reach hermes.example.com" : nil,
             activity: fixture == .conversation ? "Preparing terminal" : nil,
-            presentation: fixture.presentation
+            presentation: fixture.presentation,
+            actions: ChatActions(
+                respond: { _, choice in answer(choice) },
+                dismissPaymentNotice: { paymentNotice = nil },
+                addShop: { _ in addingShop = true },
+                dismissShopOffer: { shopOffer = nil }
+            )
         )
         .environment(\.chatSession, session)
+        .sheet(isPresented: $addingShop) {
+            AddShopSheet(profile: "default", site: shopOffer ?? "") { _ in }
+        }
+        .overlay(alignment: .topLeading) {
+            if fixture.isPayment {
+                Color.clear
+                    .frame(width: 1, height: 1)
+                    .accessibilityElement()
+                    .accessibilityIdentifier("payment-log")
+                    .accessibilityLabel("Payment log")
+                    .accessibilityValue(answers.isEmpty ? "none" : answers.joined(separator: ","))
+            }
+        }
+    }
+
+    private func answer(_ choice: ApprovalChoice) {
+        guard fixture.isPayment else { return }
+        answers.append("approval.respond \(choice.rawValue)")
+        guard choice == .once else { return request = nil }
+        payment?.isApproved = true
+        Task {
+            try? await Task.sleep(for: .seconds(0.8))
+            request = nil
+        }
     }
 }

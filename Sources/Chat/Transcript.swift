@@ -145,6 +145,9 @@ nonisolated func noticeText(kind: String?, content: String) -> String? {
         let model = content.firstMatch(of: /changed to (.+?)(?: via provider .+?)?\. From/)?.1
         return model.map { String(localized: "Switched to \($0)") } ?? String(localized: "Model changed")
     }
+    if kind == "hidden", let host = content.wholeMatch(of: /I added https:\/\/(\S+) to your shops\. Continue the purchase\./)?.1 {
+        return String(localized: "Added \(String(host)) to Shops")
+    }
     if kind == "personality_switch" { return String(localized: "Personality changed") }
     if kind == "auto_continue" { return String(localized: "Resumed interrupted turn") }
     if kind == "async_delegation_complete" { return String(localized: "Background work finished") }

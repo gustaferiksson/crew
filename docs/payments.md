@@ -137,3 +137,5 @@ With `terminal.backend: docker`, a bot's commands run in a separate sandbox cont
 | C. Accept the risk | No. The worst case is one month's limit on the virtual card until it is frozen in the bank app. | Nothing. The inspector footnote from step 4 keeps the risk visible. |
 
 **Recommendation: C now.** Keep the virtual card's monthly limit low (for example 1 000 kr) and freeze it when not shopping. Move to B if the limit grows or more bots browse untrusted sites. A alone is not worth the setup, because it adds a root path through the socket and still leaves the card readable.
+
+**Planned hardening (with C):** only the "chief of staff" bot keeps a Hermes terminal (`local`, inside the podman container). Shopping bots keep just the browser and `browser_vault`, with the terminal, code-execution and browser console/CDP toolsets off, set per bot in the inspector's Toolsets (no code changes). The container isolates Hermes from mainframe, not bots from each other.

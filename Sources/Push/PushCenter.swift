@@ -7,21 +7,6 @@ import UIKit
 import AppKit
 #endif
 
-nonisolated struct PushRoute: Equatable, Sendable {
-    let profile: String
-    let sessionID: String
-    let installID: String?
-    let kind: String?
-
-    init?(userInfo: [AnyHashable: Any]) {
-        guard let crew = userInfo["crew"] as? [String: Any], let profile = crew["profile"] as? String, !profile.isEmpty else { return nil }
-        self.profile = profile
-        self.sessionID = crew["session_id"] as? String ?? ""
-        self.installID = crew["install_id"] as? String
-        self.kind = crew["kind"] as? String
-    }
-}
-
 nonisolated struct PushPrefs: Codable, Equatable, Sendable {
     var replies = true
     var approvals = true
@@ -64,13 +49,7 @@ nonisolated private struct RegistrationReply: Decodable, Sendable {
     let apnsConfigured: Bool
 }
 
-nonisolated struct PluginStatus: Decodable, Equatable, Sendable {
-    let pluginVersion: String
-    let installId: String
-    let apnsConfigured: Bool
-    let http2: Bool
-    let devices: Int
-}
+nonisolated private let denyPaymentAction = "DENY_PAYMENT"
 
 @Observable
 final class PushCenter: NSObject {
@@ -107,9 +86,14 @@ final class PushCenter: NSObject {
     func start() {
         let center = UNUserNotificationCenter.current()
         center.delegate = self
+        let deny = UNNotificationAction(identifier: denyPaymentAction, title: String(localized: "Deny"), options: .destructive, icon: UNNotificationActionIcon(systemImageName: "xmark"))
+        let payment = UNNotificationCategory(
+            identifier: "CREW_PAYMENT", actions: [deny], intentIdentifiers: [],
+            hiddenPreviewsBodyPlaceholder: String(localized: "Payment request"), options: .hiddenPreviewsShowTitle
+        )
         center.setNotificationCategories(Set(["CREW_REPLY", "CREW_APPROVAL", "CREW_QUESTION", "CREW_ROUTINE"].map {
             UNNotificationCategory(identifier: $0, actions: [], intentIdentifiers: [], options: .hiddenPreviewsShowTitle)
-        }))
+        } + [payment]))
         Task { await refreshAuthorization() }
     }
 
@@ -224,8 +208,23 @@ final class PushCenter: NSObject {
     }
 
     func readElsewhere(_ route: PushRoute) async {
-        guard route.kind == "read", route.installID == nil || route.installID == UserDefaults.standard.string(forKey: "pushInstallID") else { return }
-        await removeDelivered(of: route.profile)
+        guard route.installID == nil || route.installID == UserDefaults.standard.string(forKey: "pushInstallID") else { return }
+        if route.kind == "read" { return await removeDelivered(of: route.profile) }
+        guard route.kind == "payment_resolved", let requestID = route.requestID else { return }
+        await removeDeliveredPayments { $0.requestID == requestID }
+    }
+
+    func removeStalePayments() async {
+        let now = Date.now
+        await removeDeliveredPayments { $0.isStalePayment(at: now) }
+    }
+
+    private func removeDeliveredPayments(where matches: (PushRoute) -> Bool) async {
+        let center = UNUserNotificationCenter.current()
+        let ended = await center.deliveredNotifications().filter { notification in
+            PushRoute(userInfo: notification.request.content.userInfo).map { $0.kind == "payment" && matches($0) } ?? false
+        }
+        center.removeDeliveredNotifications(withIdentifiers: ended.map(\.request.identifier))
     }
 
     private func removeDelivered(of bot: Bot.ID) async {
@@ -245,11 +244,15 @@ final class PushCenter: NSObject {
             content.threadIdentifier = "profile.\(bot.id)"
             content.sound = .default
             content.userInfo = ["crew": ["profile": bot.id, "session_id": ""]]
-            if new[bot.id] == .waiting(.approval), prefs.approvals {
+            if new[bot.id] == .waiting(.payment), prefs.approvals {
+                content.body = String(localized: "Wants to pay")
+                content.categoryIdentifier = "CREW_APPROVAL"
+                content.interruptionLevel = .timeSensitive
+            } else if new[bot.id] == .waiting(.approval), prefs.approvals {
                 content.body = String(localized: "Needs approval")
                 content.categoryIdentifier = "CREW_APPROVAL"
                 content.interruptionLevel = .timeSensitive
-            } else if case .waiting(let kind) = new[bot.id], kind != .approval, prefs.questions {
+            } else if case .waiting(let kind) = new[bot.id], kind != .approval, kind != .payment, prefs.questions {
                 content.body = String(localized: "Has a question")
                 content.categoryIdentifier = "CREW_QUESTION"
                 content.interruptionLevel = .timeSensitive
@@ -307,9 +310,16 @@ extension PushCenter: UNUserNotificationCenterDelegate {
         completionHandler(MainActor.assumeIsolated { presentation(for: route) })
     }
 
-    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
+    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
         let route = PushRoute(userInfo: response.notification.request.content.userInfo)
-        MainActor.assumeIsolated { open(route) }
-        completionHandler()
+        guard response.actionIdentifier == denyPaymentAction else { return await MainActor.run { open(route) } }
+        guard let route, route.kind == "payment", let requestID = route.requestID else { return }
+        guard await !denyPayment(in: route.sessionID, requestID: requestID) else { return }
+        let content = UNMutableNotificationContent()
+        content.title = route.profile
+        content.body = String(localized: "Couldn't reach Hermes. Open Crew to answer.")
+        content.threadIdentifier = "profile.\(route.profile)"
+        content.userInfo = ["crew": ["profile": route.profile, "session_id": route.sessionID]]
+        try? await center.add(UNNotificationRequest(identifier: "deny-failed.\(requestID)", content: content, trigger: nil))
     }
 }

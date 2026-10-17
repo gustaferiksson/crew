@@ -38,7 +38,7 @@ struct GroupChatFixtureScreen: View {
             event(2, "message.member", "ada", RoomEvent.Payload(text: "The migration dry run passed on staging, so the database side is ready.", memberID: "ada", threadID: "main", taskID: "t-ada")),
             event(3, "turn.deferred", nil, RoomEvent.Payload(memberID: "scout", threadID: "main", taskID: "t-scout")),
         ]
-        let approval = ApprovalParams(command: "npm publish --tag latest", description: "Publishes crew-api 0.4.2 to the public registry.", choices: ["once", "deny"], toolName: "terminal")
+        let approval = ApprovalParams(command: "npm publish --tag latest", description: "Publishes crew-api 0.4.2 to the public registry.", choices: ["once", "deny"], toolName: "terminal", requestID: nil)
         let actions = [
             RoomAction(kind: "approval", memberID: "forge", taskID: "t-forge", executionGeneration: 1, requestID: "r1", approval: approval),
             RoomAction(kind: "retry", memberID: nil, taskID: "t-scout", executionGeneration: nil, requestID: nil, approval: nil),

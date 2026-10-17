@@ -9,11 +9,11 @@ final class PaymentUITests: XCTestCase {
     }
 
     @MainActor private func log(in app: XCUIApplication) -> String {
-        app.descendants(matching: .any)["payment-log"].value as? String ?? ""
+        app.descendants(matching: .any)["request-log"].value as? String ?? ""
     }
 
     @MainActor private func waitForLog(_ expected: String, in app: XCUIApplication) -> Bool {
-        let element = app.descendants(matching: .any)["payment-log"]
+        let element = app.descendants(matching: .any)["request-log"]
         let predicate = NSPredicate(format: "value == %@", expected)
         return XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: predicate, object: element)], timeout: 10) == .completed
     }

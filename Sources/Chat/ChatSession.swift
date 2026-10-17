@@ -410,7 +410,7 @@ final class ChatSession {
         transcript.begin(remote: snapshot?.inflight?.user ?? "", displayKind: snapshot?.inflight?.displayKind, at: startedAt)
     }
 
-    func apply(_ event: GatewayEvent) {
+    func apply(_ event: GatewayEvent, at date: Date = .now) {
         if let seq = event.seq {
             guard seq > appliedSeq else { return }
             appliedSeq = seq
@@ -421,12 +421,12 @@ final class ChatSession {
             todoRevision = payload.revision ?? todoRevision
         }
         let type = event.type
-        if type == "message.start" { return transcript.apply(.messageStart) }
-        if type == "thinking.delta" { return transcript.takeSteers() }
-        if type == "message.delta" { return transcript.apply(.messageDelta(payload.text ?? "")) }
-        if type == "reasoning.delta" { return transcript.apply(.reasoningDelta(payload.text ?? "")) }
-        if type == "reasoning.available" { return transcript.apply(.reasoningAvailable(payload.text ?? "")) }
-        if type == "message.interim" { return transcript.apply(.interim(payload.text ?? "")) }
+        if type == "message.start" { return transcript.apply(.messageStart, at: date) }
+        if type == "thinking.delta" { return transcript.takeSteers(at: date) }
+        if type == "message.delta" { return transcript.apply(.messageDelta(payload.text ?? ""), at: date) }
+        if type == "reasoning.delta" { return transcript.apply(.reasoningDelta(payload.text ?? ""), at: date) }
+        if type == "reasoning.available" { return transcript.apply(.reasoningAvailable(payload.text ?? ""), at: date) }
+        if type == "message.interim" { return transcript.apply(.interim(payload.text ?? ""), at: date) }
         if type == "status.update" {
             statusLine = payload.text
             return
@@ -437,7 +437,7 @@ final class ChatSession {
         }
         if type == "tool.start", let id = payload.toolID {
             generatingTool = nil
-            return transcript.apply(.toolStart(id: id, name: payload.name ?? "tool", context: payload.context, arguments: payload.arguments ?? ""))
+            return transcript.apply(.toolStart(id: id, name: payload.name ?? "tool", context: payload.context, arguments: payload.arguments ?? ""), at: date)
         }
         if type == "tool.complete", let id = payload.toolID {
             let isVault = transcript.turns.last?.work.contains { item in
@@ -445,15 +445,15 @@ final class ChatSession {
                 return call.name == "browser_vault"
             } ?? false
             if isVault { openRequests.removeAll { PendingRequest($0)?.isPayment == true } }
-            return transcript.apply(.toolComplete(id: id, duration: payload.duration, summary: payload.summary, result: payload.result ?? ""))
+            return transcript.apply(.toolComplete(id: id, duration: payload.duration, summary: payload.summary, result: payload.result ?? ""), at: date)
         }
         if type == "message.complete" {
             let hasThinking = transcript.turns.last?.work.contains { if case .thinking = $0.kind { true } else { false } } ?? false
             if let reasoning = payload.reasoning, !reasoning.isEmpty, !hasThinking {
-                transcript.apply(.reasoningAvailable(reasoning))
+                transcript.apply(.reasoningAvailable(reasoning), at: date)
             }
             let status = payload.status.flatMap(Turn.Status.init(rawValue:)) ?? .complete
-            transcript.apply(.messageComplete(text: payload.text ?? "", status: status, error: payload.error ?? payload.failureReason))
+            transcript.apply(.messageComplete(text: payload.text ?? "", status: status, error: payload.error ?? payload.failureReason), at: date)
             openRequests.removeAll { PendingRequest($0)?.isPayment == true }
             generatingTool = nil
             statusLine = nil
@@ -465,7 +465,7 @@ final class ChatSession {
         if type == "error" {
             failure = payload.message
             guard isRunning else { return }
-            return transcript.apply(.messageComplete(text: "", status: .error, error: payload.message))
+            return transcript.apply(.messageComplete(text: "", status: .error, error: payload.message), at: date)
         }
         if type == "request.cancel" {
             openRequests.removeAll { $0.id == payload.id }

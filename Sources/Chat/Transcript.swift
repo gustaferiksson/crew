@@ -32,6 +32,21 @@ nonisolated struct Turn: Identifiable, Codable, Sendable, Equatable {
     var pending: Pending?
     var isSteer = false
     var answer: String?
+
+    static let quietGap: TimeInterval = 2
+
+    var quietSince: Date? {
+        guard status == .streaming, reply.isEmpty else { return nil }
+        guard let last = work.last else { return answer == nil ? startedAt : nil }
+        if case .tool(let call) = last.kind, call.status == .running { return nil }
+        if case .note = last.kind { return last.startedAt }
+        return last.duration.map(last.startedAt.addingTimeInterval)
+    }
+
+    func isQuiet(at now: Date) -> Bool {
+        guard let quietSince else { return false }
+        return work.isEmpty || now >= quietSince.addingTimeInterval(Self.quietGap)
+    }
 }
 
 nonisolated struct Prompt: Codable, Sendable, Equatable {

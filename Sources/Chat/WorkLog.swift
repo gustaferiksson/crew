@@ -107,6 +107,18 @@ struct WorkLog: View {
                             runToggle("Show fewer tool calls", systemImage: "chevron.up", runID: runID)
                         }
                     }
+                    if isLive {
+                        TimelineView(.explicit(turn.quietSince.map { [$0.addingTimeInterval(Turn.quietGap)] } ?? [])) { context in
+                            let isQuiet = turn.isQuiet(at: context.date)
+                            VStack(spacing: 0) {
+                                if isQuiet {
+                                    WaitingDots()
+                                        .transition(.asymmetric(insertion: .opacity, removal: .identity))
+                                }
+                            }
+                            .animation(.easeOut(duration: 0.3), value: isQuiet)
+                        }
+                    }
                 }
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
@@ -177,6 +189,42 @@ struct WorkLog: View {
                 .contentShape(.rect)
         }
         .buttonStyle(.plain)
+    }
+}
+
+private struct WaitingDots: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        Group {
+            if reduceMotion {
+                dots(phase: nil)
+                    .phaseAnimator([1, 0.6]) { content, opacity in
+                        content.opacity(opacity)
+                    } animation: { _ in
+                        .easeInOut(duration: 1)
+                    }
+            } else {
+                TimelineView(.animation) { context in
+                    dots(phase: context.date.timeIntervalSinceReferenceDate / 1.2)
+                }
+            }
+        }
+        .frame(height: 20)
+        .padding(.vertical, 6)
+        .accessibilityElement()
+        .accessibilityLabel("Thinking")
+    }
+
+    private func dots(phase: Double?) -> some View {
+        HStack(spacing: 4) {
+            ForEach(0..<3, id: \.self) { index in
+                Circle()
+                    .frame(width: 8, height: 8)
+                    .opacity(phase.map { 0.65 + 0.35 * cos(2 * .pi * ($0 - Double(index) / 6)) } ?? 1)
+            }
+        }
+        .foregroundStyle(.secondary)
     }
 }
 

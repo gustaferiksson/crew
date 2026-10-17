@@ -20,6 +20,7 @@ let gateway = Gateway(server: server, urlSession: urlSession) {
 }
 
 var eventLog: FileHandle?
+var recordedAt = Date.now
 let encoder = JSONEncoder()
 encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
 Task {
@@ -27,6 +28,7 @@ Task {
         var object: [String: JSONValue] = ["type": .string(event.type), "payload": event.payload ?? .null]
         if let id = event.sessionID { object["session_id"] = .string(id.rawValue) }
         if let seq = event.seq { object["seq"] = .number(Double(seq)) }
+        object["at"] = .number((Date.now.timeIntervalSince(recordedAt) * 1000).rounded() / 1000)
         if let data = try? encoder.encode(JSONValue.object(object)) { eventLog?.write(data + Data("\n".utf8)) }
     }
 }
@@ -40,6 +42,7 @@ Task {
 func record(_ name: String) {
     let url = outDir.appending(path: "\(name).jsonl")
     FileManager.default.createFile(atPath: url.path, contents: nil)
+    recordedAt = .now
     eventLog = try? FileHandle(forWritingTo: url)
 }
 
@@ -214,6 +217,13 @@ if phases.contains("tool") {
     print("LIVE    ", live)
     print("HISTORY ", fromHistory)
     print("turn counts", chat.transcript.turns.count, reloaded.transcript.turns.count)
+}
+
+if phases.contains("think") {
+    record("think-turn")
+    chat.send("Think it through, then use your terminal tool to count the files in your current directory, and answer in one sentence.", mode: .send)
+    try await waitIdle(chat)
+    show("think live", chat)
 }
 
 if phases.contains("interrupt") {

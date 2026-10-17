@@ -1,16 +1,24 @@
 #!/usr/bin/env bash
 # Runs the CrewUITests XCUITests on a private iOS 27 simulator (never on the Mac). Usage: Tests/ui.sh [-only-testing:CrewUITests/...]
+# UI_DEVICE=<booted simulator> skips creating, building and booting, for CI where products arrive prebuilt in .build/Build/Products.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-device=$(xcrun simctl create "crew-ui-$$" "${IOS_SIMULATOR:-iPhone 18 Pro}" com.apple.CoreSimulator.SimRuntime.iOS-27-0)
-trap 'xcrun simctl shutdown "$device" >/dev/null 2>&1 || true; xcrun simctl delete "$device"' EXIT
-xcrun simctl bootstatus "$device" -b
+device=${UI_DEVICE:-}
+if [[ -z "$device" ]]; then
+  device=$(xcrun simctl create "crew-ui-$$" "${IOS_SIMULATOR:-iPhone 18 Pro}" com.apple.CoreSimulator.SimRuntime.iOS-27-0)
+  trap 'xcrun simctl shutdown "$device" >/dev/null 2>&1 || true; xcrun simctl delete "$device"' EXIT
 
-xcodegen generate --quiet
-xcodebuild build-for-testing -project Crew.xcodeproj -scheme CrewUITests -derivedDataPath .build -skipPackagePluginValidation -skipMacroValidation \
-  -destination "id=$device" CODE_SIGNING_ALLOWED=NO
+  echo "▸ Building for testing…"
+  xcodegen generate --quiet
+  xcodebuild build-for-testing -quiet -project Crew.xcodeproj -scheme CrewUITests -derivedDataPath .build -skipPackagePluginValidation -skipMacroValidation \
+    -destination "platform=iOS Simulator,id=$device" CODE_SIGNING_ALLOWED=NO
 
+  echo "▸ Booting the simulator…"
+  xcrun simctl bootstatus "$device" -b >/dev/null
+fi
+
+echo "▸ Warming up…"
 ready="$HOME/Library/Developer/CoreSimulator/Devices/$device/data/tmp/crew-ready.log"
 xcrun simctl install "$device" .build/Build/Products/Debug-iphonesimulator/Crew.app
 SECONDS=0
@@ -25,5 +33,5 @@ done
 echo "▸ First launch rendered in ${SECONDS}s"
 xcrun simctl terminate "$device" dev.gustaf.crew
 
-xcodebuild test-without-building -project Crew.xcodeproj -scheme CrewUITests -derivedDataPath .build \
+xcodebuild test-without-building -xctestrun .build/Build/Products/CrewUITests_*.xctestrun \
   -destination "id=$device" -collect-test-diagnostics never -test-timeouts-enabled YES -default-test-execution-time-allowance 300 "$@"

@@ -7,7 +7,7 @@
 | UI interactions (iOS Simulator only) | `Tests/CrewUITests` | `Tests/ui.sh` (`IOS_SIMULATOR=<name>` picks another iOS 27 device) |
 | Real-server probes | `Tests/chat_probe`, `Tests/bot_probe` | `Tests/chat_probe/run.sh <phase>` |
 
-CI runs all but the probes.
+CI runs all but the probes. The UI tests run in two parallel shards on simulators that boot while the app job builds, then reuse its build (`UI_DEVICE` in `Tests/ui.sh`). A change that touches only `docs/`, `server/crew-push/` or Markdown outside `Sources/` and `Tests/fixtures/` skips the app and UI jobs.
 
 ## Scenarios
 

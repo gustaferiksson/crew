@@ -45,5 +45,9 @@ final class InAppBrowserUITests: XCTestCase {
 
         XCTAssertTrue(openInSafari.waitForNonExistence(timeout: 5))
         XCTAssertTrue(sheet.buttons["Done"].isHittable)
+
+        sheet.buttons["Done"].tap()
+        XCTAssertTrue(sheet.waitForNonExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Scout"].waitForExistence(timeout: 5))
     }
 }

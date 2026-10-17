@@ -17,7 +17,7 @@ final class ChatSendScrollUITests: XCTestCase {
     }
 
     @MainActor private func assertAboveComposer(_ texts: [String], in app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line) {
-        let elements = texts.map { app.staticTexts.matching(NSPredicate(format: "label == %@", $0)).allElementsBoundByIndex.last ?? app.staticTexts[$0] }
+        let elements = texts.map { app.staticTexts.matching(NSPredicate(format: "label == %@", $0)).firstMatch }
         elements.forEach { XCTAssertTrue($0.waitForExistence(timeout: 5), file: file, line: line) }
         sleep(1)
         let shot = XCTAttachment(screenshot: app.screenshot())
@@ -96,7 +96,9 @@ final class ChatSendScrollUITests: XCTestCase {
         start.press(forDuration: 0.3, thenDragTo: start.withOffset(CGVector(dx: 0, dy: 4)), withVelocity: 40, thenHoldForDuration: 0.3)
         app.textFields.firstMatch.tap()
         app.buttons["Steer"].tap()
-        assertAboveComposer(["Use the staging context, not prod, and keep the old pods until the health checks pass", "Waiting"], in: app)
+        XCTAssertTrue(app.staticTexts["Waiting"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Waiting"].waitForNonExistence(timeout: 10))
+        assertAboveComposer(["Use the staging context, not prod, and keep the old pods until the health checks pass", "Good call, switching to the staging context."], in: app)
     }
 
     @MainActor func testAQueuedMessageSitsRightAboveTheComposer() {
@@ -107,6 +109,8 @@ final class ChatSendScrollUITests: XCTestCase {
         app.textFields.firstMatch.tap()
         app.buttons["Steer"].press(forDuration: 1)
         app.buttons["Queue"].tap()
-        assertAboveComposer(["Then post the rollout in #deploys", "Queued"], in: app)
+        XCTAssertTrue(app.staticTexts["Queued"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Queued"].waitForNonExistence(timeout: 10))
+        assertAboveComposer(["Then post the rollout in #deploys"], in: app)
     }
 }

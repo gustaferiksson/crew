@@ -34,11 +34,17 @@ def turn(session_id: str, platform: str = "tui") -> None:
                           interrupted=False, platform=platform)
 
 
+class CheckoutTab:
+    def focus_page(self, origin: str, *, accept: str | None = None, timeout: float = 10.0) -> dict[str, object]:
+        return {"ok": True, "url": f"{origin}/checkout"} if origin == "https://www.zalando.se" else {"ok": False}
+
+
 def pay(home: Path, handle: str, sent: list[dict[str, object]]) -> dict[str, object]:
     from hermes_cli.plugins import _dispatch_pre_tool_call_hooks
     from tools.approval import list_gateway_approvals, resolve_gateway_approval
     from tools.approval_context import set_current_observability_context, set_current_session_key
     from tools.approval_gateway_wait import _await_gateway_decision
+    from tools.browser_supervisor import SUPERVISOR_REGISTRY
 
     from crew_push import store
 
@@ -54,6 +60,9 @@ def pay(home: Path, handle: str, sent: list[dict[str, object]]) -> dict[str, obj
         outcome["gate_off"] = _dispatch_pre_tool_call_hooks("browser_vault", args, **ids)[0]
         store.write_gate(True)
         outcome["blocked"] = _dispatch_pre_tool_call_hooks("browser_vault", {**args, "amount": ""}, **ids)[0]
+        outcome["no_page"] = _dispatch_pre_tool_call_hooks("browser_vault", args, **ids)[0]
+        with SUPERVISOR_REGISTRY._lock:
+            SUPERVISOR_REGISTRY._by_task["default"] = CheckoutTab()
         outcome["allowed"] = _dispatch_pre_tool_call_hooks("browser_vault", args, **ids)[0]
         label = next(i.label for i in VaultStore(home / "vault").list_items() if i.id == handle)
         command = f"Fill payment card '{label}' on https://www.zalando.se"
@@ -78,7 +87,8 @@ def pay(home: Path, handle: str, sent: list[dict[str, object]]) -> dict[str, obj
     apns._queue.join()
     [entry] = store.read_list("payments.json")
     return {"gate_off": json.loads(outcome["gate_off"])["error_type"],
-            "blocked": json.loads(outcome["blocked"])["error_type"], "allowed": outcome["allowed"],
+            "blocked": json.loads(outcome["blocked"])["error_type"],
+            "no_page": json.loads(outcome["no_page"])["error_type"], "allowed": outcome["allowed"],
             "request_id_matches": entry["request_id"] == pending["request_id"], "state": entry["state"],
             "fill": entry["fill"], "crew_payment": outcome["result"]["crew_payment"]["state"],
             "kinds": [p["crew"]["kind"] for p in sent]}

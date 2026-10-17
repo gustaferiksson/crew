@@ -110,7 +110,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
 
     private var composerPhase: Composer.Phase {
         if let offlineReason { return .offline(reason: offlineReason) }
-        return transcript.turns.last?.status == .streaming ? .running : .idle
+        return transcript.turns.last { $0.pending == nil }?.status == .streaming ? .running : .idle
     }
 
     var body: some View {

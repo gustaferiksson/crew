@@ -117,3 +117,24 @@ private func shape(_ transcript: Transcript) -> [String] {
     #expect(transcript.dropWaiting() == ["a steer", "first queued", "second queued"])
     #expect(transcript.waiting.isEmpty)
 }
+
+@MainActor @Test func aRecordedSteerAnswerReadsTheSameLiveAndAfterAReload() throws {
+    let lines = try String(contentsOf: fixtures.appending(path: "chat.steer-answer-turn.jsonl"), encoding: .utf8).split(separator: "\n")
+    let events = try lines.map { try JSONDecoder().decode(GatewayEvent.self, from: Data($0.utf8)) }
+    let decoder = JSONDecoder()
+    decoder.keyDecodingStrategy = .convertFromSnakeCase
+    let history = Transcript(history: try decoder.decode([HistoryRow].self, from: Data(contentsOf: fixtures.appending(path: "chat.steer-answer.history.json"))))
+
+    var start = Transcript()
+    start.begin(prompt: "Use the terminal to run: sleep 8 && echo step-one. Then run: echo step-two. Then reply with both outputs.", id: "8")
+    start.wait(Prompt(text: "Before your next tool call, reply to this note in one short sentence, then carry on.", sentAt: .now), as: .steer)
+    let session = ChatSession(fixture: crewTest, transcript: start, todos: [])
+    for event in events { session.apply(event) }
+
+    #expect(shape(session.transcript) == shape(history))
+    #expect(shape(history) == [
+        "prompt Use the terminal to run: sleep 8 && echo step-one. Then run: echo step-two. Then reply with both outputs. | tool terminal | answer - | reply ",
+        "steer Before your next tool call, reply to this note in one short sentence, then carry on. | tool terminal | answer I’ve received your note and will continue with the second command. | reply ```text\nstep-one\nstep-two\n```",
+    ])
+    #expect(!session.transcript.turns[1].work.contains { if case .thinking = $0.kind { true } else { false } })
+}

@@ -63,7 +63,7 @@ func summary(_ transcript: Transcript) -> [String] {
             return "?"
         }
         let worked = (turn.finishedAt ?? turn.startedAt).timeIntervalSince(turn.startedAt)
-        return "[\(turn.status.rawValue)] \(turn.prompt?.text.prefix(40) ?? "<no prompt>") | \(work.joined(separator: ", ")) | worked \(Int(worked))s | \(turn.reply.prefix(70).replacingOccurrences(of: "\n", with: " "))\(turn.failure.map { " !\($0)" } ?? "")"
+        return "[\(turn.status.rawValue)]\(turn.isSteer ? " steer" : "") \(turn.prompt?.text.prefix(40) ?? "<no prompt>") | \(work.joined(separator: ", "))\(turn.answer.map { " | answer \($0.prefix(50))" } ?? "") | worked \(Int(worked))s | \(turn.reply.prefix(70).replacingOccurrences(of: "\n", with: " "))\(turn.failure.map { " !\($0)" } ?? "")"
     }
 }
 
@@ -79,7 +79,7 @@ func attached(_ bot: Bot) async throws -> ChatSession {
     return chat
 }
 
-func waitIdle(_ chat: ChatSession, timeout: Int = 300, until: (ChatSession) -> Bool = { !$0.isRunning && $0.queue.isEmpty }) async throws {
+func waitIdle(_ chat: ChatSession, timeout: Int = 300, until: (ChatSession) -> Bool = { !$0.isRunning && $0.transcript.waiting.isEmpty }) async throws {
     for _ in 0..<(timeout * 4) {
         try await Task.sleep(for: .milliseconds(250))
         if until(chat) { return }
@@ -223,7 +223,7 @@ if phases.contains("interrupt") {
         chat.transcript.turns.last?.work.contains { if case .tool(let call) = $0.kind { call.status == .running } else { false } } ?? false
     }
     chat.send("this should be queued then dropped by stop", mode: .queue)
-    print("queue before stop", chat.queue.count)
+    print("queue before stop", chat.transcript.waiting.count)
     chat.stop()
     try await waitIdle(chat, timeout: 60)
     show("interrupt", chat)
@@ -234,7 +234,7 @@ if phases.contains("queue") {
     chat.send("Use the terminal to run: sleep 5 && echo first. Reply with just the output.", mode: .send)
     try await Task.sleep(for: .seconds(2))
     chat.send("Reply with exactly: queued-ok", mode: .queue)
-    print("queued", chat.queue)
+    print("queued", chat.transcript.waiting.compactMap(\.prompt?.text))
     try await waitIdle(chat)
     show("queue", chat)
 }
@@ -248,6 +248,41 @@ if phases.contains("steer") {
     chat.send("Also include the word STEERED in your final reply.", mode: .steer)
     try await waitIdle(chat)
     show("steer", chat)
+}
+
+if phases.contains("steer-rows"), let session = try await crewTest().canonicalSession {
+    let (data, _) = try await urlSession.data(for: historyRequest(of: session.resolvedID, profile: "crew-test", on: server, limit: 7))
+    let keys: Set = ["id", "role", "content", "tool_call_id", "tool_calls", "timestamp", "reasoning", "reasoning_content", "display_kind", "display_content", "display_commentary", "display_reasoning"]
+    if case .object(let page) = try JSONDecoder().decode(JSONValue.self, from: data), case .array(let messages) = page["messages"] {
+        let kept = messages.map { row in if case .object(let object) = row { JSONValue.object(object.filter { keys.contains($0.key) }) } else { row } }
+        let pretty = JSONEncoder()
+        pretty.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+        try pretty.encode(JSONValue.array(kept)).write(to: outDir.appending(path: "steer-rows.json"))
+        print("ROWS", outDir.appending(path: "steer-rows.json").path)
+    }
+}
+
+if phases.contains("steer-answer") {
+    record("steer-answer-turn")
+    chat.send("Use the terminal to run: sleep 8 && echo step-one. Then run: echo step-two. Then reply with both outputs.", mode: .send)
+    try await waitIdle(chat, timeout: 60) { chat in
+        chat.transcript.turns.last?.work.contains { if case .tool = $0.kind { true } else { false } } ?? false
+    }
+    chat.send("Before your next tool call, reply to this note in one short sentence, then carry on.", mode: .steer)
+    try await waitIdle(chat)
+    show("steer-answer live", chat)
+    let reloaded = try await attached(try await crewTest())
+    show("steer-answer history", reloaded)
+    guard let session = try await crewTest().canonicalSession else { exit(1) }
+    let (data, _) = try await urlSession.data(for: historyRequest(of: session.resolvedID, profile: "crew-test", on: server, limit: 12))
+    guard case .object(let page) = try JSONDecoder().decode(JSONValue.self, from: data), case .array(let messages) = page["messages"] else { exit(1) }
+    let keys: Set = ["id", "role", "content", "tool_call_id", "tool_calls", "timestamp", "reasoning", "reasoning_content", "display_kind", "display_content", "finish_reason"]
+    for row in messages { if case .object(let object) = row { print("ROW KEYS", object.filter { if case .null = $0.value { false } else { true } }.keys.sorted()) } }
+    let kept = messages.map { row in if case .object(let object) = row { JSONValue.object(object.filter { keys.contains($0.key) }) } else { row } }
+    let pretty = JSONEncoder()
+    pretty.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+    try pretty.encode(JSONValue.array(kept)).write(to: outDir.appending(path: "steer-answer.history.json"))
+    print("history rows written to", outDir.appending(path: "steer-answer.history.json").path)
 }
 
 if phases.contains("clarify") {

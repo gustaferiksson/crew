@@ -121,6 +121,8 @@ nonisolated struct HistoryRow: Decodable, Sendable {
     let reasoningContent: String?
     let displayKind: String?
     let displayContent: String?
+    let displayCommentary: [String]?
+    let displayReasoning: String?
 }
 
 nonisolated func toolSubject(arguments: String) -> String {
@@ -355,6 +357,8 @@ extension Transcript {
             return
         }
         if case .reasoningAvailable(let text) = event {
+            let narration = turns[index].work.compactMap { if case .note(let note) = $0.kind { note } else { nil } } + [turns[index].answer].compactMap(\.self)
+            guard !narration.contains(text), narration.joined(separator: "\n") != text, narration.joined(separator: "\n\n") != text else { return }
             appendWork(.thinking(text), id: UUID().uuidString, at: date)
             return
         }
@@ -396,8 +400,12 @@ extension Transcript {
             turns.append(Turn(id: String(row.id), status: .complete, startedAt: date))
         }
         let index = turns.count - 1
-        if let reasoning = row.reasoning ?? row.reasoningContent, !reasoning.isEmpty {
+        let reasoning = row.displayCommentary == nil ? row.reasoning ?? row.reasoningContent : row.displayReasoning
+        if let reasoning, !reasoning.isEmpty {
             appendWork(.thinking(reasoning), id: "\(row.id)-thinking", at: date)
+        }
+        for (offset, text) in (row.displayCommentary ?? []).enumerated() where !text.isEmpty {
+            narrate(text, id: "\(row.id)-commentary-\(offset)", at: date)
         }
         let content = row.content ?? ""
         if let calls = row.toolCalls, !calls.isEmpty {

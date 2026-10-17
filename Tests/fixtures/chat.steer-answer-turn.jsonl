@@ -1,0 +1,17 @@
+{"payload": {}, "seq": 2, "session_id": "rt-steer", "type": "message.start"}
+{"payload": {"args": {"command": "sleep 8 && echo step-one"}, "context": "sleep 8 + 1 command", "name": "terminal", "tool_id": "call_a222a2a0da7848f4829c963aa0459748"}, "seq": 5, "session_id": "rt-steer", "type": "tool.start"}
+{"payload": {"args": {"command": "sleep 8 && echo step-one"}, "duration_s": 8.214183807373047, "name": "terminal", "result": {"error": null, "exit_code": 0, "output": "step-one"}, "tool_id": "call_a222a2a0da7848f4829c963aa0459748"}, "seq": 7, "session_id": "rt-steer", "type": "tool.complete"}
+{"payload": {"already_streamed": false, "text": "I’ve received your note and will continue with the second command."}, "seq": 9, "session_id": "rt-steer", "type": "message.interim"}
+{"payload": {"args": {"command": "echo step-two"}, "context": "echo step-two", "name": "terminal", "tool_id": "call_540740510ba8449eac530620a18a24a4"}, "seq": 11, "session_id": "rt-steer", "type": "tool.start"}
+{"payload": {"args": {"command": "echo step-two"}, "duration_s": 0.048871517181396484, "name": "terminal", "result": {"error": null, "exit_code": 0, "output": "step-two"}, "tool_id": "call_540740510ba8449eac530620a18a24a4"}, "seq": 12, "session_id": "rt-steer", "type": "tool.complete"}
+{"payload": {"text": "\n\n```"}, "seq": 16, "session_id": "rt-steer", "type": "message.delta"}
+{"payload": {"text": "text"}, "seq": 17, "session_id": "rt-steer", "type": "message.delta"}
+{"payload": {"text": "\n"}, "seq": 18, "session_id": "rt-steer", "type": "message.delta"}
+{"payload": {"text": "step"}, "seq": 19, "session_id": "rt-steer", "type": "message.delta"}
+{"payload": {"text": "-one"}, "seq": 20, "session_id": "rt-steer", "type": "message.delta"}
+{"payload": {"text": "\n"}, "seq": 21, "session_id": "rt-steer", "type": "message.delta"}
+{"payload": {"text": "step"}, "seq": 22, "session_id": "rt-steer", "type": "message.delta"}
+{"payload": {"text": "-two"}, "seq": 23, "session_id": "rt-steer", "type": "message.delta"}
+{"payload": {"text": "\n"}, "seq": 24, "session_id": "rt-steer", "type": "message.delta"}
+{"payload": {"text": "```"}, "seq": 25, "session_id": "rt-steer", "type": "message.delta"}
+{"payload": {"reasoning": "I’ve received your note and will continue with the second command.", "status": "complete", "text": "```text\nstep-one\nstep-two\n```"}, "seq": 27, "session_id": "rt-steer", "type": "message.complete"}

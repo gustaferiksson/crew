@@ -99,7 +99,7 @@ nonisolated struct Bot: Identifiable, Hashable, Sendable {
     }
 
     func needsMarker(at target: ReadPosition) -> Bool {
-        guard let position = canonicalSession?.position, target <= position, target != readPosition else { return false }
+        guard target != readPosition, canonicalSession?.position.map({ target <= $0 }) ?? true else { return false }
         return lastRead.map { target >= $0 } ?? true
     }
 
@@ -546,12 +546,14 @@ final class BotStore {
             saveCache()
         }
         seenActivity = seenActivity.filter { seen in bots.contains { $0.id == seen.key && $0.needsMarker(at: seen.value) } }
+        clearingUnread = clearingUnread.filter { seenActivity[$0] != nil }
         for bot in bots where bot.lastRead != bot.readPosition && seenActivity[bot.id] == nil {
             seenActivity[bot.id] = bot.lastRead
         }
-        firstSeenActivity = Dictionary(uniqueKeysWithValues: bots.compactMap { bot in
-            bot.readPosition == nil ? firstSeenActivity[bot.id].map { (bot.id, $0.rebased(on: bot.canonicalSession?.position)) } : nil
-        })
+        firstSeenActivity = firstSeenActivity.filter { seen in bots.contains { $0.id == seen.key && $0.readPosition == nil } }
+        for bot in bots {
+            firstSeenActivity[bot.id] = firstSeenActivity[bot.id]?.rebased(on: bot.canonicalSession?.position)
+        }
         for bot in bots where bot.readPosition == nil && seenActivity[bot.id] == nil && firstSeenActivity[bot.id] == nil {
             firstSeenActivity[bot.id] = bot.canonicalSession?.position
         }

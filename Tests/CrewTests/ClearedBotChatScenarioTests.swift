@@ -60,6 +60,10 @@ private func readBeforeTheClear(marker: Int?? = nil) throws -> BotStore {
     #expect(!bot.needsMarker(at: ReadPosition(session: chat, messages: 17)))
     #expect(!bot.needsMarker(at: ReadPosition(session: chat, messages: 18)))
 
+    let viewed = try #require(try roster("cleared-bot-chat", messages: 4, marker: 2).first { $0.name == "vera" })
+    #expect(!viewed.needsMarker(at: ReadPosition(session: chat, messages: 0)))
+    #expect(viewed.needsMarker(at: ReadPosition(session: chat, messages: 4)))
+
     let store = try readBeforeTheClear()
     store.apply(roster: try roster("cleared-bot-chat", messages: 17, marker: 0))
     store.apply(live: [])

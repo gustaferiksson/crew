@@ -22,8 +22,10 @@ NEXT = "Click the shop's pay button. Never tick save card or remember card."
 NO_FIELDS = ("The card fields weren't found; this checkout probably puts them in a payment frame, which can't be "
              "filled. Tell the user.")
 DECLINED = {
-    "denied": "The user denied this payment. Do not retry; ask what they want instead.",
-    "expired": "Nobody answered within 5 minutes. Tell the user it expired and wait until they ask again.",
+    "denied": ("The user denied this payment. Do not retry in this turn; ask what they want instead. If they ask "
+               "you to try again in a new message, you may."),
+    "expired": ("Nobody answered within 5 minutes. Tell the user it expired. Do not retry in this turn; if they ask "
+                "again in a new message, you may."),
     "cancelled": "The request was cancelled. Stop.",
 }
 BLOCKS = {
@@ -31,7 +33,8 @@ BLOCKS = {
                       "crew-push started. Tell the user and do not retry."),
     "crew_not_bot_chat": "Payments only work in your Bot Chat in Crew. Tell the user you can only pay from your chat in Crew.",
     "crew_one_at_a_time": "A payment request is already waiting for the user. Wait for their answer; do not ask again.",
-    "crew_after_decline": "The user declined the last payment. Do not try to pay again until they write to you.",
+    "crew_after_decline": ("The user declined a payment in this turn, so fills are blocked until the user sends a new "
+                           "message. Do not retry now. If they ask you to try again in a new message, you may."),
     "crew_missing_details": ("A payment fill needs amount (the total shown at checkout, with a digit, up to 32 "
                              "characters), merchant (up to 64) and reason (up to 140). Retry the same fill with them, "
                              "for example amount \"499 kr\", merchant \"Zalando\", reason \"Winter boots, size 43\"."),

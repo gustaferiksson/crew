@@ -36,7 +36,7 @@ final class ChatSession {
     private(set) var payments: [ServerRequest.ID: PaymentCardState] = [:]
     private(set) var endedPayment: String?
     private(set) var todos: [TodoItem] = []
-    private(set) var queue: [Prompt] = []
+    var returned: [String] = []
     private(set) var generatingTool: String?
     private(set) var statusLine: String?
     private(set) var failure: String?
@@ -109,6 +109,7 @@ final class ChatSession {
                 var reloaded = Transcript(history: rows)
                 reloaded.adoptIDs(from: shown)
                 reloaded.keepFailures(from: shown)
+                reloaded.waiting = shown.waiting
                 transcript = reloaded
             }
             isSyncing = false
@@ -119,15 +120,21 @@ final class ChatSession {
         let prompt = Prompt(text: text.trimmingCharacters(in: .whitespacesAndNewlines), sentAt: .now, attachments: attachments, mentionNote: mentionNote(for: bots))
         guard !prompt.text.isEmpty || !attachments.isEmpty, let runtime else { return }
         guard isRunning else { return submit(prompt) }
-        if mode == .queue || !attachments.isEmpty || transcript.turns.last.map({ $0.agentMessage != nil || $0.delivery != nil }) == true { return queue.append(prompt) }
+        if mode == .queue || !attachments.isEmpty || transcript.turns.last.map({ $0.agentMessage != nil || $0.delivery != nil }) == true { return transcript.wait(prompt, as: .queued) }
+        let id = UUID().uuidString
+        transcript.wait(prompt, as: .steer, id: id)
         Task {
             do {
                 _ = try await gateway.call("session.steer", ["session_id": runtime.rawValue, "text": prompt.text], as: JSONValue.self)
-                transcript.apply(.steered(prompt.text))
             } catch {
+                returned += transcript.dropWaiting { $0.id == id }
                 failure = error.localizedDescription
             }
         }
+    }
+
+    func unqueue(_ id: Turn.ID) {
+        returned += transcript.dropWaiting { $0.id == id }
     }
 
     func sendHidden(_ text: String) {
@@ -144,7 +151,7 @@ final class ChatSession {
 
     func stop() {
         guard let runtime else { return }
-        queue.removeAll()
+        returned += transcript.dropWaiting()
         Task {
             do {
                 _ = try await gateway.call("session.interrupt", ["session_id": runtime.rawValue], as: JSONValue.self)
@@ -343,6 +350,9 @@ final class ChatSession {
             transcript.begin(remote: user, displayKind: snapshot.inflight?.displayKind, at: startedAt)
         }
         let previous = self.transcript
+        transcript.waiting = previous.waiting.filter { waiting in
+            waiting.pending == .queued || snapshot.running == true && !transcript.turns.contains { $0.isSteer && $0.prompt?.text == waiting.prompt?.text }
+        }
         self.stored = stored
         self.transcript = transcript
         runtime = snapshot.sessionID
@@ -362,6 +372,7 @@ final class ChatSession {
             }
         }
         self.transcript.adoptIDs(from: previous)
+        if !isRunning, let next = self.transcript.dequeue() { submit(next) }
         appliedSeq = max(appliedSeq, replay.latestSeq)
         let incoming = (snapshot.openRequests ?? []) + replay.openRequests
         openRequests.removeAll { request in request.sessionID != snapshot.sessionID || !incoming.contains { $0.id == request.id } }
@@ -444,8 +455,8 @@ final class ChatSession {
             generatingTool = nil
             statusLine = nil
             sync(to: serverPosition)
-            guard !queue.isEmpty else { return }
-            return submit(queue.removeFirst())
+            guard let next = transcript.dequeue() else { return }
+            return submit(next)
         }
         if type == "error" {
             failure = payload.message

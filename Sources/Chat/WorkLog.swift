@@ -66,6 +66,7 @@ struct WorkLog: View {
     @Binding var expandedTurns: Set<Turn.ID>
     @Binding var expandedWork: Set<WorkItem.ID>
     @Binding var expandedRuns: Set<String>
+    var stop: (() -> Void)?
 
     @Environment(BotStore.self) private var bots
 
@@ -74,7 +75,22 @@ struct WorkLog: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            header
+            HStack(spacing: 8) {
+                header
+                #if os(iOS)
+                if let stop {
+                    Spacer(minLength: 0)
+                    Button("Stop", systemImage: "stop.circle.fill", action: stop)
+                        .labelStyle(.iconOnly)
+                        .font(.title3)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 44, height: 44)
+                        .contentShape(.rect)
+                        .padding(.vertical, -8)
+                        .buttonStyle(.plain)
+                }
+                #endif
+            }
             if isExpanded {
                 VStack(alignment: .leading, spacing: 0) {
                     ForEach(logEntries(for: turn.work, expandedRuns: expandedRuns)) { entry in

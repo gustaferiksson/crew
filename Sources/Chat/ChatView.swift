@@ -10,6 +10,7 @@ struct ChatActions {
     var changeModel: (ModelChoice) -> Void = { _ in }
     var respond: (ApprovalRequest.ID, ApprovalChoice) -> Void = { _, _ in }
     var retry: (String) -> Void = { _ in }
+    var unqueue: (Turn.ID) -> Void = { _ in }
     var answer: (QuestionRequest.ID, [String: String]) -> Void = { _, _ in }
     var retryPayment: (ApprovalRequest.ID) -> Void = { _ in }
     var expirePayment: (ApprovalRequest.ID) -> Void = { _ in }
@@ -63,8 +64,8 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
     var focus: SearchFocus?
     var actions = ChatActions()
 
-    @State private var draft: String
-    @State private var tray: AttachmentTray
+    @Binding var draft: String
+    let tray: AttachmentTray
     @State private var position = ScrollPosition(idType: Turn.ID.self)
     @State private var isAtBottom = true
     @State private var expandedTurns: Set<Turn.ID>
@@ -79,7 +80,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
     @FocusState private var isComposerFocused: Bool
     private let presentation: ChatPresentation
 
-    init(botName: String, avatar: Avatar, transcript: Transcript, emptyState: EmptyState, mentionable: [Bot], features: ComposerFeatures = .all, request: PendingRequest? = nil, payment: PaymentCardState? = nil, paymentNotice: String? = nil, shopOffer: String? = nil, offlineReason: String? = nil, activity: String? = nil, models: ModelSwitcher? = nil, focus: SearchFocus? = nil, presentation: ChatPresentation = ChatPresentation(), actions: ChatActions = ChatActions()) {
+    init(botName: String, avatar: Avatar, transcript: Transcript, emptyState: EmptyState, mentionable: [Bot], draft: Binding<String>, tray: AttachmentTray, features: ComposerFeatures = .all, request: PendingRequest? = nil, payment: PaymentCardState? = nil, paymentNotice: String? = nil, shopOffer: String? = nil, offlineReason: String? = nil, activity: String? = nil, models: ModelSwitcher? = nil, focus: SearchFocus? = nil, presentation: ChatPresentation = ChatPresentation(), actions: ChatActions = ChatActions()) {
         self.botName = botName
         self.avatar = avatar
         self.transcript = transcript
@@ -98,8 +99,8 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
         self.presentation = presentation
         _expandedTurns = State(initialValue: presentation.expandedTurns)
         _expandedWork = State(initialValue: presentation.expandedWork)
-        _tray = State(initialValue: AttachmentTray(items: presentation.attachments))
-        _draft = State(initialValue: presentation.draft)
+        _draft = draft
+        self.tray = tray
     }
 
     private var reveal: CGFloat {
@@ -131,14 +132,16 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
                                 TurnView(
                                     turn: turn,
                                     surfaces: surfaces,
-                                    activity: index == transcript.turns.count - 1 ? activity : nil,
+                                    activity: turn.status == .streaming ? activity : nil,
                                     reveal: reveal,
                                     timestampWidth: timestampWidth,
                                     mentionable: mentionable,
                                     expandedTurns: $expandedTurns,
                                     expandedWork: $expandedWork,
                                     expandedRuns: $expandedRuns,
-                                    retry: actions.retry
+                                    stop: offlineReason == nil ? actions.stop : nil,
+                                    retry: actions.retry,
+                                    unqueue: { actions.unqueue(turn.id) }
                                 )
                                 .background {
                                     if highlighted == turn.id {
@@ -316,8 +319,11 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
                 withAnimation(.easeOut(duration: 0.6)) { highlighted = nil }
             }
             .task(id: surfaces.blocks.count) {
-                guard let target = presentation.scrollTarget else { return isAtBottom ? proxy.scrollTo(bottomID, anchor: .bottom) : () }
+                guard let target = presentation.scrollTarget else { return }
                 position.scrollTo(id: target, anchor: .top)
+            }
+            .onChange(of: surfaces.blocks.count) {
+                if isAtBottom, presentation.scrollTarget == nil { proxy.scrollTo(bottomID, anchor: .bottom) }
             }
         }
     }
@@ -333,7 +339,9 @@ struct TurnView: View {
     @Binding var expandedTurns: Set<Turn.ID>
     @Binding var expandedWork: Set<WorkItem.ID>
     @Binding var expandedRuns: Set<String>
+    var stop: (() -> Void)?
     var retry: (String) -> Void = { _ in }
+    var unqueue: () -> Void = {}
 
     @Environment(BotStore.self) private var bots
 
@@ -364,13 +372,31 @@ struct TurnView: View {
                             .offset(x: reveal)
                     }
                     if !prompt.text.isEmpty {
-                        UserBubble(text: prompt.text, mentionable: mentionable, turnID: turn.id)
+                        UserBubble(text: prompt.text, mentionable: mentionable, turnID: turn.id, pending: turn.pending, unqueue: unqueue)
                             .offset(x: reveal)
                             .modifier(Timestamp(date: prompt.sentAt, reveal: reveal, width: timestampWidth))
                     }
+                    if let pending = turn.pending {
+                        Text(pending == .queued ? "Queued" : "Waiting")
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .trailing)
+                            .padding(.top, -12)
+                    }
+                }
+                if let answer = turn.answer {
+                    MarkdownText(source: a2uiFenced(answer))
+                        .environment(\.surfaces, surfaces)
+                        #if os(macOS)
+                        .textSelection(.enabled)
+                        #endif
+                        .padding(12)
+                        .modifier(MessageMenu(text: answer, shape: .rect(cornerRadius: 18)))
+                        .padding(-12)
+                        .modifier(Timestamp(date: turn.startedAt, reveal: reveal, width: timestampWidth))
                 }
                 if !turn.work.isEmpty || turn.status == .streaming {
-                    WorkLog(turn: turn, activity: activity, expandedTurns: $expandedTurns, expandedWork: $expandedWork, expandedRuns: $expandedRuns)
+                    WorkLog(turn: turn, activity: activity, expandedTurns: $expandedTurns, expandedWork: $expandedWork, expandedRuns: $expandedRuns, stop: turn.status == .streaming && turn.agentMessage == nil ? stop : nil)
                         .modifier(Timestamp(date: turn.startedAt, reveal: reveal, width: timestampWidth))
                 }
                 ForEach(Array(turn.paymentReceipts.enumerated()), id: \.offset) { _, receipt in

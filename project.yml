@@ -95,6 +95,7 @@ targets:
       - Sources/Chat/AttachmentViews.swift
       - Sources/Chat/ChatSession.swift
       - Sources/Chat/ChatSessions.swift
+      - Sources/Chat/ChatDrafts.swift
       - Sources/Chat/Composer.swift
       - Sources/Chat/Dictation.swift
       - Sources/Chat/RequestCards.swift

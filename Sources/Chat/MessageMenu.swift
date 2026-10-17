@@ -3,6 +3,7 @@ import SwiftUI
 struct MessageMenu<PreviewShape: Shape>: ViewModifier {
     let text: String
     let shape: PreviewShape
+    var remove: (() -> Void)?
 
     @State private var isSelecting = false
 
@@ -24,6 +25,9 @@ struct MessageMenu<PreviewShape: Shape>: ViewModifier {
                 Button("Select", systemImage: "selection.pin.in.out") { isSelecting = true }
                 #endif
                 ShareLink(item: text)
+                if let remove {
+                    Button("Remove from Queue", systemImage: "trash", role: .destructive, action: remove)
+                }
             }
             #if os(iOS)
             .sheet(isPresented: $isSelecting) {

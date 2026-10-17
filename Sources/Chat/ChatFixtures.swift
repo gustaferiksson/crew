@@ -3,6 +3,11 @@ import UniformTypeIdentifiers
 
 enum ChatFixture {
     case conversation, history, timestamps, workLog, question, offline, attachments, dictation, mentions, agentMessage, a2ui, a2uiCards, a2uiForm, a2uiTable, a2uiChart, a2uiMap
+    case composerLine, composerLines, composerRunning, composerRunningText, steer, steerTaken
+
+    var isLive: Bool {
+        [.mentions, .composerLine, .composerLines, .composerRunning, .composerRunningText, .steer, .steerTaken].contains(self)
+    }
     case payment, paymentHolding, paymentApproved, paymentLoading, paymentFailed, paymentUnverified, paymentPunycode, paymentCountdown, paymentNotice, paymentOffer, paymentReceipts
 
     var presentation: ChatPresentation {
@@ -22,6 +27,9 @@ enum ChatFixture {
             ])
         }
         if self == .mentions { return ChatPresentation(draft: "Loop in @ada and @sc") }
+        if self == .composerLine { return ChatPresentation(draft: "Sounds good, book the 07:10") }
+        if self == .composerLines { return ChatPresentation(draft: "Sounds good. Book the 07:10 SAS flight on Friday, window seat if there is one, and put the confirmation in the trip notes so Chef can plan the meals around it.") }
+        if self == .composerRunningText { return ChatPresentation(draft: "Use the staging context, not prod") }
         if self == .agentMessage { return ChatPresentation(expandedTurns: ["m2"]) }
         if self == .paymentHolding { return ChatPresentation(holdProgress: 0.55) }
         if self == .dictation {
@@ -53,7 +61,7 @@ enum ChatFixture {
     var transcript: Transcript {
         let now = Date.now
         let turns = [greeting(now.addingTimeInterval(-26 * 3600)), packing(now.addingTimeInterval(-3 * 3600)), notes(now.addingTimeInterval(-2.8 * 3600)), ciFix(now.addingTimeInterval(-25 * 60))]
-        if [.offline, .history, .dictation].contains(self) { return Transcript(turns: turns) }
+        if [.offline, .history, .dictation, .composerLine, .composerLines].contains(self) { return Transcript(turns: turns) }
         if [.a2ui, .a2uiCards, .a2uiForm, .a2uiTable, .a2uiChart, .a2uiMap].contains(self) { return Transcript(turns: Self.a2uiTurns(now)) }
         if self == .paymentReceipts { return Transcript(turns: Self.receiptTurns(now)) }
         if self == .paymentOffer {
@@ -68,6 +76,20 @@ enum ChatFixture {
             return Transcript(turns: turns)
         }
         if isPayment { return Transcript(turns: Self.shoppingTurns(now, fill: nil)) }
+        if self == .steer {
+            var transcript = Transcript(turns: turns + [deploy(now.addingTimeInterval(-48))])
+            transcript.wait(Prompt(text: "Use the staging context, not prod", sentAt: now.addingTimeInterval(-20)), as: .steer, id: "s1")
+            transcript.wait(Prompt(text: "Then post the rollout in #deploys", sentAt: now.addingTimeInterval(-10)), as: .queued, id: "q1")
+            return transcript
+        }
+        if self == .steerTaken {
+            var transcript = Transcript(turns: turns + [deploy(now.addingTimeInterval(-48))])
+            transcript.wait(Prompt(text: "Use the staging context, not prod", sentAt: now.addingTimeInterval(-20)), as: .steer, id: "s1")
+            transcript.apply(.toolComplete(id: "t5-w2", duration: 4, summary: nil, result: #"{"exit_code": 0}"#), at: now.addingTimeInterval(-16))
+            transcript.apply(.messageDelta("Good call. I was already on the staging context, so nothing touched prod. Checking the rollout now."), at: now.addingTimeInterval(-14))
+            transcript.apply(.toolStart(id: "t6", name: "terminal", context: "kubectl --context staging rollout status deploy/crew-api", arguments: "{}"), at: now.addingTimeInterval(-12))
+            return transcript
+        }
         if self == .attachments { return Transcript(turns: [greeting(now.addingTimeInterval(-26 * 3600)), receipt(now.addingTimeInterval(-6 * 60))]) }
         if self == .mentions {
             let reply = Turn(id: "t8", agentMessage: AgentMessage("Message from 🤖 Scout (@scout): Found three options under 2 000 kr: SAS on Friday at 07:10, Norwegian on Saturday at 09:45, and Widerøe via Bodø."), status: .complete, startedAt: now.addingTimeInterval(-4 * 60))
@@ -286,6 +308,9 @@ struct ChatFixtureScreen: View {
     @State private var paymentNotice: String?
     @State private var shopOffer: String?
     @State private var addingShop = false
+    @State private var draft: String
+    @State private var transcript: Transcript
+    @State private var tray: AttachmentTray
 
     private static let hermes = Bot(
         name: "default", displayName: "Hermes", description: nil, model: nil, isDefault: true, hasAvatar: false, canonicalSession: nil,
@@ -299,6 +324,9 @@ struct ChatFixtureScreen: View {
         _payment = State(initialValue: fixture.paymentState)
         _paymentNotice = State(initialValue: fixture.paymentNotice)
         _shopOffer = State(initialValue: fixture.shopOffer)
+        _draft = State(initialValue: fixture.presentation.draft)
+        _transcript = State(initialValue: fixture.transcript)
+        _tray = State(initialValue: AttachmentTray(items: fixture.presentation.attachments))
     }
 
     var body: some View {
@@ -322,9 +350,11 @@ struct ChatFixtureScreen: View {
                 photo: nil,
                 size: 28
             ),
-            transcript: fixture == .mentions ? fixture.transcript.visible : fixture.transcript,
+            transcript: fixture.isLive ? transcript.visible : transcript,
             emptyState: EmptyView(),
             mentionable: bots.bots.filter { $0.id != "default" },
+            draft: $draft,
+            tray: tray,
             request: request,
             payment: payment,
             paymentNotice: paymentNotice,
@@ -333,7 +363,10 @@ struct ChatFixtureScreen: View {
             activity: fixture == .conversation ? "Preparing terminal" : nil,
             presentation: fixture.presentation,
             actions: ChatActions(
+                send: { text, _, _, mode in send(text, mode: mode) },
+                stop: stop,
                 respond: { _, choice in answer(choice) },
+                unqueue: { id in returnToDraft(transcript.dropWaiting { $0.id == id }) },
                 dismissPaymentNotice: { paymentNotice = nil },
                 addShop: { _ in addingShop = true },
                 dismissShopOffer: { shopOffer = nil }
@@ -353,6 +386,35 @@ struct ChatFixtureScreen: View {
                     .accessibilityValue(answers.isEmpty ? "none" : answers.joined(separator: ","))
             }
         }
+    }
+
+    private func send(_ text: String, mode: SendMode) {
+        guard transcript.turns.last?.status == .streaming else {
+            transcript.begin(prompt: text)
+            transcript.apply(.messageComplete(text: "On it.", status: .complete, error: nil))
+            return
+        }
+        transcript.wait(Prompt(text: text, sentAt: .now), as: mode == .queue ? .queued : .steer)
+        Task {
+            try? await Task.sleep(for: .seconds(5))
+            guard mode == .queue else {
+                transcript.apply(.toolComplete(id: "t5-w2", duration: 3, summary: nil, result: "{}"))
+                transcript.apply(.messageDelta("Good call, switching to the staging context."))
+                return transcript.apply(.toolStart(id: "t6", name: "terminal", context: "kubectl config use-context staging", arguments: "{}"))
+            }
+            transcript.apply(.messageComplete(text: "Applied to staging.", status: .complete, error: nil))
+            if let next = transcript.dequeue() { transcript.begin(prompt: next.text) }
+        }
+    }
+
+    private func stop() {
+        let dropped = transcript.dropWaiting()
+        transcript.apply(.messageComplete(text: "", status: .interrupted, error: nil))
+        returnToDraft(dropped)
+    }
+
+    private func returnToDraft(_ texts: [String]) {
+        draft = ([draft] + texts).filter { !$0.isEmpty }.joined(separator: "\n")
     }
 
     private func answer(_ choice: ApprovalChoice) {

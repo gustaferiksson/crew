@@ -33,6 +33,7 @@ struct GroupChatScreen: View {
 
     @Environment(Connection.self) private var connection
     @Environment(BotStore.self) private var bots
+    @Environment(ChatDrafts.self) private var drafts
     @State private var session: GroupSession?
     @State private var showsOffline = false
 
@@ -60,6 +61,8 @@ struct GroupChatScreen: View {
             transcript: session?.transcript ?? Transcript(),
             emptyState: welcome,
             mentionable: members,
+            draft: Binding(get: { drafts.texts[room.selectionID, default: ""] }, set: { drafts.update(room.selectionID, to: $0) }),
+            tray: drafts.tray(for: room.selectionID),
             features: [],
             request: session?.request,
             offlineReason: offlineReason,

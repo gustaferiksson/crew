@@ -18,6 +18,7 @@ struct BotsView: View {
     @Environment(GroupStore.self) private var groups
     @Environment(ChatSessions.self) private var chats
     @Environment(PushCenter.self) private var push
+    @Environment(ChatDrafts.self) private var drafts
     #if os(macOS)
     @Environment(AppUpdater.self) private var updater
     #else
@@ -154,6 +155,7 @@ struct BotsView: View {
                                 Task {
                                     await push.unregister(on: connection)
                                     await connection.signOut()
+                                    drafts.reset()
                                 }
                             }
                         }
@@ -201,6 +203,7 @@ struct BotsView: View {
             NewGroupSheet { selection = $0.selectionID }
         }
         .modifier(BotDeletion(bot: $deleting) { id in
+            drafts.clear(id)
             if selection == id { selection = nil }
         })
         .alert("New Section", isPresented: Binding(get: { filing != nil }, set: { if !$0 { filing = nil } })) {
@@ -354,7 +357,7 @@ struct BotsView: View {
     }
 
     private func groupRow(for room: Room) -> some View {
-        GroupRow(room: room)
+        GroupRow(room: room, isOpen: selection == room.selectionID)
             .tag(room.selectionID)
             .listRowInsets(EdgeInsets(top: rowPadding, leading: 0, bottom: rowPadding, trailing: 12))
     }
@@ -380,7 +383,7 @@ struct BotsView: View {
     }
 
     private func row(for bot: Bot) -> some View {
-        BotRow(bot: bot, photo: store.photos[bot.id])
+        BotRow(bot: bot, photo: store.photos[bot.id], isOpen: selection == bot.id)
             .tag(bot.id)
             .listRowInsets(EdgeInsets(top: rowPadding, leading: 0, bottom: rowPadding, trailing: 12))
             .contextMenu { menu(for: bot) }
@@ -446,9 +449,11 @@ struct BotsView: View {
 private struct BotRow: View {
     let bot: Bot
     let photo: Image?
+    let isOpen: Bool
     @Environment(\.displayScale) private var displayScale
     @Environment(BotStore.self) private var store
     @Environment(ChatSessions.self) private var chats
+    @Environment(ChatDrafts.self) private var drafts
 
     private var status: BotStatus {
         chats.status(of: bot.id, in: store)
@@ -487,7 +492,13 @@ private struct BotRow: View {
                         .lineLimit(1)
                         .fixedSize()
                 }
-                Text(preview.isEmpty ? bot.description ?? "" : preview)
+                Group {
+                    if !isOpen, let draft = drafts.preview(for: bot.id) {
+                        Text("\(Text("Draft:").foregroundStyle(.red)) \(draft)")
+                    } else {
+                        Text(preview.isEmpty ? bot.description ?? "" : preview)
+                    }
+                }
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .lineLimit(2, reservesSpace: true)
@@ -603,8 +614,10 @@ private enum ListRow: Identifiable {
 
 private struct GroupRow: View {
     let room: Room
+    let isOpen: Bool
     @Environment(\.displayScale) private var displayScale
     @Environment(BotStore.self) private var store
+    @Environment(ChatDrafts.self) private var drafts
 
     var body: some View {
         HStack(spacing: 0) {
@@ -623,7 +636,13 @@ private struct GroupRow: View {
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
-                Text(room.members.map { $0.displayName ?? $0.memberID }.formatted(.list(type: .and)))
+                Group {
+                    if !isOpen, let draft = drafts.preview(for: room.selectionID) {
+                        Text("\(Text("Draft:").foregroundStyle(.red)) \(draft)")
+                    } else {
+                        Text(room.members.map { $0.displayName ?? $0.memberID }.formatted(.list(type: .and)))
+                    }
+                }
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .lineLimit(2, reservesSpace: true)

@@ -28,6 +28,7 @@ struct ChatPresentation {
     var draft = ""
     var dictation: Dictation?
     var holdProgress = 0.0
+    var questionProgress = QuestionProgress()
 }
 
 private let separatorGap: TimeInterval = 60 * 60
@@ -240,7 +241,8 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
                             .padding(.horizontal, 16)
                     }
                     if case .question(let question) = request {
-                        QuestionCard(request: question, botName: botName) { actions.answer(question.id, $0) }
+                        QuestionCard(request: question, botName: botName, progress: presentation.questionProgress) { actions.answer(question.id, $0) }
+                            .id(question.id)
                             .frame(maxWidth: 560)
                             .padding(.horizontal, 16)
                     }

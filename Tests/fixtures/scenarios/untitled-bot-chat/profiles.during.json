@@ -1,0 +1,47 @@
+{
+  "profiles": [
+    {
+      "canonical_session": null,
+      "description": "",
+      "display_name": "",
+      "has_avatar": false,
+      "is_default": true,
+      "model": "gpt-6-astra",
+      "name": "default",
+      "ui_meta": {
+        "hermes-bots": {
+          "pinned": true,
+          "title": "Marlow"
+        }
+      },
+      "ui_meta_revisions": {
+        "hermes-bots": 4
+      }
+    },
+    {
+      "canonical_session": {
+        "id": "20261017_091102_71c52a",
+        "last_active": 1792228402.3980901,
+        "live_message_count": 17,
+        "message_count": 17,
+        "preview": "I retried bm_search for Personal assistant, Gustaf and Sam...",
+        "resolved_id": "20261017_091102_71c52a",
+        "root_title": "Bot Chat",
+        "started_at": 1792228262.750223,
+        "title": "Bot Chat"
+      },
+      "description": "Gustaf's personal assistant: shopping research, occasions, restaurants, reminders, personal email and calendars.",
+      "display_name": "",
+      "has_avatar": false,
+      "is_default": false,
+      "model": "gpt-6-astra",
+      "name": "vera",
+      "ui_meta": {
+        "hermes-bots": {
+          "title": "Vera"
+        }
+      },
+      "ui_meta_revisions": {}
+    }
+  ]
+}

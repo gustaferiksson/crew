@@ -196,7 +196,7 @@ Attachments (queued for the next `prompt.submit`):
 | `todo.updated` | `{todos[], revision}` | |
 | `status.update` | `{kind, text}` | kinds: status, lifecycle, compacting, goal, … |
 | `session.usage` | `{usage}` | mid-turn ticks |
-| `session.title` | `{session_id(stored), title}` | auto-title |
+| `session.title` | `{session_id(runtime), title}` | auto-title; on a runtime with no row yet it writes the row (born hidden when created hidden) |
 | `message.complete` | `{text, usage, status:"complete"|"error"|"interrupted", reasoning?, error?, failure_reason?, recoverable?, error_surface?, partial?, persisted_turn{row_ids,complete,user_row_id,final_assistant_row_id}}` | `:166-213` |
 | `error` | `{message}` | session-level failure outside a turn |
 | `notification.show` / `.clear` | `{text,level,kind,ttl_ms,key,id}` | toasts |

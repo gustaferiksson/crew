@@ -1,0 +1,16 @@
+{
+  "sessions" : [
+    {
+      "current" : false,
+      "id" : "772a1b15",
+      "last_active" : 1792230056.0704348,
+      "message_count" : 4,
+      "model" : "gpt-6-astra",
+      "preview" : "fresh-ok",
+      "session_key" : "20261017_093945_b58995",
+      "started_at" : 1792229985.4510324,
+      "status" : "idle",
+      "title" : "Bot Chat"
+    }
+  ]
+}

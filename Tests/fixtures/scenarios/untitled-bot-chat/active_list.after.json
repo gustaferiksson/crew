@@ -1,0 +1,20 @@
+{
+  "sessions": [
+    {
+      "id": "81f53d65",
+      "last_active": 1792228527.253344,
+      "message_count": 87,
+      "session_key": "20261017_090010_f41a3a",
+      "status": "idle",
+      "title": "Set up staff crew-onboarding"
+    },
+    {
+      "id": "861ae952",
+      "last_active": 1792228465.4239063,
+      "message_count": 17,
+      "session_key": "20261017_091102_71c52a",
+      "status": "idle",
+      "title": "Bot Chat"
+    }
+  ]
+}

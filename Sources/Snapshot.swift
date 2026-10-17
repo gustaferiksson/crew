@@ -202,6 +202,8 @@ extension Snapshot {
         window.isRestorable = false
         window.setFrameOrigin(NSPoint(x: -4000, y: 0))
         if self == .layoutInspector { window.setContentSize(NSSize(width: 860, height: 640)) }
+        let height = UserDefaults.standard.double(forKey: "snapshotHeight")
+        if height > 0 { window.setContentSize(NSSize(width: window.contentRect(forFrameRect: window.frame).width, height: height)) }
         try? await Task.sleep(for: .seconds(1.5))
         if UserDefaults.standard.bool(forKey: "measure") { await measure(window) }
         // cacheDisplay and ImageRenderer skip Liquid Glass; CGWindowListCreateImage is SDK-obsoleted but still exported for own windows.

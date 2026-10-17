@@ -12,6 +12,7 @@ struct PaymentCard<Avatar: View>: View {
 
     @Environment(\.dynamicTypeSize) private var typeSize
     @State private var secondsLeft: Int?
+    @State private var isClipped = false
 
     private var command: PaymentCommand? {
         PaymentCommand(request.command)
@@ -39,13 +40,13 @@ struct PaymentCard<Avatar: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             if typeSize.isAccessibilitySize {
-                ScrollView {
-                    content
-                }
-                .scrollBounceBehavior(.basedOnSize)
-                .frame(maxHeight: 280)
+                scrollingContent
+                    .frame(maxHeight: 280)
             } else {
-                content
+                ViewThatFits(in: .vertical) {
+                    content
+                    scrollingContent
+                }
             }
             buttons
         }
@@ -54,6 +55,15 @@ struct PaymentCard<Avatar: View>: View {
         .accessibilityElement(children: .contain)
         .accessibilityLabel(summary)
         .task(id: deadline) { await countDown() }
+    }
+
+    private var scrollingContent: some View {
+        ScrollView {
+            content
+        }
+        .scrollBounceBehavior(.basedOnSize)
+        .onScrollGeometryChange(for: Bool.self) { $0.contentSize.height > $0.containerSize.height + 1 } action: { isClipped = $1 }
+        .onDisappear { isClipped = false }
     }
 
     private var content: some View {
@@ -92,7 +102,6 @@ struct PaymentCard<Avatar: View>: View {
                     .foregroundStyle(.secondary)
                 Text(host.map(String.init).joined(separator: "\u{200B}"))
                     .font(.title2.weight(.semibold))
-                    .fixedSize(horizontal: false, vertical: true)
                     .accessibilityLabel(host)
             }
             .accessibilityElement(children: .combine)
@@ -100,7 +109,6 @@ struct PaymentCard<Avatar: View>: View {
                 Label("This address uses special characters and could imitate another site.", systemImage: "exclamationmark.triangle.fill")
                     .font(.footnote)
                     .foregroundStyle(.orange)
-                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
@@ -111,13 +119,11 @@ struct PaymentCard<Avatar: View>: View {
                 HStack(spacing: 8) {
                     CardArt(width: 24, height: 16)
                     Text(details?.cardLabel ?? command?.cardLabel ?? "Shopping card •••• 4242")
-                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
             detailRow("FOR") {
                 Text(details.map { "\($0.merchant) · \($0.reason)" } ?? "Shop · Something you asked for")
                     .lineLimit(3)
-                    .fixedSize(horizontal: false, vertical: true)
             }
             Divider()
             detailRow("TOTAL") {
@@ -197,6 +203,7 @@ struct PaymentCard<Avatar: View>: View {
                 HoldToPayButton(
                     confirmation: details.map { String(localized: "Pay \($0.amount) at \(host)?") } ?? "",
                     isApproved: state.isApproved,
+                    requiresConfirmation: isClipped,
                     initialProgress: holdProgress
                 ) {
                     respond(.once)
@@ -239,6 +246,7 @@ struct PaymentCard<Avatar: View>: View {
 private struct HoldToPayButton: View {
     let confirmation: String
     let isApproved: Bool
+    let requiresConfirmation: Bool
     var initialProgress = 0.0
     let pay: () -> Void
 
@@ -249,9 +257,10 @@ private struct HoldToPayButton: View {
     @State private var presses = 0
     @State private var confirming = false
 
-    init(confirmation: String, isApproved: Bool, initialProgress: Double = 0, pay: @escaping () -> Void) {
+    init(confirmation: String, isApproved: Bool, requiresConfirmation: Bool, initialProgress: Double = 0, pay: @escaping () -> Void) {
         self.confirmation = confirmation
         self.isApproved = isApproved
+        self.requiresConfirmation = requiresConfirmation
         self.pay = pay
         _progress = State(initialValue: initialProgress)
     }
@@ -270,7 +279,7 @@ private struct HoldToPayButton: View {
                             .transition(reduceMotion ? AnyTransition.identity : AnyTransition(.symbolEffect(.drawOn)))
                     }
                 } else {
-                    Text("Hold to Pay")
+                    Text(title)
                 }
             }
             .frame(maxWidth: .infinity)
@@ -287,14 +296,16 @@ private struct HoldToPayButton: View {
             .accessibilityHidden(true)
         }
         .overlay {
-            Color.clear
-                .contentShape(.capsule)
-                .onLongPressGesture(minimumDuration: 1, maximumDistance: 40) {
-                    complete()
-                } onPressingChanged: { pressing in
-                    pressing ? press() : release()
-                }
-                .accessibilityHidden(true)
+            if !requiresConfirmation {
+                Color.clear
+                    .contentShape(.capsule)
+                    .onLongPressGesture(minimumDuration: 1, maximumDistance: 40) {
+                        complete()
+                    } onPressingChanged: { pressing in
+                        pressing ? press() : release()
+                    }
+                    .accessibilityHidden(true)
+            }
         }
         .scaleEffect(pressedAt != nil && !reduceMotion ? 0.97 : 1)
         .animation(reduceMotion ? nil : .snappy(duration: 0.2), value: pressedAt != nil)
@@ -303,13 +314,22 @@ private struct HoldToPayButton: View {
         .onChange(of: isApproved) { _, approved in
             if !approved { progress = 0 }
         }
+        .onChange(of: requiresConfirmation) {
+            guard requiresConfirmation, !isApproved else { return }
+            pressedAt = nil
+            progress = 0
+        }
         .confirmationDialog(confirmation, isPresented: $confirming, titleVisibility: .visible) {
             Button("Pay") { approve() }
             Button("Cancel", role: .cancel) {}
         }
-        .accessibilityLabel(isApproved ? "Approved" : "Hold to Pay")
+        .accessibilityLabel(isApproved ? "Approved" : title)
         .accessibilityHint("Double-tap to confirm the payment.")
         .accessibilityAction(named: "Pay") { confirming = true }
+    }
+
+    private var title: LocalizedStringKey {
+        requiresConfirmation ? "Pay…" : "Hold to Pay"
     }
 
     private func press() {

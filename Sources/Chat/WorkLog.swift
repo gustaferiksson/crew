@@ -71,7 +71,7 @@ struct WorkLog: View {
     @Environment(BotStore.self) private var bots
 
     private var isLive: Bool { turn.status == .streaming }
-    private var isExpanded: Bool { (isLive && turn.agentMessage == nil) || expandedTurns.contains(turn.id) }
+    private var isExpanded: Bool { expandedTurns.contains(turn.id) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -130,17 +130,15 @@ struct WorkLog: View {
                         } animation: { _ in
                             .easeInOut(duration: 1)
                         }
-                    Image(systemName: "chevron.right")
-                        .font(.caption.weight(.semibold))
-                        .rotationEffect(.degrees(isExpanded ? 90 : 0))
                 } else if isLive {
                     TimelineView(.periodic(from: turn.startedAt, by: 1)) { context in
                         Text("Working for \(Duration.seconds(Int(context.date.timeIntervalSince(turn.startedAt))).formatted(elapsedStyle))")
+                            .monospacedDigit()
                     }
-                    .phaseAnimator([1, 0.6]) { content, opacity in
-                        content.opacity(opacity)
-                    } animation: { _ in
-                        .easeInOut(duration: 1)
+                    .fixedSize()
+                    if turn.reply.isEmpty {
+                        WaitingDots()
+                            .padding(.horizontal, 4)
                     }
                     if let activity {
                         Text(verbatim: "· \(activity)")
@@ -150,6 +148,8 @@ struct WorkLog: View {
                     }
                 } else {
                     Text("Worked for \(Duration.seconds(Int((turn.finishedAt ?? turn.startedAt).timeIntervalSince(turn.startedAt))).formatted(elapsedStyle))")
+                }
+                if !turn.work.isEmpty || turn.agentMessage != nil {
                     Image(systemName: "chevron.right")
                         .font(.caption.weight(.semibold))
                         .rotationEffect(.degrees(isExpanded ? 90 : 0))
@@ -161,7 +161,7 @@ struct WorkLog: View {
             .contentShape(.rect)
         }
         .buttonStyle(.plain)
-        .disabled(isLive && turn.agentMessage == nil)
+        .accessibilityValue(turn.work.isEmpty && turn.agentMessage == nil ? "" : isExpanded ? String(localized: "Expanded") : String(localized: "Collapsed"))
     }
 
     private func runToggle(_ title: String, systemImage: String, runID: String) -> some View {
@@ -177,6 +177,40 @@ struct WorkLog: View {
                 .contentShape(.rect)
         }
         .buttonStyle(.plain)
+    }
+}
+
+private struct WaitingDots: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @ScaledMetric(relativeTo: .subheadline) private var size = 4.0
+
+    var body: some View {
+        Group {
+            if reduceMotion {
+                dots(phase: nil)
+                    .phaseAnimator([1, 0.6]) { content, opacity in
+                        content.opacity(opacity)
+                    } animation: { _ in
+                        .easeInOut(duration: 1)
+                    }
+            } else {
+                TimelineView(.animation(minimumInterval: 1.0 / 30)) { context in
+                    dots(phase: context.date.timeIntervalSinceReferenceDate / 1.2)
+                }
+            }
+        }
+        .accessibilityHidden(true)
+    }
+
+    private func dots(phase: Double?) -> some View {
+        HStack(spacing: size / 2) {
+            ForEach(0..<3, id: \.self) { index in
+                Circle()
+                    .frame(width: size, height: size)
+                    .opacity(phase.map { 0.55 + 0.25 * cos(2 * .pi * ($0 - Double(index) / 6)) } ?? 0.8)
+            }
+        }
+        .foregroundStyle(.secondary)
     }
 }
 

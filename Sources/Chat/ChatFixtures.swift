@@ -3,7 +3,7 @@ import UniformTypeIdentifiers
 
 enum ChatFixture {
     case conversation, history, timestamps, workLog, question, questions, questionsSnacks, offline, attachments, dictation, mentions, agentMessage, a2ui, a2uiCards, a2uiForm, a2uiTable, a2uiChart, a2uiMap
-    case composerLine, composerLines, composerRunning, composerRunningText, steer, steerTaken
+    case composerLine, composerLines, composerRunning, composerRunningText, steer, steerTaken, waiting
     case payment, paymentHolding, paymentApproved, paymentLoading, paymentFailed, paymentUnverified, paymentPunycode, paymentCountdown, paymentNotice, paymentOffer, paymentReceipts
 
     var isLive: Bool {
@@ -106,6 +106,7 @@ enum ChatFixture {
             transcript.apply(.toolStart(id: "t6", name: "terminal", context: "kubectl --context staging rollout status deploy/crew-api", arguments: "{}"), at: now.addingTimeInterval(-12))
             return transcript
         }
+        if self == .waiting { return Transcript(turns: turns + [Turn(id: "t6", prompt: Prompt(text: "How many files are in your working directory?", sentAt: now.addingTimeInterval(-3)), status: .streaming, startedAt: now.addingTimeInterval(-3))]) }
         if self == .attachments { return Transcript(turns: [greeting(now.addingTimeInterval(-26 * 3600)), receipt(now.addingTimeInterval(-6 * 60))]) }
         if self == .mentions {
             let reply = Turn(id: "t8", agentMessage: AgentMessage("Message from 🤖 Scout (@scout): Found three options under 2 000 kr: SAS on Friday at 07:10, Norwegian on Saturday at 09:45, and Widerøe via Bodø."), status: .complete, startedAt: now.addingTimeInterval(-4 * 60))

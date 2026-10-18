@@ -231,6 +231,10 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
                         .frame(maxWidth: 560)
                         .padding(.horizontal, 16)
                         .transition(.blurReplace)
+                        #if os(iOS)
+                        .onAppear { isComposerFocused = false }
+                        .simultaneousGesture(TapGesture().onEnded { isComposerFocused = false })
+                        #endif
                     } else if case .approval(let approval) = request {
                         ApprovalCard(request: approval, botName: botName) { actions.respond(approval.id, $0) }
                             .frame(maxWidth: 560)

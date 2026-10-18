@@ -33,7 +33,7 @@ Like a Mail or Messages banner and Apple's own sheets: the card is as tall as it
 ## Surfaces and directions
 
 - **Chat, Mac (main window with sidebar and inspector, and the separate chat window):** the card shows in full at normal heights (pixel-identical renders); at a short window the body scrolls and Deny / Hold to Pay stay visible above the composer; the window resizes freely while the card is up and doesn't grow when it arrives.
-- **Chat, iPhone:** looks the same at normal sizes; in a short layout (landscape, keyboard up) the body scrolls instead of pushing the buttons off screen.
+- **Chat, iPhone:** looks the same at normal sizes; in a short layout (landscape) the body scrolls instead of pushing the buttons off screen. A payment card arriving, or a touch on it, dismisses the keyboard (the draft stays), so the keyboard never turns Hold to Pay into "Pay…" (#91).
 - **Hold to Pay, Deny, countdown, Try Again, approved state:** unchanged at normal heights. While the body is clipped, Hold to Pay becomes "Pay…" with the confirmation dialog (above); Deny, Try Again and the countdown keep working (the countdown lives in the card, so switching branches doesn't restart it; its numeric transition may skip one tick).
 - **Bot list (preview, time, status, unread), push, inspector:** unchanged; nothing here touches requests or state.
 - **Sender / receiver:** unchanged; the card's answers and their server calls are untouched.

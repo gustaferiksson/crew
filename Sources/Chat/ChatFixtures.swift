@@ -330,6 +330,8 @@ struct ChatFixtureScreen: View {
     @State private var transcript: Transcript
     @State private var tray: AttachmentTray
 
+    private static let requestDelay = UserDefaults.standard.double(forKey: "requestDelay")
+
     private static let hermes = Bot(
         name: "default", displayName: "Hermes", description: nil, model: nil, isDefault: true, hasAvatar: false, canonicalSession: nil,
         meta: BotMeta(shape: "blob", color: "#8b5cf6", expression: "happy"), metaRevision: nil
@@ -338,7 +340,7 @@ struct ChatFixtureScreen: View {
     init(fixture: ChatFixture) {
         self.fixture = fixture
         _session = State(initialValue: fixture == .mentions ? ChatSession(fixture: Self.hermes, transcript: fixture.transcript, todos: []) : nil)
-        _request = State(initialValue: fixture.request)
+        _request = State(initialValue: Self.requestDelay > 0 ? nil : fixture.request)
         _payment = State(initialValue: fixture.paymentState)
         _paymentNotice = State(initialValue: fixture.paymentNotice)
         _shopOffer = State(initialValue: fixture.shopOffer)
@@ -392,6 +394,11 @@ struct ChatFixtureScreen: View {
             )
         )
         .environment(\.chatSession, session)
+        .task {
+            guard Self.requestDelay > 0 else { return }
+            try? await Task.sleep(for: .seconds(Self.requestDelay))
+            request = fixture.request
+        }
         .sheet(isPresented: $addingShop) {
             AddShopSheet(profile: "default", site: shopOffer ?? "") { _ in }
         }

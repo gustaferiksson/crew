@@ -1,9 +1,9 @@
 import XCTest
 
 final class PaymentUITests: XCTestCase {
-    @MainActor private func launch(_ snapshot: String) -> XCUIApplication {
+    @MainActor private func launch(_ snapshot: String, arguments: [String] = []) -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["-snapshot", snapshot, "-server", "hermes.example.com", "-username", "gustaf"]
+        app.launchArguments = ["-snapshot", snapshot, "-server", "hermes.example.com", "-username", "gustaf"] + arguments
         app.launch()
         return app
     }
@@ -99,6 +99,38 @@ final class PaymentUITests: XCTestCase {
         XCTAssertEqual(log(in: app), "none")
         XCUIDevice.shared.orientation = .portrait
         XCTAssertTrue(app.buttons["Hold to Pay"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor func testArrivingCardDismissesTheKeyboardSoHoldToPayShows() {
+        XCUIDevice.shared.orientation = .portrait
+        let app = launch("chat-payment", arguments: ["-requestDelay", "8"])
+        let composer = app.textFields.firstMatch
+        XCTAssertTrue(composer.waitForExistence(timeout: 10))
+        composer.tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
+        if app.buttons["Continue"].waitForExistence(timeout: 1) { app.buttons["Continue"].tap() }
+        composer.typeText("Half a thought")
+        XCTAssertFalse(app.staticTexts["www.zalando.se"].exists)
+        XCTAssertTrue(app.buttons["Hold to Pay"].waitForExistence(timeout: 15))
+        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["Pay…"].exists)
+        XCTAssertEqual(composer.value as? String, "Half a thought")
+    }
+
+    @MainActor func testTouchingTheCardDismissesTheKeyboard() {
+        XCUIDevice.shared.orientation = .portrait
+        let app = launch("chat-payment")
+        let composer = app.textFields.firstMatch
+        XCTAssertTrue(app.buttons["Hold to Pay"].waitForExistence(timeout: 10))
+        composer.tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
+        if app.buttons["Continue"].waitForExistence(timeout: 1) { app.buttons["Continue"].tap() }
+        composer.typeText("Half a thought")
+        app.staticTexts["Hermes wants to pay"].tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Hold to Pay"].waitForExistence(timeout: 5))
+        XCTAssertEqual(composer.value as? String, "Half a thought")
+        XCTAssertEqual(log(in: app), "none")
     }
 
     @MainActor func testShortLayoutPaysOnlyThroughTheDialog() {

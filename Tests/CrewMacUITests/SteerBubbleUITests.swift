@@ -1,6 +1,13 @@
 import XCTest
 
 final class SteerBubbleUITests: XCTestCase {
+    @MainActor private func attach(_ element: XCUIElement, _ name: String) {
+        let attachment = XCTAttachment(screenshot: element.screenshot())
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+
     @MainActor func testATakenSteerKeepsItsTextVisibleInTheBubble() {
         for appearance in ["Light", "Dark"] {
             let app = XCUIApplication()
@@ -8,19 +15,24 @@ final class SteerBubbleUITests: XCTestCase {
             app.launch()
             let field = app.textFields.firstMatch.exists ? app.textFields.firstMatch : app.textViews.firstMatch
             XCTAssertTrue(field.waitForExistence(timeout: 20))
-            let text = "Sounds worth a try, go ahead and order it if the shop looks legit and the delivery is cheap :)"
+            let text = "Sounds worth a try, go ahead and order it if the shop looks legit and the delivery is cheap"
             field.click()
             field.typeText(text + "\r")
+            let bubble = app.staticTexts.matching(NSPredicate(format: "value == %@ OR label == %@", text, text)).firstMatch
             XCTAssertTrue(app.staticTexts["Waiting"].waitForExistence(timeout: 10))
+            attach(app.windows.firstMatch, "waiting-\(appearance.lowercased())")
+            let tree = XCTAttachment(string: app.debugDescription)
+            tree.name = "waiting-tree-\(appearance.lowercased())"
+            tree.lifetime = .keepAlways
+            add(tree)
+            XCTAssertTrue(bubble.waitForExistence(timeout: 5), "the waiting steer has a bubble (\(appearance))")
             XCTAssertTrue(app.staticTexts["Waiting"].waitForNonExistence(timeout: 20))
-            let bubble = app.staticTexts[text]
-            XCTAssertTrue(bubble.waitForExistence(timeout: 5))
-            RunLoop.current.run(until: .now + 1)
+            attach(app.windows.firstMatch, "taken-\(appearance.lowercased())")
+            XCTAssertTrue(bubble.waitForExistence(timeout: 5), "the taken steer has a bubble (\(appearance))")
+            guard bubble.exists else { return app.terminate() }
+            XCTAssertGreaterThan(bubble.frame.height, 20, "the taken steer's bubble has its text's height (\(appearance))")
             let shot = bubble.screenshot()
-            let attachment = XCTAttachment(screenshot: shot)
-            attachment.name = "taken-steer-\(appearance.lowercased())"
-            attachment.lifetime = .keepAlways
-            add(attachment)
+            attach(bubble, "taken-bubble-\(appearance.lowercased())")
             guard let image = shot.image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return XCTFail("no bubble screenshot") }
             XCTAssertGreaterThan(whiteShareInsideBubble(image), 0.03, "the taken steer's text is not drawn white on its bubble (\(appearance))")
             app.terminate()

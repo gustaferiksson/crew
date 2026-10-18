@@ -37,7 +37,7 @@ A scenario is one real flow recorded once from the server into `Tests/fixtures/s
 
 ## UI tests
 
-`CrewUITests` launches the app with `-snapshot <fixture> -server hermes.example.com -username gustaf`, so it renders fixture data and never touches the network. Find elements by their accessibility labels and values first (print `app.debugDescription` to see them) and add an `accessibilityIdentifier` only for elements you can't otherwise reach. It never runs on the Mac. `CrewMacUITests` launches the macOS app with `-snapshot layout -uiTest YES -ApplePersistenceIgnoreState YES` (`-uiTest` keeps the regular activation policy and skips the capture) and drives real windows, so it only runs on a CI runner. `NotificationTapUITests` adds `-uiTest YES -notifyProfile <bot> -notifyAfter <seconds>`, which starts the real push delegate and schedules a local notification in crew-push's payload shape for the test to tap in Springboard.
+`CrewUITests` launches the app with `-snapshot <fixture> -server hermes.example.com -username gustaf`, so it renders fixture data and never touches the network. Find elements by their accessibility labels and values first (print `app.debugDescription` to see them) and add an `accessibilityIdentifier` only for elements you can't otherwise reach. It never runs on the Mac. `CrewMacUITests` launches the macOS app with `-snapshot layout -uiTest YES -ApplePersistenceIgnoreState YES` (`-uiTest` keeps the regular activation policy and skips the capture) and drives real windows, so it only runs on a CI runner.
 
 ## Profiling
 

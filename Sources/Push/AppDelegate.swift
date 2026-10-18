@@ -5,7 +5,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     let push = PushCenter()
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
-        if Snapshot.requested == nil || Snapshot.notifyProfile != nil { push.start() }
+        if Snapshot.requested == nil { push.start() }
         return true
     }
 

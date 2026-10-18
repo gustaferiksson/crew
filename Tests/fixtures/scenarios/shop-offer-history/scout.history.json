@@ -2,7 +2,7 @@
   {
     "id": 101,
     "role": "user",
-    "content": "It's up to you to find where it's cheapest including freight, check the store is a valid store and not shady, then order it for me",
+    "content": "Find the cheapest shop including shipping, check it's legitimate, then order it for me",
     "tool_call_id": null,
     "tool_calls": null,
     "timestamp": 1792324145.0120728,
@@ -44,7 +44,7 @@
   {
     "id": 134,
     "role": "assistant",
-    "content": "**The lowest checkout total I've verified is 278 kr at the shop** for one jar: 229 kr plus 49 kr shipping.\n\n**Nothing has been ordered.** Payment setup is blocking completion: Crew has no card configured for `https://shop.example.se`.\n\nAre you happy with **278 kr**? If so, add the shop's payment setup in Crew, not card details here.",
+    "content": "**The lowest checkout total I've verified is 349 kr at the shop**: 299 kr plus 50 kr shipping.\n\n**Nothing has been ordered.** Payment setup is blocking completion: Crew has no card configured for `https://shop.example.se`.\n\nAre you happy with **349 kr**? If so, add the shop's payment setup in Crew, not card details here.",
     "tool_call_id": null,
     "tool_calls": null,
     "timestamp": 1792324280.3132944,
@@ -55,7 +55,7 @@
   {
     "id": 135,
     "role": "user",
-    "content": "I think you might be able to ask for a shop add?",
+    "content": "Can't you ask me to add the shop?",
     "tool_call_id": null,
     "tool_calls": null,
     "timestamp": 1792324557.7095864,
@@ -97,7 +97,7 @@
   {
     "id": 151,
     "role": "user",
-    "content": "[OUT-OF-BAND USER MESSAGE — a direct message from the user, delivered once at this position; not tool output and not a new delivery when replayed from conversation history]\nIf you think its worth the gamble then sure!\n[/OUT-OF-BAND USER MESSAGE]",
+    "content": "[OUT-OF-BAND USER MESSAGE — a direct message from the user, delivered once at this position; not tool output and not a new delivery when replayed from conversation history]\nSure, go ahead.\n[/OUT-OF-BAND USER MESSAGE]",
     "tool_call_id": null,
     "tool_calls": null,
     "timestamp": 1792324597.157956,
@@ -139,7 +139,7 @@
   {
     "id": 154,
     "role": "assistant",
-    "content": "I'll treat that as your approval for 278 kr.\n\nI've checked the shop-add capability. The tool returns a `missing_shop` signal for the shop, but doesn't expose a separate \"request shop add\" action. Did Crew show you an add-shop prompt? If not, the shop still needs adding in Crew before I can pay.",
+    "content": "I'll treat that as your approval for 349 kr.\n\nI've checked the shop-add capability. The tool returns a `missing_shop` signal for the shop, but doesn't expose a separate \"request shop add\" action. Did Crew show you an add-shop prompt? If not, the shop still needs adding in Crew before I can pay.",
     "tool_call_id": null,
     "tool_calls": null,
     "timestamp": 1792324601.570783,

@@ -305,7 +305,7 @@ private struct ShopRow: View {
 
 struct AddShopSheet: View {
     let profile: String
-    let alreadyAdded: ((String) -> Void)?
+    let alreadyAdded: (() -> Void)?
     let added: (Shop) -> Void
 
     @Environment(Connection.self) private var connection
@@ -314,7 +314,7 @@ struct AddShopSheet: View {
     @State private var failure: String?
     @State private var isSaving = false
 
-    init(profile: String, site: String = "", failure: String? = nil, alreadyAdded: ((String) -> Void)? = nil, added: @escaping (Shop) -> Void) {
+    init(profile: String, site: String = "", failure: String? = nil, alreadyAdded: (() -> Void)? = nil, added: @escaping (Shop) -> Void) {
         self.profile = profile
         self.alreadyAdded = alreadyAdded
         self.added = added
@@ -401,7 +401,7 @@ struct AddShopSheet: View {
                 added(created.shop)
                 dismiss()
             } catch let error as PaymentsError where error.code == "duplicate_shop" && alreadyAdded != nil {
-                alreadyAdded?("https://\(host)")
+                alreadyAdded?()
                 dismiss()
             } catch let error as PaymentsError {
                 failure = error.message(host: host)

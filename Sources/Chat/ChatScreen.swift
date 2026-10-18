@@ -76,7 +76,7 @@ struct ChatScreen: View {
         )
         .environment(\.chatSession, session)
         .sheet(item: Binding(get: { addingShop.map(ShopSite.init) }, set: { addingShop = $0?.id })) { site in
-            AddShopSheet(profile: bot.name, site: site.id, alreadyAdded: { session?.sendHidden("I added \($0) to your shops. Continue the purchase.") }) { shop in
+            AddShopSheet(profile: bot.name, site: site.id, alreadyAdded: { session?.sendHidden("I added https://\(site.id) to your shops. Continue the purchase.") }) { shop in
                 session?.sendHidden("I added \(shop.origin) to your shops. Continue the purchase.")
             }
         }

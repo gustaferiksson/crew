@@ -16,6 +16,10 @@ final class PaymentWindowUITests: XCTestCase {
             XCTAssertTrue(host.exists && host.isHittable, app.debugDescription)
             XCTAssertTrue(app.staticTexts["499 kr"].isHittable)
             XCTAssertTrue(app.staticTexts["Hermes wants to pay"].isHittable)
+            let tree = XCTAttachment(string: app.debugDescription)
+            tree.name = "tree-\(appearance.lowercased())"
+            tree.lifetime = .keepAlways
+            add(tree)
             let shot = XCTAttachment(screenshot: window.screenshot())
             shot.name = "payment-short-window-\(appearance.lowercased())"
             shot.lifetime = .keepAlways

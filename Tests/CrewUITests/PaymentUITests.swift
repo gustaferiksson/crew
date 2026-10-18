@@ -82,6 +82,54 @@ final class PaymentUITests: XCTestCase {
         XCTAssertTrue(ok.waitForNonExistence(timeout: 5))
     }
 
+    @MainActor func testShortLayoutAsksBeforePayingAndHoldComesBackWithRoom() {
+        XCUIDevice.shared.orientation = .portrait
+        let app = launch("chat-payment")
+        XCTAssertTrue(app.buttons["Hold to Pay"].waitForExistence(timeout: 10))
+        XCUIDevice.shared.orientation = .landscapeLeft
+        defer { XCUIDevice.shared.orientation = .portrait }
+        let pay = app.buttons["Pay…"]
+        XCTAssertTrue(pay.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Deny payment"].isHittable)
+        pay.press(forDuration: 2)
+        XCTAssertTrue(app.staticTexts["Pay 499 kr at www.zalando.se?"].waitForExistence(timeout: 5))
+        XCTAssertEqual(log(in: app), "none")
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.1)).tap()
+        XCTAssertTrue(app.staticTexts["Pay 499 kr at www.zalando.se?"].waitForNonExistence(timeout: 5))
+        XCTAssertEqual(log(in: app), "none")
+        XCUIDevice.shared.orientation = .portrait
+        XCTAssertTrue(app.buttons["Hold to Pay"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor func testShortLayoutPaysOnlyThroughTheDialog() {
+        XCUIDevice.shared.orientation = .portrait
+        let app = launch("chat-payment")
+        XCTAssertTrue(app.buttons["Hold to Pay"].waitForExistence(timeout: 10))
+        XCUIDevice.shared.orientation = .landscapeLeft
+        defer { XCUIDevice.shared.orientation = .portrait }
+        let pay = app.buttons["Pay…"]
+        XCTAssertTrue(pay.waitForExistence(timeout: 5))
+        pay.tap()
+        let confirm = app.buttons["Pay"]
+        XCTAssertTrue(confirm.waitForExistence(timeout: 5))
+        confirm.tap()
+        XCTAssertTrue(waitForLog("approval.respond once", in: app))
+    }
+
+    @MainActor func testShortLayoutDialogWarnsAboutAPunycodeHost() {
+        XCUIDevice.shared.orientation = .portrait
+        let app = launch("chat-payment-punycode")
+        XCTAssertTrue(app.buttons["Hold to Pay"].waitForExistence(timeout: 10))
+        XCUIDevice.shared.orientation = .landscapeLeft
+        defer { XCUIDevice.shared.orientation = .portrait }
+        let pay = app.buttons["Pay…"]
+        XCTAssertTrue(pay.waitForExistence(timeout: 5))
+        pay.tap()
+        XCTAssertTrue(app.staticTexts["Pay 499 kr at xn--zaando-5ve.se?"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["This address uses special characters and could imitate another site."].exists)
+        XCTAssertEqual(log(in: app), "none")
+    }
+
     @MainActor func testOfferOpensAddShopFilledIn() {
         let app = launch("chat-payment-offer")
         let add = app.buttons["Add Shop…"]
@@ -90,5 +138,64 @@ final class PaymentUITests: XCTestCase {
         let field = app.textFields.matching(NSPredicate(format: "value == %@", "www.zalando.de")).firstMatch
         XCTAssertTrue(field.waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["https://www.zalando.de"].exists)
+    }
+
+    @MainActor func testAddCardValidatesSendsOnceAndForgetsTheFields() {
+        let app = launch("inspector-shops-no-card")
+        let addCard = app.buttons["Add Card…"]
+        let number = app.textFields["Card Number"]
+        let expiry = app.textFields["Expiry"]
+        let code = app.secureTextFields["Security Code"]
+        let add = app.buttons["Add"]
+        XCTAssertTrue(addCard.waitForExistence(timeout: 10))
+        addCard.tap()
+        XCTAssertTrue(number.waitForExistence(timeout: 5))
+        XCTAssertFalse(add.isEnabled)
+
+        number.tap()
+        "4242424242424241".forEach { number.typeText(String($0)) }
+        expiry.tap()
+        XCTAssertTrue(app.staticTexts["Check the card number."].waitForExistence(timeout: 5))
+        "0825".forEach { expiry.typeText(String($0)) }
+        XCTAssertEqual(expiry.value as? String, "08/25")
+        code.tap()
+        XCTAssertTrue(app.staticTexts["This card has expired."].waitForExistence(timeout: 5))
+        code.typeText("123")
+        XCTAssertFalse(add.isEnabled)
+        app.buttons["Cancel"].tap()
+        XCTAssertTrue(number.waitForNonExistence(timeout: 5))
+        XCTAssertEqual(log(in: app), "none")
+
+        addCard.tap()
+        XCTAssertTrue(number.waitForExistence(timeout: 5))
+        XCTAssertNotEqual(number.value as? String, "4242 4242 4242 4241")
+        XCTAssertFalse(app.staticTexts["Check the card number."].exists)
+        number.tap()
+        "4242424242424242".forEach { number.typeText(String($0)) }
+        XCTAssertEqual(number.value as? String, "4242 4242 4242 4242")
+        let expiryFocused = XCTNSPredicateExpectation(predicate: NSPredicate(format: "hasKeyboardFocus == true"), object: expiry)
+        XCTAssertEqual(XCTWaiter().wait(for: [expiryFocused], timeout: 5), .completed)
+        "1230".forEach { expiry.typeText(String($0)) }
+        XCTAssertEqual(expiry.value as? String, "12/30")
+        let focused = XCTNSPredicateExpectation(predicate: NSPredicate(format: "hasKeyboardFocus == true"), object: code)
+        XCTAssertEqual(XCTWaiter().wait(for: [focused], timeout: 5), .completed)
+        code.typeText("123")
+        XCTAssertFalse(app.staticTexts["Check the card number."].exists)
+        XCTAssertFalse(app.staticTexts["This card has expired."].exists)
+        XCTAssertTrue(add.isEnabled)
+        add.tap()
+
+        XCTAssertTrue(waitForLog("card Shopping card 12/2030", in: app))
+        XCTAssertTrue(number.waitForNonExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@ AND label CONTAINS %@", "Shopping card", "•••• 4242")).firstMatch.waitForExistence(timeout: 5))
+
+        app.buttons["Replace Card…"].tap()
+        XCTAssertTrue(number.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Replace Card"].exists)
+        XCTAssertNotEqual(number.value as? String, "4242 4242 4242 4242")
+        XCTAssertNotEqual(expiry.value as? String, "12/30")
+        app.buttons["Cancel"].tap()
+        XCTAssertTrue(number.waitForNonExistence(timeout: 5))
+        XCTAssertEqual(log(in: app), "card Shopping card 12/2030")
     }
 }

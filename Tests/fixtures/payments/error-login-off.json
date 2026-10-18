@@ -1,0 +1,6 @@
+{
+  "detail": {
+    "code": "login_off",
+    "message": "the dashboard login is off, so crew-push does not store cards"
+  }
+}

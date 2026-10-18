@@ -1,0 +1,6 @@
+{
+  "detail": {
+    "code": "vault_error",
+    "message": "the vault could not be updated"
+  }
+}

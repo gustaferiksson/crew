@@ -96,6 +96,10 @@ nonisolated struct PluginStatus: Decodable, Equatable, Sendable {
     var supportsCardEntry: Bool {
         features?.contains("card") == true
     }
+
+    var hasCardVault: Bool {
+        features?.contains("card_vault") == true
+    }
 }
 
 nonisolated struct VaultResult: Decodable, Sendable {
@@ -258,6 +262,7 @@ nonisolated struct ShopList: Decodable, Equatable, Sendable {
     var shops: [Shop]
     let terminalBackend: String?
     let gate: Bool?
+    var legacyCards: Int?
 }
 
 nonisolated struct ShopCreated: Decodable, Sendable {
@@ -276,6 +281,7 @@ nonisolated struct ShopsControls: Equatable {
     let list: ShopList
     let isOnline: Bool
     let supportsCardEntry: Bool
+    var hasCardVault = false
 
     private var canWriteCard: Bool {
         isOnline && supportsCardEntry && list.gate == true
@@ -455,7 +461,7 @@ nonisolated private struct PaymentsErrorBody: Decodable {
     let detail: Detail
 }
 
-nonisolated private final class RefusingRedirects: NSObject, URLSessionTaskDelegate, Sendable {
+nonisolated final class RefusingRedirects: NSObject, URLSessionTaskDelegate, Sendable {
     func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse, newRequest request: URLRequest, completionHandler: @escaping @Sendable (URLRequest?) -> Void) {
         completionHandler(nil)
     }

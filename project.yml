@@ -122,6 +122,7 @@ targets:
       - Sources/Search/MessageSearch.swift
       - Sources/Links.swift
       - Sources/Scenes.swift
+      - Sources/Inspector/Vault.swift
       - Tests/CrewTests
     settings:
       base:

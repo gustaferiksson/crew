@@ -1,0 +1,12 @@
+{
+  "items": [
+    {
+      "id": "vault_dc66a66a1bff",
+      "kind": "payment",
+      "label": "Test card \u00b7 gustaferiksson.github.io",
+      "origin": "https://gustaferiksson.github.io",
+      "created_at": "2026-10-17T14:32:20.167363+00:00",
+      "backend": "local"
+    }
+  ]
+}

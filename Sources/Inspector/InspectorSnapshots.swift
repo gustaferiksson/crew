@@ -21,6 +21,7 @@ private let adaTodos = [
 
 struct InspectorFixtureScreen: View {
     let tab: InspectorTab
+    var snapshot: Snapshot?
 
     private let routines = [
         RoutineJob(
@@ -46,15 +47,50 @@ struct InspectorFixtureScreen: View {
             ContentUnavailableView("Chat", systemImage: "bubble.left.and.bubble.right")
                 .inspector(isPresented: .constant(true)) {
                     NavigationStack { inspector }
-                        .inspectorColumnWidth(min: inspectorWidth.min, ideal: inspectorWidth.ideal, max: inspectorWidth.max)
+                        .inspectorColumnWidth(min: inspectorWidth.min, ideal: snapshot == .inspectorPasswordsNarrow ? inspectorWidth.min : inspectorWidth.ideal, max: inspectorWidth.max)
                 }
         }
+        .modifier(PasswordsFixtureSheets(snapshot: snapshot, vault: vault))
         #else
         NavigationStack(path: .constant([0])) {
             Text("Ada")
                 .navigationDestination(for: Int.self) { _ in inspector }
         }
+        .dynamicTypeSize(snapshot == .inspectorPasswordsNarrow ? .accessibility1 : .large)
+        .modifier(PasswordsFixtureSheets(snapshot: snapshot, vault: vault))
         #endif
+    }
+
+    @State private var vault = InspectorFixtureScreen.vault(for: Snapshot.requested)
+
+    private static func vault(for snapshot: Snapshot?) -> BotVault {
+        let local = { (id: String, host: String, user: String?, created: String, otp: Bool) in
+            VaultItem(id: id, kind: "login", label: host, origin: "https://\(host)", createdAt: created, identifier: user, identifierType: user.map { $0.contains("@") ? "email" : "username" }, hasOtp: otp ? true : nil, backend: "local")
+        }
+        let installed = [VaultSource(name: "local", installed: true, enabled: true, unlocked: true), VaultSource(name: "onepassword", installed: true, enabled: true, unlocked: true)]
+        if snapshot == .inspectorPasswordsEmpty {
+            return BotVault(fixture: "ada", items: [], sources: [VaultSource(name: "local", installed: true, enabled: true, unlocked: true), VaultSource(name: "onepassword", installed: false, enabled: false, unlocked: false)], tokenSaved: false, terminalBackend: "docker")
+        }
+        if snapshot == .inspectorPasswordsError {
+            return BotVault(fixture: "ada", items: nil, listFailed: true, sources: installed, tokenSaved: true)
+        }
+        return BotVault(fixture: "ada", items: [
+            local("vault_a1", "github.com", "ada@example.com", "2026-09-02T10:00:00+00:00", false),
+            local("vault_a2", "accounts.google.com", "ada.lovelace@gmail.com", "2026-09-12T10:00:00+00:00", true),
+            local("vault_a3", "www.sj.se", "ada", "2026-08-01T10:00:00+00:00", false),
+            local("vault_a4", "www.sj.se", "ada", "2026-10-14T10:00:00+00:00", false),
+            local("vault_a5", "booking.long-subdomain-for-reservations.example-travel-platform.com", "ada.lovelace.research.lead@analytical-engines.example.com", "2026-10-01T10:00:00+00:00", false),
+            VaultItem(id: "vault_p1", kind: "payment", label: "Shopping card •••• 4242 · www.zalando.se", origin: "https://www.zalando.se", createdAt: "2026-10-01T10:00:00+00:00", backend: "local"),
+            VaultItem(id: "op:figma", kind: "login", label: "Figma", origin: "https://www.figma.com", createdAt: "", identifier: "ada@example.com", identifierType: "username", allowedOrigins: ["https://www.figma.com", "https://figma.com"], backend: "onepassword"),
+            VaultItem(id: "op:slack", kind: "login", label: "Slack app", origin: "androidapp://com.slack", createdAt: "", backend: "onepassword"),
+        ], sources: installed, tokenSaved: true)
+    }
+
+    private var shops: ShopList? {
+        guard snapshot?.isPasswords == true else { return nil }
+        if snapshot == .inspectorPasswordsEmpty { return ShopList(card: MasterCard(label: nil, last4: nil, problem: "missing"), shops: [], terminalBackend: "docker", gate: true) }
+        let shop = Shop(id: "v1", origin: "https://www.zalando.se", host: "www.zalando.se", createdAt: Date.now.timeIntervalSince1970 - 9 * 86400, lastPaidAt: nil, stale: false, punycode: false)
+        return ShopList(card: MasterCard(label: "Shopping card", last4: "4242", problem: nil), shops: [shop], terminalBackend: "local", gate: true)
     }
 
     private let conversations = [
@@ -65,10 +101,37 @@ struct InspectorFixtureScreen: View {
 
     private var inspector: some View {
         BotInspector(
-            bot: ada, tab: tab, routines: RoutineStore(fixture: routines), draft: Snapshot.profileDraft, conversations: conversations, models: Snapshot.profileModels,
+            bot: ada, tab: tab, routines: RoutineStore(fixture: routines), draft: Snapshot.profileDraft, conversations: conversations, shops: shops, vault: vault, models: Snapshot.profileModels,
             isPresented: .constant(true)
         )
             .environment(ChatSessions(fixture: [ada.id: ChatSession(fixture: ada, transcript: Transcript(), todos: adaTodos)]))
+            .overlay(alignment: .topLeading) {
+                Color.clear
+                    .frame(width: 1, height: 1)
+                    .accessibilityElement()
+                    .accessibilityIdentifier("request-log")
+                    .accessibilityLabel("Request log")
+                    .accessibilityValue(vault.requests.isEmpty ? "none" : vault.requests.joined(separator: ","))
+            }
+    }
+}
+
+private struct PasswordsFixtureSheets: ViewModifier {
+    let snapshot: Snapshot?
+    let vault: BotVault
+
+    func body(content: Content) -> some View {
+        content
+            .sheet(isPresented: .constant([.addLogin, .addLoginInvalid, .editLogin].contains(snapshot))) {
+                LoginSheet(
+                    bot: ada, vault: vault, editing: snapshot == .editLogin ? vault.items?.first : nil,
+                    fixture: snapshot == .addLoginInvalid ? LoginEntry(website: "not a website", username: "", password: "") : nil,
+                    failure: snapshot == .editLogin ? String(localized: "Couldn't save the login on the server.") : nil
+                ) { _ in }
+            }
+            .sheet(isPresented: .constant(snapshot == .connectOnePassword)) {
+                ConnectOnePasswordSheet(bot: ada, vault: BotVault(fixture: "ada", items: [], sources: [VaultSource(name: "onepassword", installed: false, enabled: false, unlocked: false)], tokenSaved: false))
+            }
     }
 }
 

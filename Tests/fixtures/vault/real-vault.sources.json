@@ -1,0 +1,28 @@
+{
+  "sources": [
+    {
+      "name": "local",
+      "display_name": "Hermes vault",
+      "enabled": true,
+      "needs_unlock": false,
+      "unlocked": true,
+      "installed": true
+    },
+    {
+      "name": "onepassword",
+      "display_name": "1Password",
+      "enabled": false,
+      "needs_unlock": true,
+      "unlocked": false,
+      "installed": false
+    },
+    {
+      "name": "bitwarden",
+      "display_name": "Bitwarden",
+      "enabled": false,
+      "needs_unlock": true,
+      "unlocked": false,
+      "installed": false
+    }
+  ]
+}

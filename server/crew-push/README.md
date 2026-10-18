@@ -52,7 +52,7 @@ Then restart as in step 6. Registered devices, the key and `install_id` live in 
 
 ## Routes
 
-All under `/api/plugins/crew-push/`, behind the dashboard login: `GET status`, `POST devices`, `DELETE devices/{token}`, `POST test`, `POST read` (`{token, profile, session_id, read_at}`: a silent push to every other device so they clear that bot's notifications), and since 0.4.0 `GET payments`, `POST payments/shops`, `DELETE payments/shops/{id}` and `GET payments/requests/{request_id}` for payments, and since 0.5.0 `PUT payments/card` (add or replace the master card; only label and last four come back) and `POST payments/shops/update` (re-copy the current card into a bot's stale shops), both refused unless the dashboard login gate is on. Shapes are in `docs/push.md` section 4.4 and `docs/flows/payments-contract.md`.
+All under `/api/plugins/crew-push/`, behind the dashboard login: `GET status`, `POST devices`, `DELETE devices/{token}`, `POST test`, `POST read` (`{token, profile, session_id, read_at}`: a silent push to every other device so they clear that bot's notifications), and since 0.4.0 `GET payments`, `POST payments/shops`, `DELETE payments/shops/{id}` and `GET payments/requests/{request_id}` for payments, and since 0.5.0 `PUT payments/card` (add or replace the master card; only label and last four come back) and `POST payments/shops/update` (re-copy the current card into a bot's stale shops), both refused unless the dashboard login gate is on. Since 0.6.0 (`features` adds `card_vault`) the master card lives in crew-push's own vault at `~/.hermes/vault/crew-push/` (moved once from the root vault) and `GET payments` adds `legacy_cards`. Shapes are in `docs/push.md` section 4.4 and `docs/flows/payments-contract.md`.
 
 ## Tests
 

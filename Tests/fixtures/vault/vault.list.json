@@ -1,0 +1,12 @@
+{
+  "items": [
+    {"id": "vault_1a2b3c4d5e6f", "kind": "login", "label": "github.com", "origin": "https://github.com", "created_at": "2026-09-02T10:00:00.123456+00:00", "identifier": "ada@example.com", "identifier_type": "email", "backend": "local"},
+    {"id": "vault_2b3c4d5e6f7a", "kind": "login", "label": "accounts.google.com", "origin": "https://accounts.google.com", "created_at": "2026-09-12T10:00:00+00:00", "identifier": "ada.lovelace@gmail.com", "identifier_type": "email", "has_otp": true, "backend": "local"},
+    {"id": "vault_3c4d5e6f7a8b", "kind": "login", "label": "www.sj.se", "origin": "https://www.sj.se", "created_at": "2026-10-14T10:00:00+00:00", "identifier": "ada", "identifier_type": "username", "backend": "local"},
+    {"id": "vault_4d5e6f7a8b9c", "kind": "login", "label": "www.sj.se", "origin": "https://www.sj.se", "created_at": "2026-08-01T10:00:00+00:00", "identifier": "ada", "identifier_type": "username", "backend": "local"},
+    {"id": "vault_5e6f7a8b9c0d", "kind": "payment", "label": "Shopping card •••• 4242 · www.zalando.se", "origin": "https://www.zalando.se", "created_at": "2026-10-01T10:00:00+00:00", "backend": "local"},
+    {"id": "vault_6f7a8b9c0d1e", "kind": "address", "label": "Home", "origin": null, "created_at": "2026-10-01T10:00:00+00:00", "backend": "local"},
+    {"id": "op:k2j4h5g6f7d8s9a0", "kind": "login", "label": "Figma", "origin": "https://www.figma.com", "created_at": "2026-07-01T08:00:00Z", "identifier": "ada@example.com", "identifier_type": "username", "allowed_origins": ["https://www.figma.com", "https://figma.com"], "backend": "onepassword"},
+    {"id": "op:z9y8x7w6v5u4t3s2", "kind": "login", "label": "Slack app", "origin": "androidapp://com.Slack", "created_at": "", "backend": "onepassword"}
+  ]
+}

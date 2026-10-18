@@ -27,7 +27,7 @@ def put_card(client: TestClient, **fields: str) -> Any:
 
 
 def masters(vaults: Vaults, hermes_root: Path) -> list[dict[str, Any]]:
-    return [r for r in vaults.records.get(hermes_root / "vault", []) if r["kind"] == "payment" and not r["origin"]]
+    return [r for r in vaults.records.get(hermes_root / "vault" / "crew-push", []) if r["kind"] == "payment" and not r["origin"]]
 
 
 def test_add_card_stores_the_normalised_card_without_origin(client: TestClient, vaults: Vaults,
@@ -302,8 +302,8 @@ def test_update_shops_waits_for_a_pending_payment(client: TestClient, master: Pa
 def test_update_shops_errors(client: TestClient, vaults: Vaults, hermes_root: Path) -> None:
     response = client.post(f"{API}/payments/shops/update", json={"profile": "scout"})
     assert response.status_code == 409 and response.json() == fixture("error-no-card.json")
-    vaults.add(hermes_root / "vault", "payment", "One", CARD)
-    vaults.add(hermes_root / "vault", "payment", "Two", CARD)
+    vaults.add(hermes_root / "vault" / "crew-push", "payment", "One", CARD)
+    vaults.add(hermes_root / "vault" / "crew-push", "payment", "Two", CARD)
     response = client.post(f"{API}/payments/shops/update", json={"profile": "scout"})
     assert response.status_code == 409 and response.json() == fixture("error-several-cards.json")
     for profile, status, name in (("Scout", 400, "error-invalid-profile.json"),

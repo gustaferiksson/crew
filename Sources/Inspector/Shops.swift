@@ -31,7 +31,7 @@ struct ShopsCard: View {
     }
 
     private func controls(_ list: ShopList) -> ShopsControls {
-        ShopsControls(list: list, isOnline: isOnline, supportsCardEntry: connection.crewPush?.supportsCardEntry == true)
+        ShopsControls(list: list, isOnline: isOnline, supportsCardEntry: connection.crewPush?.supportsCardEntry == true, hasCardVault: connection.crewPush?.hasCardVault == true)
     }
 
     var body: some View {
@@ -96,6 +96,11 @@ struct ShopsCard: View {
     private func cardRow(_ card: MasterCard, controls: ShopsControls) -> some View {
         if let label = card.label, controls.hasCard {
             VStack(alignment: .leading, spacing: 4) {
+                if controls.hasCardVault {
+                    Text("Card used for new shops")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
                 HStack(spacing: 12) {
                     CardArt(width: 40, height: 26)
                     HStack(spacing: 4) {
@@ -106,7 +111,7 @@ struct ShopsCard: View {
                     }
                     .accessibilityElement(children: .combine)
                 }
-                if bot.isDefault {
+                if bot.isDefault, !controls.hasCardVault {
                     Text("Kept here, never used to pay.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
@@ -184,6 +189,9 @@ struct ShopsCard: View {
         if isBrowserOff { footers.append((String(localized: "Turn on Browser in Capabilities so \(bot.title) can shop."), false)) }
         if (list.terminalBackend ?? "local") == "local" {
             footers.append((String(localized: "Bots on this server run commands next to the card, so a misbehaving bot could read it. Keep the card's limit low."), false))
+        }
+        if bot.isDefault, let leftover = list.legacyCards, leftover > 0 {
+            footers.append((leftover == 1 ? String(localized: "1 older card is still in this bot's vault, and the bot can see it there. Remove it on the server.") : String(localized: "\(leftover) older cards are still in this bot's vault, and the bot can see them there. Remove them on the server."), false))
         }
         if list.gate == false { footers.append((String(localized: "Payments are off: this server has no dashboard login."), true)) }
         return footers
@@ -406,7 +414,6 @@ struct CardSheet: View {
 
     @Environment(Connection.self) private var connection
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.scenePhase) private var scenePhase
     @State private var number: String
     @State private var expiry: String
     @State private var cvc: String
@@ -544,26 +551,7 @@ struct CardSheet: View {
             }
         }
         .interactiveDismissDisabled(isSaving)
-        #if os(iOS)
-        .overlay {
-            if isCovered || scenePhase != .active {
-                ZStack {
-                    Rectangle().fill(.regularMaterial)
-                    Image(systemName: "creditcard")
-                        .font(.largeTitle)
-                        .foregroundStyle(.secondary)
-                }
-                .ignoresSafeArea()
-                .accessibilityHidden(true)
-            }
-        }
-        .presentationDetents([.large])
-        .presentationDragIndicator(.visible)
-        #else
-        .background(HiddenFromScreenCapture())
-        .frame(width: 400)
-        .frame(minHeight: 420)
-        #endif
+        .secretSheet(symbol: "creditcard", isCovered: isCovered)
     }
 
     private func field(_ field: CardField, title: LocalizedStringKey, @ViewBuilder content: () -> some View) -> some View {
@@ -622,21 +610,3 @@ struct CardSheet: View {
         }
     }
 }
-
-#if os(macOS)
-private struct HiddenFromScreenCapture: NSViewRepresentable {
-    final class WindowWatcher: NSView {
-        override func viewDidMoveToWindow() {
-            super.viewDidMoveToWindow()
-            guard Snapshot.requested == nil else { return }
-            window?.sharingType = .none
-        }
-    }
-
-    func makeNSView(context: Context) -> NSView {
-        WindowWatcher()
-    }
-
-    func updateNSView(_ nsView: NSView, context: Context) {}
-}
-#endif

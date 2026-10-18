@@ -152,15 +152,16 @@ def main() -> None:
     app.state.auth_required = True
     replaced = client.put("/api/plugins/crew-push/payments/card", json={
         "card_number": "4000 0566 5566 5556", "exp_month": "3", "exp_year": "31", "cvc": "321", "label": "Travel card"})
-    vault = VaultStore(home / "vault")
-    masters = [item for item in vault.list_items() if item.kind == "payment" and not item.origin]
+    vault, card_vault = VaultStore(home / "vault"), VaultStore(home / "vault" / "crew-push")
+    masters = [item for item in card_vault.list_items() if item.kind == "payment" and not item.origin]
     updated = client.post("/api/plugins/crew-push/payments/shops/update", json={"profile": "default"})
     shops = [item for item in vault.list_items() if item.origin]
     result["card"] = {"status": replaced.status_code, "body": replaced.json(),
                       "masters": [(item.label, item.origin) for item in masters],
-                      "secret": vault.resolve_secret(masters[0].id) if len(masters) == 1 else None,
+                      "secret": card_vault.resolve_secret(masters[0].id) if len(masters) == 1 else None,
+                      "left_in_default": [item.label for item in vault.list_items() if not item.origin],
                       "update": updated.status_code, "shop_labels": [item.label for item in shops],
-                      "files": {name: oct((home / "vault" / name).stat().st_mode & 0o777) for name in ("vault.key", "vault.json.enc")}}
+                      "files": {name: oct((home / "vault" / "crew-push" / name).stat().st_mode & 0o777) for name in ("vault.key", "vault.json.enc")}}
     app.state.auth_required = False
 
     from hermes_cli.web_server import app as dashboard

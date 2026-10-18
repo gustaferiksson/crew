@@ -17,7 +17,7 @@ Plan for [#9](https://github.com/gustaferiksson/crew/issues/9). Researched again
 - A payment item fills only on its bound origin, checked again inside the fill script. An item without an origin is refused (`no_origin`).
 - Filled values are registered with the redaction boundary, so a later tool result that echoes them exactly is scrubbed.
 - The vault is per profile: `<profile home>/vault/vault.json.enc` plus `vault.key` (Fernet). Hermes' file tools refuse to read `vault/`.
-- Crew can already call `vault.list` and `vault.remove` (with `profile`) over `/api/ws`. `vault.add` exists too, but it takes the card number from the client, so there is **no server-side copy**. Step 4 adds one.
+- Crew can already call `vault.list` and `vault.remove` (with `profile`) over `/api/ws`. `vault.add` exists too, but it takes the card number from the client, so there is **no server-side copy**. Step 4 adds one. Logins in the Passwords tab use these RPCs directly ([flows/inspector-passwords.md](flows/inspector-passwords.md)).
 - The approval Crew receives carries `command` ("Fill payment card '<label>' on <origin>"), `description`, `pattern_key: "mcp_elicitation"`, `request_id` and `choices`. It does **not** carry `surface`, and `choices` still offers `session` and `always`.
 - Gaps: `resolve_gateway_approval` resolves the oldest pending approval when no `request_id` is given. So `/approve`, `/approve all` and a typed "yes" or "ok" on Telegram and other messaging platforms can approve a payment.
 
@@ -29,6 +29,7 @@ Plan for [#9](https://github.com/gustaferiksson/crew/issues/9). Researched again
 - No fill without a tap on Approve in Crew. No "allow for session", no "always". Until step 5, another client attached to the same session (TUI, Desktop) could still answer with `session` or `/approve`.
 - A fill only runs on the exact origin the user added, and only from the bot's Bot Chat in Crew (step 2), so a typed reply on another platform cannot pay.
 - A bot cannot add shops: the copy route sits behind the dashboard login (only true under `docker`, see the shell below).
+- No bot lists the master card (crew-push 0.6.0 keeps it in `<root>/vault/crew-push/`, inside Hermes' file-tool guard). The guard is not a boundary against a shell.
 
 **Not protected**
 
@@ -39,6 +40,7 @@ Plan for [#9](https://github.com/gustaferiksson/crew/issues/9). Researched again
 - **Look-alike domains.** Matching is exact, so `zalando-shop.se` never gets the `zalando.se` card. The risk is the user adding a wrong host because a bot asked. The inspector shows the host plainly and flags `xn--` (punycode) hosts.
 - **Iframe checkouts.** The fill runs in the top document only. Card fields inside a cross-origin iframe are not found, so the fill fails with "no fields". It fails safe, but those shops cannot be used.
 - **The bot's shell.** Under the `local` terminal backend a bot can read `vault.key` and decrypt every card. See [Open decisions](#open-decisions).
+- **Logins and the 1Password token.** Passwords added from the Passwords tab cross Crew once over WSS and are filled model-blind, but under `terminal.backend: local` a bot's shell can read every profile's `vault.key` and `.env`, so also every login and the 1Password service account token (and with it every item in that bot's 1Password vault). The token sits in the bot's `.env`; `POST /api/env/reveal` returns it to any dashboard session. The dashboard login is the only gate in front of these routes.
 - **crew-push not loaded.** The stock gate still asks, but without amount, merchant, reason or the Bot Chat rule.
 
 ## Server commands
@@ -94,9 +96,9 @@ Then restart Hermes the way it runs on `<host>` (for example its systemd service
   - crew-push 0.5.0 route `POST /api/plugins/crew-push/cards {profile, site}` (dashboard login required). It turns `site` into `https://<host>` (https only, no IPs or localhost, lowercase), refuses an origin the profile already has, reads the master card (the single `payment` item without origin in `get_default_hermes_root()/vault`; 409 if there are none or several), and calls `VaultStore(get_profile_dir(profile) / "vault").add_item(kind="payment", label="<master label> · <host>", origin=..., secret=<master secret>)`. Returns metadata only.
   - Inspector "Shops" section: lists the bot's payment items (`vault.list {profile}`), "Add shop website" calls the route, swipe to delete calls `vault.remove {profile, id}`. `xn--` hosts get a warning. If the bot's `terminal.backend` is `local` (`GET /api/config?profile=`), a footnote says other bots on the server can read the card.
 - **Files:** `server/crew-push/dashboard/plugin_api.py`, `tests/test_routes.py`, version files; `Sources/Inspector/BotInspector.swift`, new `Sources/Inspector/Shops.swift`, `Sources/Inspector/InspectorSnapshots.swift`, a Decisions line in `docs/PLAN.md`.
-- **Server:** deploy crew-push. Then add the master card once from Crew: Shops > **Add Card…** (crew-push 0.5.0, [flows/master-card.md](flows/master-card.md)), which stores it in the launch profile's vault with no origin; `hermes vault add` cannot, since Hermes 0.22.1 insists on an origin for payment items. Use the 4242 test card until step 4 is verified, then **Replace Card…** it with the real virtual card and tap **Update Shops** in each bot's Shops card. Remove the step 1 card (`hermes -p crew-test vault rm <id of Test 4242>` in the Hermes environment). The vault files must stay owned by the user Hermes runs as (`ssh <host> chown -R <uid>:<gid> <hermes-data-dir>/vault` if not).
+- **Server:** deploy crew-push. Then add the master card once from Crew: Shops > **Add Card…** (crew-push 0.5.0, [flows/master-card.md](flows/master-card.md)), which stores it with no origin in crew-push's own vault, `<hermes-data-dir>/vault/crew-push/` (crew-push 0.6.0; 0.5.0 used the launch profile's vault and 0.6.0 moves that card once); `hermes vault add` cannot, since Hermes 0.22.1 insists on an origin for payment items. Use the 4242 test card until step 4 is verified, then **Replace Card…** it with the real virtual card and tap **Update Shops** in each bot's Shops card. Remove the step 1 card (`hermes -p crew-test vault rm <id of Test 4242>` in the Hermes environment). The vault files must stay owned by the user Hermes runs as (`ssh <host> chown -R <uid>:<gid> <hermes-data-dir>/vault` if not).
 
-  If the default profile is a bot, it sees "Shopping card" in `browser_vault list` but cannot fill it (`no_origin`).
+  From crew-push 0.6.0 no bot lists the master. If the default bot's Shops card reports older cards (`legacy_cards`, several origin-less cards that were not moved), remove them in the Hermes environment: `hermes vault list` then `hermes vault rm <id>` for each origin-less payment item.
 - **Verify on crew-test:** add `gustaferiksson.github.io` in the inspector, then the step 1 purchase works end to end; adding it twice, `http://` or an IP is refused; POST without a login gives 401; `hermes -p crew-test vault list` shows the copy with its origin.
 
 ### 5. Upstream Hermes PR and issue (S)

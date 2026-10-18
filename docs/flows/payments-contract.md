@@ -26,7 +26,7 @@ Everything the Shops card needs.
 }
 ```
 
-- No usable master: `"card": {"label": null, "last4": null, "problem": "missing" | "several"}`. The master is the single `payment` item without origin in `get_default_hermes_root()/vault`. `last4` is computed inside the route; the number never leaves it.
+- No usable master: `"card": {"label": null, "last4": null, "problem": "missing" | "several"}`. The master is the single `payment` item without origin in crew-push's vault, `get_default_hermes_root()/vault/crew-push` (0.6.0; `get_default_hermes_root()/vault` before, migrated once on the first master read or write). `legacy_cards` (0.6.0) counts the origin-less payment items still in the default vault, 0 normally. `last4` is computed inside the route; the number never leaves it.
 - `shops`: the profile's `payment` items with an origin. `stale`: the copy's secret differs from the master's. `punycode`: a host label starts with `xn--`. `last_paid_at`: the newest `approved` entry for that origin in the log.
 - `terminal_backend`: the profile's resolved `terminal.backend`, `local` when unset.
 - Errors: `400 invalid_profile`, `404 unknown_profile`.
@@ -47,7 +47,7 @@ Removes a `payment` item with an origin (never the master, never another kind). 
 
 ### `PUT /payments/card`
 
-crew-push 0.5.0 ([master-card.md](master-card.md)); `/status` then lists `"features": ["payments", "card"]`. `Content-Type: application/json`, body `{"card_number": "4242 4242 4242 4242", "exp_month": "12", "exp_year": "30", "cvc": "123", "cardholder_name": "Test Card", "label": "Shopping card"}` (`cardholder_name` may be empty). Adds the master card, or replaces the single existing one, under crew-push's vault lock: `VaultStore(get_default_hermes_root() / "vault").add_item(kind="payment", label=<label>, secret={"card_number": "4242424242424242", "exp_month": "12", "exp_year": "2030", "cvc": "123", "cardholder_name": "Test Card"})` with no origin, then the previous master is removed by id. The route reads the body itself, so no error ever echoes a value.
+crew-push 0.5.0 ([master-card.md](master-card.md)); `/status` then lists `"features": ["payments", "card"]` (0.6.0 adds `"card_vault"`). `Content-Type: application/json`, body `{"card_number": "4242 4242 4242 4242", "exp_month": "12", "exp_year": "30", "cvc": "123", "cardholder_name": "Test Card", "label": "Shopping card"}` (`cardholder_name` may be empty). Adds the master card, or replaces the single existing one, under crew-push's vault lock: `VaultStore(get_default_hermes_root() / "vault").add_item(kind="payment", label=<label>, secret={"card_number": "4242424242424242", "exp_month": "12", "exp_year": "2030", "cvc": "123", "cardholder_name": "Test Card"})` with no origin, then the previous master is removed by id. The route reads the body itself, so no error ever echoes a value.
 
 - `200 {"card": {"label": "Shopping card", "last4": "4242", "problem": null}}` (fixture `card-set.json`)
 - `400 invalid_card` with `"reason": "body" | "number" | "expiry" | "expired" | "cvc" | "name" | "label"` inside `detail` (fixtures `error-invalid-card-<reason>.json`)

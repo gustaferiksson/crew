@@ -20,7 +20,7 @@ This reverses one stated decision: the card number now passes through the client
 - First card on a server without a default vault: `add_item` creates `vault/vault.key` and `vault.json.enc` (0600) as the user the dashboard runs as, which is the user Hermes runs as.
 - Old crew-push (no `"card"` in `/status` `features`): no Add, Replace or Update buttons; the no-card row reads "Add one card on the server without a website. Update crew-push to add it from Crew." The Copy Setup Command button is removed everywhere (#54 superseded).
 
-## Shops card (inspector Info tab, iPhone profile page and Mac inspector column)
+## Shops card (inspector Passwords tab, iPhone profile page and Mac inspector column)
 
 Only the card row and a new Update Shops row change; shop rows, Add Shop, footers and the other states stay as in [payments.md](payments.md#shops-inspector-info-tab).
 

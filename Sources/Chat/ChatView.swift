@@ -388,11 +388,8 @@ struct TurnView: View {
                     }
                 }
                 if let answer = turn.answer {
-                    MarkdownText(source: a2uiFenced(answer))
+                    ReplyText(source: a2uiFenced(answer))
                         .environment(\.surfaces, surfaces)
-                        #if os(macOS)
-                        .textSelection(.enabled)
-                        #endif
                         .padding(12)
                         .modifier(MessageMenu(text: answer, shape: .rect(cornerRadius: 18)))
                         .padding(-12)
@@ -406,11 +403,8 @@ struct TurnView: View {
                     PaymentReceiptRow(receipt: receipt)
                 }
                 if !turn.reply.isEmpty {
-                    MarkdownText(source: a2uiFenced(turn.reply))
+                    ReplyText(source: a2uiFenced(turn.reply))
                         .environment(\.surfaces, surfaces)
-                        #if os(macOS)
-                        .textSelection(.enabled)
-                        #endif
                         .padding(12)
                         .modifier(MessageMenu(text: turn.reply, shape: .rect(cornerRadius: 18)))
                         .padding(-12)

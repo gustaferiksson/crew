@@ -13,6 +13,7 @@ enum Snapshot: String {
     case avatarPicker = "avatar-picker"
     case chat
     case chatHistory = "chat-history"
+    case chatSelection = "chat-selection"
     case chatTimestamps = "chat-timestamps"
     case chatWorkLog = "chat-worklog"
     case chatQuestion = "chat-question"
@@ -78,7 +79,7 @@ enum Snapshot: String {
     static let requested = UserDefaults.standard.string(forKey: "snapshot").flatMap(Snapshot.init(rawValue:))
 
     var chatFixture: ChatFixture? {
-        [.chat: .conversation, .chatHistory: .history, .chatTimestamps: .timestamps, .chatWorkLog: .workLog, .chatQuestion: .question, .chatQuestions: .questions, .chatQuestionsSnacks: .questionsSnacks, .chatOffline: .offline, .chatAttachments: .attachments, .chatDictation: .dictation, .chatMentions: .mentions, .composerLine: .composerLine, .composerLines: .composerLines, .composerRunning: .composerRunning, .composerRunningText: .composerRunningText, .chatSteer: .steer, .chatSteerTaken: .steerTaken, .chatWaiting: .waiting, .chatMentionPeek: .mentions, .chatMentionChat: .mentions, .chatAgentMessage: .agentMessage, .chatA2UI: .a2ui, .chatA2UICards: .a2uiCards, .chatA2UIForm: .a2uiForm, .chatA2UITable: .a2uiTable, .chatA2UIChart: .a2uiChart, .chatA2UIMap: .a2uiMap, .chatPayment: .payment, .chatPaymentHolding: .paymentHolding, .chatPaymentApproved: .paymentApproved, .chatPaymentLoading: .paymentLoading, .chatPaymentFailed: .paymentFailed, .chatPaymentUnverified: .paymentUnverified, .chatPaymentPunycode: .paymentPunycode, .chatPaymentCountdown: .paymentCountdown, .chatPaymentNotice: .paymentNotice, .chatPaymentOffer: .paymentOffer, .chatPaymentReceipts: .paymentReceipts][self]
+        [.chat: .conversation, .chatHistory: .history, .chatSelection: .history, .chatTimestamps: .timestamps, .chatWorkLog: .workLog, .chatQuestion: .question, .chatQuestions: .questions, .chatQuestionsSnacks: .questionsSnacks, .chatOffline: .offline, .chatAttachments: .attachments, .chatDictation: .dictation, .chatMentions: .mentions, .composerLine: .composerLine, .composerLines: .composerLines, .composerRunning: .composerRunning, .composerRunningText: .composerRunningText, .chatSteer: .steer, .chatSteerTaken: .steerTaken, .chatWaiting: .waiting, .chatMentionPeek: .mentions, .chatMentionChat: .mentions, .chatAgentMessage: .agentMessage, .chatA2UI: .a2ui, .chatA2UICards: .a2uiCards, .chatA2UIForm: .a2uiForm, .chatA2UITable: .a2uiTable, .chatA2UIChart: .a2uiChart, .chatA2UIMap: .a2uiMap, .chatPayment: .payment, .chatPaymentHolding: .paymentHolding, .chatPaymentApproved: .paymentApproved, .chatPaymentLoading: .paymentLoading, .chatPaymentFailed: .paymentFailed, .chatPaymentUnverified: .paymentUnverified, .chatPaymentPunycode: .paymentPunycode, .chatPaymentCountdown: .paymentCountdown, .chatPaymentNotice: .paymentNotice, .chatPaymentOffer: .paymentOffer, .chatPaymentReceipts: .paymentReceipts][self]
     }
 
     var isShops: Bool {
@@ -212,9 +213,17 @@ extension Snapshot {
         window.isRestorable = false
         window.setFrameOrigin(NSPoint(x: -4000, y: 0))
         if self == .layoutInspector { window.setContentSize(NSSize(width: 860, height: 640)) }
+        if self == .chatSelection { window.setContentSize(NSSize(width: 860, height: 900)) }
+        if self == .chatTimestamps { window.setContentSize(NSSize(width: 560, height: 900)) }
         let height = UserDefaults.standard.double(forKey: "snapshotHeight")
         if height > 0 { window.setContentSize(NSSize(width: window.contentRect(forFrameRect: window.frame).width, height: height)) }
         try? await Task.sleep(for: .seconds(1.5))
+        if self == .chatSelection, let reply = window.contentView.map(replyTextViews)?.first(where: { $0.string.contains("Merino") }) {
+            let text = reply.string as NSString
+            let start = text.range(of: "Expect").location
+            reply.setSelectedRange(NSRange(location: start, length: NSMaxRange(text.range(of: "Merino top")) - start))
+            try? await Task.sleep(for: .seconds(0.5))
+        }
         if UserDefaults.standard.bool(forKey: "measure") { await measure(window) }
         // cacheDisplay and ImageRenderer skip Liquid Glass; CGWindowListCreateImage is SDK-obsoleted but still exported for own windows.
         typealias CreateImage = @convention(c) (CGRect, CGWindowListOption, CGWindowID, CGWindowImageOption) -> Unmanaged<CGImage>?
@@ -226,6 +235,10 @@ extension Snapshot {
         try? png.write(to: output)
         print(output.path(percentEncoded: false))
         exit(0)
+    }
+
+    private func replyTextViews(in view: NSView) -> [ReplyTextView] {
+        ((view as? ReplyTextView).map { [$0] } ?? []) + view.subviews.flatMap(replyTextViews)
     }
 
     private func measure(_ window: NSWindow) async {

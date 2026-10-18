@@ -314,9 +314,10 @@ extension PushCenter: UNUserNotificationCenterDelegate {
         completionHandler(MainActor.assumeIsolated { presentation(for: route) })
     }
 
-    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
+    // UIKit's completion handler asserts the main thread, so this must not be nonisolated.
+    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
         let route = PushRoute(userInfo: response.notification.request.content.userInfo)
-        guard response.actionIdentifier == denyPaymentAction else { return await MainActor.run { open(route) } }
+        guard response.actionIdentifier == denyPaymentAction else { return open(route) }
         guard let route, route.kind == "payment", let requestID = route.requestID else { return }
         guard await !denyPayment(in: route.sessionID, requestID: requestID) else { return }
         let content = UNMutableNotificationContent()

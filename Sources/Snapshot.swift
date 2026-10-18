@@ -90,6 +90,7 @@ enum Snapshot: String {
 
     static let requested = UserDefaults.standard.string(forKey: "snapshot").flatMap(Snapshot.init(rawValue:))
     static let isInteractive = UserDefaults.standard.bool(forKey: "uiTest")
+    static let postsNotification = isInteractive && UserDefaults.standard.string(forKey: "notifyProfile") != nil
     static let scrollsToBottom = requested != nil && UserDefaults.standard.bool(forKey: "snapshotBottom")
 
     var chatFixture: ChatFixture? {
@@ -315,11 +316,27 @@ extension Notification.Name {
     static let measureInspector = Notification.Name("measureInspector")
 }
 #else
+import UserNotifications
+
 extension Snapshot {
     func capture() async {
+        if Snapshot.postsNotification, let profile = UserDefaults.standard.string(forKey: "notifyProfile") { await Snapshot.postNotification(for: profile) }
         try? await Task.sleep(for: .seconds(1.5))
         print("ready")
         fflush(stdout)
+    }
+
+    private static func postNotification(for profile: String) async {
+        let center = UNUserNotificationCenter.current()
+        guard (try? await center.requestAuthorization(options: [.alert, .sound])) == true else { return }
+        let content = UNMutableNotificationContent()
+        content.title = profile
+        content.body = "Done with the migration dry run."
+        content.threadIdentifier = "profile.\(profile)"
+        content.categoryIdentifier = "CREW_REPLY"
+        content.userInfo = ["crew": ["v": 1, "kind": "reply", "install_id": "fixture", "profile": profile, "session_id": "fixture-session", "event_id": "fixture-event"]]
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: max(1, UserDefaults.standard.double(forKey: "notifyAfter")), repeats: false)
+        try? await center.add(UNNotificationRequest(identifier: "ui-test", content: content, trigger: trigger))
     }
 }
 #endif

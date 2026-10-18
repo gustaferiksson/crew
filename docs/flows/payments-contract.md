@@ -119,7 +119,7 @@ Cleaning: strip Unicode Cc and Cf, collapse whitespace, trim. Unknown args reach
 Hermes delivers a block to the model and the transcript as `{"error": "<message>"}` (`model_tools.py:787-788`), capped at 2048 characters, and does not run `transform_tool_result` on it. The message is itself JSON, so Crew decodes `error` a second time:
 
 ```json
-{"error": "{\"success\": false, \"error_type\": \"crew_no_shop_card\", \"crew_payment\": {\"missing_shop\": \"https://www.zalando.de\"}, \"error\": \"There is no card for https://www.zalando.de. When your turn ends, Crew shows the user an Add Shop button for this site; only the user can add it. Finish what you can at checkout, then say in one line that this shop needs adding and end your turn. Don't ask them to set up cards or payments by hand, and don't ask them to confirm the price just for paying: Crew asks them to approve the amount when you fill the card. When they add it, Crew tells you to continue.\"}"}
+{"error": "{\"success\": false, \"error_type\": \"crew_no_shop_card\", \"crew_payment\": {\"missing_shop\": \"https://www.zalando.de\"}, \"error\": \"There is no card for https://www.zalando.de. When your turn ends, Crew shows the user an Add Shop button for this site; only the user can add it. Stop before choosing a payment method or placing the order, don't pay another way, and don't call browser_vault again in this turn. Say in one line that this shop needs adding in Crew, then end your turn. Don't ask the user to set up cards or payments by hand, or to confirm the price just for paying: Crew asks them to approve the amount when you fill the card. When they add it, Crew tells you to continue.\"}"}
 ```
 
 ### `pre_llm_call` (retry note)

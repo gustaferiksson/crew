@@ -217,7 +217,7 @@ extension Snapshot {
         // cacheDisplay and ImageRenderer skip Liquid Glass; CGWindowListCreateImage is SDK-obsoleted but still exported for own windows.
         typealias CreateImage = @convention(c) (CGRect, CGWindowListOption, CGWindowID, CGWindowImageOption) -> Unmanaged<CGImage>?
         guard let symbol = dlsym(UnsafeMutableRawPointer(bitPattern: -2), "CGWindowListCreateImage"),
-              let image = unsafeBitCast(symbol, to: CreateImage.self)(.null, .optionIncludingWindow, CGWindowID(window.windowNumber), [.boundsIgnoreFraming, .bestResolution])?.takeRetainedValue(),
+              let image = unsafeBitCast(symbol, to: CreateImage.self)(.null, .optionIncludingWindow, CGWindowID((window.attachedSheet ?? window).windowNumber), [.boundsIgnoreFraming, .bestResolution])?.takeRetainedValue(),
               let png = NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])
         else { exit(1) }
         let output = URL.temporaryDirectory.appending(path: "\(rawValue).png")

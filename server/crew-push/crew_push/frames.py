@@ -1,11 +1,14 @@
 import json
 import secrets
+import time
 from contextlib import suppress
-from typing import Any
+from typing import Any, Callable
 
 SHOPIFY_PCI = "https://checkout.pci.shopifyinc.com"
 CARD_FIELDS_BY = {SHOPIFY_PCI: "Card fields by Shopify"}
 SLOT = "data-hermes-vault-slot"
+ORDER = ("cc-number", "cc-exp", "cc-exp-month", "cc-exp-year", "cc-csc", "cc-name")
+SETTLE_SECONDS = 1.5
 VISIBLE_JS = (f"JSON.stringify([...document.querySelectorAll('[{SLOT}]')].filter(el => {{"
               "const r = el.getBoundingClientRect(); return el.tabIndex >= 0 && r.width >= 8 && r.height >= 8; })"
               f".map(el => Number(el.getAttribute('{SLOT}').split(':')[1])))")
@@ -88,7 +91,17 @@ def plan(cdp: Any, sessions: list[str], nonce: str, secret: dict[str, Any]) -> l
     return list(fills.values())
 
 
-def type_into(cdp: Any, session_id: str, nonce: str, fill: dict[str, Any]) -> None:
+def typed_text(fill: dict[str, Any]) -> str:
+    # Shopify's expiry field formats bare MMYY digits itself; a typed slash is rejected as invalid.
+    return fill["value"].replace("/", "") if fill["token"] == "cc-exp" else fill["value"]
+
+
+def landed_js(nonce: str, fill: dict[str, Any]) -> str:
+    shown = "el.value.length" if fill["token"] == "cc-name" else "el.value.replace(/[^0-9]/g, '').length"
+    return slot_js(nonce, fill["index"], f"return {shown} === {len(typed_text(fill))} ? 'ok' : 'short';")
+
+
+def type_into(cdp: Any, session_id: str, nonce: str, fill: dict[str, Any]) -> bool:
     from tools.browser_vault_tool import _bot_desktop_browser_session
 
     if _bot_desktop_browser_session(cdp.task_id):
@@ -97,17 +110,34 @@ def type_into(cdp: Any, session_id: str, nonce: str, fill: dict[str, Any]) -> No
         try:
             lease.assert_agent_may_act()
         except lease.HumanHasControl:
-            raise FrameFillError("human_has_control") from None
+            raise FrameFillError("human_has_control", ("typing",)) from None
     focused = evaluate(cdp, session_id, slot_js(nonce, fill["index"], FOCUS))
     if focused != "ok":
-        raise FrameFillError("origin_changed" if focused == "origin" else "error")
-    # Shopify's expiry field formats bare MMYY digits itself; a typed slash is rejected as invalid.
-    text = fill["value"].replace("/", "") if fill["token"] == "cc-exp" else fill["value"]
-    cdp.call("Input.insertText", {"text": text}, session_id=session_id)
-    shown = "el.value.length" if fill["token"] == "cc-name" else "el.value.replace(/[^0-9]/g, '').length"
-    landed = slot_js(nonce, fill["index"], f"return {shown} === {len(text)} ? 'ok' : 'short';")
-    if evaluate(cdp, session_id, landed) != "ok":
-        raise FrameFillError("error")
+        raise FrameFillError("origin_changed" if focused == "origin" else "error", ("typing",))
+    cdp.call("Input.insertText", {"text": typed_text(fill)}, session_id=session_id)
+    if evaluate(cdp, session_id, landed_js(nonce, fill)) != "ok":
+        raise FrameFillError("error", ("typing",))
+    return True
+
+
+def is_missing(cdp: Any, session_id: str, nonce: str, fill: dict[str, Any]) -> bool:
+    return evaluate(cdp, session_id, landed_js(nonce, fill)) != "ok"
+
+
+def frame_pass(cdp: Any, top_id: str, secret: dict[str, Any], tokens: set[str],
+               step: Callable[[Any, str, str, dict[str, Any]], bool]) -> list[str]:
+    nonce = secrets.token_hex(8)
+    sessions: list[str] = []
+    try:
+        attach_card_frames(cdp, top_id, sessions)
+        fills = sorted(plan(cdp, sessions, nonce, secret), key=lambda planned: ORDER.index(planned[1]["token"]))
+        return [fill["token"] for session_id, fill in fills
+                if fill["token"] in tokens and step(cdp, session_id, nonce, fill)]
+    finally:
+        for session_id in sessions:
+            with suppress(Exception):
+                evaluate(cdp, session_id, CLEAR_JS)
+                cdp.call("Target.detachFromTarget", {"sessionId": session_id})
 
 
 def fill(task_id: str, origin: str, secret: dict[str, Any]) -> list[str]:
@@ -122,23 +152,19 @@ def fill(task_id: str, origin: str, secret: dict[str, Any]) -> list[str]:
     top = top_frame(cdp, cdp.page_session_id)
     if normalize_origin(str(top.get("url") or "")) != origin:
         raise FrameFillError("origin_changed")
-    nonce = secrets.token_hex(8)
-    sessions: list[str] = []
-    filled: list[str] = []
+    top_id = str(top.get("id") or "")
+    for value in page_values(secret):
+        register_vault_redaction_value(value)
+    filled = frame_pass(cdp, top_id, secret, set(ORDER), type_into)
     try:
-        attach_card_frames(cdp, str(top.get("id") or ""), sessions)
-        fills = plan(cdp, sessions, nonce, secret)
-        for value in page_values(secret):
-            register_vault_redaction_value(value)
-        for session_id, planned in fills:
-            try:
-                type_into(cdp, session_id, nonce, planned)
-            except FrameFillError as error:
-                raise FrameFillError(error.code, tuple(filled)) from None
-            filled.append(planned["token"])
-        return sorted(filled)
-    finally:
-        for session_id in sessions:
-            with suppress(Exception):
-                evaluate(cdp, session_id, CLEAR_JS)
-                cdp.call("Target.detachFromTarget", {"sessionId": session_id})
+        time.sleep(SETTLE_SECONDS)
+        missing = frame_pass(cdp, top_id, secret, set(filled), is_missing)
+        if missing:
+            frame_pass(cdp, top_id, secret, set(missing), type_into)
+            time.sleep(SETTLE_SECONDS)
+            missing = frame_pass(cdp, top_id, secret, set(filled), is_missing)
+    except FrameFillError as error:
+        raise FrameFillError(error.code, error.filled or ("typed",)) from None
+    if missing:
+        raise FrameFillError("not_kept", tuple(missing))
+    return sorted(filled)

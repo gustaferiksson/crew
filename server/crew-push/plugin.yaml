@@ -1,7 +1,7 @@
 name: crew-push
 label: Crew Push
 kind: standalone
-version: 0.6.3
+version: 0.6.4
 description: APNs notifications and payment approvals for the Crew app (finished turns, approvals, questions, routines, payments).
 author: Gustaf Eriksson
 requires_hermes: ">=0.21.7"

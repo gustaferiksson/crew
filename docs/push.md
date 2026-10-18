@@ -530,7 +530,7 @@ Every category sets `.hiddenPreviewsShowTitle` so a locked device with "Show pre
 
 ### 5.5 Deep links
 
-`didReceive response` → `PushRoute(profile, sessionID, kind, requestID?)` → the navigation store:
+`didReceive response` → `PushRoute(profile, sessionID, kind, requestID?)` → the navigation store. `didReceive` stays main-actor isolated: a `nonisolated` async version lets the `@objc` thunk call UIKit's completion handler off the main thread, which aborts a tap from the background or a cold launch.
 
 1. Select the bot `profile` in the split view (works offline from the cached bot list).
 2. If `session_id` is the bot's chat session, open it; otherwise open that stored session (cron runs, other sessions). If REST says it no longer exists (compressed into a new id), fall back to the bot's chat.

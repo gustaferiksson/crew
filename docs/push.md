@@ -530,11 +530,13 @@ Every category sets `.hiddenPreviewsShowTitle` so a locked device with "Show pre
 
 ### 5.5 Deep links
 
-`didReceive response` → `PushRoute(profile, sessionID, kind, requestID?)` → the navigation store. `didReceive` stays main-actor isolated: a `nonisolated` async version lets the `@objc` thunk call UIKit's completion handler off the main thread, which aborts a tap from the background or a cold launch.
+`didReceive response` → `PushRoute(profile, sessionID, kind, requestID?)` → the navigation store:
 
 1. Select the bot `profile` in the split view (works offline from the cached bot list).
 2. If `session_id` is the bot's chat session, open it; otherwise open that stored session (cron runs, other sessions). If REST says it no longer exists (compressed into a new id), fall back to the bot's chat.
 3. For `approval`/`clarify`, the chat shows the card once the WebSocket is live and `session.resume` returns `open_requests`. If the server is unreachable (VPN off), show the transcript with the offline pill; the request is answerable once reconnected (approvals time out after 5 minutes server side, matching `apns-expiration`).
+
+`didReceive` stays main-actor isolated: a `nonisolated` async version lets the `@objc` thunk call UIKit's completion handler off the main thread, which aborts a tap from the background or a cold launch.
 
 Ignore pushes whose `install_id` does not match the configured server's (`/status`), so a future second server cannot cross-route.
 

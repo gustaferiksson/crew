@@ -17,7 +17,9 @@ final class SteerBubbleUITests: XCTestCase {
             XCTAssertTrue(field.waitForExistence(timeout: 20))
             let text = "Sounds worth a try, go ahead and order it if the shop looks legit and the delivery is cheap"
             field.click()
-            field.typeText(text + "\r")
+            field.typeText(text)
+            XCTAssertEqual(field.value as? String, text, "the composer holds the typed steer (\(appearance))")
+            field.typeKey(.return, modifierFlags: [])
             let bubble = app.staticTexts.matching(NSPredicate(format: "value == %@ OR label == %@", text, text)).firstMatch
             XCTAssertTrue(app.staticTexts["Waiting"].waitForExistence(timeout: 10))
             attach(app.windows.firstMatch, "waiting-\(appearance.lowercased())")

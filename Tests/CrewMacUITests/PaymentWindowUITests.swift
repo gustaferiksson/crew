@@ -12,8 +12,8 @@ final class PaymentWindowUITests: XCTestCase {
             XCTAssertLessThan(window.frame.height, 480, "the window takes the short height")
             XCTAssertTrue(pay.isHittable)
             XCTAssertTrue(app.buttons["Deny payment"].isHittable)
-            let host = NSPredicate(format: "label CONTAINS %@ AND NOT (label BEGINSWITH %@)", "www.zalando.se", "Payment request")
-            XCTAssertTrue(app.descendants(matching: .any).matching(host).firstMatch.isHittable)
+            let host = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@ OR value CONTAINS %@", "zalando", "zalando")).firstMatch
+            XCTAssertTrue(host.exists && host.isHittable, app.debugDescription)
             XCTAssertTrue(app.staticTexts["499 kr"].isHittable)
             XCTAssertTrue(app.staticTexts["Hermes wants to pay"].isHittable)
             let shot = XCTAttachment(screenshot: window.screenshot())

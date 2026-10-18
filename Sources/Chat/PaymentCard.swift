@@ -11,8 +11,10 @@ struct PaymentCard<Avatar: View>: View {
     let expire: () -> Void
 
     @Environment(\.dynamicTypeSize) private var typeSize
+    #if os(iOS)
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
+    #endif
     @State private var secondsLeft: Int?
-    @State private var isClipped = false
 
     private var command: PaymentCommand? {
         PaymentCommand(request.command)
@@ -37,46 +39,56 @@ struct PaymentCard<Avatar: View>: View {
         return command == nil
     }
 
+    private var isCompactHeight: Bool {
+        #if os(iOS)
+        verticalSizeClass == .compact
+        #else
+        false
+        #endif
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            if typeSize.isAccessibilitySize {
-                scrollingContent
-                    .frame(maxHeight: 280)
+        Group {
+            if isCompactHeight {
+                VStack(alignment: .leading, spacing: 16) {
+                    HStack(alignment: .top, spacing: 16) {
+                        VStack(alignment: .leading, spacing: 16) {
+                            header
+                                .layoutPriority(2)
+                            merchantLine
+                                .layoutPriority(2)
+                            status
+                        }
+                        if !isUnverified {
+                            detailRows
+                        }
+                    }
+                    .layoutPriority(1)
+                    buttons
+                        .layoutPriority(2)
+                }
             } else {
-                ViewThatFits(in: .vertical) {
-                    content
-                    scrollingContent
-                        .frame(minHeight: 44)
+                VStack(alignment: .leading, spacing: 16) {
+                    header
+                        .layoutPriority(2)
+                    merchantLine
+                        .layoutPriority(2)
+                    if !isUnverified {
+                        detailRows
+                            .layoutPriority(1)
+                    }
+                    status
+                    buttons
+                        .layoutPriority(2)
                 }
             }
-            buttons
         }
         .padding(16)
         .glassEffect(in: .rect(cornerRadius: 28))
+        .dynamicTypeSize(...DynamicTypeSize.accessibility3)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(summary)
         .task(id: deadline) { await countDown() }
-    }
-
-    private var scrollingContent: some View {
-        ScrollView {
-            content
-        }
-        .scrollBounceBehavior(.basedOnSize)
-        .scrollIndicatorsFlash(onAppear: true)
-        .onScrollGeometryChange(for: Bool.self) { $0.contentSize.height > $0.containerSize.height + 1 } action: { isClipped = $1 }
-        .onDisappear { isClipped = false }
-    }
-
-    private var content: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            header
-            merchantLine
-            if !isUnverified {
-                detailRows
-            }
-            status
-        }
     }
 
     private var header: some View {
@@ -84,6 +96,10 @@ struct PaymentCard<Avatar: View>: View {
             avatar
             Text("\(request.requester ?? botName) wants to pay")
                 .font(.subheadline.weight(.semibold))
+                // iOS only: on the Mac a vertical pin raises the window's minimum height (#60).
+                #if os(iOS)
+                .fixedSize(horizontal: false, vertical: true)
+                #endif
             Spacer(minLength: 8)
             if let secondsLeft {
                 Text(Duration.seconds(secondsLeft), format: .time(pattern: .minuteSecond))
@@ -105,17 +121,46 @@ struct PaymentCard<Avatar: View>: View {
                 Text(host.map(String.init).joined(separator: "\u{200B}"))
                     .font(.title2.weight(.semibold))
                     .accessibilityLabel(host)
+                    #if os(iOS)
+                    .fixedSize(horizontal: false, vertical: true)
+                    #endif
             }
             .accessibilityElement(children: .combine)
             if isPunycode(host) {
                 Label("This address uses special characters and could imitate another site.", systemImage: "exclamationmark.triangle.fill")
                     .font(.footnote)
                     .foregroundStyle(.orange)
+                    #if os(iOS)
+                    .fixedSize(horizontal: false, vertical: true)
+                    #endif
             }
         }
     }
 
     private var detailRows: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            ViewThatFits(in: .vertical) {
+                cardAndPurpose
+                ScrollView {
+                    cardAndPurpose
+                }
+                .scrollBounceBehavior(.basedOnSize)
+                .scrollIndicatorsFlash(onAppear: true)
+            }
+            Divider()
+            detailRow("TOTAL") {
+                Text(details?.amount ?? "000 kr")
+                    .font(.title2.weight(.semibold))
+                    .frame(maxWidth: .infinity, alignment: typeSize.isAccessibilitySize ? .leading : .trailing)
+            }
+            .layoutPriority(1)
+        }
+        .padding(12)
+        .background(.fill.tertiary, in: .rect(cornerRadius: 16))
+        .redacted(reason: details == nil ? .placeholder : [])
+    }
+
+    private var cardAndPurpose: some View {
         VStack(alignment: .leading, spacing: 12) {
             detailRow("CARD") {
                 HStack(spacing: 8) {
@@ -127,16 +172,7 @@ struct PaymentCard<Avatar: View>: View {
                 Text(details.map { "\($0.merchant) · \($0.reason)" } ?? "Shop · Something you asked for")
                     .lineLimit(3)
             }
-            Divider()
-            detailRow("TOTAL") {
-                Text(details?.amount ?? "000 kr")
-                    .font(.title2.weight(.semibold))
-                    .frame(maxWidth: .infinity, alignment: typeSize.isAccessibilitySize ? .leading : .trailing)
-            }
         }
-        .padding(12)
-        .background(.fill.tertiary, in: .rect(cornerRadius: 16))
-        .redacted(reason: details == nil ? .placeholder : [])
     }
 
     private func detailRow(_ label: LocalizedStringKey, @ViewBuilder value: () -> some View) -> some View {
@@ -181,6 +217,8 @@ struct PaymentCard<Avatar: View>: View {
             Text("\(request.requester ?? botName) states the amount and the shop. The card fills only on \(host).")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
+                .frame(minHeight: 0, alignment: .top)
+                .clipped()
         }
         if let failure = state.failure {
             Label(failure, systemImage: "exclamationmark.triangle.fill")
@@ -206,7 +244,6 @@ struct PaymentCard<Avatar: View>: View {
                     confirmation: details.map { String(localized: "Pay \($0.amount) at \(host)?") } ?? "",
                     warning: isPunycode(host) ? String(localized: "This address uses special characters and could imitate another site.") : nil,
                     isApproved: state.isApproved,
-                    requiresConfirmation: isClipped,
                     initialProgress: holdProgress
                 ) {
                     respond(.once)
@@ -250,7 +287,6 @@ private struct HoldToPayButton: View {
     let confirmation: String
     let warning: String?
     let isApproved: Bool
-    let requiresConfirmation: Bool
     var initialProgress = 0.0
     let pay: () -> Void
 
@@ -261,11 +297,10 @@ private struct HoldToPayButton: View {
     @State private var presses = 0
     @State private var confirming = false
 
-    init(confirmation: String, warning: String?, isApproved: Bool, requiresConfirmation: Bool, initialProgress: Double = 0, pay: @escaping () -> Void) {
+    init(confirmation: String, warning: String?, isApproved: Bool, initialProgress: Double = 0, pay: @escaping () -> Void) {
         self.confirmation = confirmation
         self.warning = warning
         self.isApproved = isApproved
-        self.requiresConfirmation = requiresConfirmation
         self.pay = pay
         _progress = State(initialValue: initialProgress)
     }
@@ -284,7 +319,7 @@ private struct HoldToPayButton: View {
                             .transition(reduceMotion ? AnyTransition.identity : AnyTransition(.symbolEffect(.drawOn)))
                     }
                 } else {
-                    Text(title)
+                    Text("Hold to Pay")
                 }
             }
             .frame(maxWidth: .infinity)
@@ -301,16 +336,14 @@ private struct HoldToPayButton: View {
             .accessibilityHidden(true)
         }
         .overlay {
-            if !requiresConfirmation {
-                Color.clear
-                    .contentShape(.capsule)
-                    .onLongPressGesture(minimumDuration: 1, maximumDistance: 40) {
-                        complete()
-                    } onPressingChanged: { pressing in
-                        pressing ? press() : release()
-                    }
-                    .accessibilityHidden(true)
-            }
+            Color.clear
+                .contentShape(.capsule)
+                .onLongPressGesture(minimumDuration: 1, maximumDistance: 40) {
+                    complete()
+                } onPressingChanged: { pressing in
+                    pressing ? press() : release()
+                }
+                .accessibilityHidden(true)
         }
         .scaleEffect(pressedAt != nil && !reduceMotion ? 0.97 : 1)
         .animation(reduceMotion ? nil : .snappy(duration: 0.2), value: pressedAt != nil)
@@ -319,24 +352,15 @@ private struct HoldToPayButton: View {
         .onChange(of: isApproved) { _, approved in
             if !approved { progress = 0 }
         }
-        .onChange(of: requiresConfirmation) {
-            guard requiresConfirmation, !isApproved else { return }
-            pressedAt = nil
-            progress = 0
-        }
         .confirmationDialog(confirmation, isPresented: $confirming, titleVisibility: .visible) {
             Button("Pay") { approve() }
             Button("Cancel", role: .cancel) {}
         } message: {
             if let warning { Text(warning) }
         }
-        .accessibilityLabel(isApproved ? "Approved" : title)
+        .accessibilityLabel(isApproved ? "Approved" : "Hold to Pay")
         .accessibilityHint("Double-tap to confirm the payment.")
         .accessibilityAction(named: "Pay") { confirming = true }
-    }
-
-    private var title: LocalizedStringKey {
-        requiresConfirmation ? "Pay…" : "Hold to Pay"
     }
 
     private func press() {

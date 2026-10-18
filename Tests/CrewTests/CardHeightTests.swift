@@ -34,15 +34,15 @@ private func card(_ approval: ApprovalRequest, _ lookup: PaymentLookup) -> some 
 @Test(arguments: ["www.zalando.se", "xn--zaando-5ve.se"])
 @MainActor func thePaymentCardsMinimumHeightNeverSetsTheWindows(host: String) throws {
     let approval = try approval(host: host)
-    let lookups = [try verified(approval, host: host), .loading, .failed, .unverified(featureMissing: true)]
-    let approvalCardMinimum = height(ApprovalCard(request: approval, botName: "Scout") { _ in }.frame(maxWidth: 560), proposing: .zero)
-    for lookup in lookups {
-        let minimum = height(card(approval, lookup), proposing: .zero)
-        let ideal = height(card(approval, lookup), proposing: CGSize(width: 560, height: CGFloat.infinity))
-        #expect(minimum <= approvalCardMinimum, "\(lookup)")
-        #expect(minimum < 160, "\(lookup) \(minimum)")
-        #expect(ideal > minimum + 60, "\(lookup) \(minimum) \(ideal)")
+    let lookup = try verified(approval, host: host)
+    let questionCardMinimum = 310.0
+    for state in [lookup, .loading, .failed, .unverified(featureMissing: true)] {
+        let minimum = height(card(approval, state), proposing: .zero)
+        #expect(minimum < questionCardMinimum - 80, "\(state) \(minimum)")
     }
+    let minimum = height(card(approval, lookup), proposing: .zero)
+    let ideal = height(card(approval, lookup), proposing: CGSize(width: 560, height: CGFloat.infinity))
+    #expect(ideal > minimum + 60, "\(minimum) \(ideal)")
 }
 
 @Test @MainActor func thePaymentCardShowsItsFullBodyWhenThereIsRoom() throws {
@@ -50,7 +50,8 @@ private func card(_ approval: ApprovalRequest, _ lookup: PaymentLookup) -> some 
     let lookup = try verified(approval, host: "www.zalando.se")
     let ideal = height(card(approval, lookup), proposing: CGSize(width: 560, height: CGFloat.infinity))
     let roomy = height(card(approval, lookup), proposing: CGSize(width: 560, height: 2000))
-    let short = height(card(approval, lookup), proposing: CGSize(width: 560, height: 200))
+    let short = height(card(approval, lookup), proposing: CGSize(width: 560, height: 280))
     #expect(roomy == ideal)
-    #expect(short <= 200)
+    #expect(short <= 280, "\(short) \(ideal)")
+    #expect(short < ideal)
 }

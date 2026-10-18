@@ -83,6 +83,7 @@ Inside the existing glass card shape (`.glassEffect(in: .rect(cornerRadius: 28))
   - hairline
   - TOTAL: "499 kr" (title2 semibold, trailing)
   At large Dynamic Type sizes labels stack above values.
+- **Always on screen** (#91): the header, the "Pay <host>" line (wrapping), the TOTAL row and the buttons. In iPhone landscape the header, host and claim sit beside the details with the buttons full width below. When space is short (landscape, short Mac window, largest text) only CARD and FOR scroll and the claim line shrinks away; the button is always **Hold to Pay**, never a "Pay…" fallback.
 - **Claim line** (footnote secondary, always shown): "Scout states the amount and the shop. The card fills only on www.zalando.se."
 - **Buttons:** **Deny** (glass, destructive) leading, **Hold to Pay** (glass prominent) trailing, flexible width, capsule, as Allow Once/Deny today.
 
@@ -102,7 +103,7 @@ The hold guards against a stray tap in the bar where the user types. It is **not
 - **Release early:** the fill springs back in 0.25 s. Nothing is sent.
 - **Complete:** a `.success` haptic; the label becomes a `checkmark` drawn with `.symbolEffect(.drawOn)` and "Approved". Crew sends `approval.respond` with `once` and the `request_id`. After 0.8 s the card collapses (`.smooth`) and the receipt row arrives with the result.
 - **Tap** (under 0.3 s), **Space or Return** with keyboard focus, **VoiceOver, Voice Control and Switch Control** activation: a confirmation dialog on the button, "Pay 499 kr at www.zalando.se?" with **Pay** and **Cancel**. Everyone has a path, and no single tap approves.
-- The card's buttons have no keyboard shortcut, so Return in the composer never reaches them. The card never takes focus or dismisses the keyboard.
+- The card's buttons have no keyboard shortcut, so Return in the composer never reaches them. The card never takes focus. On iPhone, the card arriving, a tap on it or a downward swipe on it dismisses the keyboard (the draft stays) so the card has room; swiping never dismisses the card, which leaves only through Deny, Pay or expiry (#91).
 - **Answer fails:** the card returns with an inline line: "Couldn't reach Hermes. Try again." (socket) or, for `resolved: 0`, Crew fetches the request's state and collapses to the matching receipt line.
 - **Reduce Motion:** no scale or spring; linear fill; the check appears without drawing.
 - **Mac:** the same with a mouse or trackpad press, no haptics.
@@ -227,7 +228,7 @@ The receipt rows in the bot's chat are the history: payments only run in Bot Cha
 - The countdown is announced at 60 s and 15 s (`AccessibilityNotification.Announcement`), never every second.
 - The `xn--` warning is part of the host's label.
 - Receipt rows read as their text.
-- Dynamic Type throughout; 44 pt targets on iPhone; every state has a symbol and words, never colour alone.
+- Dynamic Type throughout, capped at accessibility size 3 on the payment card so its pinned parts fit; 44 pt targets on iPhone; every state has a symbol and words, never colour alone.
 - Full Keyboard Access and the Mac keyboard reach both buttons by Tab; Space or Return on Hold to Pay opens the dialog.
 - Reduce Motion as above; Reduce Transparency uses the system's opaque glass.
 

@@ -27,17 +27,19 @@ nonisolated struct MessageHit: Identifiable, Hashable, Sendable {
     var id: String { "\(bot)/\(session.rawValue)" }
 
     init?(bot: Bot, match: SessionMatch) {
-        let raw = match.snippet.replacing(/>>>|<<</, with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let words = match.role == "user" ? steerWords(in: match.snippet) : match.snippet
+        let raw = words.replacing(/>>>|<<</, with: "").trimmingCharacters(in: .whitespacesAndNewlines)
         let plain = raw.trimmingPrefix("...").trimmingCharacters(in: .whitespacesAndNewlines)
         let isCutNotice = match.role == "user" && raw.hasPrefix("...") && plain.hasSuffix("]")
-        guard ["user", "assistant"].contains(match.role), !isCutNotice,
+        let matchedOnlyMarker = match.snippet.contains(">>>") && !words.contains(">>>")
+        guard ["user", "assistant"].contains(match.role), !isCutNotice, !matchedOnlyMarker,
               !["[IMPORTANT: Background process", "[System:", "<a2ui-action>"].contains(where: { plain.hasPrefix($0) })
         else { return nil }
         let agentMessage = match.role == "user" ? AgentMessage(plain) : nil
         self.bot = bot.id
         session = match.sessionId
         title = match.title
-        snippet = agentMessage == nil ? match.snippet : match.snippet.replacing(/(?s)^\s*(?:Message from [^:\n]*?:\s*|\[Message from agent '[^']*'\]\s*)/, with: "", maxReplacements: 1)
+        snippet = agentMessage == nil ? words : words.replacing(/(?s)^\s*(?:Message from [^:\n]*?:\s*|\[Message from agent '[^']*'\]\s*)/, with: "", maxReplacements: 1)
         speaker = agentMessage?.sender ?? (match.role == "user" ? String(localized: "You") : nil)
         let canonical = [bot.canonicalSession?.id, bot.canonicalSession?.resolvedID].compactMap(\.self)
         isInBotChat = canonical.contains(match.sessionId) || match.lineageRoot.map(canonical.contains) == true || match.title == "Bot Chat"

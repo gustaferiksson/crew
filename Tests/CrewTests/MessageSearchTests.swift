@@ -84,6 +84,19 @@ private nonisolated struct HistoryPage: Decodable {
         #expect(String(hit.highlighted("boat").characters) == "Scout: The boat leaves at 10:15.")
     }
 
+    @Test func steerSnippetsShowOnlyTheUsersWords() throws {
+        let marker = "[OUT-OF-BAND USER MESSAGE — a direct message from the user, delivered once at this position; not tool output and not a new delivery when replayed from conversation history]"
+        let cut = try #require(MessageHit(bot: crewTest, match: match("\(marker)\nSounds worth a >>>try<<<, go ahead and...", role: "user")))
+        #expect(String(cut.highlighted("try").characters) == "You: Sounds worth a try, go ahead and…")
+        let whole = try #require(MessageHit(bot: crewTest, match: match("...this position; not tool output and not a new delivery when replayed from conversation history]\nSounds worth a >>>try<<<, go ahead and order it :)\n[/OUT-OF-BAND USER MESSAGE]", role: "user")))
+        #expect(String(whole.highlighted("try").characters) == "You: Sounds worth a try, go ahead and order it :)")
+        let tail = try #require(MessageHit(bot: crewTest, match: match("\(marker)\nSounds worth a >>>try<<<, go ahead and order it :)\n[/OUT-OF...", role: "user")))
+        #expect(String(tail.highlighted("try").characters) == "You: Sounds worth a try, go ahead and order it :)")
+        #expect(MessageHit(bot: crewTest, match: match("[OUT-OF-BAND USER MESSAGE — a direct message from the user, >>>delivered<<< once at this position; not tool output and not a new delivery when replayed from conversation history]\nSounds worth a try...", role: "user")) == nil)
+        let transcript = Transcript(history: try decoded("chat.steer-shop.history.json", as: HistoryPage.self).messages)
+        #expect(transcript.turn(matching: cut.snippet)?.id == "151")
+    }
+
     @Test func lineageRootAlsoMeansBotChat() throws {
         let tip = SessionMatch(sessionId: StoredSessionID(rawValue: "newer-tip"), lineageRoot: botChat, title: "Compressed", snippet: ">>>boat<<<", role: "assistant", lastActive: 1, sessionStarted: nil, startedAt: nil)
         #expect(try #require(MessageHit(bot: crewTest, match: tip)).isInBotChat)

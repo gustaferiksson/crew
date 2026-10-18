@@ -3,7 +3,7 @@ import UniformTypeIdentifiers
 
 enum ChatFixture {
     case conversation, history, timestamps, workLog, question, questions, questionsSnacks, offline, attachments, dictation, mentions, agentMessage, a2ui, a2uiCards, a2uiForm, a2uiTable, a2uiChart, a2uiMap
-    case composerLine, composerLines, composerRunning, composerRunningText, steer, steerTaken, waiting
+    case composerLine, composerLines, composerRunning, composerRunningText, steer, steerTaken, steerHistory, waiting
     case payment, paymentHolding, paymentApproved, paymentLoading, paymentFailed, paymentUnverified, paymentPunycode, paymentCountdown, paymentNotice, paymentOffer, paymentReceipts
 
     var isLive: Bool {
@@ -98,12 +98,21 @@ enum ChatFixture {
             transcript.wait(Prompt(text: "Then post the rollout in #deploys", sentAt: now.addingTimeInterval(-10)), as: .queued, id: "q1")
             return transcript
         }
+        if self == .steerHistory {
+            var done = deploy(now.addingTimeInterval(-48))
+            done.status = .complete
+            done.finishedAt = now.addingTimeInterval(-20)
+            done.work[2].duration = 3
+            if case .tool(var call) = done.work[2].kind {
+                call.status = .success
+                done.work[2].kind = .tool(call)
+            }
+            let steer = Turn(id: "s1", prompt: Prompt(text: "Use the staging context, not prod, and keep the old pods running until every health check has passed :)", sentAt: now.addingTimeInterval(-20)), work: [WorkItem(id: "s1-w0", kind: .tool(ToolCall(name: "terminal", subject: "kubectl --context staging rollout status deploy/crew-api", arguments: "{}", result: "rollout complete", status: .success)), startedAt: now.addingTimeInterval(-18), duration: 4)], reply: "Rolled out on staging. The old pods stay up until the health checks pass.", status: .complete, startedAt: now.addingTimeInterval(-20), finishedAt: now.addingTimeInterval(-12), isSteer: true)
+            return Transcript(turns: turns + [done, steer])
+        }
         if self == .steerTaken {
             var transcript = Transcript(turns: turns + [deploy(now.addingTimeInterval(-48))])
-            transcript.wait(Prompt(text: "Use the staging context, not prod", sentAt: now.addingTimeInterval(-20)), as: .steer, id: "s1")
-            transcript.apply(.toolComplete(id: "t5-w2", duration: 4, summary: nil, result: #"{"exit_code": 0}"#), at: now.addingTimeInterval(-16))
-            transcript.apply(.messageDelta("Good call. I was already on the staging context, so nothing touched prod. Checking the rollout now."), at: now.addingTimeInterval(-14))
-            transcript.apply(.toolStart(id: "t6", name: "terminal", context: "kubectl --context staging rollout status deploy/crew-api", arguments: "{}"), at: now.addingTimeInterval(-12))
+            transcript.wait(Prompt(text: "Use the staging context, not prod, and keep the old pods running until every health check has passed :)", sentAt: now.addingTimeInterval(-20)), as: .steer, id: "s1")
             return transcript
         }
         if self == .waiting { return Transcript(turns: turns + [Turn(id: "t6", prompt: Prompt(text: "How many files are in your working directory?", sentAt: now.addingTimeInterval(-3)), status: .streaming, startedAt: now.addingTimeInterval(-3))]) }
@@ -391,6 +400,13 @@ struct ChatFixtureScreen: View {
             )
         )
         .environment(\.chatSession, session)
+        .task {
+            guard fixture == .steerTaken else { return }
+            try? await Task.sleep(for: .milliseconds(500))
+            transcript.apply(.toolComplete(id: "t5-w2", duration: 4, summary: nil, result: #"{"exit_code": 0}"#))
+            transcript.apply(.messageDelta("Good call. I was already on the staging context, so nothing touched prod. Checking the rollout now."))
+            transcript.apply(.toolStart(id: "t6", name: "terminal", context: "kubectl --context staging rollout status deploy/crew-api", arguments: "{}"))
+        }
         .sheet(isPresented: $addingShop) {
             AddShopSheet(profile: "default", site: shopOffer ?? "") { _ in }
         }

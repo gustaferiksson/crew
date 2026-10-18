@@ -93,6 +93,23 @@ final class ChatSendScrollUITests: XCTestCase {
         assertAboveComposer([text, "Good call, switching to the staging context."], in: app)
     }
 
+    @MainActor func testATakenSteerKeepsItsTextVisibleInTheBubble() {
+        let app = launch("composer-running")
+        let text = "Sounds worth a try, go ahead and order it :)"
+        type(text, in: app)
+        app.buttons["Steer"].tap()
+        XCTAssertTrue(app.staticTexts["Waiting"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Waiting"].waitForNonExistence(timeout: 15))
+        let bubble = app.staticTexts[text]
+        XCTAssertTrue(bubble.waitForExistence(timeout: 5))
+        let shot = bubble.screenshot()
+        let attachment = XCTAttachment(screenshot: shot)
+        attachment.lifetime = .keepAlways
+        add(attachment)
+        guard let image = shot.image.cgImage else { return XCTFail("no bubble screenshot") }
+        XCTAssertGreaterThan(whiteShareInsideBubble(image), 0.03, "the taken steer's text is not drawn white on its bubble")
+    }
+
     @MainActor func testAQueuedMessageWaitsThenBecomesTheNextTurnRightAboveTheComposer() {
         let app = launch("composer-running")
         let text = "Then post the rollout in #deploys"

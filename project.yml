@@ -135,6 +135,7 @@ targets:
       - target: Crew
     sources:
       - Tests/CrewUITests
+      - Tests/Shared
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: dev.gustaf.crew-uitests
@@ -148,6 +149,7 @@ targets:
       - target: Crew
     sources:
       - Tests/CrewMacUITests
+      - Tests/Shared
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: dev.gustaf.crew-macuitests

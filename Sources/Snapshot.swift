@@ -90,7 +90,7 @@ enum Snapshot: String {
 
     static let requested = UserDefaults.standard.string(forKey: "snapshot").flatMap(Snapshot.init(rawValue:))
     static let isInteractive = UserDefaults.standard.bool(forKey: "uiTest")
-    static let postsNotification = isInteractive && UserDefaults.standard.string(forKey: "notifyProfile") != nil
+    static let notifyProfile = isInteractive ? UserDefaults.standard.string(forKey: "notifyProfile") : nil
     static let scrollsToBottom = requested != nil && UserDefaults.standard.bool(forKey: "snapshotBottom")
 
     var chatFixture: ChatFixture? {
@@ -320,7 +320,7 @@ import UserNotifications
 
 extension Snapshot {
     func capture() async {
-        if Snapshot.postsNotification, let profile = UserDefaults.standard.string(forKey: "notifyProfile") { await Snapshot.postNotification(for: profile) }
+        if let profile = Snapshot.notifyProfile { await Snapshot.postNotification(for: profile) }
         try? await Task.sleep(for: .seconds(1.5))
         print("ready")
         fflush(stdout)
@@ -328,7 +328,7 @@ extension Snapshot {
 
     private static func postNotification(for profile: String) async {
         let center = UNUserNotificationCenter.current()
-        guard (try? await center.requestAuthorization(options: [.alert, .sound])) == true else { return }
+        guard (try? await center.requestAuthorization(options: [.alert, .sound, .provisional])) == true else { return }
         let content = UNMutableNotificationContent()
         content.title = profile
         content.body = "Done with the migration dry run."

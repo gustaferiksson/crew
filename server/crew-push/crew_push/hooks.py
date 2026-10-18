@@ -278,7 +278,7 @@ def fill_card_frames(args: dict[str, Any], entry: dict[str, Any], task_id: str) 
                     payments.scrub(str(error), frames.page_values(secret)))
         return payments.frame_result("error")
     if "fields" not in outcome:
-        return payments.frame_result("human_has_control")
+        return payments.frame_result("human_has_control", ("unknown",))
     return {"success": True, "filled_fields": len(outcome["fields"]), "fields": outcome["fields"], "kind": "payment",
             "origin": entry["origin"], "card_fields": entry["card_fields"]}
 

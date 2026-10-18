@@ -410,6 +410,7 @@ class FakeCDP:
         self.calls: list[tuple[str, Any]] = []
         self.unfocusable: set[str] = set()
         self.fail_on = ""
+        self.keeps = 99
 
     def call(self, method: str, params: dict[str, Any] | None = None, *, session_id: str | None = None,
              timeout: float = 10.0) -> dict[str, Any]:
@@ -442,7 +443,9 @@ class FakeCDP:
             index = int(re.search(r':([0-9]+)\\"\]', expression).group(1))
             value = "ok" if index in frame.get("visible", []) and target not in self.unfocusable else "focus"
         else:
-            value = "ok" if any(typed == target for typed, _ in self.typed) else "empty"
+            length = int(re.search(r"=== ([0-9]+) \?", expression).group(1))
+            shown = [text[:self.keeps] for typed, text in self.typed if typed == target]
+            value = "ok" if shown and len(shown[-1]) == length else "short"
         return {"result": {"result": {"type": "string", "value": value}}}
 
 
@@ -551,6 +554,21 @@ def test_a_field_that_cannot_take_focus_stops_the_fill(push: CrewPush, hermes: H
     assert (result["crew_payment"]["fill"], result["crew_payment"]["fill_error"]) == ("not_filled", "error")
     assert result["error"] == payments.FRAME_ERRORS["error"] + payments.PARTIAL
     assert shopify.typed == TYPED[:2] and shopify.sessions == {}
+
+
+def test_a_checkout_showing_only_the_number_gets_nothing(push: CrewPush, hermes: Hermes, shopify: FakeCDP) -> None:
+    for name in ("frame-4", "frame-5"):
+        shopify.recorded["frames"][name]["visible"] = []
+    approve_shop(push, hermes)
+    assert shop_result(push)["crew_payment"]["fill_error"] == "no_fields" and shopify.typed == []
+
+
+def test_a_field_that_cuts_the_value_stops_the_fill(push: CrewPush, hermes: Hermes, shopify: FakeCDP) -> None:
+    shopify.keeps = 12
+    approve_shop(push, hermes)
+    result = shop_result(push)
+    assert result["crew_payment"]["fill_error"] == "error" and result["error"].endswith(payments.PARTIAL)
+    assert shopify.typed == TYPED[:1]
 
 
 def test_a_human_takeover_discards_the_frame_fill(push: CrewPush, hermes: Hermes, shopify: FakeCDP) -> None:

@@ -19,11 +19,11 @@ class FrameFillError(RuntimeError):
         self.filled = filled
 
 
-def slot_js(nonce: str, index: int, action: str) -> str:
+FOCUS = "el.focus(); if (document.activeElement !== el || !document.hasFocus()) return 'focus'; el.select(); return 'ok';"
+
+
+def slot_js(nonce: str, index: int, body: str) -> str:
     target = json.dumps(f'[{SLOT}="{nonce}:{index}"]')
-    body = ("el.focus(); if (document.activeElement !== el || !document.hasFocus()) return 'focus'; "
-            "el.select(); return 'ok';"
-            if action == "focus" else "return el.value.length > 0 ? 'ok' : 'empty';")
     return (f"(() => {{ if (location.origin !== {json.dumps(SHOPIFY_PCI)}) return 'origin'; "
             f"const el = document.querySelector({target}); if (!el) return 'gone'; {body} }})()")
 
@@ -45,7 +45,8 @@ def page_values(secret: dict[str, Any]) -> list[str]:
     number = str(secret.get("card_number") or "")
     month, year = str(secret.get("exp_month") or "").zfill(2), str(secret.get("exp_year") or "")[-2:]
     grouped = " ".join(number[i:i + 4] for i in range(0, len(number), 4))
-    return [str(value) for value in secret.values() if value] + [grouped, f"{month}{year}", f"{month}/{year}",
+    amex = f"{number[:4]} {number[4:10]} {number[10:]}"
+    return [str(value) for value in secret.values() if value] + [grouped, amex, f"{month}{year}", f"{month}/{year}",
                                                                  f"{month} / {year}"]
 
 
@@ -79,7 +80,10 @@ def plan(cdp: Any, sessions: list[str], nonce: str, secret: dict[str, Any]) -> l
             fills.setdefault(fill["token"], (session_id, fill))
     if "cc-exp" in fills:
         fills = {token: fill for token, fill in fills.items() if token not in ("cc-exp-month", "cc-exp-year")}
-    if "cc-number" not in fills:
+    wanted = {token for name, token in (("card_number", "cc-number"), ("cvc", "cc-csc"), ("cardholder_name", "cc-name"))
+              if secret.get(name)}
+    expiry = "cc-exp" in fills or {"cc-exp-month", "cc-exp-year"} <= fills.keys()
+    if not wanted <= fills.keys() or (secret.get("exp_month") and not expiry):
         raise FrameFillError("no_fields")
     return list(fills.values())
 
@@ -94,13 +98,15 @@ def type_into(cdp: Any, session_id: str, nonce: str, fill: dict[str, Any]) -> No
             lease.assert_agent_may_act()
         except lease.HumanHasControl:
             raise FrameFillError("human_has_control") from None
-    focused = evaluate(cdp, session_id, slot_js(nonce, fill["index"], "focus"))
+    focused = evaluate(cdp, session_id, slot_js(nonce, fill["index"], FOCUS))
     if focused != "ok":
         raise FrameFillError("origin_changed" if focused == "origin" else "error")
     # Shopify's expiry field formats bare MMYY digits itself; a typed slash is rejected as invalid.
     text = fill["value"].replace("/", "") if fill["token"] == "cc-exp" else fill["value"]
     cdp.call("Input.insertText", {"text": text}, session_id=session_id)
-    if evaluate(cdp, session_id, slot_js(nonce, fill["index"], "check")) != "ok":
+    shown = "el.value.length" if fill["token"] == "cc-name" else "el.value.replace(/[^0-9]/g, '').length"
+    landed = slot_js(nonce, fill["index"], f"return {shown} === {len(text)} ? 'ok' : 'short';")
+    if evaluate(cdp, session_id, landed) != "ok":
         raise FrameFillError("error")
 
 

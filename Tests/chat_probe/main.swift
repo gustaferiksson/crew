@@ -660,7 +660,7 @@ if phases.contains("cleared") {
     }
     let store = BotStore(fixture: [], statuses: [:])
     var announced = 0
-    Task { for await _ in store.unreadCleared.stream { announced += 1 } }
+    Task { while !Task.isCancelled { announced += store.takeClearedUnread().count; try? await Task.sleep(for: .milliseconds(200)) } }
     Task { await store.run(gateway, urlSession: urlSession) }
     func wait(_ label: String, until done: () async throws -> Bool) async throws {
         let begun = Date.now

@@ -170,7 +170,8 @@ nonisolated func noticeText(kind: String?, content: String) -> String? {
 }
 
 nonisolated func steerWords(in text: String) -> String {
-    text.replacing(/\s*\[\/OUT-OF-BAND USER MESSAGE\][\s\S]*$/, with: "")
+    guard text.contains("OUT-OF") || text.contains("conversation history]") else { return text }
+    return text.replacing(/\n\[\/[^\n]*$/, with: "")
         .replacing(/(?s)^.*?(?:OUT-OF-BAND USER MESSAGE|conversation history\])[^\n]*\n/, with: "", maxReplacements: 1)
         .trimmingCharacters(in: .whitespacesAndNewlines)
 }

@@ -642,6 +642,43 @@ if phases.contains("read") {
     await peerGateway.disconnect()
 }
 
+if phases.contains("cleared") {
+    nonisolated struct CrewMarker: Encodable, Sendable {
+        let name = "crew-test"
+        let ui_meta: [String: ReadPosition?]
+        let ui_meta_expected_revisions: [String: Int]
+    }
+    func writeMarker(_ marker: ReadPosition?) async throws {
+        let revision = try await crewTest().readRevision ?? 0
+        let reply = try await gateway.call("profiles.configure", CrewMarker(ui_meta: ["crew": marker], ui_meta_expected_revisions: ["crew": revision]), as: JSONValue.self)
+        print("CLEARED wrote \(marker.map { "\($0.messages)" } ?? "nil"):", reply)
+    }
+    let original = try await crewTest()
+    guard let position = original.canonicalSession?.position, position.messages > 0 else { print("CLEARED crew-test has no Bot Chat rows"); exit(1) }
+    try await writeMarker(ReadPosition(session: position.session, messages: position.messages + 5))
+    for _ in 0..<2 {
+        let bot = try await crewTest()
+        print("CLEARED roster count \(bot.canonicalSession?.messageCount ?? -1) (was \(position.messages)), marker \(bot.readPosition?.messages ?? -1), lastRead \(bot.lastRead?.messages ?? -1)")
+    }
+    let store = BotStore(fixture: [], statuses: [:])
+    var announced = 0
+    Task { for await _ in store.unreadCleared.stream { announced += 1 } }
+    Task { await store.run(gateway, urlSession: urlSession) }
+    func wait(_ label: String, until done: () async throws -> Bool) async throws {
+        let begun = Date.now
+        while Date.now.timeIntervalSince(begun) < 15 {
+            if try await done() { return print(String(format: "CLEARED %@ after %.2fs", label, Date.now.timeIntervalSince(begun))) }
+            try await Task.sleep(for: .milliseconds(200))
+        }
+        print("CLEARED \(label) TIMEOUT")
+    }
+    try await wait("store rewrote the marker to the current count by itself") { try await crewTest().readPosition == position }
+    try await Task.sleep(for: .seconds(3))
+    print("CLEARED status after the drop: \(store.statuses["crew-test"].map { "\($0)" } ?? "idle"), read pushes: \(announced), count still \(try await crewTest().canonicalSession?.messageCount ?? -1)")
+    try await writeMarker(original.readPosition)
+    print("CLEARED restored", try await crewTest().readPosition == original.readPosition)
+}
+
 if phases.contains("a2ui") {
     record("a2ui-turn")
     let skill = try String(contentsOf: URL(fileURLWithPath: #filePath).appending(path: "../../../Sources/Profile/crew-ui.SKILL.md").standardized, encoding: .utf8)

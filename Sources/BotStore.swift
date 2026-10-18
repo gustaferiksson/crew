@@ -94,6 +94,16 @@ nonisolated struct Bot: Identifiable, Hashable, Sendable {
 
     var id: String { name }
 
+    var lastRead: ReadPosition? {
+        guard let read = readPosition, let position = canonicalSession?.position, position.session == read.session else { return readPosition }
+        return min(read, position)
+    }
+
+    func needsMarker(at target: ReadPosition) -> Bool {
+        guard target != readPosition, canonicalSession?.position.map({ target <= $0 }) ?? true else { return false }
+        return lastRead.map { target >= $0 } ?? true
+    }
+
     var title: String {
         [meta.title, displayName].compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }.first { !$0.isEmpty }
             ?? (name == "default" ? "Hermes" : name)
@@ -359,7 +369,7 @@ final class BotStore {
 
     func markSeen(_ bot: Bot) {
         guard let position = bot.canonicalSession?.position else { return }
-        let read = [bots.first { $0.id == bot.id }?.readPosition, seenActivity[bot.id], firstSeenActivity[bot.id]].compactMap(\.self).max()
+        let read = [bots.first { $0.id == bot.id }?.lastRead, seenActivity[bot.id], firstSeenActivity[bot.id]].compactMap(\.self).max()
         if let read, position <= read { return }
         if statuses[bot.id] == .unread { clearingUnread.insert(bot.id) }
         seenActivity[bot.id] = position
@@ -381,7 +391,7 @@ final class BotStore {
     private func writeReadMarker(of id: Bot.ID) async -> Bool {
         for _ in 0..<3 {
             guard let gateway, let target = seenActivity[id], let bot = bots.first(where: { $0.id == id }) else { return false }
-            if let read = bot.readPosition, target <= read { return false }
+            guard bot.needsMarker(at: target) else { return false }
             let params = ConfigureMeta(name: bot.name, uiMeta: ["crew": target], uiMetaExpectedRevisions: ["crew": bot.readRevision ?? 0])
             guard let applied = try? await gateway.call("profiles.configure", params, as: ConfigureReply.self).applied else { return false }
             if applied.uiMeta == true, let revision = applied.uiMetaRevisions?["crew"] {
@@ -530,8 +540,16 @@ final class BotStore {
             bots = roster
             saveCache()
         }
-        seenActivity = seenActivity.filter { seen in bots.contains { $0.id == seen.key && $0.readPosition.map { seen.value > $0 } ?? true } }
+        seenActivity = seenActivity.filter { seen in bots.contains { $0.id == seen.key && $0.needsMarker(at: seen.value) } }
+        clearingUnread = clearingUnread.filter { seenActivity[$0] != nil }
+        for bot in bots where bot.lastRead != bot.readPosition && seenActivity[bot.id] == nil {
+            seenActivity[bot.id] = bot.lastRead
+        }
         firstSeenActivity = firstSeenActivity.filter { seen in bots.contains { $0.id == seen.key && $0.readPosition == nil } }
+        for bot in bots {
+            guard let seen = firstSeenActivity[bot.id], let position = bot.canonicalSession?.position, position.session == seen.session else { continue }
+            firstSeenActivity[bot.id] = min(seen, position)
+        }
         for bot in bots where bot.readPosition == nil && seenActivity[bot.id] == nil && firstSeenActivity[bot.id] == nil {
             firstSeenActivity[bot.id] = bot.canonicalSession?.position
         }
@@ -629,7 +647,7 @@ final class BotStore {
         }
         var result: [Bot.ID: BotStatus] = [:]
         for bot in bots {
-            guard let position = bot.canonicalSession?.position, let read = [bot.readPosition, seenActivity[bot.id], firstSeenActivity[bot.id]].compactMap(\.self).max(), position > read else { continue }
+            guard let position = bot.canonicalSession?.position, let read = [bot.lastRead, seenActivity[bot.id], firstSeenActivity[bot.id]].compactMap(\.self).max(), position > read else { continue }
             result[bot.id] = .unread
         }
         for session in liveSessions.sorted(by: { $1.status == "waiting" && $0.status != "waiting" }) {

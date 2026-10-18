@@ -1,3 +1,4 @@
+import copy
 import json
 import re
 import sys
@@ -412,6 +413,7 @@ class FakeCDP:
         self.fail_on = ""
         self.keeps = 99
         self.empties: list[str] = []
+        self.hidden: set[str] = set()
 
     def settle(self) -> None:
         if self.empties:
@@ -437,6 +439,14 @@ class FakeCDP:
             return {"result": {"frameTree": {"frame": self.recorded["top"] if session_id == "page" else frame["frame"]}}}
         if method == "Input.insertText":
             self.typed.append((target, params["text"]))
+            return {"result": {}}
+        if method == "DOM.getFrameOwner":
+            return {"result": {"backendNodeId": params["frameId"]}}
+        if method == "DOM.resolveNode":
+            return {"result": {"object": {"objectId": params["backendNodeId"]}}}
+        if method == "Runtime.callFunctionOn":
+            return {"result": {"result": {"type": "boolean", "value": params["objectId"] not in self.hidden}}}
+        if method == "Runtime.releaseObject":
             return {"result": {}}
         expression = params["expression"]
         if expression.startswith("inspect:"):
@@ -594,6 +604,25 @@ def test_a_security_code_shopify_keeps_emptying_is_named(push: CrewPush, hermes:
                                "Tell the user, and offer to send them the cart link so they can finish on their own "
                                "device. Do not click review or pay, and do not retry the fill.")
     assert [text for target, text in shopify.typed if target == "frame-5"] == ["", ""]
+
+
+def test_a_card_frame_the_page_hides_gets_nothing(push: CrewPush, hermes: Hermes, shopify: FakeCDP) -> None:
+    hidden = copy.deepcopy(shopify.recorded["frames"]["frame-5"])
+    hidden["frame"]["id"] = "frame-5-old"
+    shopify.recorded["frames"]["frame-5-old"] = hidden
+    cvc = next(target for target in shopify.recorded["targets"] if target["targetId"] == "frame-5")
+    shopify.recorded["targets"].insert(1, {**cvc, "targetId": "frame-5-old"})
+    shopify.hidden.add("frame-5-old")
+    approve_shop(push, hermes)
+    assert shop_result(push) == fixture("fill-card-frames.json")
+    assert shopify.typed == TYPED and shopify.sessions == {}
+    [entry] = store.read_list("payments.json")
+    assert [step["pass"] for step in entry["frame_report"]] == ["type_into", "is_missing"]
+    first = entry["frame_report"][0]["frames"]
+    assert {"page": "verification_value-ltr.html", "own_frame": True, "shown": False} in first
+    assert {"page": "verification_value-ltr.html", "own_frame": True, "shown": True, "token": "cc-csc",
+            "result": True} in first
+    assert {"page": "issue_date-ltr.html", "own_frame": True, "shown": True} in first
 
 
 def test_a_human_takeover_discards_the_frame_fill(push: CrewPush, hermes: Hermes, shopify: FakeCDP) -> None:

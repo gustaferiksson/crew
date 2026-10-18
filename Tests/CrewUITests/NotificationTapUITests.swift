@@ -4,21 +4,19 @@ final class NotificationTapUITests: XCTestCase {
     @MainActor private func launch(notifyAfter seconds: Int) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["-snapshot", "sidebar", "-server", "hermes.example.com", "-username", "gustaf", "-uiTest", "YES", "-notifyProfile", "ada", "-notifyAfter", "\(seconds)"]
-        addUIInterruptionMonitor(withDescription: "Notifications") { alert in
-            guard alert.buttons["Allow"].exists else { return false }
-            alert.buttons["Allow"].tap()
-            return true
-        }
         app.launch()
-        let allow = XCUIApplication(bundleIdentifier: "com.apple.springboard").alerts.buttons["Allow"]
-        if allow.waitForExistence(timeout: 5) { allow.tap() }
+        XCTAssertTrue(app.staticTexts["Ada Lovelace"].waitForExistence(timeout: 15))
         return app
     }
 
-    @MainActor private func tapBanner() {
-        let banner = XCUIApplication(bundleIdentifier: "com.apple.springboard").descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", "Done with the migration dry run.")).firstMatch
-        XCTAssertTrue(banner.waitForExistence(timeout: 60))
-        banner.tap()
+    @MainActor private func tapInNotificationCenter(after seconds: TimeInterval) {
+        Thread.sleep(forTimeInterval: seconds)
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        springboard.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.005)).press(forDuration: 0.1, thenDragTo: springboard.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.7)))
+        let notification = springboard.buttons.matching(NSPredicate(format: "label ENDSWITH %@", "Done with the migration dry run.")).matching(identifier: "ShortLook.Platter.Content.Seamless").firstMatch
+        XCTAssertTrue(notification.waitForExistence(timeout: 15))
+        Thread.sleep(forTimeInterval: 1)
+        notification.tap()
     }
 
     @MainActor private func assertChatOpens(in app: XCUIApplication) {
@@ -27,22 +25,22 @@ final class NotificationTapUITests: XCTestCase {
     }
 
     @MainActor func testTappingANotificationWhileCrewIsOpenOpensItsChat() {
-        let app = launch(notifyAfter: 6)
-        tapBanner()
+        let app = launch(notifyAfter: 2)
+        tapInNotificationCenter(after: 4)
         assertChatOpens(in: app)
     }
 
     @MainActor func testTappingANotificationInTheBackgroundOpensItsChat() {
-        let app = launch(notifyAfter: 8)
+        let app = launch(notifyAfter: 2)
         XCUIDevice.shared.press(.home)
-        tapBanner()
+        tapInNotificationCenter(after: 4)
         assertChatOpens(in: app)
     }
 
     @MainActor func testTappingANotificationAfterCrewQuitLaunchesIt() {
-        let app = launch(notifyAfter: 12)
+        let app = launch(notifyAfter: 2)
         app.terminate()
-        tapBanner()
+        tapInNotificationCenter(after: 4)
         XCTAssertEqual(app.wait(for: .runningForeground, timeout: 15), true)
         XCTAssertTrue(app.staticTexts["Sign in to your Hermes server."].waitForExistence(timeout: 15))
         XCTAssertFalse(app.wait(for: .notRunning, timeout: 3))

@@ -10,7 +10,7 @@ from collections import OrderedDict
 from dataclasses import dataclass
 from typing import Any, Callable, Literal
 
-from . import apns, payments, store
+from . import apns, frames, payments, store
 
 log = logging.getLogger("crew_push")
 
@@ -207,7 +207,7 @@ def no_page_block(origin: str) -> dict[str, str]:
                                                "then call browser_vault fill again.")
 
 
-def card_field_block(task_id: str, origin: str) -> dict[str, str] | None:
+def card_field_block(task_id: str, origin: str) -> tuple[dict[str, str] | None, str]:
     from agent.vault_login_classifier import LoginControl, build_inspection_js, classify_checkout_control
     from tools.browser_vault_tool import _eval_js, _parse_json_result
 
@@ -215,28 +215,30 @@ def card_field_block(task_id: str, origin: str) -> dict[str, str] | None:
     controls = _parse_json_result(_parse_json_result(inspect.get("result")))
     if not inspect.get("success") or not isinstance(controls, list):
         return payments.block("crew_no_shop_card", f"Couldn't read the checkout on {origin}. Wait for it to load, "
-                                                   "then call browser_vault fill again.")
+                                                   "then call browser_vault fill again."), ""
     classified = [classify_checkout_control(LoginControl.from_dict(raw)) for raw in controls if isinstance(raw, dict)]
     if any(control is not None and control.token == "cc-number" for control in classified):
-        return None
-    frames = _parse_json_result(_eval_js(task_id, CARD_FRAMES_JS).get("result"))
-    frame = next((str(item) for item in frames if item), "") if isinstance(frames, list) else ""
-    if frame:
+        return None, ""
+    origins = _parse_json_result(_eval_js(task_id, CARD_FRAMES_JS).get("result"))
+    origins = [str(item) for item in origins if item] if isinstance(origins, list) else []
+    if frames.SHOPIFY_PCI in origins:
+        return None, frames.CARD_FIELDS_BY[frames.SHOPIFY_PCI]
+    if frame := next(iter(origins), ""):
         return payments.block("crew_no_shop_card", f"The card fields on {origin} sit in a payment frame from {frame}, "
                                                    "which Crew can't fill yet. Nothing was asked or charged. Tell the "
                                                    "user they can finish paying in the checkout themselves; do not "
-                                                   "retry the fill.")
+                                                   "retry the fill."), ""
     return payments.block("crew_no_shop_card", f"No open tab on {origin} shows card fields. Open the shop's checkout "
                                                "there; if its card fields sit in a payment frame, they can't be "
-                                               "filled, so tell the user.")
+                                               "filled, so tell the user."), ""
 
 
-def shop_tab_block(task_id: str, origins: list[str]) -> dict[str, str] | None:
+def shop_tab_block(task_id: str, origins: list[str]) -> tuple[dict[str, str] | None, str]:
     try:
         from tools.browser_vault_tool import _current_page_origin, _ensure_supervisor, _focus_bound_origin
 
         if not browser_open(task_id) or _ensure_supervisor(task_id) is None:
-            return no_page_block(origins[0])
+            return no_page_block(origins[0]), ""
         focused = next((origin for origin in origins if _focus_bound_origin(task_id, origin, "payment")), None)
         page = focused or _current_page_origin(task_id)
         if page in origins:
@@ -244,14 +246,41 @@ def shop_tab_block(task_id: str, origins: list[str]) -> dict[str, str] | None:
         offer = card_page_origin(task_id)
     except Exception:
         log.warning("crew-push: could not read the browser for a payment fill, blocking it", exc_info=True)
-        return no_page_block(origins[0])
+        return no_page_block(origins[0]), ""
     if page in SHOP_PAY_ORIGINS:
         return payments.block("crew_no_shop_card", f"The checkout moved to Shop Pay ({page}), not {origins[0]}, so "
                                                    "Crew can't pay there. Nothing was asked or charged. Tell the user "
-                                                   "they can finish paying themselves; do not retry the fill.")
+                                                   "they can finish paying themselves; do not retry the fill."), ""
     if offer and offer not in origins:
-        return payments.block("crew_no_shop_card", payments.no_card_for(offer), missing_shop=offer)
-    return no_page_block(origins[0])
+        return payments.block("crew_no_shop_card", payments.no_card_for(offer), missing_shop=offer), ""
+    return no_page_block(origins[0]), ""
+
+
+def fill_card_frames(args: dict[str, Any], entry: dict[str, Any], task_id: str) -> dict[str, Any]:
+    secret: dict[str, Any] = {}
+    try:
+        from agent.vault_backends import backend_for_handle
+        from tools.browser_vault_tool import _fenced_page_op
+
+        handle = str(args.get("handle") or "")
+        backend = backend_for_handle(handle)
+        item = backend.get_meta(handle) if backend is not None else None
+        if item is None or item.kind != "payment" \
+                or entry["origin"] not in (list(item.allowed_origins) or [item.origin]):
+            return payments.frame_result("error")
+        secret = backend.resolve_secret(handle)
+        outcome = json.loads(_fenced_page_op(task_id, lambda: json.dumps(
+            {"fields": frames.fill(task_id, entry["origin"], secret)})))
+    except frames.FrameFillError as error:
+        return payments.frame_result(error.code, error.filled)
+    except Exception as error:
+        log.warning("crew-push: filling Shopify's card frames failed: %s",
+                    payments.scrub(str(error), frames.page_values(secret)))
+        return payments.frame_result("error")
+    if "fields" not in outcome:
+        return payments.frame_result("human_has_control")
+    return {"success": True, "filled_fields": len(outcome["fields"]), "fields": outcome["fields"], "kind": "payment",
+            "origin": entry["origin"], "card_fields": entry["card_fields"]}
 
 
 def redact(command: str) -> str:
@@ -406,7 +435,9 @@ class CrewPush:
         claim = payments.claim(args)
         if claim is None:
             return payments.block("crew_missing_details")
-        if item.origin and (blocked := shop_tab_block(task_id, list(item.allowed_origins) or [item.origin])):
+        blocked, card_fields = shop_tab_block(task_id, list(item.allowed_origins) or [item.origin]) if item.origin \
+            else (None, "")
+        if blocked:
             return blocked
         with self.lock:
             if any(key != tool_call_id and other["session_id"] == session_id and "request_id" not in other
@@ -415,6 +446,7 @@ class CrewPush:
             if tool_call_id:
                 self.claims.remember(tool_call_id, {
                     **claim, "origin": item.origin, "label": item.label, "command": command, "at": now,
+                    "card_fields": card_fields,
                     "session_id": session_id, "session_key": session_key,
                     "snapshot": {str(approval.get("request_id") or "") for approval in pending}})
         return None
@@ -472,14 +504,16 @@ class CrewPush:
                  "session_key": session_key, "tool_call_id": tool_call_id, "command": command,
                  "origin": claim["origin"], "host": host, "card_label": claim["label"].removesuffix(f" · {host}"),
                  "amount": claim["amount"], "merchant": claim["merchant"], "reason": claim["reason"],
+                 "card_fields": claim["card_fields"] or None,
                  "state": "pending", "fill": None, "fill_error": None, "created_at": now,
                  "expires_at": now + _get_approval_timeout(), "decided_at": None}
         store.mutate_payments(lambda entries: [*entries, entry])
         with self.lock:
             claim["request_id"] = request_id
-        self.notify("payment", claim["session_id"], request_id,
-                    body=f"{claim['amount']} · {claim['merchant']} · {claim['reason']}", subtitle=f"Pay at {host}?",
-                    request_id=request_id, expires_at=entry["expires_at"])
+        body = " · ".join(part for part in (claim["amount"], claim["merchant"], claim["reason"], claim["card_fields"])
+                          if part)
+        self.notify("payment", claim["session_id"], request_id, body=body,
+                    subtitle=f"Pay at {host}?", request_id=request_id, expires_at=entry["expires_at"])
 
     @quiet
     def post_approval_response(self, *, command: str = "", session_key: str = "", surface: str = "",
@@ -512,6 +546,9 @@ class CrewPush:
             entry = payments.find(claim["request_id"]) if claim and "request_id" in claim else None
             if entry is None:
                 return None
+            if entry.get("card_fields") and entry["state"] == "approved" \
+                    and payments.fill_outcome(raw) == ("not_filled", "no_fields"):
+                raw = fill_card_frames(args, entry, task_id or "default")
             decorated = payments.decorate(raw, entry)
             payments.update(entry["request_id"], fill=decorated["crew_payment"]["fill"],
                             fill_error=decorated["crew_payment"]["fill_error"])

@@ -1,0 +1,470 @@
+{
+ "source": "bombola.se's Shopify guest checkout (one harmless item in the cart, nothing submitted), recorded 2026-10-18 in headless Chromium over CDP: Target.getTargets (page and iframe targets, query strings dropped, ids renamed), Page.getFrameTree on each iframe's own flattened session, and in each card frame Hermes 0.22.2's build_inspection_js plus crew-push's frames.VISIBLE_JS. Cart token, pixel ids and shop id removed.",
+ "top": {
+  "id": "page-top",
+  "url": "https://bombola.se/checkouts/cn/<token>/sv-se",
+  "securityOrigin": "https://bombola.se"
+ },
+ "targets": [
+  {
+   "targetId": "page-top",
+   "type": "page",
+   "url": "https://bombola.se/checkouts/cn/<token>/sv-se",
+   "title": ""
+  },
+  {
+   "targetId": "frame-1",
+   "type": "iframe",
+   "url": "https://bombola.se/web-pixels@<id>/app/web-pixel-<id>/sandbox/modern/checkouts/cn/<token>/sv-se",
+   "title": ""
+  },
+  {
+   "targetId": "frame-2",
+   "type": "iframe",
+   "url": "https://checkout.shopify.com/<shop-id>/sandboxes/wallets",
+   "title": ""
+  },
+  {
+   "targetId": "frame-3",
+   "type": "iframe",
+   "url": "https://checkout.pci.shopifyinc.com/build/09497de/number-ltr.html",
+   "title": "https://checkout.pci.shopifyinc.com/build/09497de/number-ltr"
+  },
+  {
+   "targetId": "frame-4",
+   "type": "iframe",
+   "url": "https://checkout.pci.shopifyinc.com/build/09497de/expiry-ltr.html",
+   "title": "https://checkout.pci.shopifyinc.com/build/09497de/expiry-ltr"
+  },
+  {
+   "targetId": "frame-5",
+   "type": "iframe",
+   "url": "https://checkout.pci.shopifyinc.com/build/09497de/verification_value-ltr.html",
+   "title": "https://checkout.pci.shopifyinc.com/build/09497de/verificati"
+  },
+  {
+   "targetId": "frame-6",
+   "type": "iframe",
+   "url": "https://checkout.pci.shopifyinc.com/build/09497de/issue_date-ltr.html",
+   "title": "https://checkout.pci.shopifyinc.com/build/09497de/issue_date"
+  },
+  {
+   "targetId": "frame-7",
+   "type": "iframe",
+   "url": "https://checkout.pci.shopifyinc.com/build/09497de/issue_number-ltr.html",
+   "title": "https://checkout.pci.shopifyinc.com/build/09497de/issue_numb"
+  },
+  {
+   "targetId": "frame-8",
+   "type": "iframe",
+   "url": "https://checkout.pci.shopifyinc.com/build/09497de/name-ltr.html",
+   "title": "https://checkout.pci.shopifyinc.com/build/09497de/name-ltr.h"
+  },
+  {
+   "targetId": "frame-9",
+   "type": "iframe",
+   "url": "https://shop.app/accounts/login/embedded",
+   "title": ""
+  },
+  {
+   "targetId": "frame-10",
+   "type": "iframe",
+   "url": "https://pay.google.com/gp/p/ui/payframe",
+   "title": ""
+  }
+ ],
+ "frames": {
+  "frame-1": {
+   "frame": {
+    "id": "frame-1",
+    "parentId": "page-top",
+    "securityOrigin": "https://bombola.se",
+    "url": "https://bombola.se/web-pixels@<id>/app/web-pixel-<id>/sandbox/modern/checkouts/cn/<token>/sv-se"
+   }
+  },
+  "frame-2": {
+   "frame": {
+    "id": "frame-2",
+    "parentId": "page-top",
+    "securityOrigin": "https://checkout.shopify.com",
+    "url": "https://checkout.shopify.com/<shop-id>/sandboxes/wallets"
+   }
+  },
+  "frame-3": {
+   "frame": {
+    "id": "frame-3",
+    "parentId": "page-top",
+    "securityOrigin": "https://checkout.pci.shopifyinc.com",
+    "url": "https://checkout.pci.shopifyinc.com/build/09497de/number-ltr.html"
+   },
+   "controls": [
+    {
+     "autocomplete": "cc-number",
+     "formIndex": 0,
+     "index": 0,
+     "maxLength": null,
+     "label": "Kortnummer   Kortnummer ",
+     "name": "number number",
+     "type": "text"
+    },
+    {
+     "autocomplete": "cc-name",
+     "formIndex": 0,
+     "index": 1,
+     "maxLength": null,
+     "label": "Name on card    ",
+     "name": "name name",
+     "type": "text"
+    },
+    {
+     "autocomplete": "cc-exp-month",
+     "formIndex": 0,
+     "index": 2,
+     "maxLength": null,
+     "label": "Expiry month    ",
+     "name": "expiry_month expiry_month",
+     "type": "text"
+    },
+    {
+     "autocomplete": "cc-exp-year",
+     "formIndex": 0,
+     "index": 3,
+     "maxLength": null,
+     "label": "Expiry year    ",
+     "name": "expiry_year expiry_year",
+     "type": "text"
+    },
+    {
+     "autocomplete": "cc-exp",
+     "formIndex": 0,
+     "index": 4,
+     "maxLength": null,
+     "label": "Expiry date (MM / YY)    ",
+     "name": "expiry expiry",
+     "type": "text"
+    },
+    {
+     "autocomplete": "cc-csc",
+     "formIndex": 0,
+     "index": 5,
+     "maxLength": null,
+     "label": "Security code    ",
+     "name": "verification_value verification_value",
+     "type": "text"
+    },
+    {
+     "autocomplete": "off",
+     "formIndex": 0,
+     "index": 6,
+     "maxLength": null,
+     "label": "Issue date (MM / YY)    ",
+     "name": "issue_date issue_date",
+     "type": "text"
+    },
+    {
+     "autocomplete": "off",
+     "formIndex": 0,
+     "index": 7,
+     "maxLength": null,
+     "label": "Issue number    ",
+     "name": "issue_number issue_number",
+     "type": "text"
+    }
+   ],
+   "visible": [
+    0
+   ]
+  },
+  "frame-4": {
+   "frame": {
+    "id": "frame-4",
+    "parentId": "page-top",
+    "securityOrigin": "https://checkout.pci.shopifyinc.com",
+    "url": "https://checkout.pci.shopifyinc.com/build/09497de/expiry-ltr.html"
+   },
+   "controls": [
+    {
+     "autocomplete": "cc-number",
+     "formIndex": 0,
+     "index": 0,
+     "maxLength": null,
+     "label": "Credit Card Number    ",
+     "name": "number number",
+     "type": "text"
+    },
+    {
+     "autocomplete": "cc-name",
+     "formIndex": 0,
+     "index": 1,
+     "maxLength": null,
+     "label": "Name on card    ",
+     "name": "name name",
+     "type": "text"
+    },
+    {
+     "autocomplete": "cc-exp-month",
+     "formIndex": 0,
+     "index": 2,
+     "maxLength": null,
+     "label": "Expiry month    ",
+     "name": "expiry_month expiry_month",
+     "type": "text"
+    },
+    {
+     "autocomplete": "cc-exp-year",
+     "formIndex": 0,
+     "index": 3,
+     "maxLength": null,
+     "label": "Expiry year    ",
+     "name": "expiry_year expiry_year",
+     "type": "text"
+    },
+    {
+     "autocomplete": "cc-exp",
+     "formIndex": 0,
+     "index": 4,
+     "maxLength": null,
+     "label": "Förfallodatum (MM/ÅÅ)   Förfallodatum (MM/ÅÅ) ",
+     "name": "expiry expiry",
+     "type": "text"
+    },
+    {
+     "autocomplete": "cc-csc",
+     "formIndex": 0,
+     "index": 5,
+     "maxLength": null,
+     "label": "Security code    ",
+     "name": "verification_value verification_value",
+     "type": "text"
+    },
+    {
+     "autocomplete": "off",
+     "formIndex": 0,
+     "index": 6,
+     "maxLength": null,
+     "label": "Issue date (MM / YY)    ",
+     "name": "issue_date issue_date",
+     "type": "text"
+    },
+    {
+     "autocomplete": "off",
+     "formIndex": 0,
+     "index": 7,
+     "maxLength": null,
+     "label": "Issue number    ",
+     "name": "issue_number issue_number",
+     "type": "text"
+    }
+   ],
+   "visible": [
+    4
+   ]
+  },
+  "frame-5": {
+   "frame": {
+    "id": "frame-5",
+    "parentId": "page-top",
+    "securityOrigin": "https://checkout.pci.shopifyinc.com",
+    "url": "https://checkout.pci.shopifyinc.com/build/09497de/verification_value-ltr.html"
+   },
+   "controls": [
+    {
+     "autocomplete": "cc-number",
+     "formIndex": 0,
+     "index": 0,
+     "maxLength": null,
+     "label": "Credit Card Number    ",
+     "name": "number number",
+     "type": "text"
+    },
+    {
+     "autocomplete": "cc-name",
+     "formIndex": 0,
+     "index": 1,
+     "maxLength": null,
+     "label": "Name on card    ",
+     "name": "name name",
+     "type": "text"
+    },
+    {
+     "autocomplete": "cc-exp-month",
+     "formIndex": 0,
+     "index": 2,
+     "maxLength": null,
+     "label": "Expiry month    ",
+     "name": "expiry_month expiry_month",
+     "type": "text"
+    },
+    {
+     "autocomplete": "cc-exp-year",
+     "formIndex": 0,
+     "index": 3,
+     "maxLength": null,
+     "label": "Expiry year    ",
+     "name": "expiry_year expiry_year",
+     "type": "text"
+    },
+    {
+     "autocomplete": "cc-exp",
+     "formIndex": 0,
+     "index": 4,
+     "maxLength": null,
+     "label": "Expiry date (MM / YY)    ",
+     "name": "expiry expiry",
+     "type": "text"
+    },
+    {
+     "autocomplete": "cc-csc",
+     "formIndex": 0,
+     "index": 5,
+     "maxLength": null,
+     "label": "Säkerhetskod   Säkerhetskod ",
+     "name": "verification_value verification_value",
+     "type": "text"
+    },
+    {
+     "autocomplete": "off",
+     "formIndex": 0,
+     "index": 6,
+     "maxLength": null,
+     "label": "Issue date (MM / YY)    ",
+     "name": "issue_date issue_date",
+     "type": "text"
+    },
+    {
+     "autocomplete": "off",
+     "formIndex": 0,
+     "index": 7,
+     "maxLength": null,
+     "label": "Issue number    ",
+     "name": "issue_number issue_number",
+     "type": "text"
+    }
+   ],
+   "visible": [
+    5
+   ]
+  },
+  "frame-6": {
+   "frame": {
+    "id": "frame-6",
+    "parentId": "page-top",
+    "securityOrigin": "https://checkout.pci.shopifyinc.com",
+    "url": "https://checkout.pci.shopifyinc.com/build/09497de/issue_date-ltr.html"
+   },
+   "controls": [],
+   "visible": []
+  },
+  "frame-7": {
+   "frame": {
+    "id": "frame-7",
+    "parentId": "page-top",
+    "securityOrigin": "https://checkout.pci.shopifyinc.com",
+    "url": "https://checkout.pci.shopifyinc.com/build/09497de/issue_number-ltr.html"
+   },
+   "controls": [],
+   "visible": []
+  },
+  "frame-8": {
+   "frame": {
+    "id": "frame-8",
+    "parentId": "page-top",
+    "securityOrigin": "https://checkout.pci.shopifyinc.com",
+    "url": "https://checkout.pci.shopifyinc.com/build/09497de/name-ltr.html"
+   },
+   "controls": [
+    {
+     "autocomplete": "cc-number",
+     "formIndex": 0,
+     "index": 0,
+     "maxLength": null,
+     "label": "Credit Card Number    ",
+     "name": "number number",
+     "type": "text"
+    },
+    {
+     "autocomplete": "cc-name",
+     "formIndex": 0,
+     "index": 1,
+     "maxLength": null,
+     "label": "Namn på kort   Namn på kort ",
+     "name": "name name",
+     "type": "text"
+    },
+    {
+     "autocomplete": "cc-exp-month",
+     "formIndex": 0,
+     "index": 2,
+     "maxLength": null,
+     "label": "Expiry month    ",
+     "name": "expiry_month expiry_month",
+     "type": "text"
+    },
+    {
+     "autocomplete": "cc-exp-year",
+     "formIndex": 0,
+     "index": 3,
+     "maxLength": null,
+     "label": "Expiry year    ",
+     "name": "expiry_year expiry_year",
+     "type": "text"
+    },
+    {
+     "autocomplete": "cc-exp",
+     "formIndex": 0,
+     "index": 4,
+     "maxLength": null,
+     "label": "Expiry date (MM / YY)    ",
+     "name": "expiry expiry",
+     "type": "text"
+    },
+    {
+     "autocomplete": "cc-csc",
+     "formIndex": 0,
+     "index": 5,
+     "maxLength": null,
+     "label": "Security code    ",
+     "name": "verification_value verification_value",
+     "type": "text"
+    },
+    {
+     "autocomplete": "off",
+     "formIndex": 0,
+     "index": 6,
+     "maxLength": null,
+     "label": "Issue date (MM / YY)    ",
+     "name": "issue_date issue_date",
+     "type": "text"
+    },
+    {
+     "autocomplete": "off",
+     "formIndex": 0,
+     "index": 7,
+     "maxLength": null,
+     "label": "Issue number    ",
+     "name": "issue_number issue_number",
+     "type": "text"
+    }
+   ],
+   "visible": [
+    1
+   ]
+  },
+  "frame-9": {
+   "frame": {
+    "id": "frame-9",
+    "parentId": "page-top",
+    "securityOrigin": "https://shop.app",
+    "url": "https://shop.app/accounts/login/embedded"
+   }
+  },
+  "frame-10": {
+   "frame": {
+    "id": "frame-10",
+    "parentId": "frame-2",
+    "securityOrigin": "https://pay.google.com",
+    "url": "https://pay.google.com/gp/p/ui/payframe"
+   }
+  }
+ }
+}

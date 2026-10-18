@@ -8,6 +8,7 @@
   "amount": "499 kr",
   "merchant": "Zalando",
   "reason": "Winter boots, size 43",
+  "card_fields": null,
   "state": "expired",
   "fill": "not_filled",
   "fill_error": null,

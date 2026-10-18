@@ -24,11 +24,22 @@ STATES = {"once": "approved", "session": "approved", "always": "approved", "deny
 FILL_ERRORS = frozenset({"origin_mismatch", "origin_changed", "human_has_control"})
 NO_FIELDS_ERRORS = ("No payment form fields", "No fillable payment field")
 PUBLIC_FIELDS = ("request_id", "profile", "session_id", "origin", "host", "card_label", "amount", "merchant", "reason",
-                 "state", "fill", "fill_error", "created_at", "expires_at", "decided_at")
+                 "card_fields", "state", "fill", "fill_error", "created_at", "expires_at", "decided_at")
 
 NEXT = "Click the shop's pay button. Never tick save card or remember card."
 NO_FIELDS = ("The card fields weren't found; this checkout probably puts them in a payment frame, which can't be "
              "filled. Tell the user.")
+NO_FRAME_FIELDS = ("Shopify's card fields weren't found or are hidden. If another payment method is selected, select "
+                   "card, then call browser_vault fill again; Crew will ask the user again. Otherwise tell the user.")
+FRAME_ERRORS = {
+    "origin_mismatch": "Refused: no open tab is on the shop the user approved. Nothing was written.",
+    "origin_changed": "Refused: the checkout moved away from the shop the user approved. Nothing more was written.",
+    "human_has_control": "Refused: a human has control of the browser. Nothing more was written.",
+    "no_fields": "No payment form fields were found in Shopify's card frames.",
+    "error": "Crew couldn't fill Shopify's card fields.",
+}
+PARTIAL = (" Some card fields may hold card details already. Nothing was submitted. Tell the user to check the card "
+           "fields and finish paying in the checkout themselves; do not retry the fill.")
 RETRY_LATER = ("This cancelled only this attempt. \"Never retry payment_declined\" means never retry on your own; "
                "if the user later asks you to pay again, call browser_vault fill again and Crew will ask them to "
                "approve it.")
@@ -330,6 +341,18 @@ def fill_outcome(raw: dict[str, Any]) -> tuple[str, str | None]:
     return "not_filled", raw.get("error_type") if raw.get("error_type") in FILL_ERRORS else "error"
 
 
+def scrub(text: str, values: list[str]) -> str:
+    for value in sorted(values, key=len, reverse=True):
+        if len(value) >= 3:
+            text = text.replace(value, "[REDACTED]")
+    return text
+
+
+def frame_result(code: str, filled: tuple[str, ...] = ()) -> dict[str, Any]:
+    error = FRAME_ERRORS.get(code, FRAME_ERRORS["error"]) + (PARTIAL if filled or code == "error" else "")
+    return {"success": False, "error": error, **({"error_type": code} if code in FILL_ERRORS else {})}
+
+
 def decorate(raw: dict[str, Any], entry: dict[str, Any]) -> dict[str, Any]:
     fill, fill_error = fill_outcome(raw)
     out = {**raw, "crew_payment": {"request_id": entry["request_id"], "origin": entry["origin"], "state": entry["state"],
@@ -337,7 +360,7 @@ def decorate(raw: dict[str, Any], entry: dict[str, Any]) -> dict[str, Any]:
     if fill == "filled":
         out["next"] = NEXT
     if fill_error == "no_fields":
-        out.update(success=False, error=NO_FIELDS)
+        out.update(success=False, error=NO_FRAME_FIELDS if raw.get("error") == FRAME_ERRORS["no_fields"] else NO_FIELDS)
     if raw.get("error_type") == "payment_declined" and entry["state"] in DECLINED:
         out["error"] = DECLINED[entry["state"]]
     return out

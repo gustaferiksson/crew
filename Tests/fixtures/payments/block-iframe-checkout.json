@@ -1,0 +1,3 @@
+{
+  "error": "{\"success\": false, \"error_type\": \"crew_no_shop_card\", \"error\": \"The card fields on https://bombola.se sit in a payment frame from https://checkout.pci.shopifyinc.com, which Crew can't fill yet. Nothing was asked or charged. Tell the user they can finish paying in the checkout themselves; do not retry the fill.\"}"
+}

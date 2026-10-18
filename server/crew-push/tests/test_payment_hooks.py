@@ -39,6 +39,8 @@ class Hermes:
     tabs: set[str] = field(default_factory=lambda: {ORIGIN})
     page: str = ORIGIN
     card_fields: Any = True
+    controls: list[dict[str, Any]] = field(default_factory=lambda: [{"autocomplete": "cc-number", "name": "card"}])
+    frames: list[str] = field(default_factory=list)
     raise_in: str = ""
 
     def meta(self, handle: str) -> Any:
@@ -51,6 +53,13 @@ class Hermes:
             raise RuntimeError("CDP socket closed")
         assert kind == "payment"
         return origin if origin in self.tabs else None
+
+    def eval_js(self, task_id: str, expression: str) -> dict[str, Any]:
+        if expression.startswith("inspect:"):
+            return {"success": True, "result": json.dumps(self.controls if self.card_fields else [])}
+        if expression == hooks.CARD_FRAMES_JS:
+            return {"success": True, "result": json.dumps(self.frames)}
+        return {"success": True, "result": self.card_fields}
 
     def ensure(self, task_id: str) -> Any:
         self.ensured.append(task_id)
@@ -70,6 +79,11 @@ def hermes(monkeypatch: pytest.MonkeyPatch, hermes_root: Path, bot_chat: dict[st
     modules = {
         "agent": types.ModuleType("agent"),
         "agent.vault_backends": types.SimpleNamespace(backend_for_handle=lambda handle: backend if handle else None),
+        "agent.vault_login_classifier": types.SimpleNamespace(
+            LoginControl=types.SimpleNamespace(from_dict=lambda raw: raw),
+            build_inspection_js=lambda nonce: f"inspect:{nonce}",
+            classify_checkout_control=lambda raw: types.SimpleNamespace(token=raw["autocomplete"].split()[-1])
+            if raw.get("autocomplete") else None),
         "tools": types.ModuleType("tools"),
         "tools.approval": types.SimpleNamespace(list_gateway_approvals=lambda key: [
             dict(entry) for entry in state.pending] if key == KEY else []),
@@ -84,7 +98,8 @@ def hermes(monkeypatch: pytest.MonkeyPatch, hermes_root: Path, bot_chat: dict[st
             _ensure_supervisor=state.ensure,
             _focus_bound_origin=state.focus,
             _current_page_origin=lambda task_id: state.page,
-            _eval_js=lambda task_id, expression: {"success": True, "result": state.card_fields}),
+            _eval_js=state.eval_js,
+            _parse_json_result=lambda raw: json.loads(raw) if isinstance(raw, str) else raw),
     }
     for name, module in modules.items():
         monkeypatch.setitem(sys.modules, name, module)
@@ -155,11 +170,12 @@ def test_blocks_in_order(push: CrewPush, hermes: Hermes, hermes_root: Path, bot_
     store.mutate_payments(lambda entries: [{"request_id": "d" * 32, "session_id": SESSION, "state": "denied",
                                             "decided_at": 1e12}])
     hermes.tabs.clear()
+    hermes.card_fields = False
     args = {"action": "fill", "handle": "vault_3f9a1c2b7d4e"}
     seen = []
     fixes = [lambda: store.write_gate(True), lambda: bot_chat.update(id=SESSION, tip=SESSION),
              hermes.pending.clear, lambda: store.mutate_payments(lambda entries: []), lambda: args.update(DETAILS),
-             lambda: hermes.tabs.add(ORIGIN)]
+             lambda: (hermes.tabs.add(ORIGIN), setattr(hermes, "card_fields", True))]
     for fix in fixes:
         seen.append(code(fill(push, args)))
         fix()
@@ -351,6 +367,37 @@ def test_no_shop_card_offers_the_page(push: CrewPush, hermes: Hermes) -> None:
     body = json.loads(fill(push)["message"])
     assert body["error_type"] == "crew_no_shop_card" and "crew_payment" not in body
     assert ORIGIN in body["error"]
+
+
+def test_shopify_card_frames_block_before_any_approval(push: CrewPush, hermes: Hermes) -> None:
+    real = fixture("real/real-bombola-iframe-checkout.json")
+    listed = real["rows"][0]["result"]["items"][0]
+    hermes.items[listed["handle"]] = types.SimpleNamespace(kind="payment", label=listed["label"],
+                                                           origin=listed["origin"], allowed_origins=())
+    hermes.page, hermes.tabs = listed["origin"], {listed["origin"]}
+    hermes.controls, hermes.frames = real["page"]["controls"], real["page"]["card_frames"]
+    assert real["page"]["tab_probe"] is True and real["rows"][1]["result"]["crew_payment"]["state"] == "approved"
+    result = fill(push, real["rows"][1]["args"])
+    assert {"error": result["message"]} == fixture("block-iframe-checkout.json")
+    assert "crew_payment" not in json.loads(result["message"]) and push.claims == {}
+    hermes.frames = []
+    body = json.loads(fill(push, real["rows"][1]["args"])["message"])
+    assert body["error_type"] == "crew_no_shop_card" and body["error"].startswith("No open tab on https://bombola.se")
+
+
+def test_shop_pay_page_blocks_without_an_offer(push: CrewPush, hermes: Hermes) -> None:
+    hermes.tabs.clear()
+    hermes.page = "https://shop.app"
+    body = json.loads(fill(push)["message"])
+    assert body["error_type"] == "crew_no_shop_card" and "crew_payment" not in body
+    assert body["error"].startswith(f"The checkout moved to Shop Pay (https://shop.app), not {ORIGIN}")
+    assert push.claims == {}
+
+
+def test_an_uninspectable_shop_tab_blocks(push: CrewPush, hermes: Hermes) -> None:
+    hermes.controls = {"error": "not a list"}
+    body = json.loads(fill(push)["message"])
+    assert body["error_type"] == "crew_no_shop_card" and body["error"].startswith(f"Couldn't read the checkout on {ORIGIN}")
 
 
 def message(directive: dict[str, str] | None) -> str:

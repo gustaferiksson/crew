@@ -169,7 +169,7 @@ func receiptRowFromTheFillResult(name: String, expected: String, tone: PaymentRe
     #expect(receipt.tone == tone)
 }
 
-@Test(arguments: ["block-no-shop-card", "block-missing-details", "list-missing-shop"])
+@Test(arguments: ["block-no-shop-card", "block-missing-details", "block-iframe-checkout", "list-missing-shop"])
 func blocksAndListsGiveNoReceipt(name: String) throws {
     let arguments = name.hasPrefix("list") ? #"{"action": "list"}"# : fillArguments
     #expect(PaymentReceipt(vaultCall(try text(name), arguments: arguments)) == nil)

@@ -3,7 +3,7 @@
   "label": "Crew Push",
   "description": "Device registration and payment shops for Crew. No dashboard tab.",
   "icon": "Smartphone",
-  "version": "0.6.2",
+  "version": "0.6.3",
   "tab": { "hidden": true },
   "entry": "dist/index.js",
   "api": "plugin_api.py"

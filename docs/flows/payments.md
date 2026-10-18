@@ -12,7 +12,7 @@ Researched against Hermes **0.22.1**.
 - A payment is detected by the command prefix `Fill payment card '` and verified with crew-push by `request_id`; by `surface` once Hermes sends it.
 - **No Face ID, Touch ID or LocalAuthentication.** The deliberate act is a press and hold inside Crew. No approve action outside the app.
 - **Server side is crew-push only:** hooks, dashboard routes and JSON files in `plugin-data/crew-push/` next to `devices.json`.
-- Iframe checkouts (Shopify's own checkout, the common case for Swedish shops, plus Stripe Elements, Klarna, Adyen) are unsupported. crew-push blocks the fill before any approval (`crew_no_shop_card`, naming the payment frame's origin), so the user is never asked, and the bot says so. A checkout that moved to Shop Pay (`shop.app`, only with a Shop Pay session) is blocked the same way.
+- Shopify's checkout (card fields in frames from `checkout.pci.shopifyinc.com`, the common case for Swedish shops) is supported from crew-push 0.6.3: the user approves as usual, the push ends with "Card fields by Shopify", and crew-push fills the frames after the approval. Other iframe checkouts (Stripe Elements, Klarna, Adyen) are unsupported: crew-push blocks the fill before any approval (`crew_no_shop_card`, naming the payment frame's origin), so the user is never asked, and the bot says so. A checkout that moved to Shop Pay (`shop.app`, only with a Shop Pay session) is blocked the same way.
 - The `local` terminal backend risk is accepted for now and stated in [Security](#security) and in the inspector.
 
 ## The moment
@@ -140,7 +140,7 @@ Hermes waits `approvals.timeout` (default 300 s) and declines. The countdown sho
 | You took over the browser | `human_has_control` | row "… wasn't filled: you're controlling the browser" | waits |
 | Other fill failure | `eval_failed`, `supervisor_required`, other errors | row "… wasn't filled: the browser didn't respond" | explains briefly |
 | No card for this shop | `list` decoration or the fill block with `missing_shop` | **offer card** (below), no payment card, also after the reload | "I need www.zalando.de added as a shop in Crew." |
-| Card fields in a payment frame (Shopify's `checkout.pci.shopifyinc.com`, Stripe, Adyen), or the checkout moved to Shop Pay (`shop.app`) | block `crew_no_shop_card` without `missing_shop`, before any approval | a failed tool row, no payment card | tells the user Crew can't fill this checkout and that nothing was asked or charged; they can pay themselves |
+| Card fields in a payment frame other than Shopify's (Stripe, Adyen), or the checkout moved to Shop Pay (`shop.app`) | block `crew_no_shop_card` without `missing_shop`, before any approval | a failed tool row, no payment card | tells the user Crew can't fill this checkout and that nothing was asked or charged; they can pay themselves |
 | Shop page not open (the bot read the checkout with `web_extract`, or the browser sits on `chrome://new-tab-page`) | block `crew_no_shop_page`, before any approval | a failed tool row | opens the checkout with `browser_exec` (Browser Use, the default) or `browser_navigate` (built-in browser), then calls `fill` again |
 | Details missing | block `crew_missing_details` | a failed tool row | retries with the three args |
 | Outside Bot Chat (group room, other session, `execute_code`) | block `crew_not_bot_chat` | the bot's explanation | "I can only pay from my chat in Crew." |
@@ -246,7 +246,7 @@ The receipt rows in the bot's chat are the history: payments only run in Bot Cha
 | **Other clients** | Until upstream lands, another client attached to the same Bot Chat (TUI, Desktop) can answer with `session`, `always` or `all: true`; Hermes treats each as one fill, but `all` resolves every pending approval in the session. Payments run only in Bot Chat, which messaging platforms do not drive, so typed replies there cannot pay. |
 | **Fail-open hooks** | The payment branch of `pre_tool_call` is not under crew-push's `quiet` wrapper: it catches its own exceptions and returns a block. `transform_tool_result` is fail-open in Hermes, so Crew derives the receipt from the raw result too. |
 | **Wrong tab** | Hermes may fill any open tab on the bound origin; same origin, same shop. Accepted. |
-| **Card read back, saved cards, iframes** | As in [the plan](../payments.md#threat-model). Iframes and partial fills without `cc-number` count as not filled. |
+| **Card read back, saved cards, iframes** | As in [the plan](../payments.md#threat-model). Iframes other than Shopify's and partial fills without `cc-number` count as not filled. A Shopify frame fill that stops part way is not filled either and tells the bot some fields may hold card details, so the user finishes by hand. |
 | **The `local` backend** | Every bot's shell runs next to every `vault.key`, so a misled bot could decrypt the card or forge past the gate. Accepted now and shown in the inspector; the cure is the `docker` backend for every bot. Worst case is one month of the card's limit. |
 | **Lock screen** | The bot name always; host, amount, merchant and reason only with previews; never card data beyond the last four. |
 
@@ -274,6 +274,7 @@ The contract fixtures (`Tests/fixtures/payments/`, listed in the contract) land 
 
 - Approve from a notification; Face ID, Touch ID, passcode.
 - A payments history screen (the chat is the log).
-- Iframe checkouts, any-shop cards, several master cards.
+- Iframe checkouts other than Shopify's, any-shop cards, several master cards.
+- Showing "Card fields by Shopify" on Crew's payment card (crew-push sends `card_fields`; only the push shows it so far).
 - Reading the real charge or order back from the shop.
 - Payments in group rooms or other sessions; detecting by `surface` (plan step 6).

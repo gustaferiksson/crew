@@ -1,14 +1,16 @@
 import json
+import re
 import sys
 import types
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 import pytest
 
 from conftest import fixture
-from crew_push import hooks, payments, store
+from crew_push import frames, hooks, payments, store
 from crew_push.fanout import serve_every_profile
 from crew_push.hooks import CrewPush
 
@@ -21,6 +23,8 @@ LABEL = "Shopping card •••• 4242 · www.zalando.se"
 COMMAND = f"Fill payment card '{LABEL}' on {ORIGIN}"
 DETAILS = {"amount": "499 kr", "merchant": "Zalando", "reason": "Winter boots, size 43"}
 FILL = {"action": "fill", "handle": "vault_3f9a1c2b7d4e", **DETAILS}
+CARD = {"card_number": "4242424242424242", "exp_month": "12", "exp_year": "2034", "cvc": "123",
+        "cardholder_name": "Test Name"}
 CODES = ["crew_gate_off", "crew_not_bot_chat", "crew_one_at_a_time", "crew_after_decline", "crew_missing_details",
          "crew_no_shop_card"]
 
@@ -42,6 +46,15 @@ class Hermes:
     controls: list[dict[str, Any]] = field(default_factory=lambda: [{"autocomplete": "cc-number", "name": "card"}])
     frames: list[str] = field(default_factory=list)
     raise_in: str = ""
+    cdp: Any = None
+    human_took_over: bool = False
+    redacted: list[str] = field(default_factory=list)
+    secret: dict[str, str] = field(default_factory=lambda: dict(CARD))
+
+    def fenced(self, task_id: str, op: Any) -> str:
+        if self.human_took_over:
+            return json.dumps({"success": False, "code": "human_has_control", "error": "A human took over"})
+        return op()
 
     def meta(self, handle: str) -> Any:
         if self.raise_in == "meta":
@@ -71,19 +84,34 @@ class Hermes:
         self.pending.append({"command": command, "request_id": request_id, "pattern_key": "mcp_elicitation"})
 
 
+def select_checkout_fills(classified: list[Any], secret: dict[str, str], fields: dict[str, str]) -> list[dict[str, Any]]:
+    values = {token: secret[name] for name, token in fields.items() if secret.get(name)}
+    values["cc-exp"] = f"{values['cc-exp-month']}/{values['cc-exp-year'][-2:]}"
+    picked = {control.token: control for control in reversed(classified) if control.token in values}
+    fills = [{"index": control.control.index, "token": token, "value": values[token]} for token, control in picked.items()]
+    return [f for f in fills if f["token"] not in ("cc-exp-month", "cc-exp-year")] if "cc-exp" in picked else fills
+
+
 @pytest.fixture
 def hermes(monkeypatch: pytest.MonkeyPatch, hermes_root: Path, bot_chat: dict[str, str]) -> Hermes:
     state = Hermes()
     bot_chat.update(id=SESSION, tip=SESSION)
-    backend = types.SimpleNamespace(get_meta=state.meta)
+    backend = types.SimpleNamespace(get_meta=state.meta, resolve_secret=lambda handle: state.secret)
     modules = {
         "agent": types.ModuleType("agent"),
         "agent.vault_backends": types.SimpleNamespace(backend_for_handle=lambda handle: backend if handle else None),
         "agent.vault_login_classifier": types.SimpleNamespace(
             LoginControl=types.SimpleNamespace(from_dict=lambda raw: raw),
             build_inspection_js=lambda nonce: f"inspect:{nonce}",
-            classify_checkout_control=lambda raw: types.SimpleNamespace(token=raw["autocomplete"].split()[-1])
-            if raw.get("autocomplete") else None),
+            classify_checkout_control=lambda raw: types.SimpleNamespace(
+                token=raw["autocomplete"].split()[-1], control=types.SimpleNamespace(index=raw.get("index", 0)))
+            if raw.get("autocomplete") and raw["autocomplete"] != "off" else None,
+            select_checkout_fills=select_checkout_fills),
+        "agent.redact": types.SimpleNamespace(register_vault_redaction_value=state.redacted.append),
+        "agent.vault_store": types.SimpleNamespace(
+            PAYMENT_FIELDS={"card_number": "cc-number", "cardholder_name": "cc-name", "exp_month": "cc-exp-month",
+                            "exp_year": "cc-exp-year", "cvc": "cc-csc"},
+            normalize_origin=lambda url: "{0.scheme}://{0.netloc}".format(urlsplit(url))),
         "tools": types.ModuleType("tools"),
         "tools.approval": types.SimpleNamespace(list_gateway_approvals=lambda key: [
             dict(entry) for entry in state.pending] if key == KEY else []),
@@ -91,7 +119,7 @@ def hermes(monkeypatch: pytest.MonkeyPatch, hermes_root: Path, bot_chat: dict[st
                                                         _get_approval_timeout=lambda: 300),
         "tools.browser_tool": types.SimpleNamespace(_active_sessions=state.sessions, _last_session_key=lambda t: t),
         "tools.browser_supervisor": types.SimpleNamespace(SUPERVISOR_REGISTRY=types.SimpleNamespace(
-            get=lambda task_id: state.registry.get(task_id))),
+            get=lambda task_id: state.registry.get(task_id), capture=lambda task_id: state.cdp)),
         "tools.browser_use_cli": types.SimpleNamespace(is_browser_use_cli_mode=lambda: state.browser_use),
         "tools.browser_vault_tool": types.SimpleNamespace(
             _TAB_PROBES={"payment": "!!document.querySelector('input[autocomplete^=cc-]')"},
@@ -99,6 +127,8 @@ def hermes(monkeypatch: pytest.MonkeyPatch, hermes_root: Path, bot_chat: dict[st
             _focus_bound_origin=state.focus,
             _current_page_origin=lambda task_id: state.page,
             _eval_js=state.eval_js,
+            _fenced_page_op=state.fenced,
+            _bot_desktop_browser_session=lambda task_id: False,
             _parse_json_result=lambda raw: json.loads(raw) if isinstance(raw, str) else raw),
     }
     for name, module in modules.items():
@@ -369,20 +399,203 @@ def test_no_shop_card_offers_the_page(push: CrewPush, hermes: Hermes) -> None:
     assert ORIGIN in body["error"]
 
 
-def test_shopify_card_frames_block_before_any_approval(push: CrewPush, hermes: Hermes) -> None:
+class FakeCDP:
+    task_id = "default"
+    page_session_id = "page"
+
+    def __init__(self, recorded: dict[str, Any]) -> None:
+        self.recorded = recorded
+        self.sessions: dict[str, str] = {}
+        self.typed: list[tuple[str, str]] = []
+        self.calls: list[tuple[str, Any]] = []
+        self.unfocusable: set[str] = set()
+        self.fail_on = ""
+        self.keeps = 99
+
+    def call(self, method: str, params: dict[str, Any] | None = None, *, session_id: str | None = None,
+             timeout: float = 10.0) -> dict[str, Any]:
+        self.calls.append((method, params))
+        if method == self.fail_on:
+            raise RuntimeError(f"CDP error: {json.dumps(params)}")
+        target = self.sessions.get(session_id or "")
+        frame = self.recorded["frames"].get(target or "", {})
+        if method == "Target.getTargets":
+            return {"result": {"targetInfos": self.recorded["targets"]}}
+        if method == "Target.attachToTarget":
+            self.sessions[f"s-{params['targetId']}"] = params["targetId"]
+            return {"result": {"sessionId": f"s-{params['targetId']}"}}
+        if method == "Target.detachFromTarget":
+            self.sessions.pop(params["sessionId"])
+            return {"result": {}}
+        if method == "Page.getFrameTree":
+            return {"result": {"frameTree": {"frame": self.recorded["top"] if session_id == "page" else frame["frame"]}}}
+        if method == "Input.insertText":
+            self.typed.append((target, params["text"]))
+            return {"result": {}}
+        expression = params["expression"]
+        if expression.startswith("inspect:"):
+            value = json.dumps(frame.get("controls", []))
+        elif expression == frames.VISIBLE_JS:
+            value = json.dumps(frame.get("visible", []))
+        elif expression == frames.CLEAR_JS:
+            value = 0
+        elif "el.focus()" in expression:
+            index = int(re.search(r':([0-9]+)\\"\]', expression).group(1))
+            value = "ok" if index in frame.get("visible", []) and target not in self.unfocusable else "focus"
+        else:
+            length = int(re.search(r"=== ([0-9]+) \?", expression).group(1))
+            shown = [text[:self.keeps] for typed, text in self.typed if typed == target]
+            value = "ok" if shown and len(shown[-1]) == length else "short"
+        return {"result": {"result": {"type": "string", "value": value}}}
+
+
+SHOP = "https://bombola.se"
+SHOP_FILL = {"action": "fill", "handle": "vault_bombola", "amount": "278 SEK", "merchant": "Bombola",
+             "reason": "Kevin Murphy Free.Hold 100 g"}
+SHOP_LABEL = "Shopping card •••• 4242 · bombola.se"
+SHOP_COMMAND = f"Fill payment card '{SHOP_LABEL}' on {SHOP}"
+TYPED = [("frame-3", "4242424242424242"), ("frame-4", "1234"), ("frame-5", "123"), ("frame-8", "Test Name")]
+
+
+@pytest.fixture
+def shopify(hermes: Hermes) -> FakeCDP:
     real = fixture("real/real-bombola-iframe-checkout.json")
-    listed = real["rows"][0]["result"]["items"][0]
-    hermes.items[listed["handle"]] = types.SimpleNamespace(kind="payment", label=listed["label"],
-                                                           origin=listed["origin"], allowed_origins=())
-    hermes.page, hermes.tabs = listed["origin"], {listed["origin"]}
+    hermes.items["vault_bombola"] = types.SimpleNamespace(kind="payment", label=SHOP_LABEL, origin=SHOP,
+                                                          allowed_origins=())
+    hermes.page, hermes.tabs = SHOP, {SHOP}
     hermes.controls, hermes.frames = real["page"]["controls"], real["page"]["card_frames"]
-    assert real["page"]["tab_probe"] is True and real["rows"][1]["result"]["crew_payment"]["state"] == "approved"
-    result = fill(push, real["rows"][1]["args"])
-    assert {"error": result["message"]} == fixture("block-iframe-checkout.json")
-    assert "crew_payment" not in json.loads(result["message"]) and push.claims == {}
+    hermes.cdp = FakeCDP(fixture("real/real-bombola-card-frames.json"))
+    return hermes.cdp
+
+
+def approve_shop(push: CrewPush, hermes: Hermes, choice: str = "once") -> None:
+    assert fill(push, SHOP_FILL) is None
+    hermes.pending.append({"command": SHOP_COMMAND, "request_id": R, "pattern_key": "mcp_elicitation"})
+    push.pre_approval_request(command=SHOP_COMMAND, session_key=KEY, surface="vault-payment", tool_call_id="call_1",
+                              session_id=SESSION)
+    hermes.pending.clear()
+    push.post_approval_response(command=SHOP_COMMAND, session_key=KEY, surface="vault-payment", choice=choice,
+                                tool_call_id="call_1")
+
+
+def shop_result(push: CrewPush, raw: Any = None) -> Any:
+    out = push.transform_tool_result(tool_name="browser_vault", args=SHOP_FILL, tool_call_id="call_1",
+                                     result=json.dumps(fixture("fill-no-fields.raw.json") if raw is None else raw),
+                                     task_id="default", session_id=SESSION)
+    return None if out is None else json.loads(out)
+
+
+def test_shopify_card_frames_are_asked_with_their_provider(push: CrewPush, hermes: Hermes, shopify: FakeCDP,
+                                                          enqueued: list) -> None:
+    approve_shop(push, hermes)
+    [entry] = store.read_list("payments.json")
+    assert entry["card_fields"] == "Card fields by Shopify" and entry["state"] == "approved"
+    payload = next(payload for _, _, payload in enqueued if payload["aps"]["alert"].get("subtitle"))
+    assert payload["aps"]["alert"]["body"] == "278 SEK · Bombola · Kevin Murphy Free.Hold 100 g · Card fields by Shopify"
+    assert shopify.typed == []
+
+
+def test_other_payment_frames_still_block_before_any_approval(push: CrewPush, hermes: Hermes) -> None:
+    hermes.controls, hermes.frames = [{"autocomplete": "shipping email"}], ["https://js.stripe.com"]
+    result = fill(push)
+    assert {"error": result["message"]} == fixture("block-iframe-checkout.json") and push.claims == {}
     hermes.frames = []
-    body = json.loads(fill(push, real["rows"][1]["args"])["message"])
-    assert body["error_type"] == "crew_no_shop_card" and body["error"].startswith("No open tab on https://bombola.se")
+    body = json.loads(fill(push)["message"])
+    assert body["error_type"] == "crew_no_shop_card" and body["error"].startswith(f"No open tab on {ORIGIN}")
+
+
+def test_an_approved_fill_types_into_the_shops_own_card_frames(push: CrewPush, hermes: Hermes,
+                                                              shopify: FakeCDP) -> None:
+    approve_shop(push, hermes)
+    assert shop_result(push) == fixture("fill-card-frames.json")
+    assert shopify.typed == TYPED and shopify.sessions == {}
+    assert {"4242424242424242", "4242 4242 4242 4242", "123", "1234", "12 / 34", "Test Name"} <= set(hermes.redacted)
+    [entry] = store.read_list("payments.json")
+    assert (entry["fill"], entry["fill_error"]) == ("filled", None)
+    assert shop_result(push) is None and shopify.typed == TYPED
+
+
+@pytest.mark.parametrize("choice", ["deny", "timeout", "cancelled"])
+def test_a_declined_fill_types_nothing(push: CrewPush, hermes: Hermes, shopify: FakeCDP, choice: str) -> None:
+    approve_shop(push, hermes, choice)
+    assert shop_result(push, fixture("fill-denied.raw.json"))["crew_payment"]["fill"] == "not_filled"
+    assert shopify.typed == [] and not any(method == "Target.attachToTarget" for method, _ in shopify.calls)
+
+
+def test_a_top_document_checkout_never_reaches_frames(push: CrewPush, hermes: Hermes) -> None:
+    hermes.cdp = FakeCDP(fixture("real/real-bombola-card-frames.json"))
+    fill(push)
+    ask(push, hermes)
+    answer(push, hermes, "once")
+    assert transform(push, fixture("fill-no-fields.raw.json")) == fixture("fill-no-fields.json")
+    assert hermes.cdp.calls == []
+
+
+@pytest.mark.parametrize("change", [{"parentId": "other-tab"}, {"securityOrigin": "https://evil.example"}])
+def test_frames_of_another_page_or_origin_get_nothing(push: CrewPush, hermes: Hermes, shopify: FakeCDP,
+                                                     change: dict[str, str]) -> None:
+    shopify.recorded["frames"]["frame-3"]["frame"].update(change)
+    approve_shop(push, hermes)
+    result = shop_result(push)
+    assert (result["crew_payment"]["fill"], result["crew_payment"]["fill_error"]) == ("not_filled", "no_fields")
+    assert result["error"] == payments.NO_FRAME_FIELDS and shopify.typed == [] and shopify.sessions == {}
+
+
+def test_a_checkout_that_left_the_shop_gets_nothing(push: CrewPush, hermes: Hermes, shopify: FakeCDP) -> None:
+    approve_shop(push, hermes)
+    shopify.recorded["top"]["url"] = "https://evil.example/checkout"
+    assert shop_result(push)["crew_payment"]["fill_error"] == "origin_changed" and shopify.typed == []
+
+
+def test_a_field_that_cannot_take_focus_stops_the_fill(push: CrewPush, hermes: Hermes, shopify: FakeCDP) -> None:
+    shopify.unfocusable.add("frame-5")
+    approve_shop(push, hermes)
+    result = shop_result(push)
+    assert (result["crew_payment"]["fill"], result["crew_payment"]["fill_error"]) == ("not_filled", "error")
+    assert result["error"] == payments.FRAME_ERRORS["error"] + payments.PARTIAL
+    assert shopify.typed == TYPED[:2] and shopify.sessions == {}
+
+
+def test_a_checkout_showing_only_the_number_gets_nothing(push: CrewPush, hermes: Hermes, shopify: FakeCDP) -> None:
+    for name in ("frame-4", "frame-5"):
+        shopify.recorded["frames"][name]["visible"] = []
+    approve_shop(push, hermes)
+    assert shop_result(push)["crew_payment"]["fill_error"] == "no_fields" and shopify.typed == []
+
+
+def test_a_field_that_cuts_the_value_stops_the_fill(push: CrewPush, hermes: Hermes, shopify: FakeCDP) -> None:
+    shopify.keeps = 12
+    approve_shop(push, hermes)
+    result = shop_result(push)
+    assert result["crew_payment"]["fill_error"] == "error" and result["error"].endswith(payments.PARTIAL)
+    assert shopify.typed == TYPED[:1]
+
+
+def test_a_human_takeover_discards_the_frame_fill(push: CrewPush, hermes: Hermes, shopify: FakeCDP) -> None:
+    hermes.human_took_over = True
+    approve_shop(push, hermes)
+    assert shop_result(push)["crew_payment"]["fill_error"] == "human_has_control" and shopify.typed == []
+
+
+def test_the_card_never_leaves_the_frame_fill(push: CrewPush, hermes: Hermes, shopify: FakeCDP, hermes_root: Path,
+                                             caplog: pytest.LogCaptureFixture,
+                                             capfd: pytest.CaptureFixture[str]) -> None:
+    caplog.set_level("DEBUG")
+    approve_shop(push, hermes)
+    texts = [json.dumps(shop_result(push))]
+    shopify.fail_on = "Input.insertText"
+    approve_shop(push, hermes)
+    texts.append(json.dumps(shop_result(push)))
+    captured = capfd.readouterr()
+    files = "".join(path.read_text(errors="replace") for path in (hermes_root / "plugin-data").rglob("*")
+                    if path.is_file())
+    sent = json.dumps([params for method, params in shopify.calls if method != "Input.insertText"])
+    assert "crew-push: filling Shopify's card frames failed" in caplog.text and "[REDACTED]" in caplog.text
+    for where, text in (("logs", caplog.text), ("stdout", captured.out), ("stderr", captured.err),
+                        ("results", "".join(texts)), ("plugin-data", files), ("other CDP params", sent)):
+        for secret in ("4242424242424242", "4242 4242 4242 4242", "Test Name", "12 / 34"):
+            assert secret not in text, f"{secret!r} leaked into {where}"
+        assert not re.search(r"(?<![0-9a-f])123(?![0-9a-f])", text), f"the CVC leaked into {where}"
 
 
 def test_shop_pay_page_blocks_without_an_offer(push: CrewPush, hermes: Hermes) -> None:

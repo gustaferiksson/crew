@@ -26,8 +26,8 @@ ERRORS = {
     "invalid_profile": "profile must match ^[a-z0-9][a-z0-9_-]{0,63}$",
     "unknown_profile": "no such profile",
     "duplicate_shop": "this profile already has a card for that origin",
-    "no_card": "no payment card without a website in the default vault",
-    "several_cards": "more than one payment card without a website in the default vault",
+    "no_card": "no payment card without a website in crew-push's vault",
+    "several_cards": "more than one payment card without a website in crew-push's vault",
     "unknown_shop": "no shop with that id",
     "unknown_request": "no payment request with that id",
     "login_off": "the dashboard login is off, so crew-push does not store cards",
@@ -101,7 +101,7 @@ def checked_profile(profile: str) -> None:
 def status() -> dict[str, Any]:
     return {"plugin_version": PLUGIN_VERSION, "install_id": store.install_id(),
             "apns_configured": store.apns_config() is not None, "http2": importlib.util.find_spec("h2") is not None,
-            "devices": len(store.read_devices()), "features": ["payments", "card"], "gate": store.read_gate()}
+            "devices": len(store.read_devices()), "features": ["payments", "card", "card_vault"], "gate": store.read_gate()}
 
 
 @router.post("/devices")
@@ -161,12 +161,14 @@ def list_shops(profile: str) -> dict[str, Any]:
     import hermes_yaml
     from hermes_cli.profiles import get_profile_dir
 
-    try:
-        card, master_secret = payments.master()
-        card_row = {"label": card.label, "last4": payments.last4(master_secret), "problem": None}
-        master_label = f"{card.label} •••• {card_row['last4']}"
-    except payments.CardProblem as problem:
-        card_row, master_secret, master_label = {"label": None, "last4": None, "problem": str(problem)}, None, None
+    with payments.vault_lock():
+        legacy_cards = payments.migrate_master()
+        try:
+            card, master_secret = payments.master()
+            card_row = {"label": card.label, "last4": payments.last4(master_secret), "problem": None}
+            master_label = f"{card.label} •••• {card_row['last4']}"
+        except payments.CardProblem as problem:
+            card_row, master_secret, master_label = {"label": None, "last4": None, "problem": str(problem)}, None, None
     vault = payments.profile_vault(profile)
     config_path = get_profile_dir(profile) / "config.yaml"
     config = hermes_yaml.safe_load(config_path.read_text()) if config_path.is_file() else None
@@ -175,7 +177,7 @@ def list_shops(profile: str) -> dict[str, Any]:
             "shops": [payments.shop(item, vault.resolve_secret(item.id), master_secret, profile, master_label)
                       for item in payments.shops(vault)],
             "terminal_backend": str(terminal.get("backend") or "local") if isinstance(terminal, dict) else "local",
-            "gate": store.read_gate()}
+            "gate": store.read_gate(), "legacy_cards": legacy_cards}
 
 
 @router.post("/payments/shops", status_code=201)
@@ -192,6 +194,7 @@ def add_shop(body: ShopIn) -> dict[str, Any]:
         if any(item.origin == origin for item in payments.shops(vault)):
             raise HTTPException(409, {"code": "duplicate_shop", "message": ERRORS["duplicate_shop"]})
         try:
+            payments.migrate_master()
             card, secret = payments.master()
         except payments.CardProblem as problem:
             code = "no_card" if str(problem) == "missing" else "several_cards"
@@ -206,8 +209,7 @@ def update_shops(body: ProfileIn, request: Request) -> dict[str, Any]:
     checked_gate(request)
     checked_profile(body.profile)
     try:
-        payments.update_shops(body.profile)
-        card, master_secret = payments.master()
+        card, master_secret = payments.update_shops(body.profile)
     except payments.PaymentPending:
         raise failure(409, "payment_pending") from None
     except payments.CardProblem as problem:

@@ -1,6 +1,6 @@
 {
   "detail": {
     "code": "no_card",
-    "message": "no payment card without a website in the default vault"
+    "message": "no payment card without a website in crew-push's vault"
   }
 }

@@ -16,5 +16,6 @@
     }
   ],
   "terminal_backend": "docker",
-  "gate": false
+  "gate": false,
+  "legacy_cards": 0
 }

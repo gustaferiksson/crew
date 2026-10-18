@@ -6,5 +6,6 @@
   },
   "shops": [],
   "terminal_backend": "local",
-  "gate": true
+  "gate": true,
+  "legacy_cards": 0
 }

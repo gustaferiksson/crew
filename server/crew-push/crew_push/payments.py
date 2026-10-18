@@ -142,11 +142,18 @@ def shop_host(site: str) -> str:
     return host
 
 
-def master_vault() -> Any:
+def legacy_vault() -> Any:
     from agent.vault_store import VaultStore
     from hermes_constants import get_default_hermes_root
 
     return VaultStore(Path(get_default_hermes_root()) / "vault")
+
+
+def master_vault() -> Any:
+    from agent.vault_store import VaultStore
+    from hermes_constants import get_default_hermes_root
+
+    return VaultStore(Path(get_default_hermes_root()) / "vault" / "crew-push")
 
 
 def profile_vault(profile: str) -> Any:
@@ -156,9 +163,27 @@ def profile_vault(profile: str) -> Any:
     return VaultStore(get_profile_dir(profile) / "vault")
 
 
+def masters(vault: Any) -> list[Any]:
+    return [item for item in vault.list_items() if item.kind == "payment" and not item.origin]
+
+
+def migrate_master() -> int:
+    vault, legacy = master_vault(), legacy_vault()
+    old = masters(legacy)
+    if len(old) != 1:
+        return len(old)
+    current, secret = masters(vault), legacy.resolve_secret(old[0].id)
+    if not current:
+        vault.add_item(kind="payment", label=old[0].label, secret=secret)
+    elif len(current) != 1 or vault.resolve_secret(current[0].id) != secret:
+        return 1
+    legacy.remove_item(old[0].id)
+    return 0
+
+
 def master() -> tuple[Any, dict[str, Any]]:
     vault = master_vault()
-    cards = [item for item in vault.list_items() if item.kind == "payment" and not item.origin]
+    cards = masters(vault)
     if len(cards) != 1:
         raise CardProblem("several" if cards else "missing")
     return cards[0], vault.resolve_secret(cards[0].id)
@@ -206,8 +231,9 @@ def card_entry(body: Any, now: datetime) -> tuple[str, dict[str, str]]:
 
 def set_master(label: str, secret: dict[str, str]) -> Any:
     with vault_lock():
+        migrate_master()
         vault = master_vault()
-        old = [item for item in vault.list_items() if item.kind == "payment" and not item.origin]
+        old = masters(vault)
         if len(old) > 1:
             raise CardProblem("several")
         card = vault.add_item(kind="payment", label=label, secret=secret)
@@ -231,10 +257,11 @@ def copy_label(card: Any, secret: dict[str, Any], origin: str) -> str:
     return f"{card.label} •••• {last4(secret)} · {host_of(origin)}"
 
 
-def update_shops(profile: str) -> None:
+def update_shops(profile: str) -> tuple[Any, dict[str, Any]]:
     with vault_lock():
         if pending_payment(profile):
             raise PaymentPending(profile)
+        migrate_master()
         card, secret = master()
         vault = profile_vault(profile)
         current = shops(vault)
@@ -248,6 +275,7 @@ def update_shops(profile: str) -> None:
                 vault.add_item(kind="payment", label=copy_label(card, secret, origin), secret=secret, origin=origin)
             for item in stale:
                 vault.remove_item(item.id)
+        return card, secret
 
 
 def last4(secret: dict[str, Any]) -> str:

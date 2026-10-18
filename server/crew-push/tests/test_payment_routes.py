@@ -34,8 +34,8 @@ def client(app: FastAPI) -> TestClient:
 
 @pytest.fixture
 def master(vaults: Vaults, hermes_root: Path) -> Path:
-    vaults.add(hermes_root / "vault", "payment", "Shopping card", CARD)
-    return hermes_root / "vault"
+    vaults.add(hermes_root / "vault" / "crew-push", "payment", "Shopping card", CARD)
+    return hermes_root / "vault" / "crew-push"
 
 
 def scout_vault(hermes_root: Path) -> Path:
@@ -49,7 +49,7 @@ def add_shop(client: TestClient, site: str = "https://www.zalando.se/checkout?st
 def test_status_reports_payments_and_the_gate(client: TestClient, app: FastAPI) -> None:
     assert store.read_gate() is None
     body = client.get(f"{API}/status").json()
-    assert body["features"] == ["payments", "card"] and body["gate"] is True
+    assert body["features"] == ["payments", "card", "card_vault"] and body["gate"] is True
     app.state.auth_required = False
     assert client.get(f"{API}/status").json()["gate"] is False
     expected = fixture("status.json")
@@ -176,8 +176,8 @@ def test_add_shop_needs_exactly_one_master(client: TestClient, vaults: Vaults, h
     assert response.status_code == 409 and response.json() == fixture("error-no-card.json")
     vaults.add(hermes_root / "vault", "payment", "Shop copy", CARD, "https://www.zalando.se")
     assert add_shop(client).json() == fixture("error-no-card.json")
-    vaults.add(hermes_root / "vault", "payment", "One", CARD)
-    vaults.add(hermes_root / "vault", "payment", "Two", CARD)
+    vaults.add(hermes_root / "vault" / "crew-push", "payment", "One", CARD)
+    vaults.add(hermes_root / "vault" / "crew-push", "payment", "Two", CARD)
     response = add_shop(client)
     assert response.status_code == 409 and response.json() == fixture("error-several-cards.json")
     assert scout_vault(hermes_root) not in vaults.records or vaults.records[scout_vault(hermes_root)] == []

@@ -4,7 +4,7 @@ import SwiftUI
 let inspectorWidth = (min: 280.0, ideal: 340.0, max: 480.0)
 
 enum InspectorTab: String, CaseIterable, Identifiable {
-    case info, tasks, routines
+    case info, tasks, routines, passwords
     var id: Self { self }
 }
 
@@ -30,13 +30,14 @@ struct BotInspector: View {
     @State private var conversationFailure: String?
     @State private var openedConversation: Conversation?
     private let shopsFixture: ShopList?
+    @State private var vault: BotVault
     @FocusState private var focusedField: FocusedField?
 
     private enum FocusedField {
         case name, role, description
     }
 
-    init(bot: Bot, tab: InspectorTab = .info, routines: RoutineStore = RoutineStore(), draft: ProfileDraft? = nil, conversations: [Conversation]? = nil, shops: ShopList? = nil, models: ModelSwitcher, isPresented: Binding<Bool>) {
+    init(bot: Bot, tab: InspectorTab = .info, routines: RoutineStore = RoutineStore(), draft: ProfileDraft? = nil, conversations: [Conversation]? = nil, shops: ShopList? = nil, vault: BotVault? = nil, models: ModelSwitcher, isPresented: Binding<Bool>) {
         self.bot = bot
         self.shopsFixture = shops
         self.models = models
@@ -45,6 +46,7 @@ struct BotInspector: View {
         _routines = State(initialValue: routines)
         _draft = State(initialValue: draft ?? ProfileDraft(bot: bot))
         _conversations = State(initialValue: conversations)
+        _vault = State(initialValue: vault ?? BotVault(profile: bot.name))
     }
 
     private var isEditable: Bool {
@@ -60,12 +62,15 @@ struct BotInspector: View {
                     info
                 } else if tab == .tasks {
                     TaskList(bot: bot, todos: chats.sessions[bot.id]?.todos ?? [])
+                } else if tab == .passwords {
+                    PasswordsTab(bot: bot, vault: vault, isBrowserOff: isBrowserOff, shops: shopsFixture)
                 } else {
                     RoutineList(bot: bot, store: routines) { isCreatingRoutine = true }
                 }
             }
             .padding(16)
         }
+        .defaultScrollAnchor(Snapshot.scrollsToBottom ? .bottom : nil)
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #else
@@ -221,25 +226,48 @@ struct BotInspector: View {
         }
     }
 
+    private var isBrowserOff: Bool {
+        isEditable && !draft.fields.toolsets.contains { $0.name == "browser" && $0.enabled }
+    }
+
     private var tabs: some View {
-        HStack(spacing: 4) {
-            ForEach([(InspectorTab.info, LocalizedStringKey("Info")), (.tasks, "Tasks"), (.routines, "Routines")], id: \.0) { item, title in
+        ViewThatFits(in: .horizontal) {
+            tabRow(padding: 12)
+            tabRow(padding: 8)
+            tabRow(padding: 6, spacing: 0)
+            ScrollViewReader { proxy in
+                ScrollView(.horizontal) {
+                    tabRow(padding: 12)
+                }
+                .scrollIndicators(.hidden)
+                .scrollClipDisabled()
+                .onAppear { proxy.scrollTo(tab) }
+                .onChange(of: tab) { withAnimation(.snappy) { proxy.scrollTo(tab) } }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func tabRow(padding: CGFloat, spacing: CGFloat = 4) -> some View {
+        HStack(spacing: spacing) {
+            ForEach([(InspectorTab.info, LocalizedStringKey("Info")), (.tasks, "Tasks"), (.routines, "Routines"), (.passwords, "Passwords")], id: \.0) { item, title in
                 Button {
                     withAnimation(.snappy) { tab = item }
                 } label: {
                     Text(title)
                         .fontWeight(tab == item ? .semibold : .regular)
                         .foregroundStyle(tab == item ? .primary : .secondary)
-                        .padding(.horizontal, 12)
+                        .fixedSize()
+                        .padding(.horizontal, padding)
                         .padding(.vertical, 8)
                         .glassEffect(tab == item ? .regular : .identity, in: .capsule)
                         .contentShape(.capsule)
                 }
                 .buttonStyle(.plain)
                 .accessibilityAddTraits(tab == item ? .isSelected : [])
+                .id(item)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder
@@ -316,9 +344,6 @@ struct BotInspector: View {
                     .disabled(!isEditable)
                 }
             }
-        }
-        if connection.supportsPayments {
-            ShopsCard(bot: bot, isBrowserOff: isEditable && !draft.fields.toolsets.contains { $0.name == "browser" && $0.enabled }, fixture: shopsFixture)
         }
         Card(title: "Other Conversations", footer: "Sessions from other apps, the server and routines. Read only.") {
             ConversationList(conversations: conversations, failure: conversationFailure) { openedConversation = $0 }

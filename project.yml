@@ -113,6 +113,7 @@ targets:
       - Sources/Groups/GroupSession.swift
       - Sources/Search/MessageSearch.swift
       - Sources/Links.swift
+      - Sources/Inspector/Vault.swift
       - Tests/CrewTests
     settings:
       base:

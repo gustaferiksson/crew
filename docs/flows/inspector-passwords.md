@@ -99,7 +99,7 @@ Same blocking lines (offline, http server), "Couldn't save the token on the serv
 
 ## Shops card (moved)
 
-Unchanged from [payments.md](payments.md#shops-inspector-info-tab) and [master-card.md](master-card.md#shops-card-inspector-info-tab-iphone-profile-page-and-mac-inspector-column), now in the Passwords tab, except the card row with crew-push 0.6.0 (`card_vault`):
+Unchanged from [payments.md](payments.md#shops-inspector-passwords-tab) and [master-card.md](master-card.md#shops-card-inspector-passwords-tab-iphone-profile-page-and-mac-inspector-column), now in the Passwords tab, except the card row with crew-push 0.6.0 (`card_vault`):
 
 - **One card:** a caption "Card used for new shops" (footnote, secondary) above the card art and "Shopping card •••• 4242", then Replace Card… as before. The default bot's "Kept here, never used to pay." line goes away: the card is no longer in any bot's vault.
 - **Leftover cards** (`legacy_cards > 0`, default bot only): a footnote "1 older card is still in this bot's vault, and the bot can see it there. Remove it on the server." (plural "2 older cards are…"); the cleanup is in [docs/payments.md](../payments.md).

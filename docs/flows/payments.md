@@ -6,7 +6,7 @@ Researched against Hermes **0.22.1**.
 
 ## Settled constraints
 
-- One **master card** in the default profile's vault, without an origin. Each shop is a copy bound to one exact `https` origin in the bot's own vault, made by a crew-push route. Neither Crew nor the bot sees the number; only the last four digits leave the server, in the copy's label (as on every receipt).
+- One **master card** in crew-push's own vault (`<root>/vault/crew-push/`, since 0.6.0; before that the default profile's vault), without an origin. Each shop is a copy bound to one exact `https` origin in the bot's own vault, made by a crew-push route. Neither Crew nor the bot sees the number; only the last four digits leave the server, in the copy's label (as on every receipt).
 - crew-push requires `amount`, `merchant` and `reason` on every payment fill. They are the bot's claim and are shown as such. The real cap is a low-limit virtual card.
 - Payments run only in the bot's **Bot Chat** until upstream Hermes stops other clients and typed replies from resolving payment approvals ([plan step 5](../payments.md#5-upstream-hermes-pr-and-issue-s)).
 - A payment is detected by the command prefix `Fill payment card '` and verified with crew-push by `request_id`; by `surface` once Hermes sends it.
@@ -29,11 +29,11 @@ Scout is buying winter boots. A card slides up above the composer: a small card 
   - **No card:** "No card on the server", footer "Add the card Crew copies to each shop you add. Bots never see the number.", and **Add Card…** ([master-card.md](master-card.md)). Add Shop is disabled.
   - **Several cards without a website:** "More than one card on the server", footer "Keep one card without a website; Crew can't tell which to use." Add Shop is disabled.
 - When the master is replaced, each existing shop row shows "Old card" in orange (its copy no longer matches). **Update Shops** re-copies the current card into them ([master-card.md](master-card.md)). A payment item someone added by hand with another card also reads "Old card"; that is fine.
-- The default profile's own Shops card adds "Kept here, never used to pay." The master never appears as a shop.
+- With crew-push 0.5.0 the default profile's own Shops card adds "Kept here, never used to pay."; from 0.6.0 the card row reads "Card used for new shops" instead ([inspector-passwords.md](inspector-passwords.md)). The master never appears as a shop.
 
-### Shops (inspector, Info tab)
+### Shops (inspector, Passwords tab)
 
-A **Shops** card after Capabilities and before Other Conversations, on iPhone (profile page) and Mac (inspector column), using the existing `Card` (PR B extends it to take several footers and a tinted one).
+A **Shops** card in the Passwords tab after Logins and 1Password (in Info before #58), on iPhone (profile page) and Mac (inspector column), using the existing `Card` (PR B extends it to take several footers and a tinted one).
 
 - **Rows:** the host in body text and "Added 12 Oct" or "Last paid 14 Oct" in secondary. A host with an `xn--` label gets an orange `exclamationmark.triangle.fill` and "Unusual address: check the spelling".
 - **Empty:** "Scout can't pay anywhere yet." A bot can pay exactly when it has a shop; there is no separate switch.

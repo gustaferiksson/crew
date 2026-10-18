@@ -74,8 +74,18 @@ enum Snapshot: String {
     case replaceCard = "replace-card"
     case addCardHTTP = "add-card-http"
     case addCardCover = "add-card-cover"
+    case inspectorPasswords = "inspector-passwords"
+    case inspectorPasswordsEmpty = "inspector-passwords-empty"
+    case inspectorPasswordsError = "inspector-passwords-error"
+    case inspectorPasswordsOffline = "inspector-passwords-offline"
+    case inspectorPasswordsNarrow = "inspector-passwords-narrow"
+    case addLogin = "add-login"
+    case addLoginInvalid = "add-login-invalid"
+    case editLogin = "edit-login"
+    case connectOnePassword = "connect-1password"
 
     static let requested = UserDefaults.standard.string(forKey: "snapshot").flatMap(Snapshot.init(rawValue:))
+    static let scrollsToBottom = requested != nil && UserDefaults.standard.bool(forKey: "snapshotBottom")
 
     var chatFixture: ChatFixture? {
         [.chat: .conversation, .chatHistory: .history, .chatTimestamps: .timestamps, .chatWorkLog: .workLog, .chatQuestion: .question, .chatQuestions: .questions, .chatQuestionsSnacks: .questionsSnacks, .chatOffline: .offline, .chatAttachments: .attachments, .chatDictation: .dictation, .chatMentions: .mentions, .composerLine: .composerLine, .composerLines: .composerLines, .composerRunning: .composerRunning, .composerRunningText: .composerRunningText, .chatSteer: .steer, .chatSteerTaken: .steerTaken, .chatWaiting: .waiting, .chatMentionPeek: .mentions, .chatMentionChat: .mentions, .chatAgentMessage: .agentMessage, .chatA2UI: .a2ui, .chatA2UICards: .a2uiCards, .chatA2UIForm: .a2uiForm, .chatA2UITable: .a2uiTable, .chatA2UIChart: .a2uiChart, .chatA2UIMap: .a2uiMap, .chatPayment: .payment, .chatPaymentHolding: .paymentHolding, .chatPaymentApproved: .paymentApproved, .chatPaymentLoading: .paymentLoading, .chatPaymentFailed: .paymentFailed, .chatPaymentUnverified: .paymentUnverified, .chatPaymentPunycode: .paymentPunycode, .chatPaymentCountdown: .paymentCountdown, .chatPaymentNotice: .paymentNotice, .chatPaymentOffer: .paymentOffer, .chatPaymentReceipts: .paymentReceipts][self]
@@ -90,13 +100,21 @@ enum Snapshot: String {
     }
 
     var inspectorTab: InspectorTab? {
-        [.inspectorInfo: .info, .inspectorTasks: .tasks, .inspectorRoutines: .routines][self]
+        if isPasswords { return .passwords }
+        return [.inspectorInfo: .info, .inspectorTasks: .tasks, .inspectorRoutines: .routines][self]
+    }
+
+    var isPasswords: Bool {
+        [.inspectorPasswords, .inspectorPasswordsEmpty, .inspectorPasswordsError, .inspectorPasswordsOffline, .inspectorPasswordsNarrow, .addLogin, .addLoginInvalid, .editLogin, .connectOnePassword].contains(self)
     }
 
     var connection: Connection {
         let server = URL(string: "https://hermes.example.com")!
         if self == .loginUnreachable {
             return Connection(fixture: .signedOut, server: server, signInError: .unreachable(host: "hermes.example.com"))
+        }
+        if isPasswords {
+            return Connection(fixture: self == .inspectorPasswordsOffline ? .unreachable : .connected, server: server, crewPush: PluginStatus(pluginVersion: "0.6.0", installId: "fixture", apnsConfigured: true, http2: true, devices: 2, features: ["payments", "card", "card_vault"], gate: true))
         }
         if isShops || chatFixture?.isPayment == true {
             return Connection(fixture: .connected, server: self == .addCardHTTP ? URL(string: "http://hermes.local:9119")! : server, crewPush: PluginStatus(pluginVersion: "0.5.0", installId: "fixture", apnsConfigured: true, http2: true, devices: 2, features: ["payments", "card"], gate: true))

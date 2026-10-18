@@ -96,6 +96,10 @@ struct PaymentCard<Avatar: View>: View {
             avatar
             Text("\(request.requester ?? botName) wants to pay")
                 .font(.subheadline.weight(.semibold))
+                // iOS only: on the Mac a vertical pin raises the window's minimum height (#60).
+                #if os(iOS)
+                .fixedSize(horizontal: false, vertical: true)
+                #endif
             Spacer(minLength: 8)
             if let secondsLeft {
                 Text(Duration.seconds(secondsLeft), format: .time(pattern: .minuteSecond))
@@ -117,12 +121,18 @@ struct PaymentCard<Avatar: View>: View {
                 Text(host.map(String.init).joined(separator: "\u{200B}"))
                     .font(.title2.weight(.semibold))
                     .accessibilityLabel(host)
+                    #if os(iOS)
+                    .fixedSize(horizontal: false, vertical: true)
+                    #endif
             }
             .accessibilityElement(children: .combine)
             if isPunycode(host) {
                 Label("This address uses special characters and could imitate another site.", systemImage: "exclamationmark.triangle.fill")
                     .font(.footnote)
                     .foregroundStyle(.orange)
+                    #if os(iOS)
+                    .fixedSize(horizontal: false, vertical: true)
+                    #endif
             }
         }
     }

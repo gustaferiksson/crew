@@ -10,12 +10,13 @@ final class PaymentWindowUITests: XCTestCase {
             XCTAssertTrue(pay.waitForExistence(timeout: 20))
             let window = app.windows.firstMatch
             XCTAssertLessThan(window.frame.height, 480, "the window takes the short height")
-            XCTAssertTrue(pay.isHittable)
-            XCTAssertTrue(app.buttons["Deny payment"].isHittable)
-            let host = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@ OR value CONTAINS %@", "zalando", "zalando")).firstMatch
-            XCTAssertTrue(host.exists && host.isHittable, app.debugDescription)
-            XCTAssertTrue(app.staticTexts["499 kr"].isHittable)
-            XCTAssertTrue(app.staticTexts["Hermes wants to pay"].isHittable)
+            let composer = window.textFields.firstMatch.exists ? window.textFields.firstMatch : window.textViews.firstMatch
+            let host = app.staticTexts.matching(NSPredicate(format: "value == %@", "Pay, www.zalando.se")).firstMatch
+            for element in [app.staticTexts["Hermes wants to pay"], host, app.staticTexts["499 kr"], app.buttons["Deny payment"], pay] {
+                XCTAssertTrue(element.isHittable, element.description)
+                XCTAssertGreaterThanOrEqual(element.frame.minY, window.frame.minY, element.description)
+                XCTAssertLessThanOrEqual(element.frame.maxY, composer.frame.minY, element.description)
+            }
             let shot = XCTAttachment(screenshot: window.screenshot())
             shot.name = "payment-short-window-\(appearance.lowercased())"
             shot.lifetime = .keepAlways

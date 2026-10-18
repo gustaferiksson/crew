@@ -88,11 +88,13 @@ final class PaymentUITests: XCTestCase {
         let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         shot.lifetime = .keepAlways
         add(shot)
-        XCTAssertTrue(pay.isHittable)
-        XCTAssertTrue(app.buttons["Deny payment"].isHittable)
-        XCTAssertTrue(app.staticTexts[host].isHittable)
-        XCTAssertTrue(app.staticTexts["499 kr"].isHittable)
-        XCTAssertTrue(app.staticTexts["Hermes wants to pay"].isHittable)
+        let top = app.navigationBars.firstMatch.frame.maxY
+        let bottom = app.textFields.firstMatch.frame.minY
+        for element in [app.staticTexts["Hermes wants to pay"], app.staticTexts[host], app.staticTexts["499 kr"], app.buttons["Deny payment"], pay] {
+            XCTAssertTrue(element.isHittable, element.description)
+            XCTAssertGreaterThanOrEqual(element.frame.minY, top, element.description)
+            XCTAssertLessThanOrEqual(element.frame.maxY, bottom, element.description)
+        }
         XCTAssertFalse(app.buttons["Pay…"].exists)
     }
 

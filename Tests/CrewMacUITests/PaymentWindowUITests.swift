@@ -9,11 +9,11 @@ final class PaymentWindowUITests: XCTestCase {
             let pay = app.buttons["Hold to Pay"]
             XCTAssertTrue(pay.waitForExistence(timeout: 20))
             let window = app.windows.firstMatch
-            let settled = NSPredicate(format: "frame.size.height < 480")
-            XCTAssertEqual(XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: settled, object: window)], timeout: 10), .completed, "the window takes the short height")
+            XCTAssertLessThan(window.frame.height, 480, "the window takes the short height")
             XCTAssertTrue(pay.isHittable)
             XCTAssertTrue(app.buttons["Deny payment"].isHittable)
-            XCTAssertTrue(app.staticTexts["www.zalando.se"].isHittable)
+            let host = NSPredicate(format: "label CONTAINS %@ AND NOT (label BEGINSWITH %@)", "www.zalando.se", "Payment request")
+            XCTAssertTrue(app.staticTexts.matching(host).firstMatch.isHittable)
             XCTAssertTrue(app.staticTexts["499 kr"].isHittable)
             XCTAssertTrue(app.staticTexts["Hermes wants to pay"].isHittable)
             let shot = XCTAttachment(screenshot: window.screenshot())

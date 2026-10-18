@@ -82,6 +82,54 @@ final class PaymentUITests: XCTestCase {
         XCTAssertTrue(ok.waitForNonExistence(timeout: 5))
     }
 
+    @MainActor func testShortLayoutAsksBeforePayingAndHoldComesBackWithRoom() {
+        XCUIDevice.shared.orientation = .portrait
+        let app = launch("chat-payment")
+        XCTAssertTrue(app.buttons["Hold to Pay"].waitForExistence(timeout: 10))
+        XCUIDevice.shared.orientation = .landscapeLeft
+        defer { XCUIDevice.shared.orientation = .portrait }
+        let pay = app.buttons["Pay…"]
+        XCTAssertTrue(pay.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Deny payment"].isHittable)
+        pay.press(forDuration: 2)
+        XCTAssertTrue(app.staticTexts["Pay 499 kr at www.zalando.se?"].waitForExistence(timeout: 5))
+        XCTAssertEqual(log(in: app), "none")
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.1)).tap()
+        XCTAssertTrue(app.staticTexts["Pay 499 kr at www.zalando.se?"].waitForNonExistence(timeout: 5))
+        XCTAssertEqual(log(in: app), "none")
+        XCUIDevice.shared.orientation = .portrait
+        XCTAssertTrue(app.buttons["Hold to Pay"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor func testShortLayoutPaysOnlyThroughTheDialog() {
+        XCUIDevice.shared.orientation = .portrait
+        let app = launch("chat-payment")
+        XCTAssertTrue(app.buttons["Hold to Pay"].waitForExistence(timeout: 10))
+        XCUIDevice.shared.orientation = .landscapeLeft
+        defer { XCUIDevice.shared.orientation = .portrait }
+        let pay = app.buttons["Pay…"]
+        XCTAssertTrue(pay.waitForExistence(timeout: 5))
+        pay.tap()
+        let confirm = app.buttons["Pay"]
+        XCTAssertTrue(confirm.waitForExistence(timeout: 5))
+        confirm.tap()
+        XCTAssertTrue(waitForLog("approval.respond once", in: app))
+    }
+
+    @MainActor func testShortLayoutDialogWarnsAboutAPunycodeHost() {
+        XCUIDevice.shared.orientation = .portrait
+        let app = launch("chat-payment-punycode")
+        XCTAssertTrue(app.buttons["Hold to Pay"].waitForExistence(timeout: 10))
+        XCUIDevice.shared.orientation = .landscapeLeft
+        defer { XCUIDevice.shared.orientation = .portrait }
+        let pay = app.buttons["Pay…"]
+        XCTAssertTrue(pay.waitForExistence(timeout: 5))
+        pay.tap()
+        XCTAssertTrue(app.staticTexts["Pay 499 kr at xn--zaando-5ve.se?"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["This address uses special characters and could imitate another site."].exists)
+        XCTAssertEqual(log(in: app), "none")
+    }
+
     @MainActor func testOfferOpensAddShopFilledIn() {
         let app = launch("chat-payment-offer")
         let add = app.buttons["Add Shop…"]

@@ -73,7 +73,13 @@ final class ChatWindowUITests: XCTestCase {
         let tile = app.buttons["Scout, Travel Planner"]
         XCTAssertTrue(tile.waitForExistence(timeout: 10))
         let deadline = Date.now.addingTimeInterval(10)
-        repeat { tile.doubleClick() } while !app.windows.element(boundBy: 1).waitForExistence(timeout: 2) && Date.now < deadline
+        var previous = CGRect.null
+        while Date.now < deadline, !(tile.isHittable && tile.frame == previous) {
+            previous = tile.frame
+            RunLoop.current.run(until: .now + 0.2)
+        }
+        XCTAssertTrue(tile.isHittable, "the favourite tile settles before the double-click")
+        tile.doubleClick()
         expectWindows(2, in: app, "a double-click on a favourite tile opens its window")
     }
 

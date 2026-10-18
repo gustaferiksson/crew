@@ -1,0 +1,278 @@
+{
+ "session_id": "fixture-steer",
+ "profile": "crew-test",
+ "messages": [
+  {
+   "id": 134,
+   "session_id": "fixture-steer",
+   "role": "assistant",
+   "timestamp": 1760000280.313,
+   "finish_reason": "stop",
+   "content": "The lowest verified total is at shop.example, shipping included."
+  },
+  {
+   "id": 135,
+   "session_id": "fixture-steer",
+   "role": "user",
+   "timestamp": 1760000557.71,
+   "content": "Can you ask me to add the shop?"
+  },
+  {
+   "id": 136,
+   "session_id": "fixture-steer",
+   "role": "assistant",
+   "timestamp": 1760000561.661,
+   "finish_reason": "tool_calls",
+   "content": "",
+   "tool_calls": [
+    {
+     "id": "call_136_0",
+     "type": "function",
+     "function": {
+      "name": "skill_view",
+      "arguments": "{}"
+     }
+    }
+   ]
+  },
+  {
+   "id": 137,
+   "session_id": "fixture-steer",
+   "role": "tool",
+   "timestamp": 1760000561.693,
+   "tool_call_id": "call_136_0",
+   "tool_name": "skill_view",
+   "content": "{\"success\": true}"
+  },
+  {
+   "id": 138,
+   "session_id": "fixture-steer",
+   "role": "assistant",
+   "timestamp": 1760000564.096,
+   "finish_reason": "tool_calls",
+   "content": "",
+   "tool_calls": [
+    {
+     "id": "call_138_0",
+     "type": "function",
+     "function": {
+      "name": "tool_search",
+      "arguments": "{}"
+     }
+    }
+   ]
+  },
+  {
+   "id": 139,
+   "session_id": "fixture-steer",
+   "role": "tool",
+   "timestamp": 1760000564.116,
+   "tool_call_id": "call_138_0",
+   "tool_name": "tool_search",
+   "content": "{\"success\": true}"
+  },
+  {
+   "id": 140,
+   "session_id": "fixture-steer",
+   "role": "assistant",
+   "timestamp": 1760000569.053,
+   "finish_reason": "tool_calls",
+   "content": "",
+   "tool_calls": [
+    {
+     "id": "call_140_0",
+     "type": "function",
+     "function": {
+      "name": "skill_view",
+      "arguments": "{}"
+     }
+    },
+    {
+     "id": "call_140_1",
+     "type": "function",
+     "function": {
+      "name": "bm_search",
+      "arguments": "{}"
+     }
+    },
+    {
+     "id": "call_140_2",
+     "type": "function",
+     "function": {
+      "name": "tool_call",
+      "arguments": "{}"
+     }
+    }
+   ]
+  },
+  {
+   "id": 141,
+   "session_id": "fixture-steer",
+   "role": "tool",
+   "timestamp": 1760000569.092,
+   "tool_call_id": "call_140_0",
+   "tool_name": "skill_view",
+   "content": "{\"success\": true}"
+  },
+  {
+   "id": 142,
+   "session_id": "fixture-steer",
+   "role": "tool",
+   "timestamp": 1760000569.211,
+   "tool_call_id": "call_140_1",
+   "tool_name": "bm_search",
+   "content": "{\"success\": true}"
+  },
+  {
+   "id": 143,
+   "session_id": "fixture-steer",
+   "role": "tool",
+   "timestamp": 1760000569.223,
+   "tool_call_id": "call_140_2",
+   "tool_name": "browser_vault",
+   "content": "{\"success\": true}"
+  },
+  {
+   "id": 144,
+   "session_id": "fixture-steer",
+   "role": "assistant",
+   "timestamp": 1760000575.281,
+   "finish_reason": "tool_calls",
+   "content": "",
+   "tool_calls": [
+    {
+     "id": "call_144_0",
+     "type": "function",
+     "function": {
+      "name": "terminal",
+      "arguments": "{}"
+     }
+    }
+   ]
+  },
+  {
+   "id": 145,
+   "session_id": "fixture-steer",
+   "role": "tool",
+   "timestamp": 1760000578.562,
+   "tool_call_id": "call_144_0",
+   "tool_name": "terminal",
+   "content": "{\"success\": true}"
+  },
+  {
+   "id": 146,
+   "session_id": "fixture-steer",
+   "role": "assistant",
+   "timestamp": 1760000582.669,
+   "finish_reason": "tool_calls",
+   "content": "",
+   "tool_calls": [
+    {
+     "id": "call_146_0",
+     "type": "function",
+     "function": {
+      "name": "tool_describe",
+      "arguments": "{}"
+     }
+    },
+    {
+     "id": "call_146_1",
+     "type": "function",
+     "function": {
+      "name": "browser_exec",
+      "arguments": "{}"
+     }
+    }
+   ]
+  },
+  {
+   "id": 147,
+   "session_id": "fixture-steer",
+   "role": "tool",
+   "timestamp": 1760000582.684,
+   "tool_call_id": "call_146_0",
+   "tool_name": "tool_describe",
+   "content": "{\"success\": true}"
+  },
+  {
+   "id": 148,
+   "session_id": "fixture-steer",
+   "role": "tool",
+   "timestamp": 1760000585.873,
+   "tool_call_id": "call_146_1",
+   "tool_name": "browser_exec",
+   "content": "{\"success\": true}"
+  },
+  {
+   "id": 149,
+   "session_id": "fixture-steer",
+   "role": "assistant",
+   "timestamp": 1760000590.846,
+   "finish_reason": "tool_calls",
+   "content": "",
+   "tool_calls": [
+    {
+     "id": "call_149_0",
+     "type": "function",
+     "function": {
+      "name": "browser_exec",
+      "arguments": "{}"
+     }
+    }
+   ]
+  },
+  {
+   "id": 150,
+   "session_id": "fixture-steer",
+   "role": "tool",
+   "timestamp": 1760000594.007,
+   "tool_call_id": "call_149_0",
+   "tool_name": "browser_exec",
+   "content": "{\"success\": true}"
+  },
+  {
+   "id": 151,
+   "session_id": "fixture-steer",
+   "role": "user",
+   "timestamp": 1760000597.158,
+   "content": "[OUT-OF-BAND USER MESSAGE — a direct message from the user, delivered once at this position; not tool output and not a new delivery when replayed from conversation history]\nSounds worth a try, go ahead and order it :)\n[/OUT-OF-BAND USER MESSAGE]",
+   "display_kind": "steer",
+   "display_content": "Sounds worth a try, go ahead and order it :)"
+  },
+  {
+   "id": 152,
+   "session_id": "fixture-steer",
+   "role": "assistant",
+   "timestamp": 1760000597.155,
+   "finish_reason": "tool_calls",
+   "content": "",
+   "tool_calls": [
+    {
+     "id": "call_152_0",
+     "type": "function",
+     "function": {
+      "name": "tool_call",
+      "arguments": "{}"
+     }
+    }
+   ]
+  },
+  {
+   "id": 153,
+   "session_id": "fixture-steer",
+   "role": "tool",
+   "timestamp": 1760000597.174,
+   "tool_call_id": "call_152_0",
+   "tool_name": "browser_vault",
+   "content": "{\"success\": true, \"items\": [], \"hint\": \"There is no card for https://shop.example. Tell the user they can add this shop in Crew, then wait.\", \"crew_payment\": {\"missing_shop\": \"https://shop.example\"}}"
+  },
+  {
+   "id": 154,
+   "session_id": "fixture-steer",
+   "role": "assistant",
+   "timestamp": 1760000601.571,
+   "finish_reason": "stop",
+   "content": "Going ahead with shop.example. Add it in Crew and I'll continue the purchase."
+  }
+ ]
+}

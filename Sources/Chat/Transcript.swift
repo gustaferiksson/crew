@@ -169,6 +169,12 @@ nonisolated func noticeText(kind: String?, content: String) -> String? {
     return nil
 }
 
+nonisolated func steerWords(in text: String) -> String {
+    text.replacing(/\s*\[\/OUT-OF-BAND USER MESSAGE\][\s\S]*$/, with: "")
+        .replacing(/(?s)^.*?(?:OUT-OF-BAND USER MESSAGE|conversation history\])[^\n]*\n/, with: "", maxReplacements: 1)
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+}
+
 nonisolated func deliveryProcess(in content: String) -> String? {
     guard content.hasPrefix("[IMPORTANT: Background process "), content.contains("bot_mode_dm.py --run-delivery") else { return nil }
     return content.firstMatch(of: /proc_[0-9a-f]+/).map { String($0.output) }
@@ -238,7 +244,7 @@ extension Transcript {
         self.init()
         for row in rows.sorted(by: { $0.id < $1.id }) {
             let date = Date(timeIntervalSince1970: row.timestamp)
-            let text = row.displayContent ?? row.content ?? ""
+            let text = row.displayContent ?? (row.displayKind == "steer" ? steerWords(in: row.content ?? "") : row.content ?? "")
             if row.role == "user", row.displayKind == "steer", !turns.isEmpty {
                 closeThinking(at: date)
                 turns.append(Turn(id: String(row.id), prompt: Prompt(text: text, sentAt: date), status: .complete, startedAt: date, finishedAt: date, isSteer: true))

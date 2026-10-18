@@ -10,8 +10,7 @@ final class SteerBubbleUITests: XCTestCase {
             XCTAssertTrue(field.waitForExistence(timeout: 20))
             let text = "Sounds worth a try, go ahead and order it if the shop looks legit and the delivery is cheap :)"
             field.click()
-            field.typeText(text)
-            app.buttons["Steer"].click()
+            field.typeText(text + "\r")
             XCTAssertTrue(app.staticTexts["Waiting"].waitForExistence(timeout: 10))
             XCTAssertTrue(app.staticTexts["Waiting"].waitForNonExistence(timeout: 20))
             let bubble = app.staticTexts[text]

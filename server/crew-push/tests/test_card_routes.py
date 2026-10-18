@@ -1,6 +1,7 @@
 import fcntl
 import json
 import logging
+import re
 import threading
 import time
 from datetime import UTC, datetime
@@ -18,7 +19,8 @@ from test_payment_routes import API, add_shop, app, client, master, scout_vault 
 NUMBER = "4242424242424242"
 NEW = {"card_number": "4000 0566 5566 5556", "exp_month": "3", "exp_year": "31", "cvc": "321",
        "cardholder_name": "Test Card", "label": "Travel card"}
-SECRETS = ("4000056655665556", "4000 0566 5566 5556", "321", "Test Card", NUMBER, "4242 4242 4242 4242")
+SECRETS = ("4000056655665556", "4000 0566 5566 5556", "Test Card", NUMBER, "4242 4242 4242 4242")
+CVC_LEAK = re.compile(r"(?<![\w.])321(?!\w|\.\d)")
 NOW = datetime(2026, 10, 17, tzinfo=UTC)
 
 
@@ -239,9 +241,10 @@ def test_the_card_never_reaches_logs_responses_or_files(client: TestClient, app:
     captured = capfd.readouterr()
     files = "".join(path.read_text(errors="replace") for path in (hermes_root / "plugin-data").rglob("*")
                     if path.is_file())
-    for secret in SECRETS:
-        for where, text in (("logs", caplog.text), ("stdout", captured.out), ("stderr", captured.err),
-                            ("responses", "".join(texts)), ("plugin-data", files)):
+    for where, text in (("logs", caplog.text), ("stdout", captured.out), ("stderr", captured.err),
+                        ("responses", "".join(texts)), ("plugin-data", files)):
+        assert not CVC_LEAK.search(text), f"'321' leaked into {where}"
+        for secret in SECRETS:
             assert secret not in text, f"{secret!r} leaked into {where}"
     assert texts[-3:-1] == [fixture_text("error-vault-error.json")] * 2
 

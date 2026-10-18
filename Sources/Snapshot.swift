@@ -216,6 +216,8 @@ extension Snapshot {
         window.isRestorable = false
         window.setFrameOrigin(NSPoint(x: -4000, y: 0))
         if self == .layoutInspector { window.setContentSize(NSSize(width: 860, height: 640)) }
+        if [.chatWindow, .chatWindowMissing].contains(self) { window.setContentSize(NSSize(width: 560, height: 640)) }
+        if self == .chatWindowInspector { window.setContentSize(NSSize(width: 900, height: 640)) }
         try? await Task.sleep(for: .seconds(1.5))
         if UserDefaults.standard.bool(forKey: "measure") { await measure(window) }
         // cacheDisplay and ImageRenderer skip Liquid Glass; CGWindowListCreateImage is SDK-obsoleted but still exported for own windows.

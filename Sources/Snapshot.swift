@@ -229,6 +229,8 @@ extension Snapshot {
         if self == .layoutInspector { window.setContentSize(NSSize(width: 860, height: 640)) }
         if self == .chatSelection { window.setContentSize(NSSize(width: 860, height: 900)) }
         if self == .chatTimestamps { window.setContentSize(NSSize(width: 560, height: 900)) }
+        if [.chatWindow, .chatWindowMissing].contains(self) { window.setContentSize(NSSize(width: 560, height: 640)) }
+        if self == .chatWindowInspector { window.setContentSize(NSSize(width: 900, height: 640)) }
         let height = UserDefaults.standard.double(forKey: "snapshotHeight")
         if height > 0 { window.setContentSize(NSSize(width: window.contentRect(forFrameRect: window.frame).width, height: height)) }
         try? await Task.sleep(for: .seconds(1.5))

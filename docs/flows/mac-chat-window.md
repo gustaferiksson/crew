@@ -63,7 +63,7 @@ Unchanged UI: the double-click handling, the menu item and the menu bar command 
 
 - **macOS UI test** (new `CrewMacUITests` target, ad hoc signed, run only in CI on the GitHub-hosted xcode-27 runner, never on the user's Mac): launches the `layout` fixture with `-uiTest YES`, which keeps the regular activation policy and skips the capture, plus `-ApplePersistenceIgnoreState YES`. Double-clicks a bot row and expects a second window titled with the bot; double-clicks it again and still sees two windows; uses the context menu's "Open in New Window" on another bot for a third; types a draft in the selected bot's chat window and sees it in the main window's composer; Cmd-W closes the focused chat window. A fixture flag that signs the fixture connection out while a chat window is open checks that the chat window closes and the main window shows the sign-in screen.
 - **Unit tests** (`CrewTests`): the `AppTasks` claim and hand-over (first claimer owns, a second claim is refused, release lets the next window claim).
-- **Renders** (`-snapshot chat-window`, the real `BotChatWindow` as the window root): the chat, the chat with its inspector open (Model row) and No Bot, light and dark; the UI test also attaches screenshots of the real chat window in light and dark.
+- **Renders** (`-snapshot chat-window`, the real `BotChatWindow` as the window root at the chat window's 560 x 640 default, 900 wide with the inspector; in `docs/flows/renders/mac-chat-window-*`): the chat, the chat with its inspector open (Model row) and No Bot, light and dark; the UI test also attaches screenshots of the real chat window in light and dark.
 
 ## Not in scope
 

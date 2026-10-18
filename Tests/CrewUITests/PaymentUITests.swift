@@ -121,14 +121,14 @@ final class PaymentUITests: XCTestCase {
 
     @MainActor func testArrivingCardDismissesTheKeyboardSoHoldToPayShows() {
         XCUIDevice.shared.orientation = .portrait
-        let app = launch("chat-payment", arguments: ["-requestDelay", "8"])
+        let app = launch("chat-payment", arguments: ["-requestAfterDraft", "Half a thought"])
         let composer = app.textFields.firstMatch
         XCTAssertTrue(composer.waitForExistence(timeout: 10))
         composer.tap()
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
         if app.buttons["Continue"].waitForExistence(timeout: 1) { app.buttons["Continue"].tap() }
-        composer.typeText("Half a thought")
         XCTAssertFalse(app.staticTexts["www.zalando.se"].exists)
+        composer.typeText("Half a thought")
         XCTAssertTrue(app.buttons["Hold to Pay"].waitForExistence(timeout: 15))
         XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 5))
         XCTAssertEqual(composer.value as? String, "Half a thought")

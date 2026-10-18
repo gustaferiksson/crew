@@ -330,7 +330,7 @@ struct ChatFixtureScreen: View {
     @State private var transcript: Transcript
     @State private var tray: AttachmentTray
 
-    private static let requestDelay = UserDefaults.standard.double(forKey: "requestDelay")
+    private static let requestAfterDraft = UserDefaults.standard.string(forKey: "requestAfterDraft")
 
     private static let hermes = Bot(
         name: "default", displayName: "Hermes", description: nil, model: nil, isDefault: true, hasAvatar: false, canonicalSession: nil,
@@ -340,7 +340,7 @@ struct ChatFixtureScreen: View {
     init(fixture: ChatFixture) {
         self.fixture = fixture
         _session = State(initialValue: fixture == .mentions ? ChatSession(fixture: Self.hermes, transcript: fixture.transcript, todos: []) : nil)
-        _request = State(initialValue: Self.requestDelay > 0 ? nil : fixture.request)
+        _request = State(initialValue: Self.requestAfterDraft == nil ? fixture.request : nil)
         _payment = State(initialValue: fixture.paymentState)
         _paymentNotice = State(initialValue: fixture.paymentNotice)
         _shopOffer = State(initialValue: fixture.shopOffer)
@@ -394,10 +394,8 @@ struct ChatFixtureScreen: View {
             )
         )
         .environment(\.chatSession, session)
-        .task {
-            guard Self.requestDelay > 0 else { return }
-            try? await Task.sleep(for: .seconds(Self.requestDelay))
-            request = fixture.request
+        .onChange(of: draft) {
+            if draft == Self.requestAfterDraft { request = fixture.request }
         }
         .sheet(isPresented: $addingShop) {
             AddShopSheet(profile: "default", site: shopOffer ?? "") { _ in }

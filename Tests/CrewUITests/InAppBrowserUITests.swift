@@ -1,5 +1,8 @@
 import XCTest
 
+// Safari's chrome lives in SafariViewService, which took over 5s to attach on a loaded CI runner.
+private let safariAttachTimeout: TimeInterval = 30
+
 final class InAppBrowserUITests: XCTestCase {
     @MainActor func testBotReplyLinkOpensSafariSheetOverTheChat() {
         let app = XCUIApplication()
@@ -13,7 +16,7 @@ final class InAppBrowserUITests: XCTestCase {
         link.tap()
 
         let openInSafari = app.buttons["OpenInSafariButton"]
-        XCTAssertTrue(openInSafari.waitForExistence(timeout: 10))
+        XCTAssertTrue(openInSafari.waitForExistence(timeout: safariAttachTimeout))
         let screenshot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         screenshot.name = "in-app-browser"
         screenshot.lifetime = .keepAlways
@@ -40,7 +43,7 @@ final class InAppBrowserUITests: XCTestCase {
         XCTAssertTrue(link.waitForExistence(timeout: 5))
         link.tap()
         let openInSafari = app.buttons["OpenInSafariButton"]
-        XCTAssertTrue(openInSafari.waitForExistence(timeout: 10))
+        XCTAssertTrue(openInSafari.waitForExistence(timeout: safariAttachTimeout))
         app.buttons["Close"].tap()
 
         XCTAssertTrue(openInSafari.waitForNonExistence(timeout: 5))

@@ -68,6 +68,12 @@ enum Snapshot: String {
     case inspectorShopsSeveral = "inspector-shops-several"
     case addShop = "add-shop"
     case addShopError = "add-shop-error"
+    case inspectorShopsUpdateError = "inspector-shops-update-error"
+    case addCard = "add-card"
+    case addCardInvalid = "add-card-invalid"
+    case replaceCard = "replace-card"
+    case addCardHTTP = "add-card-http"
+    case addCardCover = "add-card-cover"
 
     static let requested = UserDefaults.standard.string(forKey: "snapshot").flatMap(Snapshot.init(rawValue:))
 
@@ -76,7 +82,11 @@ enum Snapshot: String {
     }
 
     var isShops: Bool {
-        [.inspectorShops, .inspectorShopsEmpty, .inspectorShopsNoCard, .inspectorShopsSeveral, .addShop, .addShopError].contains(self)
+        [.inspectorShops, .inspectorShopsEmpty, .inspectorShopsNoCard, .inspectorShopsSeveral, .addShop, .addShopError, .inspectorShopsUpdateError].contains(self) || isCardSheet
+    }
+
+    var isCardSheet: Bool {
+        [.addCard, .addCardInvalid, .replaceCard, .addCardHTTP, .addCardCover].contains(self)
     }
 
     var inspectorTab: InspectorTab? {
@@ -89,7 +99,7 @@ enum Snapshot: String {
             return Connection(fixture: .signedOut, server: server, signInError: .unreachable(host: "hermes.example.com"))
         }
         if isShops || chatFixture?.isPayment == true {
-            return Connection(fixture: .connected, server: server, crewPush: PluginStatus(pluginVersion: "0.4.0", installId: "fixture", apnsConfigured: true, http2: true, devices: 2, features: ["payments"], gate: true))
+            return Connection(fixture: .connected, server: self == .addCardHTTP ? URL(string: "http://hermes.local:9119")! : server, crewPush: PluginStatus(pluginVersion: "0.5.0", installId: "fixture", apnsConfigured: true, http2: true, devices: 2, features: ["payments", "card"], gate: true))
         }
         if [.sidebar, .sidebarFlat, .sidebarDraft, .sidebarSearch, .searchResult, .layout, .layoutInspector, .inspectorLook, .profileSkills, .botPage, .notifications, .newBot, .groupChat, .groupWelcome, .groupInspector].contains(self) || chatFixture != nil || inspectorTab != nil { return Connection(fixture: .connected, server: server) }
         if self == .unreachable { return Connection(fixture: .unreachable, server: server) }
@@ -209,7 +219,7 @@ extension Snapshot {
         // cacheDisplay and ImageRenderer skip Liquid Glass; CGWindowListCreateImage is SDK-obsoleted but still exported for own windows.
         typealias CreateImage = @convention(c) (CGRect, CGWindowListOption, CGWindowID, CGWindowImageOption) -> Unmanaged<CGImage>?
         guard let symbol = dlsym(UnsafeMutableRawPointer(bitPattern: -2), "CGWindowListCreateImage"),
-              let image = unsafeBitCast(symbol, to: CreateImage.self)(.null, .optionIncludingWindow, CGWindowID(window.windowNumber), [.boundsIgnoreFraming, .bestResolution])?.takeRetainedValue(),
+              let image = unsafeBitCast(symbol, to: CreateImage.self)(.null, .optionIncludingWindow, CGWindowID((window.attachedSheet ?? window).windowNumber), [.boundsIgnoreFraming, .bestResolution])?.takeRetainedValue(),
               let png = NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])
         else { exit(1) }
         let output = URL.temporaryDirectory.appending(path: "\(rawValue).png")

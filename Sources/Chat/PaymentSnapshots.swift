@@ -111,17 +111,38 @@ struct ShopsFixtureScreen: View {
             Shop(id: "v2", origin: "https://www.apotea.se", host: "www.apotea.se", createdAt: Date.now.timeIntervalSince1970 - 4 * day, lastPaidAt: nil, stale: snapshot == .inspectorShops, punycode: false),
             Shop(id: "v3", origin: "https://xn--zaando-5ve.se", host: "xn--zaando-5ve.se", createdAt: Date.now.timeIntervalSince1970 - day, lastPaidAt: nil, stale: false, punycode: true),
         ]
-        if snapshot == .inspectorShopsEmpty { return ShopList(card: MasterCard(label: "Shopping card", last4: "4242", problem: nil), shops: [], terminalBackend: "docker", gate: true) }
-        if snapshot == .inspectorShopsNoCard { return ShopList(card: MasterCard(label: nil, last4: nil, problem: "missing"), shops: [], terminalBackend: "local", gate: false) }
+        if snapshot == .inspectorShopsEmpty { return ShopList(card: MasterCard(label: "Shopping card", last4: "4242", problem: nil), shops: [], terminalBackend: "docker", gate: false) }
+        if snapshot == .inspectorShopsNoCard { return ShopList(card: MasterCard(label: nil, last4: nil, problem: "missing"), shops: [], terminalBackend: "local", gate: true) }
+        if snapshot == .inspectorShopsUpdateError {
+            let twin = Shop(id: "v4", origin: "https://www.zalando.se", host: "www.zalando.se", createdAt: Date.now.timeIntervalSince1970 - 9 * day, lastPaidAt: nil, stale: true, punycode: false)
+            return ShopList(card: MasterCard(label: "Travel card", last4: "5556", problem: nil), shops: [shops[0], twin, shops[1]], terminalBackend: "docker", gate: true)
+        }
         if snapshot == .inspectorShopsSeveral { return ShopList(card: MasterCard(label: nil, last4: nil, problem: "several"), shops: Array(shops.prefix(1)), terminalBackend: "local", gate: true) }
         return ShopList(card: MasterCard(label: "Shopping card", last4: "4242", problem: nil), shops: shops, terminalBackend: "local", gate: true)
     }
 
+    @State private var requests: [String] = []
+
     var body: some View {
         NavigationStack {
             ScrollView {
-                ShopsCard(bot: scout, isBrowserOff: snapshot == .inspectorShopsEmpty, fixture: list)
-                    .padding(16)
+                ShopsCard(
+                    bot: scout, isBrowserOff: snapshot == .inspectorShopsEmpty, fixture: list,
+                    updateFailure: snapshot == .inspectorShopsUpdateError ? String(localized: "Couldn't update shops. Try again.") : nil,
+                    sendCard: { body in
+                        requests.append("card \(body["label"] ?? "") \(body["exp_month"] ?? "")/\(body["exp_year"] ?? "")")
+                        return MasterCard(label: body["label"], last4: body["card_number"].map { String($0.suffix(4)) }, problem: nil)
+                    }
+                )
+                .padding(16)
+            }
+            .overlay(alignment: .topLeading) {
+                Color.clear
+                    .frame(width: 1, height: 1)
+                    .accessibilityElement()
+                    .accessibilityIdentifier("request-log")
+                    .accessibilityLabel("Request log")
+                    .accessibilityValue(requests.isEmpty ? "none" : requests.joined(separator: ","))
             }
             .navigationTitle("Scout")
             #if os(iOS)
@@ -133,6 +154,14 @@ struct ShopsFixtureScreen: View {
                 profile: "scout",
                 site: snapshot == .addShop ? "https://zаlando.se/checkout?step=2" : "www.zalando.se",
                 failure: snapshot == .addShopError ? String(localized: "www.zalando.se is already a shop.") : nil
+            ) { _ in }
+        }
+        .sheet(isPresented: .constant(snapshot.isCardSheet)) {
+            CardSheet(
+                currentLabel: snapshot == .replaceCard ? "Shopping card" : nil,
+                fixture: snapshot == .addCardInvalid ? CardEntry(number: "4242 4242 4242 4241", expiry: "08/25", cvc: "12", name: "", label: "Visa •••• 9999") : nil,
+                failure: snapshot == .replaceCard ? String(localized: "Couldn't reach Hermes. Try again.") : nil,
+                isCovered: snapshot == .addCardCover
             ) { _ in }
         }
     }

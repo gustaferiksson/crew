@@ -8,7 +8,7 @@ Conventions: routes live under `/api/plugins/crew-push/` behind the dashboard lo
 
 ### `GET /status` (extended)
 
-Adds `"features": ["payments"]` and `"gate": true | false | null` (null: not reported yet). Crew asks for payment details only when `payments` is listed.
+Adds `"features": ["payments"]` (`["payments", "card"]` since 0.5.0, with the card routes) and `"gate": true | false | null` (null: not reported yet). Crew asks for payment details only when `payments` is listed.
 
 ### `GET /payments?profile=scout`
 
@@ -44,6 +44,21 @@ The route takes the host, IDNA-encodes a non-ASCII host, lower-cases it, and req
 ### `DELETE /payments/shops/{id}?profile=scout`
 
 Removes a `payment` item with an origin (never the master, never another kind). `200 {"removed": true}`, `404 unknown_shop`.
+
+### `PUT /payments/card`
+
+crew-push 0.5.0 ([master-card.md](master-card.md)); `/status` then lists `"features": ["payments", "card"]`. `Content-Type: application/json`, body `{"card_number": "4242 4242 4242 4242", "exp_month": "12", "exp_year": "30", "cvc": "123", "cardholder_name": "Test Card", "label": "Shopping card"}` (`cardholder_name` may be empty). Adds the master card, or replaces the single existing one, under crew-push's vault lock: `VaultStore(get_default_hermes_root() / "vault").add_item(kind="payment", label=<label>, secret={"card_number": "4242424242424242", "exp_month": "12", "exp_year": "2030", "cvc": "123", "cardholder_name": "Test Card"})` with no origin, then the previous master is removed by id. The route reads the body itself, so no error ever echoes a value.
+
+- `200 {"card": {"label": "Shopping card", "last4": "4242", "problem": null}}` (fixture `card-set.json`)
+- `400 invalid_card` with `"reason": "body" | "number" | "expiry" | "expired" | "cvc" | "name" | "label"` inside `detail` (fixtures `error-invalid-card-<reason>.json`)
+- `403 login_off` (the dashboard does not report its login gate on), `409 several_cards` (nothing written), `500 vault_error`
+
+### `POST /payments/shops/update`
+
+Request `{"profile": "scout"}`. Under the same lock, for each origin with a `stale` shop in that profile: when no fresh copy exists yet, adds one (`<master label> •••• <last4> · <host>`, same origin, the master's secret); then removes the stale items for that origin. Fresh shops are left alone.
+
+- `200 {"shops": [<shop>, ...]}` (every shop of the profile; fixture `shops-updated.json`)
+- `400 invalid_profile`, `404 unknown_profile`, `403 login_off`, `409 no_card`, `409 several_cards`, `409 payment_pending` (a payment for that profile is `pending`), `500 vault_error`
 
 ### `GET /payments/requests/{request_id}`
 
@@ -175,6 +190,9 @@ Headers: `apns-push-type: background`, `apns-priority: 5`, `apns-expiration: now
 | | `duplicate_shop` | "www.zalando.se is already a shop." |
 | | `no_card`, `several_cards` | the card row's states |
 | `DELETE` | `unknown_shop` | the row leaves (already gone) |
+| `PUT /payments/card` | `invalid_card` + `number` / `expiry` / `expired` / `cvc` / `name` / `label` / `body` | "Check the card number." / "Check the expiry date." / "This card has expired." / "Enter the 3 or 4 digit code." / "Use a shorter name." / "Use up to 40 letters, digits and spaces." / "Couldn't reach Hermes. Try again." |
+| `PUT /payments/card`, `POST /payments/shops/update` | `login_off`, `several_cards`, `vault_error` | "Payments are off: this server has no dashboard login." / "Keep one card without a website on the server." / "Couldn't save the card on the server." |
+| `POST /payments/shops/update` | `payment_pending` | "Finish or deny the waiting payment first." |
 | `GET /payments/requests/{id}` | `unknown_request` | Deny-only card |
 | tool results | `crew_gate_off`, `crew_not_bot_chat`, `crew_one_at_a_time`, `crew_after_decline`, `crew_missing_details`, `crew_no_shop_page`, `crew_no_shop_card`, `crew_check_failed` | only `crew_no_shop_card` with `missing_shop` drives UI (the offer); the rest are failed tool rows and the bot's words |
 | `approval.respond` | `resolved: 0`, `4001`, `5004` | state from the route; card leaves; "Couldn't reach Hermes. Try again." |
@@ -182,4 +200,4 @@ Headers: `apns-push-type: background`, `apns-priority: 5`, `apns-expiration: now
 
 ## Fixtures
 
-`Tests/fixtures/payments/`: `status.json`, `payments.json`, `payments-no-card.json`, `payments-several.json`, `shop-created.json`, `shop-removed.json`, one error file per route code (`error-<code>.json`, and `error-invalid-site-<reason>.json` per reason), `request-pending.json`, `request-approved.json`, `request-expired.json`, `approval-frame.json` (reconstructed from Hermes 0.22.1's `ServerRequest.frame()` and `_approval_request_payload`; re-record it on `crew-test` after the deploy), `block-no-shop-card.json`, `block-missing-details.json`, a decorated and a raw fill result per outcome in the Results table (`fill-<outcome>.json` and `fill-<outcome>.raw.json` for `approved`, `denied`, `expired`, `cancelled`, `origin-changed`, `origin-mismatch`, `no-fields`, `no-card-number`, `human-has-control`, `error`), `list-missing-shop.json`, `push-payment.json`, `push-payment-previews-off.json`, `push-payment-resolved.json`.
+`Tests/fixtures/payments/`: `status.json`, `payments.json`, `payments-no-card.json`, `payments-several.json`, `shop-created.json`, `shop-removed.json`, `card-set.json`, `shops-updated.json`, one error file per route code (`error-<code>.json`, `error-invalid-site-<reason>.json` and `error-invalid-card-<reason>.json` per reason), `request-pending.json`, `request-approved.json`, `request-expired.json`, `approval-frame.json` (reconstructed from Hermes 0.22.1's `ServerRequest.frame()` and `_approval_request_payload`; re-record it on `crew-test` after the deploy), `block-no-shop-card.json`, `block-missing-details.json`, a decorated and a raw fill result per outcome in the Results table (`fill-<outcome>.json` and `fill-<outcome>.raw.json` for `approved`, `denied`, `expired`, `cancelled`, `origin-changed`, `origin-mismatch`, `no-fields`, `no-card-number`, `human-has-control`, `error`), `list-missing-shop.json`, `push-payment.json`, `push-payment-previews-off.json`, `push-payment-resolved.json`.

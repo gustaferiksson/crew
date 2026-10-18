@@ -148,13 +148,29 @@ def main() -> None:
                       "gate": listed["gate"]}
     result["pay"] = pay(home, copy.id, sent)
 
+    result["card_gate_off"] = client.put("/api/plugins/crew-push/payments/card", json={**CARD, "label": "x"}).status_code
+    app.state.auth_required = True
+    replaced = client.put("/api/plugins/crew-push/payments/card", json={
+        "card_number": "4000 0566 5566 5556", "exp_month": "3", "exp_year": "31", "cvc": "321", "label": "Travel card"})
+    vault = VaultStore(home / "vault")
+    masters = [item for item in vault.list_items() if item.kind == "payment" and not item.origin]
+    updated = client.post("/api/plugins/crew-push/payments/shops/update", json={"profile": "default"})
+    shops = [item for item in vault.list_items() if item.origin]
+    result["card"] = {"status": replaced.status_code, "body": replaced.json(),
+                      "masters": [(item.label, item.origin) for item in masters],
+                      "secret": vault.resolve_secret(masters[0].id) if len(masters) == 1 else None,
+                      "update": updated.status_code, "shop_labels": [item.label for item in shops],
+                      "files": {name: oct((home / "vault" / name).stat().st_mode & 0o777) for name in ("vault.key", "vault.json.enc")}}
+    app.state.auth_required = False
+
     from hermes_cli.web_server import app as dashboard
 
     _mount_one_plugin_api(dashboard, plugin, {"crew-push"}, set())
     anonymous = TestClient(dashboard, base_url="http://127.0.0.1")
     result["anonymous"] = {path: anonymous.request(method, f"/api/plugins/crew-push/{path}").status_code
                            for method, path in (("GET", "status"), ("GET", "payments?profile=default"),
-                                                ("POST", "payments/shops"), ("GET", f"payments/requests/{'0' * 32}"))}
+                                                ("POST", "payments/shops"), ("GET", f"payments/requests/{'0' * 32}"),
+                                                ("PUT", "payments/card"), ("POST", "payments/shops/update"))}
     print("RESULT " + json.dumps(result))
 
 

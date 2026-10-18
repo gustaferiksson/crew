@@ -39,7 +39,7 @@ def test_plugin_loads_in_hermes(tmp_path: Path) -> None:
     assert all(result["has_hook"].values())
     assert any("CrewPush.on_session_end" in name for name in result["own_callbacks"])
     assert result["mounted"] is True
-    assert result["status"]["plugin_version"] == "0.4.4"
+    assert result["status"]["plugin_version"] == "0.5.0"
     assert result["status"]["apns_configured"] is True
     assert result["status"]["http2"] is True
     assert result["register"] == 200
@@ -49,7 +49,7 @@ def test_plugin_loads_in_hermes(tmp_path: Path) -> None:
         {"profile": "default", "session_id": "launch-session", "body": "Done."},
         {"profile": "beta", "session_id": "beta-session", "body": "Done."},
     ]
-    assert result["status"]["features"] == ["payments"]
+    assert result["status"]["features"] == ["payments", "card"]
     assert result["shop"] == {"status": 201, "card": {"label": "Shopping card", "last4": "4242", "problem": None},
                               "hosts": ["www.zalando.se"], "label": "Shopping card •••• 4242 · www.zalando.se",
                               "same_secret": True, "gate": False}
@@ -57,4 +57,10 @@ def test_plugin_loads_in_hermes(tmp_path: Path) -> None:
                              "no_page": "crew_no_shop_page", "allowed": None,
                              "request_id_matches": True, "state": "approved", "fill": "filled",
                              "crew_payment": "approved", "kinds": ["payment", "payment_resolved"]}
+    assert result["card_gate_off"] == 403
+    assert result["card"] == {
+        "status": 200, "body": {"card": {"label": "Travel card", "last4": "5556", "problem": None}},
+        "masters": [["Travel card", None]],
+        "secret": {"card_number": "4000056655665556", "exp_month": "03", "exp_year": "2031", "cvc": "321"},
+        "update": 200, "shop_labels": ["Travel card •••• 5556 · www.zalando.se"], "files": {"vault.key": "0o600", "vault.json.enc": "0o600"}}
     assert set(result["anonymous"].values()) == {401}

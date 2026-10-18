@@ -1,12 +1,15 @@
 import importlib.util
+import json
 import re
 import sys
 import time
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
+from starlette.concurrency import run_in_threadpool
 
 if (_root := str(Path(__file__).resolve().parents[1])) not in sys.path:
     sys.path.append(_root)
@@ -27,6 +30,10 @@ ERRORS = {
     "several_cards": "more than one payment card without a website in the default vault",
     "unknown_shop": "no shop with that id",
     "unknown_request": "no payment request with that id",
+    "login_off": "the dashboard login is off, so crew-push does not store cards",
+    "invalid_card": "the card details are not valid",
+    "payment_pending": "a payment for this profile is waiting for an answer",
+    "vault_error": "the vault could not be updated",
 }
 SITE_ERRORS = {
     "not_https": "the site must use https",
@@ -68,6 +75,19 @@ class ShopIn(BaseModel):
     site: str = Field(max_length=2048)
 
 
+class ProfileIn(BaseModel):
+    profile: str = Field(max_length=64)
+
+
+def failure(status: int, code: str, **extra: str) -> HTTPException:
+    return HTTPException(status, {"code": code, **extra, "message": ERRORS[code]})
+
+
+def checked_gate(request: Request) -> None:
+    if getattr(request.app.state, "auth_required", False) is not True:
+        raise failure(403, "login_off")
+
+
 def checked_profile(profile: str) -> None:
     if not PROFILE.match(profile):
         raise HTTPException(400, {"code": "invalid_profile", "message": ERRORS["invalid_profile"]})
@@ -81,7 +101,7 @@ def checked_profile(profile: str) -> None:
 def status() -> dict[str, Any]:
     return {"plugin_version": PLUGIN_VERSION, "install_id": store.install_id(),
             "apns_configured": store.apns_config() is not None, "http2": importlib.util.find_spec("h2") is not None,
-            "devices": len(store.read_devices()), "features": ["payments"], "gate": store.read_gate()}
+            "devices": len(store.read_devices()), "features": ["payments", "card"], "gate": store.read_gate()}
 
 
 @router.post("/devices")
@@ -144,14 +164,15 @@ def list_shops(profile: str) -> dict[str, Any]:
     try:
         card, master_secret = payments.master()
         card_row = {"label": card.label, "last4": payments.last4(master_secret), "problem": None}
+        master_label = f"{card.label} •••• {card_row['last4']}"
     except payments.CardProblem as problem:
-        card_row, master_secret = {"label": None, "last4": None, "problem": str(problem)}, None
+        card_row, master_secret, master_label = {"label": None, "last4": None, "problem": str(problem)}, None, None
     vault = payments.profile_vault(profile)
     config_path = get_profile_dir(profile) / "config.yaml"
     config = hermes_yaml.safe_load(config_path.read_text()) if config_path.is_file() else None
     terminal = config.get("terminal") if isinstance(config, dict) else None
     return {"card": card_row,
-            "shops": [payments.shop(item, vault.resolve_secret(item.id), master_secret, profile)
+            "shops": [payments.shop(item, vault.resolve_secret(item.id), master_secret, profile, master_label)
                       for item in payments.shops(vault)],
             "terminal_backend": str(terminal.get("backend") or "local") if isinstance(terminal, dict) else "local",
             "gate": store.read_gate()}
@@ -167,24 +188,71 @@ def add_shop(body: ShopIn) -> dict[str, Any]:
         raise HTTPException(400, {"code": "invalid_site", "reason": reason, "message": SITE_ERRORS[reason]}) from None
     origin = f"https://{host}"
     vault = payments.profile_vault(body.profile)
-    if any(item.origin == origin for item in payments.shops(vault)):
-        raise HTTPException(409, {"code": "duplicate_shop", "message": ERRORS["duplicate_shop"]})
-    try:
-        card, secret = payments.master()
-    except payments.CardProblem as problem:
-        code = "no_card" if str(problem) == "missing" else "several_cards"
-        raise HTTPException(409, {"code": code, "message": ERRORS[code]}) from None
-    item = vault.add_item(kind="payment", label=f"{card.label} •••• {payments.last4(secret)} · {host}",
-                          secret=secret, origin=origin)
+    with payments.vault_lock():
+        if any(item.origin == origin for item in payments.shops(vault)):
+            raise HTTPException(409, {"code": "duplicate_shop", "message": ERRORS["duplicate_shop"]})
+        try:
+            card, secret = payments.master()
+        except payments.CardProblem as problem:
+            code = "no_card" if str(problem) == "missing" else "several_cards"
+            raise HTTPException(409, {"code": code, "message": ERRORS[code]}) from None
+        item = vault.add_item(kind="payment", label=f"{card.label} •••• {payments.last4(secret)} · {host}",
+                              secret=secret, origin=origin)
     return {"shop": payments.shop(item, secret, secret, body.profile)}
+
+
+@router.post("/payments/shops/update")
+def update_shops(body: ProfileIn, request: Request) -> dict[str, Any]:
+    checked_gate(request)
+    checked_profile(body.profile)
+    try:
+        payments.update_shops(body.profile)
+        card, master_secret = payments.master()
+    except payments.PaymentPending:
+        raise failure(409, "payment_pending") from None
+    except payments.CardProblem as problem:
+        raise failure(409, "no_card" if str(problem) == "missing" else "several_cards") from None
+    except Exception:
+        raise failure(500, "vault_error") from None
+    vault = payments.profile_vault(body.profile)
+    master_label = f"{card.label} •••• {payments.last4(master_secret)}"
+    return {"shops": [payments.shop(item, vault.resolve_secret(item.id), master_secret, body.profile, master_label)
+                      for item in payments.shops(vault)]}
+
+
+def store_card(body: Any) -> dict[str, Any]:
+    try:
+        label, secret = payments.card_entry(body, datetime.now(UTC))
+        card = payments.set_master(label, secret)
+        return {"card": {"label": card.label, "last4": payments.last4(secret), "problem": None}}
+    except payments.InvalidCard as invalid:
+        reason = str(invalid)
+        raise failure(400, "invalid_card", reason=reason) from None
+    except payments.CardProblem:
+        raise failure(409, "several_cards") from None
+    except Exception:
+        raise failure(500, "vault_error") from None
+
+
+@router.put("/payments/card")
+async def set_card(request: Request) -> dict[str, Any]:
+    checked_gate(request)
+    if request.headers.get("content-type", "").split(";")[0].strip().lower() != "application/json":
+        raise failure(400, "invalid_card", reason="body")
+    try:
+        body = json.loads(await request.body())
+    except Exception:
+        raise failure(400, "invalid_card", reason="body") from None
+    return await run_in_threadpool(store_card, body)
 
 
 @router.delete("/payments/shops/{shop_id}")
 def remove_shop(shop_id: str, profile: str) -> dict[str, bool]:
     checked_profile(profile)
     vault = payments.profile_vault(profile)
-    if not any(item.id == shop_id for item in payments.shops(vault)) or not vault.remove_item(shop_id):
-        raise HTTPException(404, {"code": "unknown_shop", "message": ERRORS["unknown_shop"]})
+    with payments.vault_lock():
+        if not any(item.id == shop_id for item in payments.shops(vault)) or not vault.remove_item(shop_id):
+            raise HTTPException(404, {"code": "unknown_shop", "message": ERRORS["unknown_shop"]})
     return {"removed": True}
 
 

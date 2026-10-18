@@ -96,7 +96,14 @@ jobs:
           tar -xf ui-build.tar -C .build/Build/Products
 
       - name: UI tests
-        run: Tests/ui.sh ${{ matrix.tests }}
+        run: Tests/ui.sh ${{ matrix.tests }} -resultBundlePath ui-${{ matrix.shard }}.xcresult
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: ${{ failure() }}
+        with:
+          name: ui-${{ matrix.shard }}-results
+          path: ui-${{ matrix.shard }}.xcresult
+          retention-days: 7
 
   mac-ui:
     name: UI tests (macOS)

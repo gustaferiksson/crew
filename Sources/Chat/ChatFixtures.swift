@@ -420,7 +420,7 @@ struct ChatFixtureScreen: View {
         }
         transcript.wait(Prompt(text: text, sentAt: .now), as: mode == .queue ? .queued : .steer)
         Task {
-            try? await Task.sleep(for: .seconds(5))
+            try? await Task.sleep(for: .seconds(10))
             guard mode == .queue else {
                 transcript.apply(.toolComplete(id: "t5-w2", duration: 3, summary: nil, result: "{}"))
                 transcript.apply(.messageDelta("Good call, switching to the staging context."))

@@ -9,7 +9,7 @@ Plan for [#9](https://github.com/gustaferiksson/crew/issues/9). Researched again
 - The bot must state amount, merchant and reason, or crew-push blocks the fill. These are shown on the card and in the push. They are the bot's claim, not a check.
 - One card per shop. The user types a shop's site in the bot's inspector; crew-push copies a **master card** into a new payment item bound to that exact origin. Nobody sees the number.
 - The real spending cap is the issuer: a separate virtual card with a low monthly limit.
-- Not supported: checkouts where the card fields live in an iframe (Klarna, Adyen, Stripe Elements). An upstream issue is filed.
+- Not supported: checkouts where the card fields live in an iframe (Shopify's own checkout, `checkout.pci.shopifyinc.com`, Klarna, Adyen, Stripe Elements). crew-push blocks them before the user is asked (0.6.1). An upstream issue is filed.
 
 ## What Hermes 0.22.1 already does
 
@@ -38,7 +38,7 @@ Plan for [#9](https://github.com/gustaferiksson/crew/issues/9). Researched again
 - **Reading the card back after a fill.** Once the number is in the page, page scripts and `browser_cdp Runtime.evaluate` can read the fields and send them anywhere. Redaction only scrubs exact copies coming back to the model; reversed or split digits pass. Model-blind stops accidents, not a determined prompt injection.
 - **Saved cards at the merchant.** If the shop stores the card, a later one-click purchase never calls `browser_vault`, so no approval fires and Hermes sees nothing. Mitigation: the bot is told never to tick "save card" (step 2), plus the issuer limit.
 - **Look-alike domains.** Matching is exact, so `zalando-shop.se` never gets the `zalando.se` card. The risk is the user adding a wrong host because a bot asked. The inspector shows the host plainly and flags `xn--` (punycode) hosts.
-- **Iframe checkouts.** The fill runs in the top document only. Card fields inside a cross-origin iframe are not found, so the fill fails with "no fields". It fails safe, but those shops cannot be used.
+- **Iframe checkouts.** The fill runs in the top document only. Card fields inside a cross-origin iframe are not found. Since crew-push 0.6.1 the pre-approval check runs Hermes' own inspection and blocks such a fill before the user is asked (before that, a Shopify checkout passed the check, the user approved and the fill then failed with "no fields"). It fails safe, but those shops cannot be used; Shopify, the most common case, is the first provider to support.
 - **The bot's shell.** Under the `local` terminal backend a bot can read `vault.key` and decrypt every card. See [Open decisions](#open-decisions).
 - **Logins and the 1Password token.** Passwords added from the Passwords tab cross Crew once over WSS and are filled model-blind, but under `terminal.backend: local` a bot's shell can read every profile's `vault.key` and `.env`, so also every login and the 1Password service account token (and with it every item in that bot's 1Password vault). The token sits in the bot's `.env`; `POST /api/env/reveal` returns it to any dashboard session. The dashboard login is the only gate in front of these routes.
 - **crew-push not loaded.** The stock gate still asks, but without amount, merchant, reason or the Bot Chat rule.

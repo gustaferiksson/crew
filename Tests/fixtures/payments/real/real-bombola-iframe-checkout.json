@@ -1,0 +1,281 @@
+{
+ "source": "Vera's Bot Chat, 2026-10-18 11:58-11:59 UTC, crew-push 0.6.0 on Hermes 0.22.2 (Browser Use mode). rows: the browser_vault tool rows (list, fill call, fill result), sanitized: handle, request_id, last four and reason replaced. page: bombola.se's Shopify checkout recorded in headless Chromium the same day with Hermes' build_inspection_js (top document), Hermes' loose _TAB_PROBES['payment'] and crew-push's CARD_FRAMES_JS; cart token removed.",
+ "rows": [
+  {
+   "role": "tool",
+   "tool_name": "browser_vault",
+   "args": {
+    "action": "list"
+   },
+   "result": {
+    "success": true,
+    "items": [
+     {
+      "handle": "vault_3f9a1c2b7d4e",
+      "backend": "local",
+      "label": "Shopping card •••• 4242 · bombola.se",
+      "kind": "payment",
+      "origin": "https://bombola.se",
+      "available": true
+     }
+    ]
+   }
+  },
+  {
+   "role": "tool",
+   "tool_name": "browser_vault",
+   "args": {
+    "action": "fill",
+    "handle": "vault_3f9a1c2b7d4e",
+    "amount": "278 SEK",
+    "merchant": "Bombola",
+    "reason": "One Kevin Murphy FREE.HOLD 100 g, including shipping"
+   },
+   "result": {
+    "success": false,
+    "error": "The card fields weren't found; this checkout probably puts them in a payment frame, which can't be filled. Tell the user.",
+    "crew_payment": {
+     "request_id": "5f0c3e9a2b7d4c18a6e1f20b9d3c7a54",
+     "origin": "https://bombola.se",
+     "state": "approved",
+     "fill": "not_filled",
+     "fill_error": "no_fields"
+    }
+   }
+  }
+ ],
+ "page": {
+  "url": "https://bombola.se/checkouts/cn/<token>/sv-se",
+  "tab_probe": true,
+  "controls": [
+   {
+    "autocomplete": "shipping email",
+    "formIndex": 0,
+    "index": 0,
+    "maxLength": null,
+    "label": "E-post  E-post E-post ",
+    "name": "email email",
+    "type": "email"
+   },
+   {
+    "autocomplete": "shipping country-name",
+    "formIndex": 0,
+    "index": 2,
+    "maxLength": null,
+    "label": "Land    ",
+    "name": "countryCode SelectPS33_32_2t_19_34_2p_2v_2t-28",
+    "type": "select"
+   },
+   {
+    "autocomplete": "shipping given-name",
+    "formIndex": 0,
+    "index": 3,
+    "maxLength": null,
+    "label": "Förnamn  Förnamn Förnamn ",
+    "name": "firstName TextFieldPS33_32_2t_19_34_2p_2v_2t-29",
+    "type": "text"
+   },
+   {
+    "autocomplete": "shipping family-name",
+    "formIndex": 0,
+    "index": 4,
+    "maxLength": null,
+    "label": "Efternamn  Efternamn Efternamn ",
+    "name": "lastName TextFieldPS33_32_2t_19_34_2p_2v_2t-30",
+    "type": "text"
+   },
+   {
+    "autocomplete": "shipping organization",
+    "formIndex": 0,
+    "index": 5,
+    "maxLength": null,
+    "label": "Företag (valfritt)  Företag (valfritt) Företag (valfritt) ",
+    "name": "company TextFieldPS33_32_2t_19_34_2p_2v_2t-31",
+    "type": "text"
+   },
+   {
+    "autocomplete": "shipping address-line1",
+    "formIndex": 0,
+    "index": 6,
+    "maxLength": null,
+    "label": "Adress  Adress Adress ",
+    "name": "address1 shipping-address1",
+    "type": "text"
+   },
+   {
+    "autocomplete": "shipping address-line2",
+    "formIndex": 0,
+    "index": 7,
+    "maxLength": null,
+    "label": "Lägenhet, svit o.s.v. (valfritt)  Lägenhet, svit o.s.v. (valfritt) Lägenhet, svit o.s.v. (valfritt) ",
+    "name": "address2 TextFieldPS33_32_2t_19_34_2p_2v_2t-34",
+    "type": "text"
+   },
+   {
+    "autocomplete": "shipping postal-code",
+    "formIndex": 0,
+    "index": 8,
+    "maxLength": null,
+    "label": "Postnummer  Postnummer Postnummer ",
+    "name": "postalCode TextFieldPS33_32_2t_19_34_2p_2v_2t-35",
+    "type": "text"
+   },
+   {
+    "autocomplete": "shipping address-level2",
+    "formIndex": 0,
+    "index": 9,
+    "maxLength": null,
+    "label": "Stad  Stad Stad ",
+    "name": "city TextFieldPS33_32_2t_19_34_2p_2v_2t-36",
+    "type": "text"
+   },
+   {
+    "autocomplete": "shipping tel-national",
+    "formIndex": 0,
+    "index": 10,
+    "maxLength": null,
+    "label": "Telefon  Telefon Telefon ",
+    "name": "phone TextFieldPS33_32_2t_19_34_2p_2v_2t-38",
+    "type": "tel"
+   },
+   {
+    "autocomplete": "shipping given-name",
+    "formIndex": 0,
+    "index": 11,
+    "maxLength": null,
+    "label": "Förnamn   ",
+    "name": "firstName autofill_firstName",
+    "type": "text"
+   },
+   {
+    "autocomplete": "shipping family-name",
+    "formIndex": 0,
+    "index": 12,
+    "maxLength": null,
+    "label": "Efternamn   ",
+    "name": "lastName autofill_lastName",
+    "type": "text"
+   },
+   {
+    "autocomplete": "shipping organization",
+    "formIndex": 0,
+    "index": 13,
+    "maxLength": null,
+    "label": "Företag   ",
+    "name": "company autofill_company",
+    "type": "text"
+   },
+   {
+    "autocomplete": "shipping address-line1",
+    "formIndex": 0,
+    "index": 14,
+    "maxLength": null,
+    "label": "Adress   ",
+    "name": "address1 autofill_address1",
+    "type": "text"
+   },
+   {
+    "autocomplete": "shipping address-line2",
+    "formIndex": 0,
+    "index": 15,
+    "maxLength": null,
+    "label": "Lägenhet, våning etc.   ",
+    "name": "address2 autofill_address2",
+    "type": "text"
+   },
+   {
+    "autocomplete": "shipping address-level2",
+    "formIndex": 0,
+    "index": 16,
+    "maxLength": null,
+    "label": "Stad   ",
+    "name": "city autofill_city",
+    "type": "text"
+   },
+   {
+    "autocomplete": "shipping country",
+    "formIndex": 0,
+    "index": 17,
+    "maxLength": null,
+    "label": "Land   ",
+    "name": "country autofill_country",
+    "type": "text"
+   },
+   {
+    "autocomplete": "shipping address-level1",
+    "formIndex": 0,
+    "index": 18,
+    "maxLength": null,
+    "label": "Län   ",
+    "name": "zone autofill_zone",
+    "type": "text"
+   },
+   {
+    "autocomplete": "shipping address-level1",
+    "formIndex": 0,
+    "index": 19,
+    "maxLength": null,
+    "label": "Län   ",
+    "name": "address-level1 autofill_address_level1",
+    "type": "text"
+   },
+   {
+    "autocomplete": "shipping address-level1",
+    "formIndex": 0,
+    "index": 20,
+    "maxLength": null,
+    "label": "Län   ",
+    "name": "province autofill_province",
+    "type": "text"
+   },
+   {
+    "autocomplete": "shipping postal-code",
+    "formIndex": 0,
+    "index": 21,
+    "maxLength": null,
+    "label": "Postnummer   ",
+    "name": "postalCode autofill_postalCode",
+    "type": "text"
+   },
+   {
+    "autocomplete": "shipping tel-national",
+    "formIndex": 0,
+    "index": 22,
+    "maxLength": null,
+    "label": "Telefon   ",
+    "name": "autofill_phone_capture autofill_phone",
+    "type": "text"
+   },
+   {
+    "autocomplete": "off",
+    "formIndex": 0,
+    "index": 26,
+    "maxLength": null,
+    "label": "   ",
+    "name": "shop_pay_approval_id shop_pay_approval_id",
+    "type": "text"
+   },
+   {
+    "autocomplete": "tel",
+    "formIndex": 0,
+    "index": 27,
+    "maxLength": null,
+    "label": "Mobiltelefon (valfritt)  Mobiltelefon (valfritt) Mobiltelefon (valfritt) ",
+    "name": "phone TextFieldPS33_32_2t_19_34_2p_2v_2t-117",
+    "type": "tel"
+   },
+   {
+    "autocomplete": "on",
+    "formIndex": 1,
+    "index": 28,
+    "maxLength": null,
+    "label": "Presentkort  Presentkort Presentkort ",
+    "name": "reductions ReductionsInputP0-75",
+    "type": "text"
+   }
+  ],
+  "card_frames": [
+   "https://checkout.pci.shopifyinc.com"
+  ]
+ }
+}

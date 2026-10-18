@@ -3,6 +3,7 @@ import hashlib
 import json
 import logging
 import re
+import secrets
 import threading
 import time
 from collections import OrderedDict
@@ -19,6 +20,11 @@ HOOK_NAMES = ("pre_llm_call", "post_llm_call", "on_session_end", "pre_tool_call"
               "pre_approval_request", "post_approval_response", "transform_tool_result", "subagent_start")
 BOT_CHAT_TITLE = "Bot Chat"
 CLAIM_SECONDS = 60
+SHOP_PAY_ORIGINS = ("https://shop.app", "https://pay.shopify.com")
+CARD_FRAMES_JS = ("JSON.stringify([...new Set([...document.querySelectorAll('iframe')]"
+                  ".filter(f => /card|kort|cvc|cvv|payment/i.test(f.name + ' ' + f.title + ' ' + f.src))"
+                  ".map(f => { try { return new URL(f.src).origin; } catch (e) { return ''; } })"
+                  ".filter(o => o.startsWith('https://') && o !== location.origin))])")
 
 
 @dataclass(frozen=True)
@@ -201,19 +207,47 @@ def no_page_block(origin: str) -> dict[str, str]:
                                                "then call browser_vault fill again.")
 
 
+def card_field_block(task_id: str, origin: str) -> dict[str, str] | None:
+    from agent.vault_login_classifier import LoginControl, build_inspection_js, classify_checkout_control
+    from tools.browser_vault_tool import _eval_js, _parse_json_result
+
+    inspect = _eval_js(task_id, build_inspection_js(secrets.token_hex(8)))
+    controls = _parse_json_result(_parse_json_result(inspect.get("result")))
+    if not inspect.get("success") or not isinstance(controls, list):
+        raise RuntimeError(f"could not inspect the page: {inspect.get('error')}")
+    classified = [classify_checkout_control(LoginControl.from_dict(raw)) for raw in controls if isinstance(raw, dict)]
+    if any(control is not None and control.token == "cc-number" for control in classified):
+        return None
+    frames = _parse_json_result(_eval_js(task_id, CARD_FRAMES_JS).get("result"))
+    frame = next((str(item) for item in frames if item), "") if isinstance(frames, list) else ""
+    if frame:
+        return payments.block("crew_no_shop_card", f"The card fields on {origin} sit in a payment frame from {frame}, "
+                                                   "which Crew can't fill yet. Nothing was asked or charged. Tell the "
+                                                   "user they can finish paying in the checkout themselves; do not "
+                                                   "retry the fill.")
+    return payments.block("crew_no_shop_card", f"No open tab on {origin} shows card fields. Open the shop's checkout "
+                                               "there; if its card fields sit in a payment frame, they can't be "
+                                               "filled, so tell the user.")
+
+
 def shop_tab_block(task_id: str, origins: list[str]) -> dict[str, str] | None:
     try:
         from tools.browser_vault_tool import _current_page_origin, _ensure_supervisor, _focus_bound_origin
 
         if not browser_open(task_id) or _ensure_supervisor(task_id) is None:
             return no_page_block(origins[0])
-        if any(_focus_bound_origin(task_id, origin, "payment") for origin in origins):
-            return None
+        focused = next((origin for origin in origins if _focus_bound_origin(task_id, origin, "payment")), None)
+        if focused:
+            return card_field_block(task_id, focused)
         offer = card_page_origin(task_id)
         page = _current_page_origin(task_id)
     except Exception:
         log.warning("crew-push: could not read the browser for a payment fill, blocking it", exc_info=True)
         return no_page_block(origins[0])
+    if page in SHOP_PAY_ORIGINS:
+        return payments.block("crew_no_shop_card", f"The checkout moved to Shop Pay ({page}), not {origins[0]}, so "
+                                                   "Crew can't pay there. Nothing was asked or charged. Tell the user "
+                                                   "they can finish paying themselves; do not retry the fill.")
     if offer and offer not in origins:
         return payments.block("crew_no_shop_card", payments.no_card_for(offer), missing_shop=offer)
     if page in origins:

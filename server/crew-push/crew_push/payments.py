@@ -42,8 +42,9 @@ FIELD_NAMES = {"cc-number": "card number", "cc-exp": "expiry date", "cc-exp-mont
                "cc-exp-year": "expiry year", "cc-csc": "security code", "cc-name": "name on card"}
 FRAME_NEXT = (" Change no other checkout field now: Shopify can empty the card fields. If one still needs changing, "
               "change it and call browser_vault fill again before paying; Crew asks the user again.")
-PARTIAL = (" Some card fields may hold card details already. Nothing was submitted. Tell the user to check the card "
-           "fields and finish paying in the checkout themselves; do not retry the fill.")
+PARTIAL = (" Some card fields may hold card details already. Nothing was ordered. Tell the user, and offer to send "
+           "them the cart link so they can finish on their own device. Do not click review or pay, and do not retry "
+           "the fill.")
 RETRY_LATER = ("This cancelled only this attempt. \"Never retry payment_declined\" means never retry on your own; "
                "if the user later asks you to pay again, call browser_vault fill again and Crew will ask them to "
                "approve it.")
@@ -355,9 +356,9 @@ def scrub(text: str, values: list[str]) -> str:
 def frame_result(code: str, filled: tuple[str, ...] = ()) -> dict[str, Any]:
     if code == "not_kept":
         names = " and ".join(FIELD_NAMES.get(token, token) for token in filled)
-        return {"success": False, "error": (f"Shopify emptied the {names} again after Crew filled it twice. Nothing was "
-                                            f"submitted. Tell the user to type the {names} in the checkout themselves "
-                                            "before paying; do not retry the fill.")}
+        return {"success": False, "error": (f"Shopify cleared the {names} and Crew couldn't refill it. Nothing was ordered. "
+                                            "Tell the user, and offer to send them the cart link so they can finish on "
+                                            "their own device. Do not click review or pay, and do not retry the fill.")}
     error = FRAME_ERRORS.get(code, FRAME_ERRORS["error"]) + (PARTIAL if filled or code == "error" else "")
     return {"success": False, "error": error, **({"error_type": code} if code in FILL_ERRORS else {})}
 

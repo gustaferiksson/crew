@@ -590,9 +590,9 @@ def test_a_security_code_shopify_keeps_emptying_is_named(push: CrewPush, hermes:
     approve_shop(push, hermes)
     result = shop_result(push)
     assert (result["crew_payment"]["fill"], result["crew_payment"]["fill_error"]) == ("not_filled", "error")
-    assert result["error"] == ("Shopify emptied the security code again after Crew filled it twice. Nothing was "
-                               "submitted. Tell the user to type the security code in the checkout themselves before "
-                               "paying; do not retry the fill.")
+    assert result["error"] == ("Shopify cleared the security code and Crew couldn't refill it. Nothing was ordered. "
+                               "Tell the user, and offer to send them the cart link so they can finish on their own "
+                               "device. Do not click review or pay, and do not retry the fill.")
     assert [text for target, text in shopify.typed if target == "frame-5"] == ["", ""]
 
 

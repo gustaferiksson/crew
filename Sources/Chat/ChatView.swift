@@ -69,6 +69,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
     let tray: AttachmentTray
     @State private var position = ScrollPosition(idType: Turn.ID.self)
     @State private var isAtBottom = true
+    @State private var barRoom = CGFloat.infinity
     @State private var expandedTurns: Set<Turn.ID>
     @State private var expandedWork: Set<WorkItem.ID>
     @State private var expandedRuns: Set<String> = []
@@ -174,6 +175,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
                 isAtBottom = new.distance < 40
                 if new.inset > old.inset, old.distance < 40 { proxy.scrollTo(bottomID, anchor: .bottom) }
             }
+            .onGeometryChange(for: CGFloat.self) { $0.size.height + $0.safeAreaInsets.bottom } action: { barRoom = $0 }
             .simultaneousGesture(
                 DragGesture(minimumDistance: 16, inputKinds: [.directTouch, .indirectTouch])
                     .updating($dragTravel) { value, state, _ in
@@ -210,52 +212,55 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
                 if transcript.turns.isEmpty { emptyState }
             }
             .safeAreaBar(edge: .bottom) {
-                VStack(spacing: 8) {
-                    if let paymentNotice {
-                        PaymentNoticeCard(text: paymentNotice, dismiss: actions.dismissPaymentNotice)
+                HeightCap(cap: barRoom) {
+                    VStack(spacing: 8) {
+                        if let paymentNotice {
+                            PaymentNoticeCard(text: paymentNotice, dismiss: actions.dismissPaymentNotice)
+                                .frame(maxWidth: 560)
+                                .padding(.horizontal, 16)
+                        } else if case .approval(let approval) = request, approval.isPayment {
+                            PaymentCard(
+                                request: approval,
+                                state: payment ?? PaymentCardState(lookup: .unverified(featureMissing: false)),
+                                botName: botName,
+                                avatar: avatar.scaleEffect(20 / 28).frame(width: 20, height: 20),
+                                holdProgress: presentation.holdProgress,
+                                respond: { actions.respond(approval.id, $0) },
+                                retry: { actions.retryPayment(approval.id) },
+                                expire: { actions.expirePayment(approval.id) }
+                            )
+                            .disabled(offlineReason != nil)
+                            .id(approval.id)
                             .frame(maxWidth: 560)
                             .padding(.horizontal, 16)
-                    } else if case .approval(let approval) = request, approval.isPayment {
-                        PaymentCard(
-                            request: approval,
-                            state: payment ?? PaymentCardState(lookup: .unverified(featureMissing: false)),
-                            botName: botName,
-                            avatar: avatar.scaleEffect(20 / 28).frame(width: 20, height: 20),
-                            holdProgress: presentation.holdProgress,
-                            respond: { actions.respond(approval.id, $0) },
-                            retry: { actions.retryPayment(approval.id) },
-                            expire: { actions.expirePayment(approval.id) }
-                        )
-                        .disabled(offlineReason != nil)
-                        .id(approval.id)
-                        .frame(maxWidth: 560)
-                        .padding(.horizontal, 16)
-                        .transition(.blurReplace)
-                        #if os(iOS)
-                        .onAppear { isComposerFocused = false }
-                        .simultaneousGesture(TapGesture().onEnded { isComposerFocused = false })
-                        #endif
-                    } else if case .approval(let approval) = request {
-                        ApprovalCard(request: approval, botName: botName) { actions.respond(approval.id, $0) }
-                            .frame(maxWidth: 560)
-                            .padding(.horizontal, 16)
-                    } else if request == nil, let shopOffer {
-                        ShopOfferCard(botName: botName, host: shopOffer, notNow: actions.dismissShopOffer) { actions.addShop(shopOffer) }
-                            .frame(maxWidth: 560)
-                            .padding(.horizontal, 16)
-                    }
-                    if case .question(let question) = request {
-                        QuestionCard(request: question, botName: botName, progress: presentation.questionProgress) { actions.answer(question.id, $0) }
-                            .id(question.id)
-                            .frame(maxWidth: 560)
-                            .padding(.horizontal, 16)
-                    }
-                    Composer(botName: botName, phase: composerPhase, draft: $draft, isFocused: $isComposerFocused, tray: tray, mentionable: mentionable, features: features, completePath: actions.completePath, dictation: presentation.dictation, transcribe: actions.transcribe) { mode in
-                        proxy.scrollTo(bottomID, anchor: .bottom)
-                        actions.send(draft, tray.take(), mentionedBots(in: draft, among: mentionable), mode)
-                        draft = ""
-                    } stop: {
-                        actions.stop()
+                            .transition(.blurReplace)
+                            #if os(iOS)
+                            .onAppear { isComposerFocused = false }
+                            .simultaneousGesture(TapGesture().onEnded { isComposerFocused = false })
+                            .simultaneousGesture(DragGesture(minimumDistance: 10).onEnded { if $0.translation.height > 0 { isComposerFocused = false } })
+                            #endif
+                        } else if case .approval(let approval) = request {
+                            ApprovalCard(request: approval, botName: botName) { actions.respond(approval.id, $0) }
+                                .frame(maxWidth: 560)
+                                .padding(.horizontal, 16)
+                        } else if request == nil, let shopOffer {
+                            ShopOfferCard(botName: botName, host: shopOffer, notNow: actions.dismissShopOffer) { actions.addShop(shopOffer) }
+                                .frame(maxWidth: 560)
+                                .padding(.horizontal, 16)
+                        }
+                        if case .question(let question) = request {
+                            QuestionCard(request: question, botName: botName, progress: presentation.questionProgress) { actions.answer(question.id, $0) }
+                                .id(question.id)
+                                .frame(maxWidth: 560)
+                                .padding(.horizontal, 16)
+                        }
+                        Composer(botName: botName, phase: composerPhase, draft: $draft, isFocused: $isComposerFocused, tray: tray, mentionable: mentionable, features: features, completePath: actions.completePath, dictation: presentation.dictation, transcribe: actions.transcribe) { mode in
+                            proxy.scrollTo(bottomID, anchor: .bottom)
+                            actions.send(draft, tray.take(), mentionedBots(in: draft, among: mentionable), mode)
+                            draft = ""
+                        } stop: {
+                            actions.stop()
+                        }
                     }
                 }
                 .animation(.smooth, value: request?.id)
@@ -489,5 +494,17 @@ private struct PersonaPill<Avatar: View>: View {
         }
         .buttonStyle(.plain)
         .glassEffect(.regular.interactive(), in: .capsule)
+    }
+}
+
+private struct HeightCap: Layout {
+    let cap: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        subviews.first?.sizeThatFits(ProposedViewSize(width: proposal.width, height: proposal.height.map { min($0, cap) })) ?? .zero
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        subviews.first?.place(at: CGPoint(x: bounds.minX, y: bounds.maxY), anchor: .bottomLeading, proposal: ProposedViewSize(bounds.size))
     }
 }

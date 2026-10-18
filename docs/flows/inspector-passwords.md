@@ -21,7 +21,7 @@ These lines change with this spec: [payments.md](payments.md) "One master card i
 
 ## Tab row
 
-`InspectorTab` gains `.passwords`, title "Passwords", after Routines, on iPhone (pushed profile page) and Mac (inspector column). The selected tab keeps its glass capsule. Four capsules do not fit the Mac inspector near its locked 280 pt minimum or iPhone at large Dynamic Type, so the row is a `ViewThatFits`: the capsules with today's 12 pt side padding, then with 8 pt, and only then a horizontal `ScrollView` without indicators (`.scrollClipDisabled()` so the glass is not cut) that scrolls the selected tab into view. At the ideal 340 pt and on iPhone at default text size it looks as today. The inspector width is unchanged.
+`InspectorTab` gains `.passwords`, title "Passwords", after Routines, on iPhone (pushed profile page) and Mac (inspector column). The selected tab keeps its glass capsule. Four capsules do not fit the Mac inspector near its locked 280 pt minimum or iPhone at large Dynamic Type, so the row is a `ViewThatFits`: the capsules with today's 12 pt side padding, then with 8 pt, then 6 pt with no gap between capsules (which fits the Mac at 280 pt), and only then a horizontal `ScrollView` without indicators (`.scrollClipDisabled()` so the glass is not cut) that scrolls the selected tab into view. At the ideal 340 pt and on iPhone at default text size it looks as today. The inspector width is unchanged.
 
 The Shops card leaves Info; Info keeps everything else in its order. The Passwords tab always shows (logins need no plugin); Shops shows in it only when crew-push lists `payments`, as before.
 
@@ -30,14 +30,14 @@ The Shops card leaves Info; Info keeps everything else in its order. The Passwor
 Title "Logins". Rows sorted by host, then username (as the Passwords app), each:
 
 - Line 1: the host (body, one line, truncating in the middle). An `xn--` label gets the Shops warning, "Unusual address: check the spelling". A 1Password item with several websites (`allowed_origins`) reads "www.example.com +2"; an item whose origin is not `https` (an app link) shows its `label` instead.
-- Line 2 (secondary, subheadline, one line, truncating at its end): the username or email, or "No username"; then " · 1Password" for 1Password rows, " · Verification codes" when `has_otp`, and " · Saved 18 Oct" on duplicates.
+- Line 2 (secondary, subheadline, one line): the username or email, or "No username", truncating in the middle so the tags after it always show; then " · 1Password" for 1Password rows, " · Verification codes" when `has_otp`, and " · Saved 18 Oct" on duplicates.
 - Tapping a Hermes vault row without codes opens Edit Login. Context menu (long press on iPhone, right click on Mac) and VoiceOver actions: **Edit Login…** (`pencil`, not for codes rows) and **Remove Login…** (`trash`, destructive). 1Password rows have no menu and no tap action.
 - **Remove** asks first, as Passwords does: a confirmation dialog "Remove the login for www.example.com?", message "Vera can no longer sign in there with it.", **Remove Login** (destructive) and Cancel. The row shows a small `ProgressView` while removing and leaves when `vault.remove` answers; on failure the list reloads and the row shows "Couldn't remove this login. Try again." in red.
 - **Empty:** "Vera has no saved logins." in secondary.
 - **Add Login…** (`plus.circle`, borderless) after a divider under the rows, as Add Shop.
 - After Add or Edit the list reloads and the new row briefly highlights (the Shops tint).
 - **Footers**, each only when true: "Vera fills these only on their sites, and the passwords never enter the chat." (when there is a row); Browser toolset off: "Turn on Browser in Capabilities so Vera can sign in."; `terminal.backend` `local`: "Bots on this server run commands next to the vault, so a misbehaving bot could read these passwords."
-- **Loading:** small `ProgressView`. **Couldn't load** (`vault.list` failed): "Couldn't load logins." and **Try Again**; when 1Password is connected with a saved token the line reads "Couldn't load logins. 1Password may not accept Vera's token." (a bad token fails the whole `vault.list`, local rows included). **Offline:** the last list stays; Add, Edit, Remove and Try Again are disabled. The card reloads when the connection comes back.
+- **Loading:** small `ProgressView`. **Couldn't load** (`vault.list` failed): "Couldn't load logins." and **Try Again**, above the last rows when there are any (Add Login is disabled until a load succeeds); when 1Password is connected with a saved token the line reads "Couldn't load logins. 1Password may not accept Vera's token." (a bad token fails the whole `vault.list`, local rows included). **Offline:** the last list stays; Add, Edit, Remove and Try Again are disabled. The card reloads when the connection comes back.
 - **Long content:** long hosts and usernames truncate on one line; many logins grow the card (the inspector scrolls).
 
 ## Login sheet
@@ -79,12 +79,13 @@ Title "1Password". One row with the state, a footnote and at most one button. In
 | No saved token but `unlocked` | `checkmark.circle.fill` "Connected through the server's settings" | "Change this on the server." | none |
 | Saved token, CLI not installed | "Token saved" | "Waiting for the 1Password CLI on the server." | **Disconnect…** |
 | Saved token, off for this bot | "Turned off for Vera" | as above | **Disconnect…** |
+| Saved token, installed and on, not `unlocked` | "Token saved" | "Hermes hasn't read the token yet." | **Disconnect…** |
 | Saved token, `vault.list` failed | `exclamationmark.triangle.fill` (orange) "1Password didn't answer" | "Check that Vera's token is valid and can read its vault." | **Disconnect…** |
 | Saved token, connected | `checkmark.circle.fill` (green) "Connected" | "Vera's 1Password logins show above. Change them in 1Password." | **Disconnect…** |
-| Couldn't load | "Couldn't check 1Password." | | **Try Again** |
+| Couldn't load (`vault.sources` or `GET /api/env` failed) | "Couldn't check 1Password." | | **Try Again** |
 | Loading | small `ProgressView` | | |
 
-The default bot shows the same states with no button and the footnote "Set up 1Password for the main bot on the server." With `terminal.backend` `local`, connected states add "Bots on this server could read the token and every login in its vault."
+The default bot shows the same states with no button and the footnote "Set up 1Password for the main bot on the server." (plus the terminal footnote below when it applies). With `terminal.backend` `local`, connected states add "Bots on this server could read the token and every login in its vault."
 
 **Disconnect** asks: "Disconnect 1Password from Vera?", message "Vera can no longer sign in with its 1Password logins.", **Disconnect** (destructive) and Cancel. A `404` means the token was already gone. Errors: "Couldn't disconnect 1Password. Try again." in red under the button. After it the card and Logins reload. Offline: the last state stays; buttons disabled.
 
@@ -92,7 +93,7 @@ The default bot shows the same states with no button and the footnote "Set up 1P
 
 iPhone `.large` sheet with a grabber, Mac 400 pt wide. Title "Connect 1Password", **Cancel** and **Connect**.
 
-1. Steps section (numbered rows): "In 1Password, create a vault for Vera, such as Crew · Vera, and keep Vera's logins there, each with its website.", "On 1Password.com, open Developer > Service Accounts and create one that can only read that vault.", "Paste its token below." When the CLI is not installed a fourth row: "Install the 1Password CLI (op) in the Hermes environment on the server."
+1. Steps section (numbered rows): "In 1Password, create a vault for Vera, such as Crew · Vera, and keep Vera's logins there, each with its website.", "On 1Password.com, open Developer > Service Accounts and create one that can only read that vault.", and, when the CLI is not installed, "Install the 1Password CLI (op) in the Hermes environment on the server.", then last "Paste its token below."
 2. **Service Account Token**: `SecureField`, prompt "ops_…", no autocorrect, no content type. Valid when it starts with `ops_` and is 20 to 4096 characters without whitespace: "Paste the token that starts with ops_." Footer: "Crew sends the token once to your Hermes server, which saves it in Vera's settings. Crew doesn't store it."
 
 Same blocking lines (offline, http server), "Couldn't save the token on the server." on failure, the same privacy cover and Mac capture exclusion. On success the sheet closes and the 1Password and Logins cards reload.

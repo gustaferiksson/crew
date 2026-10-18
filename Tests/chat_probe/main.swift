@@ -556,8 +556,6 @@ if phases.contains("read") {
     let storeB = BotStore(fixture: [], statuses: [:])
     Task { await storeA.run(gateway, urlSession: urlSession) }
     Task { await storeB.run(peerGateway, urlSession: urlSession) }
-    var writes = 0
-    Task { for await _ in storeA.unreadCleared.stream { writes += 1 } }
     try await Task.sleep(for: .seconds(3))
     let started = Date.now
     func crew(_ store: BotStore) -> Bot { store.bots.first { $0.name == "crew-test" }! }
@@ -638,7 +636,7 @@ if phases.contains("read") {
     storeB.markSeen(stale)
     try await Task.sleep(for: .seconds(4))
     print("READ stale markSeen kept marker", crew(storeA).readPosition == marker && crew(storeB).readPosition == marker)
-    print("READ unread clears announced by A: \(writes)")
+    print("READ unread clears queued by A: \(storeA.clearedUnread.count)")
     await peerGateway.disconnect()
 }
 

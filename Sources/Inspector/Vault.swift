@@ -58,12 +58,16 @@ nonisolated struct Login: Equatable, Identifiable, Sendable {
         (try? Date.ISO8601FormatStyle(includingFractionalSeconds: true).parse(item.createdAt)) ?? (try? Date.ISO8601FormatStyle().parse(item.createdAt))
     }
 
-    var detail: String {
-        var parts = [item.identifier.flatMap { $0.isEmpty ? nil : $0 } ?? String(localized: "No username")]
-        if !isLocal { parts.append(String(localized: "1Password")) }
-        if item.hasOtp == true { parts.append(String(localized: "Verification codes")) }
-        if isDuplicate, let created { parts.append(String(localized: "Saved \(created.formatted(.dateTime.day().month(.abbreviated)))")) }
-        return parts.joined(separator: " · ")
+    var account: String {
+        item.identifier.flatMap { $0.isEmpty ? nil : $0 } ?? String(localized: "No username")
+    }
+
+    var tags: [String] {
+        var tags: [String] = []
+        if !isLocal { tags.append(String(localized: "1Password")) }
+        if item.hasOtp == true { tags.append(String(localized: "Verification codes")) }
+        if isDuplicate, let created { tags.append(String(localized: "Saved \(created.formatted(.dateTime.day().month(.abbreviated)))")) }
+        return tags
     }
 
     var canEdit: Bool { isLocal && item.hasOtp != true }
@@ -118,6 +122,10 @@ nonisolated struct LoginEntry: Sendable {
         LoginField.allCases.allSatisfy { problem($0, existing: existing, editing: editing) == nil }
     }
 
+    func canSave(block: SecretBlock?, existing: [VaultItem], editing: VaultItem?) -> Bool {
+        block == nil && isValid(existing: existing, editing: editing)
+    }
+
     func params(profile: String) -> JSONValue {
         let host = host ?? ""
         return .object([
@@ -125,6 +133,24 @@ nonisolated struct LoginEntry: Sendable {
             "secret": .object(["identifier_type": .string(identifierType), "identifier": .string(trimmedUsername), "password": .string(password)]),
         ])
     }
+}
+
+nonisolated enum SecretBlock: Equatable, Sendable {
+    case http, offline
+
+    init?(server: URL?, isOnline: Bool) {
+        if server?.scheme?.lowercased() != "https" {
+            self = .http
+        } else if !isOnline {
+            self = .offline
+        } else {
+            return nil
+        }
+    }
+}
+
+nonisolated func canConnect(token: String, block: SecretBlock?) -> Bool {
+    block == nil && isServiceAccountToken(token)
 }
 
 nonisolated func isServiceAccountToken(_ token: String) -> Bool {
@@ -154,8 +180,8 @@ nonisolated struct OnePasswordStatus: Equatable, Sendable {
         self.action = action
     }
 
-    init?(source: VaultSource?, sourcesFailed: Bool, tokenSaved: Bool?, listFailed: Bool, isDefault: Bool, bot: String, terminalLocal: Bool) {
-        if sourcesFailed || (source == nil && tokenSaved != nil) {
+    init?(source: VaultSource?, sourcesFailed: Bool, envFailed: Bool = false, tokenSaved: Bool?, listFailed: Bool, isDefault: Bool, bot: String, terminalLocal: Bool) {
+        if sourcesFailed || envFailed || (source == nil && tokenSaved != nil) {
             self.init(title: String(localized: "Couldn't check 1Password."), footnotes: [], action: .retry)
             return
         }
@@ -172,6 +198,8 @@ nonisolated struct OnePasswordStatus: Equatable, Sendable {
             base = OnePasswordStatus(title: String(localized: "Turned off for \(bot)"), footnotes: [String(localized: "1Password is turned off in \(bot)'s Hermes settings.")], action: tokenSaved ? .disconnect : nil)
         } else if !tokenSaved {
             base = OnePasswordStatus(title: String(localized: "Not connected"), footnotes: [String(localized: "Give \(bot) its own 1Password vault, readable with a token only \(bot) has.")], action: .connect)
+        } else if !source.unlocked {
+            base = OnePasswordStatus(title: String(localized: "Token saved"), footnotes: [String(localized: "Hermes hasn't read the token yet.")], action: .disconnect)
         } else if listFailed {
             base = OnePasswordStatus(title: String(localized: "1Password didn't answer"), footnotes: [String(localized: "Check that \(bot)'s token is valid and can read its vault.")], look: .warning, action: .disconnect)
         } else {
@@ -181,7 +209,7 @@ nonisolated struct OnePasswordStatus: Equatable, Sendable {
             self = base
             return
         }
-        self.init(title: base.title, footnotes: [String(localized: "Set up 1Password for the main bot on the server.")], look: base.look, action: nil)
+        self.init(title: base.title, footnotes: [String(localized: "Set up 1Password for the main bot on the server.")] + base.footnotes.filter { $0 == readable }, look: base.look, action: nil)
     }
 }
 
@@ -189,12 +217,6 @@ struct VaultLink {
     let gateway: Gateway
     let server: URL
     let urlSession: URLSession
-}
-
-nonisolated enum LoginSave: Equatable, Sendable {
-    case saved(id: String)
-    case oldLoginRemains(id: String)
-    case failed
 }
 
 nonisolated private struct AddedItem: Decodable, Sendable {
@@ -215,6 +237,22 @@ nonisolated func envRequest(_ method: String, profile: String, body: [String: St
     return data
 }
 
+nonisolated private struct EnvToken: Decodable, Sendable {
+    struct Row: Decodable, Sendable {
+        let isSet: Bool?
+
+        private enum CodingKeys: String, CodingKey {
+            case isSet = "is_set"
+        }
+    }
+
+    let token: Row?
+
+    private enum CodingKeys: String, CodingKey {
+        case token = "OP_SERVICE_ACCOUNT_TOKEN"
+    }
+}
+
 nonisolated private struct TerminalConfig: Decodable, Sendable {
     struct Terminal: Decodable, Sendable {
         let backend: String?
@@ -231,6 +269,7 @@ final class BotVault {
     private(set) var sources: [VaultSource]?
     private(set) var sourcesFailed = false
     private(set) var tokenSaved: Bool?
+    private(set) var envFailed = false
     private(set) var terminalBackend: String?
     private(set) var requests: [String] = []
     private let isFixture: Bool
@@ -277,43 +316,44 @@ final class BotVault {
         listFailed = listed == nil
         if let sourced { sources = sourced.sources }
         sourcesFailed = sourced == nil
-        tokenSaved = envRows.flatMap { try? JSONDecoder().decode([String: JSONValue].self, from: $0) }.map { rows in
-            if case .object(let row) = rows[OnePasswordStatus.tokenKey], case .bool(let isSet) = row["is_set"] { return isSet }
-            return false
-        }
+        let token = envRows.flatMap { try? JSONDecoder().decode(EnvToken.self, from: $0) }
+        if let token { tokenSaved = token.token?.isSet == true }
+        envFailed = token == nil
         terminalBackend = configured?.terminal?.backend ?? "local"
     }
 
-    func save(_ entry: LoginEntry, replacing old: VaultItem?, via link: VaultLink?) async -> LoginSave {
+    func save(_ entry: LoginEntry, replacing old: VaultItem?, via link: VaultLink?) async -> String? {
         let params = entry.params(profile: profile)
-        guard let link else {
+        if isFixture {
             let id = "vault_fixture\(requests.count)"
             requests.append("vault.add \(entry.host ?? "") \(entry.trimmedUsername)")
             items = (items ?? []).filter { $0.id != old?.id } + [VaultItem(id: id, kind: "login", label: entry.host ?? "", origin: "https://\(entry.host ?? "")", createdAt: "2026-10-18T09:41:00+00:00", identifier: entry.trimmedUsername, identifierType: entry.identifierType, backend: "local")]
             if let old { requests.append("vault.remove \(old.id)") }
-            return .saved(id: id)
+            return id
         }
+        guard let link else { return nil }
         let added: String
         do {
             added = try await link.gateway.call("vault.add", params, as: AddedItem.self).id
         } catch {
             await load(link)
-            return .failed
+            return nil
         }
         guard let old else {
             await load(link)
-            return .saved(id: added)
+            return added
         }
-        let removed = await remove(old, via: link)
-        return removed ? .saved(id: added) : .oldLoginRemains(id: added)
+        _ = await remove(old, via: link)
+        return added
     }
 
     func remove(_ item: VaultItem, via link: VaultLink?) async -> Bool {
-        guard let link else {
+        if isFixture {
             requests.append("vault.remove \(item.id)")
             items?.removeAll { $0.id == item.id }
             return true
         }
+        guard let link else { return false }
         do {
             _ = try await link.gateway.call("vault.remove", ["profile": profile, "id": item.id], as: RemovedItem.self)
             await load(link)
@@ -325,11 +365,12 @@ final class BotVault {
     }
 
     func connect(token: String, via link: VaultLink?) async -> Bool {
-        guard let link else {
+        if isFixture {
             requests.append("env.put \(OnePasswordStatus.tokenKey)")
             tokenSaved = true
             return true
         }
+        guard let link else { return false }
         do {
             _ = try await envRequest("PUT", profile: profile, body: ["key": OnePasswordStatus.tokenKey, "value": token, "profile": profile], on: link.server, with: link.urlSession)
             await load(link)
@@ -341,11 +382,12 @@ final class BotVault {
     }
 
     func disconnect(via link: VaultLink?) async -> Bool {
-        guard let link else {
+        if isFixture {
             requests.append("env.delete \(OnePasswordStatus.tokenKey)")
             tokenSaved = false
             return true
         }
+        guard let link else { return false }
         do {
             _ = try await envRequest("DELETE", profile: profile, body: ["key": OnePasswordStatus.tokenKey, "profile": profile], on: link.server, with: link.urlSession)
         } catch HermesError.server(404, _) {

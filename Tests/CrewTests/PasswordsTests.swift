@@ -28,8 +28,9 @@ private func status(_ source: VaultSource?, saved: Bool?, listFailed: Bool = fal
 @Test func loginsAreOnlyLoginItemsSortedByHostThenUsername() throws {
     let logins = Login.list(from: try decoded("vault/vault.list.json", as: VaultList.self).items)
     #expect(logins.map(\.title) == ["accounts.google.com", "github.com", "Slack app", "www.figma.com +1", "www.sj.se", "www.sj.se"])
-    #expect(logins.prefix(4).map(\.detail) == ["ada.lovelace@gmail.com · Verification codes", "ada@example.com", "No username · 1Password", "ada@example.com · 1Password"])
-    #expect(logins.suffix(2).allSatisfy { $0.detail.hasPrefix("ada · Saved ") })
+    #expect(logins.map(\.account) == ["ada.lovelace@gmail.com", "ada@example.com", "No username", "ada@example.com", "ada", "ada"])
+    #expect(logins.prefix(4).map(\.tags) == [["Verification codes"], [], ["1Password"], ["1Password"]])
+    #expect(logins.suffix(2).allSatisfy { $0.tags.count == 1 && $0.tags[0].hasPrefix("Saved ") })
     #expect(logins.suffix(2).map(\.created) == [Date(timeIntervalSince1970: 1_785_578_400), Date(timeIntervalSince1970: 1_791_972_000)])
     #expect(logins.map(\.canEdit) == [false, true, false, false, true, true])
     #expect(logins.map(\.isLocal) == [true, true, false, false, true, true])
@@ -88,6 +89,8 @@ func identifierTypes(username: String, expected: String) {
         title: "Connected through the server's settings", footnotes: ["Change this on the server.", "Bots on this server could read the token and every login in its vault."], look: .connected, action: nil
     ))
     #expect(status(source(installed: false, enabled: false), saved: true) == OnePasswordStatus(title: "Token saved", footnotes: ["Waiting for the 1Password CLI on the server."], action: .disconnect))
+    #expect(status(source(), saved: true) == OnePasswordStatus(title: "Token saved", footnotes: ["Hermes hasn't read the token yet."], action: .disconnect))
+    #expect(OnePasswordStatus(source: source(unlocked: true), sourcesFailed: false, envFailed: true, tokenSaved: nil, listFailed: false, isDefault: false, bot: "Vera", terminalLocal: false)?.action == .retry)
     #expect(status(source(unlocked: true), saved: true, listFailed: true) == OnePasswordStatus(title: "1Password didn't answer", footnotes: ["Check that Vera's token is valid and can read its vault."], look: .warning, action: .disconnect))
     #expect(status(source(unlocked: true), saved: true) == OnePasswordStatus(title: "Connected", footnotes: ["Vera's 1Password logins show above. Change them in 1Password."], look: .connected, action: .disconnect))
     #expect(status(nil, saved: nil, sourcesFailed: true)?.action == .retry)
@@ -101,6 +104,7 @@ func identifierTypes(username: String, expected: String) {
         #expect(main?.action == nil)
         #expect(main?.footnotes == ["Set up 1Password for the main bot on the server."])
     }
+    #expect(status(source(unlocked: true), saved: true, isDefault: true, terminalLocal: true)?.footnotes == ["Set up 1Password for the main bot on the server.", "Bots on this server could read the token and every login in its vault."])
 }
 
 @Test(arguments: [
@@ -135,8 +139,31 @@ func serviceAccountTokens(token: String, valid: Bool) {
     let items = try decoded("vault/vault.list.json", as: VaultList.self).items
     let vault = BotVault(fixture: "vera", items: items, sources: [], tokenSaved: false)
     let result = await vault.save(LoginEntry(website: "github.com", username: "ada", password: "secret-pass"), replacing: items[0], via: nil)
-    #expect(result == .saved(id: "vault_fixture0"))
+    #expect(result == "vault_fixture0")
     #expect(vault.requests == ["vault.add github.com ada", "vault.remove vault_1a2b3c4d5e6f"])
     #expect(!vault.requests.joined().contains("secret-pass"))
     #expect(vault.logins.contains { $0.id == "vault_fixture0" } && !vault.logins.contains { $0.id == "vault_1a2b3c4d5e6f" })
+}
+
+@Test func secretSheetsSendOnlyOnlineOverHTTPS() throws {
+    let https = URL(string: "https://hermes.example.com")!
+    #expect(SecretBlock(server: https, isOnline: true) == nil)
+    #expect(SecretBlock(server: https, isOnline: false) == .offline)
+    #expect(SecretBlock(server: URL(string: "http://hermes.local:9119")!, isOnline: true) == .http)
+    #expect(SecretBlock(server: URL(string: "HTTPS://hermes.example.com")!, isOnline: true) == nil)
+    #expect(SecretBlock(server: nil, isOnline: true) == .http)
+
+    let items = try decoded("vault/vault.list.json", as: VaultList.self).items
+    let entry = LoginEntry(website: "www.notion.so", username: "ada@example.com", password: "x")
+    #expect(entry.canSave(block: nil, existing: items, editing: nil))
+    #expect(!entry.canSave(block: .offline, existing: items, editing: nil))
+    #expect(!entry.canSave(block: .http, existing: items, editing: nil))
+    #expect(!LoginEntry(website: "github.com", username: "ada@example.com", password: "x").canSave(block: nil, existing: items, editing: nil))
+    #expect(LoginEntry(website: "github.com", username: "ada@example.com", password: "x").canSave(block: nil, existing: items, editing: items[0]))
+
+    let token = "ops_eyJzaWduSW5BZGRyZXNzIjoibXkuMXBhc3N3b3JkLmNvbSJ9"
+    #expect(canConnect(token: token, block: nil))
+    #expect(!canConnect(token: token, block: .offline))
+    #expect(!canConnect(token: token, block: .http))
+    #expect(!canConnect(token: "ops_short", block: nil))
 }

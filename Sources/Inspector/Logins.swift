@@ -49,26 +49,28 @@ private struct LoginsCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Card(title: "Logins") {
-                if vault.items != nil, !(vault.listFailed && vault.logins.isEmpty) {
-                    VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 12) {
+                    if vault.listFailed {
+                        HStack(spacing: 8) {
+                            Text(vault.tokenSaved == true ? String(localized: "Couldn't load logins. 1Password may not accept \(bot.title)'s token.") : String(localized: "Couldn't load logins."))
+                                .foregroundStyle(.secondary)
+                            Spacer(minLength: 8)
+                            Button("Try Again") { reload() }
+                                .buttonStyle(.borderless)
+                                .disabled(!isOnline)
+                        }
+                    }
+                    if vault.items != nil {
+                        if vault.listFailed { Divider() }
                         rows
                         Divider()
                         Button("Add Login…", systemImage: "plus.circle") { editing = LoginTarget(item: nil) }
                             .buttonStyle(.borderless)
-                            .disabled(!isOnline)
+                            .disabled(!isOnline || vault.listFailed)
+                    } else if !vault.listFailed {
+                        ProgressView()
+                            .controlSize(.small)
                     }
-                } else if vault.listFailed {
-                    HStack(spacing: 8) {
-                        Text(vault.tokenSaved == true ? String(localized: "Couldn't load logins. 1Password may not accept \(bot.title)'s token.") : String(localized: "Couldn't load logins."))
-                            .foregroundStyle(.secondary)
-                        Spacer(minLength: 8)
-                        Button("Try Again") { reload() }
-                            .buttonStyle(.borderless)
-                            .disabled(!isOnline)
-                    }
-                } else {
-                    ProgressView()
-                        .controlSize(.small)
                 }
             }
             ForEach(footers, id: \.self) { footer in
@@ -127,7 +129,8 @@ private struct LoginsCard: View {
                         .disabled(!isOnline)
                 }
                 .accessibilityAddTraits(login.canEdit ? .isButton : [])
-                .accessibilityAction(named: "Remove Login") { confirmingRemoval = login }
+                .accessibilityAction(named: "Edit Login") { if login.canEdit, isOnline { editing = LoginTarget(item: login.item) } }
+                .accessibilityAction(named: "Remove Login") { if isOnline { confirmingRemoval = login } }
         } else {
             content
         }
@@ -189,10 +192,18 @@ private struct LoginRow: View {
                         .font(.footnote)
                         .foregroundStyle(.orange)
                 }
-                Text(login.detail)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                HStack(spacing: 0) {
+                    Text(login.account)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    ForEach(login.tags, id: \.self) { tag in
+                        Text(verbatim: " · \(tag)")
+                            .lineLimit(1)
+                            .fixedSize()
+                    }
+                }
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
                 if let failure {
                     Text(failure)
                         .font(.footnote)
@@ -225,7 +236,7 @@ private struct OnePasswordCard: View {
     @State private var failure: String?
 
     private var status: OnePasswordStatus? {
-        OnePasswordStatus(source: vault.onePassword, sourcesFailed: vault.sourcesFailed, tokenSaved: vault.tokenSaved, listFailed: vault.listFailed, isDefault: bot.isDefault, bot: bot.title, terminalLocal: vault.isTerminalLocal)
+        OnePasswordStatus(source: vault.onePassword, sourcesFailed: vault.sourcesFailed, envFailed: vault.envFailed, tokenSaved: vault.tokenSaved, listFailed: vault.listFailed, isDefault: bot.isDefault, bot: bot.title, terminalLocal: vault.isTerminalLocal)
     }
 
     private var isOnline: Bool {
@@ -354,15 +365,14 @@ struct LoginSheet: View {
         LoginEntry(website: website, username: username, password: password)
     }
 
-    private var isHTTPS: Bool {
-        connection.session?.server.scheme?.lowercased() == "https"
+    private var block: SecretBlock? {
+        SecretBlock(server: connection.session?.server, isOnline: connection.state == .connected)
     }
 
     private var notice: String? {
         if let failure { return failure }
-        if !isHTTPS { return String(localized: "Saving a password needs an https connection to Hermes.") }
-        if connection.state != .connected { return String(localized: "You're offline.") }
-        return nil
+        if block == .http { return String(localized: "Saving a password needs an https connection to Hermes.") }
+        return block == .offline ? String(localized: "You're offline.") : nil
     }
 
     private func problem(_ field: LoginField) -> String? {
@@ -449,7 +459,7 @@ struct LoginSheet: View {
     }
 
     private var canSave: Bool {
-        isHTTPS && connection.state == .connected && LoginField.allCases.allSatisfy { problem($0) == nil }
+        entry.canSave(block: block, existing: vault.items ?? [], editing: editing)
     }
 
     private func field(_ field: LoginField, title: LocalizedStringKey, @ViewBuilder content: () -> some View) -> some View {
@@ -485,16 +495,12 @@ struct LoginSheet: View {
         isSaving = true
         Task {
             defer { isSaving = false }
-            let result = await vault.save(entry, replacing: editing, via: connection.vaultLink)
-            if case .saved(let id) = result {
-                saved(id)
-                dismiss()
-            } else if case .oldLoginRemains(let id) = result {
-                saved(id)
-                dismiss()
-            } else {
+            guard let id = await vault.save(entry, replacing: editing, via: connection.vaultLink) else {
                 failure = String(localized: "Couldn't save the login on the server.")
+                return
             }
+            saved(id)
+            dismiss()
         }
     }
 }
@@ -517,25 +523,23 @@ struct ConnectOnePasswordSheet: View {
         _failure = State(initialValue: failure)
     }
 
-    private var isHTTPS: Bool {
-        connection.session?.server.scheme?.lowercased() == "https"
+    private var block: SecretBlock? {
+        SecretBlock(server: connection.session?.server, isOnline: connection.state == .connected)
     }
 
     private var notice: String? {
         if let failure { return failure }
-        if !isHTTPS { return String(localized: "Saving a token needs an https connection to Hermes.") }
-        if connection.state != .connected { return String(localized: "You're offline.") }
-        return nil
+        if block == .http { return String(localized: "Saving a token needs an https connection to Hermes.") }
+        return block == .offline ? String(localized: "You're offline.") : nil
     }
 
     private var steps: [String] {
         var steps = [
             String(localized: "In 1Password, create a vault for \(bot.title), such as Crew · \(bot.title), and keep \(bot.title)'s logins there, each with its website."),
             String(localized: "On 1Password.com, open Developer > Service Accounts and create one that can only read that vault."),
-            String(localized: "Paste its token below."),
         ]
         if vault.onePassword?.installed != true { steps.append(String(localized: "Install the 1Password CLI (op) in the Hermes environment on the server.")) }
-        return steps
+        return steps + [String(localized: "Paste its token below.")]
     }
 
     var body: some View {
@@ -598,7 +602,7 @@ struct ConnectOnePasswordSheet: View {
                         ProgressView()
                     } else {
                         Button("Connect", systemImage: "checkmark", role: .confirm, action: save)
-                            .disabled(!isServiceAccountToken(token) || !isHTTPS || connection.state != .connected)
+                            .disabled(!canConnect(token: token, block: block))
                     }
                 }
             }
@@ -608,7 +612,7 @@ struct ConnectOnePasswordSheet: View {
     }
 
     private func save() {
-        guard isServiceAccountToken(token), isHTTPS, connection.state == .connected, !isSaving else { return }
+        guard canConnect(token: token, block: block), !isSaving else { return }
         let value = token
         token = ""
         visited = false

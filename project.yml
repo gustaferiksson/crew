@@ -32,6 +32,12 @@ schemes:
         CrewUITests: [test]
     test:
       targets: [CrewUITests]
+  CrewMacUITests:
+    build:
+      targets:
+        CrewMacUITests: [test]
+    test:
+      targets: [CrewMacUITests]
 targets:
   Crew:
     type: application
@@ -91,6 +97,8 @@ targets:
       - Sources/BotStore.swift
       - Sources/Profile/ProfileTypes.swift
       - Sources/Chat/Transcript.swift
+      - Sources/Chat/MarkdownBlocks.swift
+      - Sources/Chat/ReplyTextView.swift
       - Sources/Chat/Attachments.swift
       - Sources/Chat/AttachmentViews.swift
       - Sources/Chat/ChatSession.swift
@@ -113,6 +121,7 @@ targets:
       - Sources/Groups/GroupSession.swift
       - Sources/Search/MessageSearch.swift
       - Sources/Links.swift
+      - Sources/Scenes.swift
       - Sources/Inspector/Vault.swift
       - Tests/CrewTests
     settings:
@@ -129,6 +138,19 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: dev.gustaf.crew-uitests
+        SWIFT_DEFAULT_ACTOR_ISOLATION: nonisolated
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: Crew
+  CrewMacUITests:
+    type: bundle.ui-testing
+    platform: macOS
+    dependencies:
+      - target: Crew
+    sources:
+      - Tests/CrewMacUITests
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.gustaf.crew-macuitests
         SWIFT_DEFAULT_ACTOR_ISOLATION: nonisolated
         GENERATE_INFOPLIST_FILE: YES
         TEST_TARGET_NAME: Crew

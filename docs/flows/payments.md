@@ -139,7 +139,7 @@ Hermes waits `approvals.timeout` (default 300 s) and declines. The countdown sho
 | Card fields not found | "No payment form fields…", or success without `cc-number` | row "… wasn't filled: card fields not found" | says the checkout probably uses a payment frame Crew can't fill (iframe) |
 | You took over the browser | `human_has_control` | row "… wasn't filled: you're controlling the browser" | waits |
 | Other fill failure | `eval_failed`, `supervisor_required`, other errors | row "… wasn't filled: the browser didn't respond" | explains briefly |
-| No card for this shop | `list` decoration or the fill block with `missing_shop` | **offer card** (below), no payment card | "I don't have a card for www.zalando.de. Add it in Crew?" |
+| No card for this shop | `list` decoration or the fill block with `missing_shop` | **offer card** (below), no payment card, also after the reload | "I need www.zalando.de added as a shop in Crew." |
 | Shop page not open (the bot read the checkout with `web_extract`, or the browser sits on `chrome://new-tab-page`) | block `crew_no_shop_page`, before any approval | a failed tool row | opens the checkout with `browser_exec` (Browser Use, the default) or `browser_navigate` (built-in browser), then calls `fill` again |
 | Details missing | block `crew_missing_details` | a failed tool row | retries with the three args |
 | Outside Bot Chat (group room, other session, `execute_code`) | block `crew_not_bot_chat` | the bot's explanation | "I can only pay from my chat in Crew." |
@@ -153,11 +153,49 @@ crew-push reads the page the way Hermes' `browser_vault` does, through the per-t
 
 crew-push raises `missing_shop` with the page's own origin in two places: a `list` call while the current page has card fields (Hermes' payment field probe), and a payment `fill` blocked before any approval because no open tab is on the item's origin while the current page has card fields. The user never approves a fill that cannot happen.
 
-When the latest turn is finished and its last `browser_vault` result carries `missing_shop` for an origin that is not a shop, the composer bar shows an **offer card**:
+When the latest turn is finished and its last `browser_vault` result carries `missing_shop` (crew-push sets it only for an origin with no shop in this bot's vault; Crew keeps no shop list of its own), the composer bar shows an **offer card**:
 
 - "Scout needs a card for **www.zalando.de**", with the `xn--` warning when it applies, and "Only add sites you'd shop at yourself."
 - **Not Now** dismisses it for this turn. **Add Shop…** opens the sheet with the host filled in; the user still taps Add. With no usable master card the button is replaced by "Add a card on the server first."
 - Only after the user's Add, Crew sends a hidden prompt (`display_kind: "hidden"`): "I added https://www.zalando.de to your shops. Continue the purchase." The transcript shows a centred secondary line "Added www.zalando.de to Shops", and the normal payment card follows.
+
+#### The offer stays (fix for 2026-10-18)
+
+A bot listed its cards at a checkout with no shop, crew-push answered with `missing_shop` (twice), the offer flashed when the turn ended and vanished, and the bot asked the user to "add the payment setup in Crew" in text instead. crew-push was right; Crew lost the offer when it reloaded the turn from history. Hermes 0.22.x stores a turn differently from what it streams:
+
+- **The `tool_call` bridge.** With deferred tools the model calls `tool_call {"calls": [{"name": "browser_vault", "arguments": {"action": "list"}}]}`. Live `tool.start` events carry the underlying name (`browser_vault`) and arguments; the stored assistant row keeps `tool_call`.
+- **The untrusted envelope.** Stored results of `browser_*`, `web_*` and `mcp_*` tools (32 characters or more) are wrapped as `<untrusted_tool_result source="browser_vault">`, a fixed notice line, a blank line, the result, and `</untrusted_tool_result>`. Live `tool.complete` carries the bare result.
+
+After `message.complete` Crew replaces the live turn with the stored one (`sync`), so the offer's lookup (`browser_vault` by name, result as JSON) found nothing. The same broke receipt rows and the `browser_vault` work-log style after any reload, although this spec says they survive reloads.
+
+Crew now reads history the way the turn streamed:
+
+- An assistant call named `tool_call` whose arguments hold exactly one entry (`{"calls": [{"name", "arguments"}]}` or the flat `{"name", "arguments"}`) becomes that entry's tool: its name, and its arguments as a JSON string (an object is re-serialised, a string kept as is). The call keeps the bridge's id, which is the stored tool row's `tool_call_id`, and that row holds the single entry's own result, not a list (the recorded rows show both). Batches and arguments that don't parse stay as `tool_call`, as Hermes itself treats them.
+- A tool result shows without the envelope only when it starts with `<untrusted_tool_result source="<name>">` where `<name>` is the call's resolved name and starts with `browser_`, `web_` or `mcp_`, and ends with `</untrusted_tool_result>` (one newline before it is dropped). Crew then keeps what follows the first blank line. Anything else is left as stored. The expanded work-log row shows the result as it did live, and `toolStatus` reads failures from it (a wrapped `crew_no_shop_page` block showed as a success before).
+- This applies to every deferred tool, not only `browser_vault`: a bridged `web_search` or `browser_exec` row in history now has its own name, icon, verb and subject in the work log, as it had live, instead of "tool_call". No row is removed; nothing else reads the name.
+- Hold to Pay is unaffected: the payment card comes only from a live `approval` request and crew-push's `request_id` lookup, never from history rows, so this cannot create or revive a payment card. Offers and receipts read only results whose resolved name is `browser_vault`; page text inside a result cannot set their keys.
+
+The offer then follows the history, and no new state is stored:
+
+| Moment | Offer |
+|---|---|
+| Turn streaming | hidden (as before) |
+| Turn ends | shows, and stays through the history reload |
+| Chat reopened, app relaunched, cold launch from the reply push | shows (derived from the loaded rows) |
+| The other device (iPhone and Mac) | shows (same rows) |
+| **Not Now** | hidden for that turn in every window of this bot on this device until the app relaunches (kept on the bot's `ChatSession`, by turn id, which the reload keeps); the other device still shows it |
+| **Add** in the sheet | the hidden "I added …" prompt starts a new turn, so the offer leaves on every device and "Added … to Shops" shows |
+| The user sends a new message | leaves with the old turn; the bot's next `browser_vault` result decides again |
+| Shop added in the Passwords tab, or on the other device, before tapping Add | stays (Crew keeps no shop list); Add in the offer's sheet treats crew-push's `duplicate_shop` as done: the sheet closes and the same hidden (with the offer's own origin) "I added … Continue the purchase." prompt goes to the bot, since the shop is there. The Passwords tab's own sheet still shows "… is already a shop." |
+| Offline | shows from the loaded transcript with the composer's offline line; the sheet's Add is disabled until connected (as today) |
+| Add fails | the sheet keeps the field and shows the contract's inline error; nothing is sent to the bot |
+| Server without the `payments` feature | hidden (as before) |
+
+Other surfaces are unchanged and stated here so the fix is checked against them: the bot row shows the bot's reply as preview, time and unread like any reply, and no "Wants to pay" (nothing is pending); the reply push is the normal `reply` push with the bot's text; the offer card is the existing `ShopOfferCard` in light and dark on iPhone and Mac, with the host wrapping, never truncated.
+
+#### What the bot is told (crew-push 0.6.1)
+
+In Bot Chat, the `missing_shop` hint on `list` and the `crew_no_shop_card` message (raised only in Bot Chat) both read: "There is no card for https://www.zalando.de. When your turn ends, Crew shows the user an Add Shop button for this site; only the user can add it. Stop before choosing a payment method or placing the order, don't pay another way, and don't call browser_vault again in this turn. Say in one line that this shop needs adding in Crew, then end your turn. Don't ask the user to set up cards or payments by hand, or to confirm the price just for paying: Crew asks them to approve the amount when you fill the card. When they add it, Crew tells you to continue." Outside Bot Chat (no offer shows there) the `list` hint keeps the old "Tell the user they can add this shop in Crew, then wait." Both stay under Hermes' 2048-character cap. Dropping the separate price question is a behaviour change: the payment card shows the amount and the hold approves it. The bot still cannot add a shop: no tool or route does it, and the hidden "I added …" prompt only follows the user's Add.
 
 ## iPhone and Mac
 
@@ -227,6 +265,7 @@ The contract fixtures (`Tests/fixtures/payments/`, listed in the contract) land 
 - **Scenarios** (`Tests/chat_probe/run.sh record`, on `crew-test` with its test shop, after PR A is deployed): `payment-approve`, `payment-deny`, `payment-expire` (waits out 300 s), `payment-no-shop` (a throwaway `crew-test-*` bot without shops), `payment-iframe`, and `payment-two-clients` (a second socket answers once by response frame, once by `approval.respond`; Crew's card leaves both times). Each asserts chat rows, bot row status during and after, and crew-push's pushes, as `BotMentionScenarioTests` does. The probe answers with `approval.respond`; the hold is covered by UI tests.
 - **UI tests (iOS Simulator, fixtures):** card shows host, total and claim line; a tap opens the dialog and Cancel leaves the card; `press(forDuration: 1.2)` approves and the fixture records `approval.respond` with `once`; a 0.6 s press springs back and sends nothing; Deny; the Deny-only card has no Hold to Pay; the ended-request notice; Add Shop errors and success; the offer opens the sheet filled in.
 - **Renders** (iPhone light and dark, Mac light and dark via `snapshot.sh`): card loaded, mid-hold, approved, loading, couldn't load, Deny-only, `xn--`, countdown, large Dynamic Type, Reduce Motion approved; offer card; receipt rows; Shops with shops, empty, no card, several cards, old card, `local` footer; Add Shop sheet.
+- **The offer stays:** a scenario replay of the real stopped turn's rows (sanitised, `Tests/fixtures/scenarios/shop-offer-history/`: the `tool_call` bridge and the untrusted envelope byte for byte, personal content, ids and the shop replaced) asserts the offer host, the work-log style and the bot row after the reload; unit tests for the bridge (object and string arguments, a batch stays) and the envelope (wrapped, no newline before the closing tag, a source that isn't the tool, a trusted tool, bare), and a receipt from a wrapped fill; unit tests that the offer leaves after the hidden-prompt turn, is hidden when a later `list` without `missing_shop` comes last, that the live events and the stored rows of the same turn give the same tool, result, offer and reply, that Not Now's turn id survives the reload, and `toolStatus` reads an error from a wrapped result; crew-push asserts the new hint on `list` (Bot Chat and elsewhere) and the block, including the stop-before-paying sentence; a UI test (`chat-payment-offer-history`, built through `Transcript(history:)`) shows the offer and opens Add Shop filled in.
 - **Test pages** (`pages/`, live after the next `v*` tag): `checkout-test.html` with autocomplete card fields (`cc-number`, `cc-exp-month`, `cc-exp-year`, `cc-csc`, `cc-name`, `postal-code`), "Total 499 kr", a "Save card" checkbox and a Pay button that shows "Paid with card ending 4242", no network calls; `checkout-iframe-test.html` with the same card fields inside an `<iframe srcdoc>` for the not-filled path.
 - **Device checks** (`./device.sh`, rebuilt Mac app): lock-screen push and Deny, the hold's haptics, a cold launch from the push, the notification removed after answering on the Mac.
 

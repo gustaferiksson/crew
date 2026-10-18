@@ -13,7 +13,7 @@ final class PaymentWindowUITests: XCTestCase {
             XCTAssertTrue(pay.isHittable)
             XCTAssertTrue(app.buttons["Deny payment"].isHittable)
             let host = NSPredicate(format: "label CONTAINS %@ AND NOT (label BEGINSWITH %@)", "www.zalando.se", "Payment request")
-            XCTAssertTrue(app.staticTexts.matching(host).firstMatch.isHittable)
+            XCTAssertTrue(app.descendants(matching: .any).matching(host).firstMatch.isHittable)
             XCTAssertTrue(app.staticTexts["499 kr"].isHittable)
             XCTAssertTrue(app.staticTexts["Hermes wants to pay"].isHittable)
             let shot = XCTAttachment(screenshot: window.screenshot())

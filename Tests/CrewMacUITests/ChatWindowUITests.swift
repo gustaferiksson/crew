@@ -59,8 +59,8 @@ final class ChatWindowUITests: XCTestCase {
         attach(window, "chat-window-light")
 
         app.staticTexts[ledgerPreview].rightClick()
-        let open = app.menuItems["Open in New Window"]
-        XCTAssertTrue(open.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.menuItems["Open in New Window"].firstMatch.waitForExistence(timeout: 5))
+        guard let open = app.menuItems.matching(identifier: "Open in New Window").allElementsBoundByIndex.first(where: \.isHittable) else { return XCTFail("no context menu item") }
         open.click()
         expectWindows(3, in: app, "the context menu opens another bot's window")
 

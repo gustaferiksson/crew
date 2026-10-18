@@ -114,6 +114,19 @@ nonisolated struct HistoryRow: Decodable, Sendable {
 
         let id: String
         let function: Function
+
+        var tool: (name: String, arguments: String) {
+            let stored = function.arguments ?? ""
+            guard function.name == "tool_call",
+                  let object = (try? JSONSerialization.jsonObject(with: Data(stored.utf8))) as? [String: Any]
+            else { return (function.name, stored) }
+            let entries = object["calls"].map { $0 as? [[String: Any]] ?? [] } ?? [object]
+            guard entries.count == 1, let name = entries[0]["name"] as? String else { return (function.name, stored) }
+            let inner = entries[0]["arguments"]
+            if let text = inner as? String { return (name, text) }
+            guard let inner, JSONSerialization.isValidJSONObject(inner), let data = try? JSONSerialization.data(withJSONObject: inner, options: [.sortedKeys, .withoutEscapingSlashes]) else { return (name, "{}") }
+            return (name, String(decoding: data, as: UTF8.self))
+        }
     }
 
     let id: Int
@@ -419,8 +432,8 @@ extension Transcript {
         if let calls = row.toolCalls, !calls.isEmpty {
             if !content.isEmpty { narrate(content, id: "\(row.id)-note", at: date) }
             for call in calls {
-                let arguments = call.function.arguments ?? ""
-                let tool = ToolCall(name: call.function.name, subject: toolSubject(arguments: arguments), arguments: arguments, status: .success)
+                let (name, arguments) = call.tool
+                let tool = ToolCall(name: name, subject: toolSubject(arguments: arguments), arguments: arguments, status: .success)
                 appendWork(.tool(tool), id: call.id, at: date)
             }
         } else if !content.isEmpty {
@@ -435,9 +448,18 @@ extension Transcript {
               let workIndex = turns[index].work.lastIndex(where: { $0.id == id }),
               case .tool(var call) = turns[index].work[workIndex].kind
         else { return }
-        call.result = result
+        let closing = "</untrusted_tool_result>"
+        let isUntrusted = ["browser_", "web_", "mcp_"].contains { call.name.hasPrefix($0) }
+        let body: String
+        if isUntrusted, result.hasPrefix("<untrusted_tool_result source=\"\(call.name)\">\n"), result.hasSuffix(closing), let notice = result.range(of: "\n\n") {
+            let inner = result[notice.upperBound...].dropLast(closing.count)
+            body = String(inner.hasSuffix("\n") ? inner.dropLast() : inner)
+        } else {
+            body = result
+        }
+        call.result = body
         call.outcome = summary
-        call.status = toolStatus(result: result)
+        call.status = toolStatus(result: body)
         turns[index].work[workIndex].kind = .tool(call)
         turns[index].work[workIndex].duration = duration ?? date.timeIntervalSince(turns[index].work[workIndex].startedAt)
     }

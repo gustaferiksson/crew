@@ -571,6 +571,27 @@ def test_list_offers_a_missing_shop(push: CrewPush, hermes: Hermes) -> None:
     assert transform(push, raw, action="list") == fixture("list-missing-shop.json")
 
 
+def test_missing_shop_hint_stops_the_bot_before_paying(push: CrewPush, hermes: Hermes) -> None:
+    raw = {key: value for key, value in fixture("list-missing-shop.json").items() if key not in ("crew_payment", "hint")}
+    hermes.page = "https://www.zalando.de"
+    hint = transform(push, raw, action="list")["hint"]
+    assert "Crew shows the user an Add Shop button" in hint and "only the user can add it" in hint
+    assert "Stop before choosing a payment method or placing the order, don't pay another way" in hint
+    hermes.tabs.clear()
+    block = fill(push)["message"]
+    assert json.loads(block)["error"] == hint
+    assert len(json.dumps({"error": block})) < 2048
+
+
+def test_missing_shop_hint_outside_bot_chat_promises_no_button(push: CrewPush, hermes: Hermes) -> None:
+    raw = {key: value for key, value in fixture("list-missing-shop.json").items() if key not in ("crew_payment", "hint")}
+    hermes.page = "https://www.zalando.de"
+    out = json.loads(push.transform_tool_result(tool_name="browser_vault", args={"action": "list"}, result=json.dumps(raw),
+                                                tool_call_id="call_1", task_id="default", session_id="other"))
+    assert out["crew_payment"] == {"missing_shop": "https://www.zalando.de"}
+    assert out["hint"] == "There is no card for https://www.zalando.de. Tell the user they can add this shop in Crew, then wait."
+
+
 def test_request_route_serves_the_bound_entry(push: CrewPush, hermes: Hermes, plugin_api: types.ModuleType,
                                               clock: types.SimpleNamespace) -> None:
     store.write_gate(True)

@@ -4,7 +4,7 @@ import UniformTypeIdentifiers
 enum ChatFixture {
     case conversation, history, timestamps, workLog, question, questions, questionsSnacks, offline, attachments, dictation, mentions, agentMessage, a2ui, a2uiCards, a2uiForm, a2uiTable, a2uiChart, a2uiMap
     case composerLine, composerLines, composerRunning, composerRunningText, steer, steerTaken, waiting
-    case payment, paymentHolding, paymentApproved, paymentLoading, paymentFailed, paymentUnverified, paymentPunycode, paymentCountdown, paymentNotice, paymentOffer, paymentReceipts
+    case payment, paymentHolding, paymentApproved, paymentLoading, paymentFailed, paymentUnverified, paymentPunycode, paymentCountdown, paymentNotice, paymentOffer, paymentOfferHistory, paymentReceipts
 
     var isLive: Bool {
         [.mentions, .composerLine, .composerLines, .composerRunning, .composerRunningText, .steer, .steerTaken].contains(self)
@@ -86,6 +86,7 @@ enum ChatFixture {
             turns[1].reply = "I have no card for that shop yet. Add it in Crew?"
             return Transcript(turns: turns)
         }
+        if self == .paymentOfferHistory { return Self.storedOfferTranscript(now) }
         if self == .paymentNotice {
             var turns = Self.shoppingTurns(now, fill: #"{"success": false, "error_type": "payment_declined", "crew_payment": {"request_id": "x", "state": "expired", "fill": null, "fill_error": null}}"#)
             turns[1].reply = "Nobody answered within 5 minutes, so the payment request expired. Tell me when you want to try again."

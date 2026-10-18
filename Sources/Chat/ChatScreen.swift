@@ -12,7 +12,6 @@ struct ChatScreen: View {
     @Environment(ChatSessions.self) private var chats
     @Environment(ChatDrafts.self) private var drafts
     @State private var showsOffline = false
-    @State private var dismissedOffer: Turn.ID?
     @State private var addingShop: String?
 
     private var session: ChatSession? {
@@ -35,7 +34,7 @@ struct ChatScreen: View {
     }
 
     private var shopOffer: String? {
-        guard connection.supportsPayments, let turn = session?.transcript.turns.last, turn.id != dismissedOffer else { return nil }
+        guard connection.supportsPayments, let session, let turn = session.transcript.turns.last, turn.id != session.dismissedOffer else { return nil }
         return turn.missingShop
     }
 
@@ -72,12 +71,12 @@ struct ChatScreen: View {
                 expirePayment: { session?.expirePayment($0) },
                 dismissPaymentNotice: { session?.dismissEndedPayment() },
                 addShop: { addingShop = $0 },
-                dismissShopOffer: { dismissedOffer = session?.transcript.turns.last?.id }
+                dismissShopOffer: { session?.dismissedOffer = session?.transcript.turns.last?.id }
             )
         )
         .environment(\.chatSession, session)
         .sheet(item: Binding(get: { addingShop.map(ShopSite.init) }, set: { addingShop = $0?.id })) { site in
-            AddShopSheet(profile: bot.name, site: site.id) { shop in
+            AddShopSheet(profile: bot.name, site: site.id, alreadyAdded: { session?.sendHidden("I added \($0) to your shops. Continue the purchase.") }) { shop in
                 session?.sendHidden("I added \(shop.origin) to your shops. Continue the purchase.")
             }
         }

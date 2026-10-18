@@ -73,6 +73,15 @@ class PaymentPending(RuntimeError):
 
 
 def no_card_for(origin: str) -> str:
+    return (f"There is no card for {origin}. When your turn ends, Crew shows the user an Add Shop button for this "
+            "site; only the user can add it. Stop before choosing a payment method or placing the order, don't pay "
+            "another way, and don't call browser_vault again in this turn. Say in one line that this shop needs adding "
+            "in Crew, then end your turn. Don't ask the user to set up cards or payments by hand, or to confirm the "
+            "price just for paying: Crew asks them to approve the amount when you fill the card. When they add it, "
+            "Crew tells you to continue.")
+
+
+def add_in_crew(origin: str) -> str:
     return f"There is no card for {origin}. Tell the user they can add this shop in Crew, then wait."
 
 

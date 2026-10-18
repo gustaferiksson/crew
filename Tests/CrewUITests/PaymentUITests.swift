@@ -140,6 +140,17 @@ final class PaymentUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["https://www.zalando.de"].exists)
     }
 
+    @MainActor func testOfferFromAStoredTurnOpensAddShopFilledIn() {
+        let app = launch("chat-payment-offer-history")
+        let add = app.buttons["Add Shop…"]
+        XCTAssertTrue(add.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["Not Now"].exists)
+        add.tap()
+        let field = app.textFields.matching(NSPredicate(format: "value == %@", "www.zalando.de")).firstMatch
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["https://www.zalando.de"].exists)
+    }
+
     @MainActor func testAddCardValidatesSendsOnceAndForgetsTheFields() {
         let app = launch("inspector-shops-no-card")
         let addCard = app.buttons["Add Card…"]

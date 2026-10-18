@@ -469,7 +469,7 @@ class CrewPush:
 
     @quiet
     def transform_tool_result(self, *, tool_name: str = "", args: Any = None, result: Any = "",
-                              tool_call_id: str = "", task_id: str = "", **_: Any) -> str | None:
+                              tool_call_id: str = "", task_id: str = "", session_id: str = "", **_: Any) -> str | None:
         if tool_name != "browser_vault" or not isinstance(args, dict) or not isinstance(result, str):
             return None
         raw = json.loads(result)
@@ -492,8 +492,8 @@ class CrewPush:
                  if isinstance(item, dict) and item.get("kind") == "payment"}
         if not page or page in shops:
             return None
-        return json.dumps({**raw, "crew_payment": {"missing_shop": page}, "hint": payments.no_card_for(page)},
-                          ensure_ascii=False)
+        hint = payments.no_card_for(page) if self.in_bot_chat(session_id) else payments.add_in_crew(page)
+        return json.dumps({**raw, "crew_payment": {"missing_shop": page}, "hint": hint}, ensure_ascii=False)
 
     def in_bot_chat(self, session_id: str) -> bool:
         with self.lock:

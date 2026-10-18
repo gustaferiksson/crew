@@ -37,6 +37,7 @@ final class ChatSession {
     private(set) var endedPayment: String?
     private(set) var todos: [TodoItem] = []
     var returned: [String] = []
+    var dismissedOffer: Turn.ID?
     private(set) var generatingTool: String?
     private(set) var statusLine: String?
     private(set) var failure: String?

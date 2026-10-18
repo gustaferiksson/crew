@@ -38,6 +38,10 @@ FRAME_ERRORS = {
     "no_fields": "No payment form fields were found in Shopify's card frames.",
     "error": "Crew couldn't fill Shopify's card fields.",
 }
+FIELD_NAMES = {"cc-number": "card number", "cc-exp": "expiry date", "cc-exp-month": "expiry month",
+               "cc-exp-year": "expiry year", "cc-csc": "security code", "cc-name": "name on card"}
+FRAME_NEXT = (" Change no other checkout field now: Shopify can empty the card fields. If one still needs changing, "
+              "change it and call browser_vault fill again before paying; Crew asks the user again.")
 PARTIAL = (" Some card fields may hold card details already. Nothing was submitted. Tell the user to check the card "
            "fields and finish paying in the checkout themselves; do not retry the fill.")
 RETRY_LATER = ("This cancelled only this attempt. \"Never retry payment_declined\" means never retry on your own; "
@@ -349,6 +353,11 @@ def scrub(text: str, values: list[str]) -> str:
 
 
 def frame_result(code: str, filled: tuple[str, ...] = ()) -> dict[str, Any]:
+    if code == "not_kept":
+        names = " and ".join(FIELD_NAMES.get(token, token) for token in filled)
+        return {"success": False, "error": (f"Shopify emptied the {names} again after Crew filled it twice. Nothing was "
+                                            f"submitted. Tell the user to type the {names} in the checkout themselves "
+                                            "before paying; do not retry the fill.")}
     error = FRAME_ERRORS.get(code, FRAME_ERRORS["error"]) + (PARTIAL if filled or code == "error" else "")
     return {"success": False, "error": error, **({"error_type": code} if code in FILL_ERRORS else {})}
 
@@ -358,7 +367,7 @@ def decorate(raw: dict[str, Any], entry: dict[str, Any]) -> dict[str, Any]:
     out = {**raw, "crew_payment": {"request_id": entry["request_id"], "origin": entry["origin"], "state": entry["state"],
                                    "fill": fill, "fill_error": fill_error}}
     if fill == "filled":
-        out["next"] = NEXT
+        out["next"] = NEXT + (FRAME_NEXT if raw.get("card_fields") else "")
     if fill_error == "no_fields":
         out.update(success=False, error=NO_FRAME_FIELDS if raw.get("error") == FRAME_ERRORS["no_fields"] else NO_FIELDS)
     if raw.get("error_type") == "payment_declined" and entry["state"] in DECLINED:

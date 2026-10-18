@@ -411,6 +411,12 @@ class FakeCDP:
         self.unfocusable: set[str] = set()
         self.fail_on = ""
         self.keeps = 99
+        self.empties: list[str] = []
+
+    def settle(self) -> None:
+        if self.empties:
+            emptied = self.empties.pop(0)
+            self.typed = [(target, text) if target != emptied else (target, "") for target, text in self.typed]
 
     def call(self, method: str, params: dict[str, Any] | None = None, *, session_id: str | None = None,
              timeout: float = 10.0) -> dict[str, Any]:
@@ -458,13 +464,14 @@ TYPED = [("frame-3", "4242424242424242"), ("frame-4", "1234"), ("frame-5", "123"
 
 
 @pytest.fixture
-def shopify(hermes: Hermes) -> FakeCDP:
+def shopify(hermes: Hermes, monkeypatch: pytest.MonkeyPatch) -> FakeCDP:
     real = fixture("real/real-bombola-iframe-checkout.json")
     hermes.items["vault_bombola"] = types.SimpleNamespace(kind="payment", label=SHOP_LABEL, origin=SHOP,
                                                           allowed_origins=())
     hermes.page, hermes.tabs = SHOP, {SHOP}
     hermes.controls, hermes.frames = real["page"]["controls"], real["page"]["card_frames"]
     hermes.cdp = FakeCDP(fixture("real/real-bombola-card-frames.json"))
+    monkeypatch.setattr(frames, "time", types.SimpleNamespace(sleep=lambda seconds: hermes.cdp.settle()))
     return hermes.cdp
 
 
@@ -569,6 +576,24 @@ def test_a_field_that_cuts_the_value_stops_the_fill(push: CrewPush, hermes: Herm
     result = shop_result(push)
     assert result["crew_payment"]["fill_error"] == "error" and result["error"].endswith(payments.PARTIAL)
     assert shopify.typed == TYPED[:1]
+
+
+def test_a_security_code_shopify_empties_is_typed_again(push: CrewPush, hermes: Hermes, shopify: FakeCDP) -> None:
+    shopify.empties = ["frame-5"]
+    approve_shop(push, hermes)
+    assert shop_result(push) == fixture("fill-card-frames.json")
+    assert shopify.typed == [*TYPED[:2], ("frame-5", ""), TYPED[3], ("frame-5", "123")] and shopify.sessions == {}
+
+
+def test_a_security_code_shopify_keeps_emptying_is_named(push: CrewPush, hermes: Hermes, shopify: FakeCDP) -> None:
+    shopify.empties = ["frame-5", "frame-5"]
+    approve_shop(push, hermes)
+    result = shop_result(push)
+    assert (result["crew_payment"]["fill"], result["crew_payment"]["fill_error"]) == ("not_filled", "error")
+    assert result["error"] == ("Shopify emptied the security code again after Crew filled it twice. Nothing was "
+                               "submitted. Tell the user to type the security code in the checkout themselves before "
+                               "paying; do not retry the fill.")
+    assert [text for target, text in shopify.typed if target == "frame-5"] == ["", ""]
 
 
 def test_a_human_takeover_discards_the_frame_fill(push: CrewPush, hermes: Hermes, shopify: FakeCDP) -> None:

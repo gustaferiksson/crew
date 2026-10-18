@@ -77,6 +77,7 @@ final class Connection {
     let urlSession: URLSession
     private let cookieJar: HTTPCookieStorage
     private var statusTask: Task<Void, Never>?
+    private var interfaces: [String]?
 
     init() {
         let configuration = URLSessionConfiguration.ephemeral
@@ -105,7 +106,6 @@ final class Connection {
     }
 
     func monitorNetwork() async {
-        var interfaces: [String]?
         for await path in NWPathMonitor() {
             let previous = interfaces
             interfaces = path.status == .satisfied ? path.availableInterfaces.map(\.name) : nil
@@ -166,6 +166,11 @@ final class Connection {
             _ = try? await fetch(logout, with: urlSession, as: Empty.self)
         }
         endSession(nil)
+    }
+
+    func endFixtureSession() {
+        session = nil
+        state = .signedOut
     }
 
     private func startGateway(for session: StoredSession) {

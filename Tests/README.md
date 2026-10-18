@@ -4,7 +4,8 @@
 | --- | --- | --- |
 | Unit and scenario replay (macOS, unhosted) | `Tests/CrewTests` | `xcodebuild test -project Crew.xcodeproj -scheme CrewTests -derivedDataPath .build -destination 'platform=macOS,arch=arm64' -skipPackagePluginValidation -skipMacroValidation` |
 | crew-push hooks | `server/crew-push/tests` | `cd server/crew-push && python -m pytest -q` |
-| UI interactions (iOS Simulator only) | `Tests/CrewUITests` | `Tests/ui.sh` (`IOS_SIMULATOR=<name>` picks another iOS 27 device) |
+| UI interactions (iOS Simulator) | `Tests/CrewUITests` | `Tests/ui.sh` (`IOS_SIMULATOR=<name>` picks another iOS 27 device) |
+| Mac window interactions (never on the user's Mac) | `Tests/CrewMacUITests` | `xcodebuild test -scheme CrewMacUITests -destination 'platform=macOS,arch=arm64' CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual CODE_SIGN_ENTITLEMENTS=` on a CI runner |
 | Real-server probes | `Tests/chat_probe`, `Tests/bot_probe` | `Tests/chat_probe/run.sh <phase>` |
 
 CI runs all but the probes. The UI tests run in two parallel shards on simulators that boot while the app job builds, then reuse its build (`UI_DEVICE` in `Tests/ui.sh`). A change that touches only `docs/`, `server/crew-push/` or Markdown outside `Sources/` and `Tests/fixtures/` skips the app and UI jobs.
@@ -36,7 +37,7 @@ A scenario is one real flow recorded once from the server into `Tests/fixtures/s
 
 ## UI tests
 
-`CrewUITests` launches the app with `-snapshot <fixture> -server hermes.example.com -username gustaf`, so it renders fixture data and never touches the network. Find elements by their accessibility labels and values first (print `app.debugDescription` to see them) and add an `accessibilityIdentifier` only for elements you can't otherwise reach. It never runs on the Mac.
+`CrewUITests` launches the app with `-snapshot <fixture> -server hermes.example.com -username gustaf`, so it renders fixture data and never touches the network. Find elements by their accessibility labels and values first (print `app.debugDescription` to see them) and add an `accessibilityIdentifier` only for elements you can't otherwise reach. It never runs on the Mac. `CrewMacUITests` launches the macOS app with `-snapshot layout -uiTest YES -ApplePersistenceIgnoreState YES` (`-uiTest` keeps the regular activation policy and skips the capture) and drives real windows, so it only runs on a CI runner.
 
 ## Profiling
 

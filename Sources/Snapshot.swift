@@ -41,6 +41,9 @@ enum Snapshot: String {
     case chatA2UIMap = "chat-a2ui-map"
     case layout
     case layoutInspector = "layout-inspector"
+    case chatWindow = "chat-window"
+    case chatWindowInspector = "chat-window-inspector"
+    case chatWindowMissing = "chat-window-missing"
     case inspectorInfo = "inspector-info"
     case inspectorTasks = "inspector-tasks"
     case inspectorRoutines = "inspector-routines"
@@ -77,6 +80,8 @@ enum Snapshot: String {
     case addCardCover = "add-card-cover"
 
     static let requested = UserDefaults.standard.string(forKey: "snapshot").flatMap(Snapshot.init(rawValue:))
+    static let isInteractive = UserDefaults.standard.bool(forKey: "uiTest")
+
 
     var chatFixture: ChatFixture? {
         [.chat: .conversation, .chatHistory: .history, .chatSelection: .history, .chatTimestamps: .timestamps, .chatWorkLog: .workLog, .chatQuestion: .question, .chatQuestions: .questions, .chatQuestionsSnacks: .questionsSnacks, .chatOffline: .offline, .chatAttachments: .attachments, .chatDictation: .dictation, .chatMentions: .mentions, .composerLine: .composerLine, .composerLines: .composerLines, .composerRunning: .composerRunning, .composerRunningText: .composerRunningText, .chatSteer: .steer, .chatSteerTaken: .steerTaken, .chatWaiting: .waiting, .chatMentionPeek: .mentions, .chatMentionChat: .mentions, .chatAgentMessage: .agentMessage, .chatA2UI: .a2ui, .chatA2UICards: .a2uiCards, .chatA2UIForm: .a2uiForm, .chatA2UITable: .a2uiTable, .chatA2UIChart: .a2uiChart, .chatA2UIMap: .a2uiMap, .chatPayment: .payment, .chatPaymentHolding: .paymentHolding, .chatPaymentApproved: .paymentApproved, .chatPaymentLoading: .paymentLoading, .chatPaymentFailed: .paymentFailed, .chatPaymentUnverified: .paymentUnverified, .chatPaymentPunycode: .paymentPunycode, .chatPaymentCountdown: .paymentCountdown, .chatPaymentNotice: .paymentNotice, .chatPaymentOffer: .paymentOffer, .chatPaymentReceipts: .paymentReceipts][self]
@@ -102,7 +107,7 @@ enum Snapshot: String {
         if isShops || chatFixture?.isPayment == true {
             return Connection(fixture: .connected, server: self == .addCardHTTP ? URL(string: "http://hermes.local:9119")! : server, crewPush: PluginStatus(pluginVersion: "0.5.0", installId: "fixture", apnsConfigured: true, http2: true, devices: 2, features: ["payments", "card"], gate: true))
         }
-        if [.sidebar, .sidebarFlat, .sidebarDraft, .sidebarSearch, .searchResult, .layout, .layoutInspector, .inspectorLook, .profileSkills, .botPage, .notifications, .newBot, .groupChat, .groupWelcome, .groupInspector].contains(self) || chatFixture != nil || inspectorTab != nil { return Connection(fixture: .connected, server: server) }
+        if [.sidebar, .sidebarFlat, .sidebarDraft, .sidebarSearch, .searchResult, .layout, .layoutInspector, .chatWindow, .chatWindowInspector, .chatWindowMissing, .inspectorLook, .profileSkills, .botPage, .notifications, .newBot, .groupChat, .groupWelcome, .groupInspector].contains(self) || chatFixture != nil || inspectorTab != nil { return Connection(fixture: .connected, server: server) }
         if self == .unreachable { return Connection(fixture: .unreachable, server: server) }
         return Connection(fixture: .signedOut, server: server)
     }
@@ -147,7 +152,7 @@ enum Snapshot: String {
     }
 
     var selectedBot: Bot.ID? {
-        [.layout: "ada", .layoutInspector: "pixel", .searchResult: "default"][self]
+        [.layout: "ada", .layoutInspector: "pixel", .searchResult: "default", .chatWindow: "ada", .chatWindowInspector: "ada", .chatWindowMissing: "gone"][self]
     }
 
     var searchQuery: String? {
@@ -207,14 +212,25 @@ enum Snapshot: String {
 import AppKit
 
 extension Snapshot {
+    static func signOutAfterChatWindow(_ connection: Connection, _ scenes: Scenes) async {
+        guard isInteractive, UserDefaults.standard.bool(forKey: "signOutAfterChatWindow") else { return }
+        while scenes.chatWindows.isEmpty || NSApp.windows.filter(\.isVisible).count > 1, !Task.isCancelled { try? await Task.sleep(for: .milliseconds(200)) }
+        try? await Task.sleep(for: .seconds(1))
+        guard !Task.isCancelled else { return }
+        connection.endFixtureSession()
+    }
+
     func capture() async {
         NSApp.appearance = NSAppearance(named: UserDefaults.standard.string(forKey: "AppleInterfaceStyle") == "Dark" ? .darkAqua : .aqua)
+        guard !Snapshot.isInteractive else { return }
         guard let window = NSApp.windows.first(where: \.isVisible) else { exit(1) }
         window.isRestorable = false
         window.setFrameOrigin(NSPoint(x: -4000, y: 0))
         if self == .layoutInspector { window.setContentSize(NSSize(width: 860, height: 640)) }
         if self == .chatSelection { window.setContentSize(NSSize(width: 860, height: 900)) }
         if self == .chatTimestamps { window.setContentSize(NSSize(width: 560, height: 900)) }
+        if [.chatWindow, .chatWindowMissing].contains(self) { window.setContentSize(NSSize(width: 560, height: 640)) }
+        if self == .chatWindowInspector { window.setContentSize(NSSize(width: 900, height: 640)) }
         let height = UserDefaults.standard.double(forKey: "snapshotHeight")
         if height > 0 { window.setContentSize(NSSize(width: window.contentRect(forFrameRect: window.frame).width, height: height)) }
         try? await Task.sleep(for: .seconds(1.5))

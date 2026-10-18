@@ -214,7 +214,8 @@ def card_field_block(task_id: str, origin: str) -> dict[str, str] | None:
     inspect = _eval_js(task_id, build_inspection_js(secrets.token_hex(8)))
     controls = _parse_json_result(_parse_json_result(inspect.get("result")))
     if not inspect.get("success") or not isinstance(controls, list):
-        raise RuntimeError(f"could not inspect the page: {inspect.get('error')}")
+        return payments.block("crew_no_shop_card", f"Couldn't read the checkout on {origin}. Wait for it to load, "
+                                                   "then call browser_vault fill again.")
     classified = [classify_checkout_control(LoginControl.from_dict(raw)) for raw in controls if isinstance(raw, dict)]
     if any(control is not None and control.token == "cc-number" for control in classified):
         return None
@@ -237,10 +238,10 @@ def shop_tab_block(task_id: str, origins: list[str]) -> dict[str, str] | None:
         if not browser_open(task_id) or _ensure_supervisor(task_id) is None:
             return no_page_block(origins[0])
         focused = next((origin for origin in origins if _focus_bound_origin(task_id, origin, "payment")), None)
-        if focused:
-            return card_field_block(task_id, focused)
+        page = focused or _current_page_origin(task_id)
+        if page in origins:
+            return card_field_block(task_id, page)
         offer = card_page_origin(task_id)
-        page = _current_page_origin(task_id)
     except Exception:
         log.warning("crew-push: could not read the browser for a payment fill, blocking it", exc_info=True)
         return no_page_block(origins[0])
@@ -250,10 +251,6 @@ def shop_tab_block(task_id: str, origins: list[str]) -> dict[str, str] | None:
                                                    "they can finish paying themselves; do not retry the fill.")
     if offer and offer not in origins:
         return payments.block("crew_no_shop_card", payments.no_card_for(offer), missing_shop=offer)
-    if page in origins:
-        return payments.block("crew_no_shop_card", f"No open tab on {page} shows card fields. Open the shop's "
-                                                   "checkout there; if its card fields sit in a payment frame, they "
-                                                   "can't be filled, so tell the user.")
     return no_page_block(origins[0])
 
 

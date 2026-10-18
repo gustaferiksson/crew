@@ -56,7 +56,7 @@ class Hermes:
 
     def eval_js(self, task_id: str, expression: str) -> dict[str, Any]:
         if expression.startswith("inspect:"):
-            return {"success": True, "result": json.dumps(self.controls)}
+            return {"success": True, "result": json.dumps(self.controls if self.card_fields else [])}
         if expression == hooks.CARD_FRAMES_JS:
             return {"success": True, "result": json.dumps(self.frames)}
         return {"success": True, "result": self.card_fields}
@@ -82,7 +82,7 @@ def hermes(monkeypatch: pytest.MonkeyPatch, hermes_root: Path, bot_chat: dict[st
         "agent.vault_login_classifier": types.SimpleNamespace(
             LoginControl=types.SimpleNamespace(from_dict=lambda raw: raw),
             build_inspection_js=lambda nonce: f"inspect:{nonce}",
-            classify_checkout_control=lambda raw: types.SimpleNamespace(token=raw["autocomplete"])
+            classify_checkout_control=lambda raw: types.SimpleNamespace(token=raw["autocomplete"].split()[-1])
             if raw.get("autocomplete") else None),
         "tools": types.ModuleType("tools"),
         "tools.approval": types.SimpleNamespace(list_gateway_approvals=lambda key: [
@@ -170,11 +170,12 @@ def test_blocks_in_order(push: CrewPush, hermes: Hermes, hermes_root: Path, bot_
     store.mutate_payments(lambda entries: [{"request_id": "d" * 32, "session_id": SESSION, "state": "denied",
                                             "decided_at": 1e12}])
     hermes.tabs.clear()
+    hermes.card_fields = False
     args = {"action": "fill", "handle": "vault_3f9a1c2b7d4e"}
     seen = []
     fixes = [lambda: store.write_gate(True), lambda: bot_chat.update(id=SESSION, tip=SESSION),
              hermes.pending.clear, lambda: store.mutate_payments(lambda entries: []), lambda: args.update(DETAILS),
-             lambda: hermes.tabs.add(ORIGIN)]
+             lambda: (hermes.tabs.add(ORIGIN), setattr(hermes, "card_fields", True))]
     for fix in fixes:
         seen.append(code(fill(push, args)))
         fix()
@@ -394,8 +395,9 @@ def test_shop_pay_page_blocks_without_an_offer(push: CrewPush, hermes: Hermes) -
 
 
 def test_an_uninspectable_shop_tab_blocks(push: CrewPush, hermes: Hermes) -> None:
-    hermes.controls = "not a list"
-    assert "browser_exec" in message(fill(push))
+    hermes.controls = {"error": "not a list"}
+    body = json.loads(fill(push)["message"])
+    assert body["error_type"] == "crew_no_shop_card" and body["error"].startswith(f"Couldn't read the checkout on {ORIGIN}")
 
 
 def message(directive: dict[str, str] | None) -> str:

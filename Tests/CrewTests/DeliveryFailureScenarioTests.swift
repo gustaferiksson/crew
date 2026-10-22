@@ -139,6 +139,16 @@ private func peekOutcome(_ transcript: Transcript) throws -> MentionExchange.Out
     #expect(shown.allSatisfy { $0.agentMessage == nil && $0.deliveryFailure == nil })
 }
 
+@Test func unconfirmedFollowUpWithoutItsOriginStillShows() {
+    let start = Date(timeIntervalSince1970: 1_792_136_000)
+    let notice = "[IMPORTANT: Background process proc_ab12 exited (exit code 1).\nCommand: /opt/hermes/.venv/bin/python /opt/hermes/tools/bot_mode_dm.py --run-delivery --wait-reply /tmp/r.json '@scout on mini' 600\nOutput:\nNo reply from @scout on mini within 600s. The message may still be delivered when the Desktop reconnects; do not resend blindly.\n]"
+    let transcript = Transcript(turns: [
+        Turn(id: "t2", delivery: "proc_ab12", deliveryFailure: DeliveryFailure(notice: notice), status: .complete, startedAt: start),
+        Turn(id: "t3", prompt: Prompt(text: "Any news?", sentAt: start.addingTimeInterval(60)), status: .complete, startedAt: start.addingTimeInterval(60)),
+    ])
+    #expect(transcript.visible.turns.first?.deliveryFailure?.isUnconfirmed == true)
+}
+
 @Test func exitZeroWithAFailedStatusIsAFailure() {
     let notice = "[IMPORTANT: Background process proc_51ab completed normally (exit code 0).\nCommand: /opt/hermes/.venv/bin/python /opt/hermes/tools/bot_mode_dm.py --run-delivery query-file /tmp/dm\nOutput:\n" + #"{"error": "busy", "reason": "target_busy", "status": "failed"}"# + "\nsession_id: 20261022_1\n]"
     #expect(DeliveryFailure(notice: notice) == DeliveryFailure(reason: "target_busy", detail: "busy"))

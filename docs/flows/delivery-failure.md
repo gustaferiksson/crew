@@ -15,7 +15,7 @@ Headline by class, then one sentence. Hermes retries `runtime_offline`, `deliver
 
 | Class | Headline |
 | --- | --- |
-| No turn ran: `runtime_offline`, `queued_expired`, `target_busy`, `cancelled`, `target_scope_unresolved` | Not delivered. |
+| No turn ran: `runtime_offline`, `queued_expired`, `target_busy`, `cancelled`, `agent_blocked`, `target_scope_unresolved` | Not delivered. |
 | The target got the message but its turn failed: every other known code | <Bot> couldn't answer. |
 | `unknown`, missing, or a code Crew doesn't know | Message to <Bot> failed. |
 | Outcome unknown (see above) | Delivery to <Bot> couldn't be confirmed. |

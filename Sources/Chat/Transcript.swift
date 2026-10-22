@@ -214,7 +214,7 @@ nonisolated extension DeliveryFailure {
 
     func headline(for bot: String) -> String {
         if isUnconfirmed { return String(localized: "Delivery to \(bot) couldn't be confirmed.") }
-        if ["runtime_offline", "queued_expired", "target_busy", "cancelled", "target_scope_unresolved"].contains(reason ?? "") { return String(localized: "Not delivered.") }
+        if ["runtime_offline", "queued_expired", "target_busy", "cancelled", "agent_blocked", "target_scope_unresolved"].contains(reason ?? "") { return String(localized: "Not delivered.") }
         if explanation(for: bot) != nil { return String(localized: "\(bot) couldn't answer.") }
         return String(localized: "Message to \(bot) failed.")
     }
@@ -277,8 +277,7 @@ extension Transcript {
             }
             let origin = originIndex.map { turns[$0] }
             let handle = origin?.work.first { item in if case .tool(let call) = item.kind { call.result?.contains(delivery) == true } else { false } }?.messagedHandle
-            let isUnconfirmed = turn.deliveryFailure?.isUnconfirmed == true
-            let repliedLater = isUnconfirmed && turns[position...].contains { $0.agentMessage?.handle == handle }
+            let repliedLater = turn.deliveryFailure?.isUnconfirmed == true && handle != nil && turns[(position + 1)...].contains { $0.agentMessage?.handle == handle }
             if !repliedLater { awaited.removeAll { $0.origin == origin?.id } }
             var followUp = turn
             followUp.deliveryFailure?.target = handle

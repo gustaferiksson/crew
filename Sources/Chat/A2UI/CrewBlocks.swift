@@ -11,10 +11,12 @@ struct CrewHeader: View {
         let tint = crewTones[node.string(for: "tone") ?? ""] ?? .accentColor
         VStack(alignment: .leading, spacing: 16) {
             if let url = node.string(for: "image").flatMap(URL.init(string:)), url.scheme == "https" {
-                AsyncImage(url: url) { image in
-                    image.resizable().scaledToFill()
-                } placeholder: {
-                    Rectangle().fill(.fill.tertiary)
+                CachedImage(url: url) { phase in
+                    if case .success(let image) = phase {
+                        image.resizable().scaledToFill()
+                    } else {
+                        Rectangle().fill(.fill.tertiary)
+                    }
                 }
                 .frame(height: 160)
                 .frame(maxWidth: .infinity)
@@ -43,6 +45,24 @@ struct CrewHeader: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.isHeader)
+    }
+}
+
+struct CrewImage: View {
+    let node: Node
+
+    var body: some View {
+        if let url = node.string(for: "url").flatMap(URL.init(string:)), url.scheme == "https" {
+            CardImage(url: url, variant: node.string(for: "variant") ?? "mediumFeature", fit: node.string(for: "fit") ?? "fill")
+                .accessibilityElement()
+                .accessibilityLabel(node.string(for: "description") ?? "Image")
+                .accessibilityAddTraits(.isImage)
+        } else {
+            Image(systemName: "photo")
+                .font(.largeTitle)
+                .foregroundStyle(.secondary)
+                .frame(minWidth: 40, minHeight: 40)
+        }
     }
 }
 

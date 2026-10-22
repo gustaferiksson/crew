@@ -52,7 +52,9 @@ struct Composer: View {
     @State private var isImportingFiles = false
     @State private var photos: [PhotosPickerItem] = []
     @State private var showsHoldHint = false
+    #if os(iOS)
     @State private var selection: TextSelection?
+    #endif
     @GestureState private var hold: Hold?
     let isFocused: FocusState<Bool>.Binding
 
@@ -183,6 +185,15 @@ struct Composer: View {
         #endif
     }
 
+    private var textField: TextField<Text> {
+        #if os(macOS)
+        // On macOS a `selection:` binding follows every NSTextView's selection change, so a reply arriving moved the caret (#106).
+        TextField("Message \(botName)", text: $draft, axis: .vertical)
+        #else
+        TextField("Message \(botName)", text: $draft, selection: $selection, axis: .vertical)
+        #endif
+    }
+
     private var attachMenu: some View {
         Menu {
             Button("Photos", systemImage: "photo.on.rectangle") { isPickingPhotos = true }
@@ -233,7 +244,7 @@ struct Composer: View {
                 }
                 .frame(maxWidth: .infinity, minHeight: fieldHeight, alignment: .leading)
             } else {
-                TextField("Message \(botName)", text: $draft, selection: $selection, axis: .vertical)
+                textField
                     .textFieldStyle(.plain)
                     .lineLimit(1...6)
                     .padding(.vertical, 8)
@@ -241,7 +252,11 @@ struct Composer: View {
                     .focused(isFocused)
                     .onKeyPress(.return, phases: .down) { press in
                         if press.modifiers.contains(.shift) {
+                            #if os(macOS)
+                            NSApp.sendAction(#selector(NSResponder.insertNewlineIgnoringFieldEditor(_:)), to: nil, from: nil)
+                            #else
                             selection = draft.insertNewLine(at: selection)
+                            #endif
                             return .handled
                         }
                         guard canSend, !isOffline else { return .ignored }

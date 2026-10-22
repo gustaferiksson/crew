@@ -69,4 +69,13 @@ final class ComposerCaretUITests: XCTestCase {
         attach(app, "caret-after-steer")
         expectValue("Post the staging rollout", of: field, "typing continues at the caret after a steer is taken")
     }
+
+    @MainActor func testShiftReturnInsertsALineAtTheCaret() {
+        let (_, field) = launch()
+        field.typeText("Use the context")
+        moveLeft(7, in: field)
+        field.typeKey(.return, modifierFlags: .shift)
+        field.typeText("staging")
+        expectValue("Use the \nstagingcontext", of: field, "Shift+Return inserts a line at the caret instead of sending")
+    }
 }

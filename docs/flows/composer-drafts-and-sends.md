@@ -43,6 +43,7 @@ Seven user reports from the iPhone, fixed together because they all live in the 
 - **Mac:** unchanged (field, separate Stop circle, Send circle, 16 pt margins). The Mac field already fills the row, has no keyboard and is not part of the reports; it keeps its layout until it is rendered and judged on its own.
 - **Locked values:** the composer height (40 pt iOS field) and bottom offset stay; the iOS side margin changes from 28 to 16 pt; a new locked line records the in-field action (32 pt circle, 4 pt inset, bottom trailing, iOS).
 - **Shift+Return** (Mac, and iPad with a hardware keyboard) inserts a new line at the cursor, replacing a selection; Return alone sends (steer while running), as before.
+- **The caret stays put** while the bot works: a reply arriving, the turn finishing, Stop and a steer being taken never move the insertion point or the selection (#106). On the Mac the field has no `selection:` binding, because SwiftUI applies every NSTextView's selection change to it (a reply's text view showing moved the caret to the start); Shift+Return there sends AppKit's `insertNewlineIgnoringFieldEditor`. Covered by `ComposerCaretTests` (unit, Mac) and `ComposerCaretUITests` (Mac UI, CI) plus `ComposerUITests.testTypingContinuesAtTheCaretWhenTheTurnFinishes` (iPhone).
 - **Accessibility:** Send, Stop, Steer and Dictate keep their labels; the long-press menu is also reachable as the accessibility actions "Steer" and "Queue".
 
 ## 5. Steer and queued messages are user bubbles

@@ -225,9 +225,7 @@ def card_field_block(task_id: str, origin: str) -> tuple[dict[str, str] | None, 
         return None, frames.CARD_FIELDS_BY[frames.SHOPIFY_PCI]
     if frame := next(iter(origins), ""):
         return payments.block("crew_no_shop_card", f"The card fields on {origin} sit in a payment frame from {frame}, "
-                                                   "which Crew can't fill yet. Nothing was asked or charged. Tell the "
-                                                   "user they can finish paying in the checkout themselves; do not "
-                                                   "retry the fill."), ""
+                                                   f"which Crew can't fill yet. {payments.NOT_ORDERED}"), ""
     return payments.block("crew_no_shop_card", f"No open tab on {origin} shows card fields. Open the shop's checkout "
                                                "there; if its card fields sit in a payment frame, they can't be "
                                                "filled, so tell the user."), ""
@@ -249,8 +247,7 @@ def shop_tab_block(task_id: str, origins: list[str]) -> tuple[dict[str, str] | N
         return no_page_block(origins[0]), ""
     if page in SHOP_PAY_ORIGINS:
         return payments.block("crew_no_shop_card", f"The checkout moved to Shop Pay ({page}), not {origins[0]}, so "
-                                                   "Crew can't pay there. Nothing was asked or charged. Tell the user "
-                                                   "they can finish paying themselves; do not retry the fill."), ""
+                                                   f"Crew can't pay there. {payments.NOT_ORDERED}"), ""
     if offer and offer not in origins:
         return payments.block("crew_no_shop_card", payments.no_card_for(offer), missing_shop=offer), ""
     return no_page_block(origins[0]), ""

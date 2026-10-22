@@ -1,9 +1,9 @@
 import XCTest
 
 final class ComposerUITests: XCTestCase {
-    @MainActor private func launch(_ snapshot: String) -> XCUIApplication {
+    @MainActor private func launch(_ snapshot: String, _ extra: [String] = []) -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["-snapshot", snapshot, "-server", "hermes.example.com", "-username", "gustaf"]
+        app.launchArguments = ["-snapshot", snapshot, "-server", "hermes.example.com", "-username", "gustaf"] + extra
         app.launch()
         return app
     }
@@ -46,5 +46,14 @@ final class ComposerUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Stopped"].waitForExistence(timeout: 5))
         XCTAssertEqual(stops.count, 0)
         XCTAssertTrue(app.buttons["Send"].exists)
+    }
+
+    @MainActor func testTypingContinuesAtTheCaretWhenTheTurnFinishes() {
+        let app = launch("composer-running", ["-finishTurnAfterDraft", "Use the staging context"])
+        let field = type("Use the staging context", in: app)
+        XCTAssertTrue(app.staticTexts["Deployed to staging."].waitForExistence(timeout: 10), "the turn finished")
+        XCTAssertTrue(app.buttons["Send"].waitForExistence(timeout: 5), "the composer left the running state")
+        field.typeText(" now")
+        XCTAssertEqual(field.value as? String, "Use the staging context now")
     }
 }

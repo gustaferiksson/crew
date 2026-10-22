@@ -331,6 +331,7 @@ struct ChatFixtureScreen: View {
     @State private var tray: AttachmentTray
 
     private static let requestAfterDraft = UserDefaults.standard.string(forKey: "requestAfterDraft")
+    private static let finishTurnAfterDraft = UserDefaults.standard.string(forKey: "finishTurnAfterDraft")
 
     private static let hermes = Bot(
         name: "default", displayName: "Hermes", description: nil, model: nil, isDefault: true, hasAvatar: false, canonicalSession: nil,
@@ -396,6 +397,7 @@ struct ChatFixtureScreen: View {
         .environment(\.chatSession, session)
         .onChange(of: draft) {
             if draft == Self.requestAfterDraft { request = fixture.request }
+            if draft == Self.finishTurnAfterDraft { transcript.apply(.messageComplete(text: "Deployed to staging.", status: .complete, error: nil)) }
         }
         .sheet(isPresented: $addingShop) {
             AddShopSheet(profile: "default", site: shopOffer ?? "") { _ in }

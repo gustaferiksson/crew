@@ -2,7 +2,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 enum ChatFixture {
-    case conversation, history, timestamps, workLog, question, questions, questionsSnacks, offline, attachments, dictation, mentions, agentMessage, a2ui, a2uiCards, a2uiForm, a2uiTable, a2uiChart, a2uiMap
+    case conversation, history, timestamps, workLog, question, questions, questionsSnacks, offline, attachments, dictation, mentions, agentMessage, a2ui, a2uiCards, a2uiForm, a2uiTable, a2uiChart, a2uiMap, a2uiCarousel
     case composerLine, composerLines, composerRunning, composerRunningText, steer, steerTaken, waiting
     case payment, paymentHolding, paymentApproved, paymentLoading, paymentFailed, paymentUnverified, paymentPunycode, paymentCountdown, paymentNotice, paymentOffer, paymentOfferHistory, paymentReceipts
 
@@ -18,6 +18,7 @@ enum ChatFixture {
         if self == .a2uiTable { return ChatPresentation(scrollTarget: "a5") }
         if self == .a2uiChart { return ChatPresentation(scrollTarget: "a4") }
         if self == .a2uiMap { return ChatPresentation(scrollTarget: "a7") }
+        if self == .a2uiCarousel { return ChatPresentation(scrollTarget: "a8") }
         if self == .timestamps { return ChatPresentation(revealsTimestamps: true, scrollTarget: "t2") }
         if self == .workLog { return ChatPresentation(expandedTurns: ["t4"], expandedWork: ["t4-w0", "t4-w2"], scrollTarget: "t4") }
         if self == .attachments {
@@ -78,7 +79,7 @@ enum ChatFixture {
             return Transcript(turns: earlier.reversed() + turns)
         }
         if [.offline, .history, .dictation, .composerLines].contains(self) { return Transcript(turns: turns) }
-        if [.a2ui, .a2uiCards, .a2uiForm, .a2uiTable, .a2uiChart, .a2uiMap].contains(self) { return Transcript(turns: Self.a2uiTurns(now)) }
+        if [.a2ui, .a2uiCards, .a2uiForm, .a2uiTable, .a2uiChart, .a2uiMap, .a2uiCarousel].contains(self) { return Transcript(turns: Self.a2uiTurns(now)) }
         if self == .paymentReceipts { return Transcript(turns: Self.receiptTurns(now)) }
         if self == .paymentOffer {
             let offer = #"{"error": "{\"success\": false, \"error_type\": \"crew_no_shop_card\", \"crew_payment\": {\"missing_shop\": \"https://www.zalando.de\"}, \"error\": \"There is no card for https://www.zalando.de.\"}"}"#

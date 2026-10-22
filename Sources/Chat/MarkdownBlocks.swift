@@ -39,6 +39,10 @@ nonisolated func markdownBlocks(from source: String) -> [MarkdownBlock] {
     }
 }
 
+nonisolated func cardMarkdown(_ source: String) -> AttributedString {
+    (try? AttributedString(markdown: source, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))) ?? AttributedString(source)
+}
+
 nonisolated func a2uiFenced(_ text: String) -> String {
     text.replacing(/<a2ui-json>\s*(?:```[a-z]*\n)?(?<body>[\s\S]*?)\s*(?:```\s*)?<\/a2ui-json>/) { "```a2ui\n\($0.output.body)\n```" }
 }

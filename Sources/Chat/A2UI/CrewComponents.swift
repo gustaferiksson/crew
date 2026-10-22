@@ -9,7 +9,7 @@ struct CrewText: View {
     var body: some View {
         let source = node.string(for: "text") ?? ""
         let variant = node.string(for: "variant") ?? "body"
-        let text = Text((try? AttributedString(markdown: source, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))) ?? AttributedString(source))
+        let text = Text(cardMarkdown(source))
         if variant == "caption" {
             text.font(.footnote).foregroundStyle(.secondary)
         } else if variant == "h5" {

@@ -15,22 +15,25 @@ final class CarouselUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "#")).firstMatch.exists)
         let screen = app.windows.firstMatch.frame
         let current = { tiles.lastIndex { $0.exists && $0.frame.minX >= screen.minX && $0.frame.maxX <= screen.maxX } }
+        let photo = { (tile: XCUIElement) in tile.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.15)) }
         XCTAssertEqual(current(), 0)
-
-        let header = app.staticTexts["Brown sheepskin slippers"]
-        XCTAssertTrue(header.exists)
-        let headerY = header.frame.minY
-        tiles[0].swipeDown(velocity: .slow)
-        XCTAssertGreaterThan(header.frame.minY, headerY + 40, "a vertical drag on the carousel should scroll the transcript")
-        XCTAssertEqual(current(), 0, "a vertical drag should not page the carousel")
 
         var seen: Set<Int> = [0]
         for _ in 0..<8 {
             guard let index = current(), index < titles.count - 1 else { break }
-            tiles[index].swipeLeft(velocity: .slow)
+            let start = photo(tiles[index])
+            start.press(forDuration: 0.05, thenDragTo: start.withOffset(CGVector(dx: -220, dy: 0)))
             if let landed = current() { seen.insert(landed) }
         }
         XCTAssertEqual(seen, Set(titles.indices), "every item should be reachable by swiping")
         XCTAssertEqual(current(), titles.count - 1, "the last tile should settle fully visible")
+
+        let header = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", "Brown sheepskin slippers")).firstMatch
+        XCTAssertTrue(header.exists)
+        let headerY = header.frame.minY
+        let start = photo(tiles[titles.count - 1])
+        start.press(forDuration: 0.05, thenDragTo: start.withOffset(CGVector(dx: 0, dy: 150)))
+        XCTAssertGreaterThan(header.frame.minY, headerY + 40, "a vertical drag on the carousel should scroll the transcript")
+        XCTAssertEqual(current(), titles.count - 1, "a vertical drag should not page the carousel")
     }
 }

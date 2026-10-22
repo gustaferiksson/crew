@@ -47,6 +47,7 @@ struct CrewCard: View {
                 ComponentNodeView(node: child)
             } else {
                 ComponentNodeView(node: child)
+                    .environment(\.carouselBleed, 0)
                     .padding(16)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(.fill.quaternary, in: .rect(cornerRadius: 16))

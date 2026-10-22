@@ -40,6 +40,7 @@ enum Snapshot: String {
     case chatA2UIChart = "chat-a2ui-chart"
     case chatA2UIMap = "chat-a2ui-map"
     case chatA2UICarousel = "chat-a2ui-carousel"
+    case chatA2UICarouselStates = "chat-a2ui-carousel-states"
     case layout
     case layoutInspector = "layout-inspector"
     case chatWindow = "chat-window"
@@ -95,7 +96,7 @@ enum Snapshot: String {
     static let scrollsToBottom = requested != nil && UserDefaults.standard.bool(forKey: "snapshotBottom")
 
     var chatFixture: ChatFixture? {
-        [.chat: .conversation, .chatHistory: .history, .chatSelection: .history, .chatTimestamps: .timestamps, .chatWorkLog: .workLog, .chatQuestion: .question, .chatQuestions: .questions, .chatQuestionsSnacks: .questionsSnacks, .chatOffline: .offline, .chatAttachments: .attachments, .chatDictation: .dictation, .chatMentions: .mentions, .composerLine: .composerLine, .composerLines: .composerLines, .composerRunning: .composerRunning, .composerRunningText: .composerRunningText, .chatSteer: .steer, .chatSteerTaken: .steerTaken, .chatWaiting: .waiting, .chatMentionPeek: .mentions, .chatMentionChat: .mentions, .chatAgentMessage: .agentMessage, .chatA2UI: .a2ui, .chatA2UICards: .a2uiCards, .chatA2UIForm: .a2uiForm, .chatA2UITable: .a2uiTable, .chatA2UIChart: .a2uiChart, .chatA2UIMap: .a2uiMap, .chatA2UICarousel: .a2uiCarousel, .chatPayment: .payment, .chatPaymentHolding: .paymentHolding, .chatPaymentApproved: .paymentApproved, .chatPaymentLoading: .paymentLoading, .chatPaymentFailed: .paymentFailed, .chatPaymentUnverified: .paymentUnverified, .chatPaymentPunycode: .paymentPunycode, .chatPaymentCountdown: .paymentCountdown, .chatPaymentNotice: .paymentNotice, .chatPaymentOffer: .paymentOffer, .chatPaymentOfferHistory: .paymentOfferHistory, .chatPaymentReceipts: .paymentReceipts][self]
+        [.chat: .conversation, .chatHistory: .history, .chatSelection: .history, .chatTimestamps: .timestamps, .chatWorkLog: .workLog, .chatQuestion: .question, .chatQuestions: .questions, .chatQuestionsSnacks: .questionsSnacks, .chatOffline: .offline, .chatAttachments: .attachments, .chatDictation: .dictation, .chatMentions: .mentions, .composerLine: .composerLine, .composerLines: .composerLines, .composerRunning: .composerRunning, .composerRunningText: .composerRunningText, .chatSteer: .steer, .chatSteerTaken: .steerTaken, .chatWaiting: .waiting, .chatMentionPeek: .mentions, .chatMentionChat: .mentions, .chatAgentMessage: .agentMessage, .chatA2UI: .a2ui, .chatA2UICards: .a2uiCards, .chatA2UIForm: .a2uiForm, .chatA2UITable: .a2uiTable, .chatA2UIChart: .a2uiChart, .chatA2UIMap: .a2uiMap, .chatA2UICarousel: .a2uiCarousel, .chatA2UICarouselStates: .a2uiCarouselStates, .chatPayment: .payment, .chatPaymentHolding: .paymentHolding, .chatPaymentApproved: .paymentApproved, .chatPaymentLoading: .paymentLoading, .chatPaymentFailed: .paymentFailed, .chatPaymentUnverified: .paymentUnverified, .chatPaymentPunycode: .paymentPunycode, .chatPaymentCountdown: .paymentCountdown, .chatPaymentNotice: .paymentNotice, .chatPaymentOffer: .paymentOffer, .chatPaymentOfferHistory: .paymentOfferHistory, .chatPaymentReceipts: .paymentReceipts][self]
     }
 
     var isShops: Bool {
@@ -255,7 +256,7 @@ extension Snapshot {
         if [.chatWindow, .chatWindowMissing].contains(self) { window.setContentSize(NSSize(width: 560, height: 640)) }
         if self == .chatWindowInspector { window.setContentSize(NSSize(width: 900, height: 640)) }
         if height > 0 { window.setContentSize(NSSize(width: window.contentRect(forFrameRect: window.frame).width, height: height)) }
-        try? await Task.sleep(for: .seconds(1.5))
+        try? await Task.sleep(for: .seconds([.chatA2UICarousel, .chatA2UICarouselStates].contains(self) ? 6 : 1.5))
         if self == .chatSelection, let reply = window.contentView.map(replyTextViews)?.first(where: { $0.string.contains("Merino") }) {
             let text = reply.string as NSString
             let start = text.range(of: "Expect").location
@@ -322,7 +323,7 @@ extension Notification.Name {
 #else
 extension Snapshot {
     func capture() async {
-        try? await Task.sleep(for: .seconds(1.5))
+        try? await Task.sleep(for: .seconds([.chatA2UICarousel, .chatA2UICarouselStates].contains(self) ? 6 : 1.5))
         print("ready")
         fflush(stdout)
     }

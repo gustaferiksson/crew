@@ -18,9 +18,28 @@ extension ChatFixture {
             turn("a4", "Compare the last 7 days of weather in Stockholm as a chart", nil, weatherReply, 5),
             turn("a7", "What are the best coffee spots on Södermalm? Show them on a map.", nil, coffeeReply, 3),
             turn("a6", "Book us a table at Lilla Ego on Friday", nil, "Fill in the details and I'll send the request.\n\n```a2ui\n\(skillExamples[2])\n```", 1),
-            turn("a8", "I am looking for fluffy brown sheepskin slippers under 500 kr, size 36/37, from shops that deliver to Sweden. Find 3 or 4 real options with photos and links and show them as a card.", nil, slippersReply, 0.5),
+            turn("a9", "Any other picks? Keep it short.", nil, "Two more, one without a photo.\n\n```a2ui\n\(carouselStatesBlock)\n```", 0.7),
+            turn("a8","I am looking for fluffy brown sheepskin slippers under 500 kr, size 36/37, from shops that deliver to Sweden. Find 3 or 4 real options with photos and links and show them as a card.", nil, slippersReply, 0.5),
         ]
     }
+
+    private static let carouselStatesBlock = #"""
+        [
+          {"version":"v0.9","createSurface":{"surfaceId":"carousel-states","catalogId":"https://crew.gustaf.dev/catalogs/crew/v1.json"}},
+          {"version":"v0.9","updateComponents":{"surfaceId":"carousel-states","components":[
+            {"id":"root","component":"Card","child":"body"},
+            {"id":"body","component":"Column","children":["header","note","pair","single-title","single"]},
+            {"id":"header","component":"Header","title":"More slippers","subtitle":"2 more options","symbol":"bag.fill","tone":"warning"},
+            {"id":"note","component":"Text","text":"### 1. [Evi Beige, Jakobs Handmade](https://jakobshandmade.se) · 235 kr\n36 och 37 finns tillgängliga."},
+            {"id":"pair","component":"Carousel","items":[
+              {"title":"Evi Beige with an exceptionally long product name that wraps past two lines","subtitle":"Jakobs Handmade, Borås, Sweden, family workshop","price":"235 kr","badge":"Cheapest","tone":"success","image":"https://example.com/evi.jpg","url":"https://jakobshandmade.se","text":"Warm light-brown suede with a fluffy sheepskin collar, handmade by a family business in northern Greece, which makes this sentence far too long for three lines."},
+              {"title":"Glerups Slip-on","subtitle":"Glerups","price":"495 kr","text":"Felted wool, no photo given."}
+            ]},
+            {"id":"single-title","component":"Text","text":"Single item","variant":"h4"},
+            {"id":"single","component":"Carousel","items":[{"title":"Only one pick","subtitle":"No link","text":"A single item fills the width, with no dots and no peek."}]}
+          ]}}
+        ]
+        """#
 
     private static let slippersReply = #"""
         **Idun is the fluffiest match**, while **Sandefjord offers both EU 36 and 37**. These four genuine sheepskin options are all from Haika, which delivers in Sweden in 2–4 days. Prices are under 500 kr **before shipping**; the other three models start at EU 37.

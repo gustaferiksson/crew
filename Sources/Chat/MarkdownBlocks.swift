@@ -40,7 +40,22 @@ nonisolated func markdownBlocks(from source: String) -> [MarkdownBlock] {
 }
 
 nonisolated func cardMarkdown(_ source: String) -> AttributedString {
-    (try? AttributedString(markdown: source, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))) ?? AttributedString(source)
+    let parse = { (text: Substring) in
+        (try? AttributedString(markdown: String(text), options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))) ?? AttributedString(text)
+    }
+    guard source.contains(/^#{1,6}[ \t]/.anchorsMatchLineEndings()) else { return parse(source[...]) }
+    let lines = source.split(separator: "\n", omittingEmptySubsequences: false).map { line in
+        guard let marker = line.prefixMatch(of: /#{1,6}[ \t]+/) else { return parse(line) }
+        var heading = parse(line[marker.range.upperBound...])
+        for run in heading.runs {
+            heading[run.range].inlinePresentationIntent = (run.inlinePresentationIntent ?? []).union(.stronglyEmphasized)
+        }
+        return heading
+    }
+    return lines.dropFirst().reduce(into: lines[0]) { text, line in
+        text.append(AttributedString("\n"))
+        text.append(line)
+    }
 }
 
 nonisolated func a2uiFenced(_ text: String) -> String {

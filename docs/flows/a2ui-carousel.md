@@ -62,7 +62,7 @@ Items are data, not child component ids, so every item has the same layout and t
 - **Image loading / failed / offline:** the backdrop with a small progress view while loading; on failure or offline, the `photo` symbol. The card itself never fails over an image.
 - **Long title:** 2 lines, tail truncation. **Long subtitle:** 1 line, truncated, price never truncated. **Long text:** 3 lines, tail truncation. VoiceOver reads the full strings.
 - **Missing url:** no Open label, no context menu; the tile is not a button. Non-https url: treated as missing.
-- **Large Dynamic Type:** tiles grow taller (equal height, the tallest wins); widths stay; dots stay one row. At accessibility sizes the title may use 4 lines and the meta line stacks (subtitle above price) when both don't fit on one line (`ViewThatFits`, like KeyValue stacking).
+- **Large Dynamic Type:** tiles grow taller (equal height, the tallest wins); widths stay; dots stay one row. At accessibility sizes the title may use 4 lines and the meta line stacks (subtitle above price).
 - **Streaming:** "Preparing card…" until the reply finishes, as today.
 
 ## VoiceOver and keyboard
@@ -76,5 +76,6 @@ Items are data, not child component ids, so every item has the same layout and t
 - Unit (`CrewTests`): the heading transform on the real line from Vera's card (`### 1. [Evi Beige, Jakobs Handmade](…) · 235 kr` becomes bold text with the link kept and no `#`), a heading line that already contains `**bold**`, `#hashtag`, mid-line `#`, and multi-line text keeping its line breaks.
 - UI (`CrewUITests`, `-snapshot chat-a2ui-carousel`, replaying a real `crew-test` reply): every item tile from the fixture is reached by swiping left (its label "…, k of n" becomes hittable), swiping to the end shows the last tile ("n of n"), no static text starts with `#`, and a vertical swipe starting on the carousel scrolls the transcript (the Header moves) while the same tile stays current.
 - Shown failing first: the UI test on main shows "Couldn't display this card" (unknown component) and the unit test shows the `###`.
-- Renders: `chat-a2ui-carousel` iPhone and Mac, light and dark, committed to `docs/flows/renders/`. Judge the dark render for white product photos on the dark backdrop.
+- Mac UI (`CrewMacUITests/CarouselMacUITests`, CI only): hovering shows Next and no Previous on the first item, Next brings item 2 to the leading edge, and the run attaches the Mac light, hover and dark screenshots.
+- Renders: `chat-a2ui-carousel` (the real reply) and `chat-a2ui-carousel-states` (a `###` Text line, a failed photo, a missing photo, a long title, subtitle and text, a single item without a link), iPhone light and dark, committed to `docs/flows/renders/`; Mac from the CI attachments. Judge the dark render for white product photos on the dark backdrop.
 - Real server: the fixture is a real reply from the `crew-test` profile with the version 6 skill installed (`Tests/chat_probe/run.sh a2ui` with `A2UI_PROMPT`).

@@ -1,14 +1,14 @@
 ---
 name: crew-ui
-description: Use for checklists, tables, charts, maps, forms and cards.
-version: 5
+description: Use for checklists, tables, charts, maps, forms, carousels.
+version: 6
 ---
 
 # Rich UI in Crew
 
 Installed by the Crew app's Rich UI switch. Crew replaces this file when it ships a newer `version`; bump the version here only if you want your edits to survive.
 
-The Crew app draws A2UI v0.9 blocks as native cards. Use one when a reply offers a choice or decision, a list to tick off, a form to fill in, a recipe or how-to, structured data such as a comparison table or key facts, numbers over time or categories (a chart), or places (a map). Answer plainly when there is nothing to interact with or compare.
+The Crew app draws A2UI v0.9 blocks as native cards. Use one when a reply offers a choice or decision, a list to tick off, a form to fill in, a recipe or how-to, structured data such as a comparison table or key facts, numbers over time or categories (a chart), places (a map), or two or more comparable things to pick between, such as products, hotels or restaurants (a carousel). Answer plainly when there is nothing to interact with or compare.
 
 Rules:
 - Write one or two lines of prose first and put the block last. Other apps show the block as code, so the prose must carry the answer on its own.
@@ -20,7 +20,7 @@ Rules:
 - {"path": "/a/b"} binds a property to the data model. Inside a template ({"componentId": "<id>", "path": "/items"}) paths are relative to the item, like {"path": "name"}.
 
 Components (exact property names):
-- Text: "text" (inline markdown), "variant": "h1" | "h2" | "h3" | "h4" | "h5" | "body" | "caption". Use h4 for section titles inside a card, caption for fine print.
+- Text: "text" (inline markdown: bold, italic, links; no # headings), "variant": "h1" | "h2" | "h3" | "h4" | "h5" | "body" | "caption". Use h4 for section titles inside a card, caption for fine print.
 - Card: "child" (one id; wrap several in a Column). Make it the root: Crew draws the root as the card, so never nest a Card inside another.
 - Column, Row, List: "children" (array of ids, or a template); Row/Column "justify": "start" | "center" | "end" | "spaceBetween", "align": "start" | "center" | "end" | "stretch"
 - Divider
@@ -41,6 +41,7 @@ Crew-only components (plain values, no {"path"} bindings):
 - KeyValue: "items": [{"key": "...", "value": "...", "symbol": "<optional SF Symbol>"}], strings only; for key facts like a settings list (keep values short, long ones stack under the key)
 - Chart: "kind": "bar" | "line" | "area", "labels": ["Mon", ...], and either "values": [numbers] or "series": [{"name": "High", "values": [numbers]}, ...] for several lines or bar groups, optional "unit" (e.g. "°C"). One value per label.
 - Map: "markers": [{"title": "...", "latitude": 59.31, "longitude": 18.07}], optional "region": {"latitude": ..., "longitude": ..., "span": <degrees, 0.02 is a neighbourhood>}; without a region it fits all markers. Use real coordinates only.
+- Carousel: "items": [{"title": "...", "subtitle": "...", "price": "...", "badge": "...", "tone": "...", "image": "https://...", "url": "https://...", "text": "..."}], only "title" required. Shows one item at a time, swiped sideways, the whole item opens its "url". Use it for 2 to 10 comparable things the user picks between (products, hotels, restaurants, listings), not for steps, facts or a single item. Keep each item short: "subtitle" for the shop, area or rating, "price" for the price, "badge" for one standout ("Cheapest", "Best fit"), "text" for one short sentence (no links or headings; it shows 3 lines). Put your reasoning and caveats in the prose before the block, not in the items. Place it directly in the root Column after the Header, and give that Header no "image" when the items have photos.
 
 When the user taps a button, Crew sends you a hidden message like
 <a2ui-action>{"context": {"choice": "delete"}, "name": "decide", "sourceComponentId": "delete", "surfaceId": "cleanup-previews"}</a2ui-action>
@@ -140,6 +141,23 @@ Example, a map:
       {"title": "Johan & Nyström", "latitude": 59.3135, "longitude": 18.0779},
       {"title": "Mellqvist Kaffebar", "latitude": 59.3170, "longitude": 18.0566}]},
     {"id": "places", "component": "KeyValue", "items": [{"key": "Drop Coffee", "value": "Wollmar Yxkullsgatan 10"}, {"key": "Johan & Nyström", "value": "Swedenborgsgatan 7"}, {"key": "Mellqvist Kaffebar", "value": "Hornsgatan 78"}]}
+  ]}}
+]
+```
+
+Example, a carousel of products (real shops, prices and links only):
+```a2ui
+[
+  {"version": "v0.9", "createSurface": {"surfaceId": "rain-jackets", "catalogId": "https://crew.gustaf.dev/catalogs/crew/v1.json"}},
+  {"version": "v0.9", "updateComponents": {"surfaceId": "rain-jackets", "components": [
+    {"id": "root", "component": "Card", "child": "body"},
+    {"id": "body", "component": "Column", "children": ["header", "picks"]},
+    {"id": "header", "component": "Header", "title": "Rain jackets under 2 000 kr", "subtitle": "Waterproof · size M", "symbol": "cloud.rain.fill", "tone": "info"},
+    {"id": "picks", "component": "Carousel", "items": [
+      {"title": "Torsten Shell", "subtitle": "Outdoor Store", "price": "1 499 kr", "badge": "Best fit", "tone": "success", "image": "https://example.com/torsten.jpg", "url": "https://example.com/torsten", "text": "Fully taped seams and a hood that fits over a cap."},
+      {"title": "Lina Rain Coat", "subtitle": "Rain Shop", "price": "1 199 kr", "badge": "Cheapest", "tone": "info", "image": "https://example.com/lina.jpg", "url": "https://example.com/lina", "text": "Longer cut that covers the hips."},
+      {"title": "Bo Packable", "subtitle": "Trail Gear", "price": "1 890 kr", "image": "https://example.com/bo.jpg", "url": "https://example.com/bo", "text": "Packs into its own pocket, 280 g."}
+    ]}
   ]}}
 ]
 ```

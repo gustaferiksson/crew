@@ -45,6 +45,8 @@ FRAME_NEXT = (" Change no other checkout field now: Shopify can empty the card f
 PARTIAL = (" Some card fields may hold card details already. Nothing was ordered. Tell the user, and offer to send "
            "them the cart link so they can finish on their own device. Do not click review or pay, and do not retry "
            "the fill.")
+NOT_ORDERED = ("Nothing was asked, charged or ordered. Tell the user, and offer to send them the cart link so they can "
+               "finish on their own device. Do not retry the fill.")
 RETRY_LATER = ("This cancelled only this attempt. \"Never retry payment_declined\" means never retry on your own; "
                "if the user later asks you to pay again, call browser_vault fill again and Crew will ask them to "
                "approve it.")

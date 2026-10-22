@@ -657,7 +657,9 @@ def test_shop_pay_page_blocks_without_an_offer(push: CrewPush, hermes: Hermes) -
     hermes.page = "https://shop.app"
     body = json.loads(fill(push)["message"])
     assert body["error_type"] == "crew_no_shop_card" and "crew_payment" not in body
-    assert body["error"].startswith(f"The checkout moved to Shop Pay (https://shop.app), not {ORIGIN}")
+    assert body["error"] == (f"The checkout moved to Shop Pay (https://shop.app), not {ORIGIN}, so Crew can't pay "
+                             "there. Nothing was asked, charged or ordered. Tell the user, and offer to send them the "
+                             "cart link so they can finish on their own device. Do not retry the fill.")
     assert push.claims == {}
 
 

@@ -248,6 +248,10 @@ def shop_tab_block(task_id: str, origins: list[str]) -> tuple[dict[str, str] | N
     if page in SHOP_PAY_ORIGINS:
         return payments.block("crew_no_shop_card", f"The checkout moved to Shop Pay ({page}), not {origins[0]}, so "
                                                    f"Crew can't pay there. {payments.NOT_ORDERED}"), ""
+    if payments.HOSTED_PAYMENT_PAGE.match(page or ""):
+        return payments.block("crew_no_shop_card", f"The checkout moved to {page}, a payment provider's hosted page, "
+                                                   f"not {origins[0]}, so Crew can't pay there, and it can't be added "
+                                                   f"as a shop. {payments.NOT_ORDERED}"), ""
     if offer and offer not in origins:
         return payments.block("crew_no_shop_card", payments.no_card_for(offer), missing_shop=offer), ""
     return no_page_block(origins[0]), ""
@@ -560,6 +564,8 @@ class CrewPush:
                  if isinstance(item, dict) and item.get("kind") == "payment"}
         if not page or page in shops:
             return None
+        if payments.HOSTED_PAYMENT_PAGE.match(page):
+            return json.dumps({**raw, "hint": f"{page} is {payments.NOT_A_SHOP}"}, ensure_ascii=False)
         hint = payments.no_card_for(page) if self.in_bot_chat(session_id) else payments.add_in_crew(page)
         return json.dumps({**raw, "crew_payment": {"missing_shop": page}, "hint": hint}, ensure_ascii=False)
 

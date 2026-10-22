@@ -45,6 +45,10 @@ FRAME_NEXT = (" Change no other checkout field now: Shopify can empty the card f
 PARTIAL = (" Some card fields may hold card details already. Nothing was ordered. Tell the user, and offer to send "
            "them the cart link so they can finish on their own device. Do not click review or pay, and do not retry "
            "the fill.")
+HOSTED_PAYMENT_PAGE = re.compile(r"^https://(?:[a-z0-9-]+\.)*(?:stripe\.com|klarna\.com|adyen\.com|adyenpayments\.com"
+                                 r"|paypal\.com|dibspayment\.eu)$")
+NOT_A_SHOP = ("a payment provider's hosted page, not a shop, so it can't be added as one and Crew can't pay there. "
+              "Tell the user, and offer to send them the cart link so they can finish on their own device.")
 NOT_ORDERED = ("Nothing was asked, charged or ordered. Tell the user, and offer to send them the cart link so they can "
                "finish on their own device. Do not retry the fill.")
 RETRY_LATER = ("This cancelled only this attempt. \"Never retry payment_declined\" means never retry on your own; "

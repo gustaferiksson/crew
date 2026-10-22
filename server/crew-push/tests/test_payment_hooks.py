@@ -663,6 +663,34 @@ def test_shop_pay_page_blocks_without_an_offer(push: CrewPush, hermes: Hermes) -
     assert push.claims == {}
 
 
+@pytest.mark.parametrize("page", ["https://checkout.stripe.com", "https://pay.klarna.com",
+                                  "https://checkoutshopper-live.adyen.com", "https://www.paypal.com"])
+def test_a_hosted_payment_page_is_never_offered_as_a_shop(push: CrewPush, hermes: Hermes, page: str) -> None:
+    hermes.tabs.clear()
+    hermes.page = page
+    body = json.loads(fill(push)["message"])
+    assert body["error_type"] == "crew_no_shop_card" and "crew_payment" not in body
+    assert body["error"] == (f"The checkout moved to {page}, a payment provider's hosted page, not {ORIGIN}, so Crew "
+                             "can't pay there, and it can't be added as a shop. Nothing was asked, charged or ordered. "
+                             "Tell the user, and offer to send them the cart link so they can finish on their own "
+                             "device. Do not retry the fill.")
+    hermes.card_fields = False
+    assert "crew_payment" not in json.loads(fill(push)["message"])
+    hermes.card_fields = True
+    raw = {key: value for key, value in fixture("list-missing-shop.json").items() if key not in ("crew_payment", "hint")}
+    assert transform(push, raw, action="list") == {
+        **raw, "hint": f"{page} is a payment provider's hosted page, not a shop, so it can't be added as one and Crew "
+                       "can't pay there. Tell the user, and offer to send them the cart link so they can finish on "
+                       "their own device."}
+    assert push.claims == {}
+
+
+def test_a_shop_on_a_lookalike_host_is_still_offered(push: CrewPush, hermes: Hermes) -> None:
+    hermes.tabs.clear()
+    hermes.page = "https://notstripe.com"
+    assert json.loads(fill(push)["message"])["crew_payment"] == {"missing_shop": "https://notstripe.com"}
+
+
 def test_an_uninspectable_shop_tab_blocks(push: CrewPush, hermes: Hermes) -> None:
     hermes.controls = {"error": "not a list"}
     body = json.loads(fill(push)["message"])

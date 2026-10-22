@@ -429,7 +429,7 @@ final class ChatSession {
         if type == "reasoning.available" { return transcript.apply(.reasoningAvailable(payload.text ?? "")) }
         if type == "message.interim" { return transcript.apply(.interim(payload.text ?? "")) }
         if type == "status.update" {
-            // Hermes prefixes one-off config diagnostics with ℹ and can tag them as compacting progress.
+            // Hermes prefixes its informational diagnostics with ℹ (U+2139).
             guard payload.text?.unicodeScalars.first != "\u{2139}" else { return }
             statusLine = payload.text
             return

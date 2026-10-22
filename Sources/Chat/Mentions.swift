@@ -95,11 +95,11 @@ func mentionSegments(in text: String, among bots: [Bot]) -> [MentionSegment] {
     return segments
 }
 
-struct MentionTag: TextAttribute {
+nonisolated struct MentionTag: TextAttribute {
     let index: Int
 }
 
-func mentionTagFrames(in layout: Text.Layout) -> [(index: Int, rect: CGRect)] {
+nonisolated func mentionTagFrames(in layout: Text.Layout) -> [(index: Int, rect: CGRect)] {
     layout.flatMap { line in
         line.reduce(into: [(index: Int, rect: CGRect)]()) { frames, run in
             guard let index = run[MentionTag.self]?.index else { return }
@@ -109,7 +109,7 @@ func mentionTagFrames(in layout: Text.Layout) -> [(index: Int, rect: CGRect)] {
     }
 }
 
-struct MentionTagRenderer: TextRenderer {
+nonisolated struct MentionTagRenderer: TextRenderer {
     func draw(layout: Text.Layout, in context: inout GraphicsContext) {
         for frame in mentionTagFrames(in: layout) {
             let capsule = Capsule().path(in: frame.rect)

@@ -1,0 +1,12 @@
+{
+  "card": {
+    "label": "Shopping card",
+    "last4": "4444",
+    "problem": null,
+    "code_mismatch": true
+  },
+  "shops": [],
+  "terminal_backend": "local",
+  "gate": true,
+  "legacy_cards": 0
+}

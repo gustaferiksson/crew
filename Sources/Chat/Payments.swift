@@ -245,6 +245,7 @@ nonisolated struct MasterCard: Decodable, Equatable, Sendable {
     let label: String?
     let last4: String?
     let problem: String?
+    var codeMismatch: Bool? = nil
 }
 
 nonisolated struct Shop: Decodable, Equatable, Identifiable, Sendable {
@@ -297,6 +298,10 @@ nonisolated struct ShopsControls: Equatable {
 
     var canEditCard: Bool {
         canWriteCard && list.card.problem != "several"
+    }
+
+    var showsCodeWarning: Bool {
+        hasCard && list.card.codeMismatch == true
     }
 
     var staleCount: Int {
@@ -372,7 +377,9 @@ nonisolated struct CardEntry: Equatable, Sendable {
             return (parts.year, parts.month) < (year, month) ? String(localized: "This card has expired.") : nil
         }
         if field == .cvc {
-            return cvc.count == (isAmex ? 4 : 3) && cvc.allSatisfy(\.isASCIIDigit) ? nil : String(localized: "Enter the 3 or 4 digit code.")
+            if cvc.count == (isAmex ? 4 : 3) && cvc.allSatisfy(\.isASCIIDigit) { return nil }
+            if cleanNumber.isEmpty { return String(localized: "Enter the 3 or 4 digit code.") }
+            return isAmex ? String(localized: "Enter the 4 digit code.") : String(localized: "Enter the 3 digit code.")
         }
         if field == .name {
             let kept = name.unicodeScalars.filter { ![.control, .format].contains($0.properties.generalCategory) }

@@ -39,6 +39,7 @@ struct CrewCarousel: View {
 
     @Environment(\.carouselBleed) private var bleed
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorScheme) private var colorScheme
     @State private var width: CGFloat = 0
     @State private var current = 0
     @State private var position = ScrollPosition(idType: Int.self)
@@ -62,7 +63,7 @@ struct CrewCarousel: View {
             }
             .contentMargins(.horizontal, bleed, for: .scrollContent)
             .scrollTargetBehavior(.viewAligned)
-            .scrollIndicators(.hidden)
+            .scrollIndicators(.never)
             .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
             .scrollPosition($position)
             .onScrollGeometryChange(for: Int.self) { geometry in
@@ -107,7 +108,7 @@ struct CrewCarousel: View {
         HStack(spacing: 9) {
             ForEach(0..<count, id: \.self) { index in
                 Circle()
-                    .fill(index == current ? AnyShapeStyle(.primary) : AnyShapeStyle(.tertiary))
+                    .fill((colorScheme == .dark ? Color.white : Color.black).opacity(index == current ? 0.85 : 0.25))
                     .frame(width: 7, height: 7)
             }
         }
@@ -124,12 +125,15 @@ struct CrewCarousel: View {
     @ViewBuilder
     private func arrow(_ symbol: String, label: LocalizedStringKey, to page: Int, count: Int) -> some View {
         if (0..<count).contains(page) {
-            Button(label, systemImage: symbol) { scroll(to: page, count: count) }
-                .labelStyle(.iconOnly)
-                .font(.body.weight(.semibold))
-                .frame(width: 32, height: 32)
-                .buttonStyle(.glass)
-                .buttonBorderShape(.circle)
+            Button { scroll(to: page, count: count) } label: {
+                Image(systemName: symbol)
+                    .font(.body.weight(.semibold))
+                    .frame(width: 22, height: 22)
+            }
+            .buttonStyle(.glass)
+            .buttonBorderShape(.circle)
+            .controlSize(.large)
+            .accessibilityLabel(label)
         } else {
             Color.clear.frame(width: 32, height: 32)
         }

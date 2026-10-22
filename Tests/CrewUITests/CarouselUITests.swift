@@ -3,6 +3,17 @@ import XCTest
 private let titles = ["MJÙKA Idun · Brown", "MJÙKA Thurid · Brown", "MJÙKA Astrid · Chestnut", "HAIKA Sandefjord · Brown"]
 
 final class CarouselUITests: XCTestCase {
+    @MainActor func testHeadingLineInCardTextShowsWithoutHashes() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-snapshot", "chat-a2ui-carousel-states", "-server", "hermes.example.com", "-username", "gustaf"]
+        app.launch()
+
+        let heading = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "1. Evi Beige, Jakobs Handmade")).firstMatch
+        XCTAssertTrue(heading.waitForExistence(timeout: 10), app.debugDescription)
+        XCTAssertFalse(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "#")).firstMatch.exists)
+        XCTAssertTrue(app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@ AND label ENDSWITH %@", "Only one pick", "1 of 1")).firstMatch.waitForExistence(timeout: 5), app.debugDescription)
+    }
+
     @MainActor func testSwipingThroughTheSlipperCarouselShowsEveryItemWithoutFightingTheTranscript() {
         let app = XCUIApplication()
         app.launchArguments = ["-snapshot", "chat-a2ui-carousel", "-server", "hermes.example.com", "-username", "gustaf"]

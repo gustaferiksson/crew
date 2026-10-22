@@ -197,12 +197,12 @@ nonisolated struct DeliveryFailure: Codable, Sendable, Equatable {
 nonisolated extension DeliveryFailure {
     init?(notice: String) {
         guard deliveryProcess(in: notice) != nil else { return nil }
-        let succeeded = notice.contains("completed normally (exit code 0)")
         let body = notice.firstRange(of: "\nOutput:\n").map { String(notice[$0.upperBound...]) } ?? ""
         let output = (body.hasSuffix("]") ? String(body.dropLast()) : body).trimmingCharacters(in: .whitespacesAndNewlines)
-        let object = output.split(separator: "\n").last.flatMap { (try? JSONSerialization.jsonObject(with: Data($0.utf8))) as? [String: Any] }
-        let isUnconfirmed = ["ambiguous", "queued", "claimed"].contains(object?["status"] as? String ?? "") || output.hasPrefix("No reply from ")
-        guard !succeeded || isUnconfirmed else { return nil }
+        let object = output.split(separator: "\n").reversed().lazy.compactMap { (try? JSONSerialization.jsonObject(with: Data($0.utf8))) as? [String: Any] }.first
+        let status = object?["status"] as? String ?? ""
+        let isUnconfirmed = ["ambiguous", "queued", "claimed"].contains(status) || output.contains(#/(?m)^No reply from /#)
+        guard !notice.contains("completed normally (exit code 0)") || isUnconfirmed || ["failed", "cancelled"].contains(status) else { return nil }
         if let object {
             self.init(reason: object["reason"] as? String, detail: (object["error"] ?? object["detail"]) as? String, isUnconfirmed: isUnconfirmed)
         } else if let tagged = output.firstMatch(of: /failed \[reason: ([a-z_]+)\]: (.+)/) {
@@ -221,20 +221,20 @@ nonisolated extension DeliveryFailure {
 
     func explanation(for bot: String) -> String? {
         let sentences = [
-            "target_busy": String(localized: "\(bot) is busy right now. Try again later."),
-            "runtime_offline": String(localized: "\(bot) is offline. Try again when it's back."),
-            "delivery_timeout": String(localized: "\(bot) didn't answer in time. It may have seen the message; try again if it matters."),
-            "queued_expired": String(localized: "\(bot)'s computer wasn't reachable in time. Try again when it's back online."),
+            "target_busy": String(localized: "\(bot) is busy right now. Ask again later."),
+            "runtime_offline": String(localized: "\(bot) is offline. Ask again when it's back."),
+            "delivery_timeout": String(localized: "\(bot) didn't answer in time. It may have seen the message; ask again if it matters."),
+            "queued_expired": String(localized: "\(bot)'s computer wasn't reachable in time. Ask again when it's back online."),
             "cancelled": String(localized: "The message to \(bot) was cancelled. Ask again if you still need it."),
-            "provider_rate_limit": String(localized: "\(bot)'s AI provider is limiting requests. Try again in a few minutes."),
-            "provider_server_error": String(localized: "\(bot)'s AI provider had an error. Try again later."),
-            "provider_auth_or_access": String(localized: "\(bot)'s AI provider rejected its login or access. Trying again won't help."),
-            "provider_quota_limit": String(localized: "\(bot)'s AI provider account has reached its usage limit. Trying again won't help."),
-            "context_overflow": String(localized: "\(bot)'s chat is too long to continue. Trying again won't help."),
-            "missing_config": String(localized: "\(bot) has no AI provider set up. Trying again won't help."),
-            "model_unavailable": String(localized: "\(bot)'s model isn't available. Pick another model for it; trying again won't help."),
-            "agent_blocked": String(localized: "\(bot) isn't taking messages. Trying again won't help."),
-            "target_scope_unresolved": String(localized: "Hermes couldn't load \(bot)'s settings. Trying again won't help."),
+            "provider_rate_limit": String(localized: "\(bot)'s AI provider is limiting requests. Ask again in a few minutes."),
+            "provider_server_error": String(localized: "\(bot)'s AI provider had an error. Ask again later."),
+            "provider_auth_or_access": String(localized: "\(bot)'s AI provider rejected its login or access. Asking again won't help."),
+            "provider_quota_limit": String(localized: "\(bot)'s AI provider account has reached its usage limit. Asking again won't help."),
+            "context_overflow": String(localized: "\(bot)'s chat is too long to continue. Asking again won't help."),
+            "missing_config": String(localized: "\(bot) has no AI provider set up. Asking again won't help."),
+            "model_unavailable": String(localized: "\(bot)'s model isn't available. Pick another model for it; asking again won't help."),
+            "agent_blocked": String(localized: "\(bot) isn't taking messages. Asking again won't help."),
+            "target_scope_unresolved": String(localized: "Hermes couldn't load \(bot)'s settings. Asking again won't help."),
         ]
         return isUnconfirmed ? nil : reason.flatMap { sentences[$0] }
     }
@@ -277,7 +277,9 @@ extension Transcript {
             }
             let origin = originIndex.map { turns[$0] }
             let handle = origin?.work.first { item in if case .tool(let call) = item.kind { call.result?.contains(delivery) == true } else { false } }?.messagedHandle
-            awaited.removeAll { $0.origin == origin?.id }
+            let isUnconfirmed = turn.deliveryFailure?.isUnconfirmed == true
+            let repliedLater = isUnconfirmed && turns[position...].contains { $0.agentMessage?.handle == handle }
+            if !repliedLater { awaited.removeAll { $0.origin == origin?.id } }
             var followUp = turn
             followUp.deliveryFailure?.target = handle
             if let origin, let index = exchanges[origin.id] {
@@ -290,7 +292,7 @@ extension Transcript {
                 }
             } else if turn.deliveryFailure?.isUnconfirmed != false, let originIndex, let index = answered.firstIndex(where: { $0.handle == handle && $0.at > originIndex }) {
                 answered.remove(at: index)
-            } else if origin.map({ $0.agentMessage == nil }) ?? turns.contains(where: { $0.agentMessage == nil && $0.prompt != nil }) {
+            } else if !repliedLater, origin.map({ $0.agentMessage == nil }) ?? turns.contains(where: { $0.agentMessage == nil && $0.prompt != nil }) {
                 shown.append(followUp)
             }
         }

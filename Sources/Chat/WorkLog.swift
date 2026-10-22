@@ -323,8 +323,8 @@ private struct WorkRow: View {
     }
 
     private var deliveryFailureNote: String? {
-        guard case .tool(let call) = item.kind, let failure = call.deliveryFailure, let target = failure.target else { return nil }
-        return failure.explanation(for: bots.bots.first { $0.name == target }?.title ?? target)
+        guard case .tool(let call) = item.kind, let failure = call.deliveryFailure else { return nil }
+        return failure.explanation(for: bots.bots.first { $0.name == failure.target }?.title ?? failure.target ?? call.subject)
     }
 
     private var appearance: (verb: String, icon: String) {

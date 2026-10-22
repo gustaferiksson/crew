@@ -434,7 +434,7 @@ struct TurnView: View {
                     let bot = bots.bots.first { $0.name == failure.target }?.title ?? failure.target ?? String(localized: "the bot")
                     let tint = failure.isUnconfirmed ? AnyShapeStyle(.secondary) : AnyShapeStyle(.red)
                     Label {
-                        Text("\(Text(failure.headline(for: bot)).foregroundStyle(tint)) \(failure.explanation(for: bot) ?? "")")
+                        Text("\(Text(failure.headline(for: bot)).foregroundStyle(tint))\(failure.explanation(for: bot).map { " " + $0 } ?? "")")
                     } icon: {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .foregroundStyle(tint)

@@ -38,10 +38,10 @@ private func peekOutcome(_ transcript: Transcript) throws -> MentionExchange.Out
     let busy = try sender(reason: "target_busy")
     #expect(busy.visible.turns.last?.deliveryFailure?.headline(for: "Crew Peer") == "Not delivered.")
     guard case .failed(let failure) = try peekOutcome(busy) else { Issue.record("expected a failed delivery"); return }
-    #expect(failure.explanation(for: "Crew Peer") == "Crew Peer is busy right now. Try again later.")
+    #expect(failure.explanation(for: "Crew Peer") == "Crew Peer is busy right now. Ask again later.")
     let login = try #require(try sender(reason: "provider_auth_or_access").visible.turns.last?.deliveryFailure)
     #expect(login.headline(for: "Crew Peer") == "Crew Peer couldn't answer.")
-    #expect(login.explanation(for: "Crew Peer") == "Crew Peer's AI provider rejected its login or access. Trying again won't help.")
+    #expect(login.explanation(for: "Crew Peer") == "Crew Peer's AI provider rejected its login or access. Asking again won't help.")
 }
 
 @Test func everyHermesReasonHasASentence() {
@@ -123,4 +123,23 @@ private func peekOutcome(_ transcript: Transcript) throws -> MentionExchange.Out
     #expect(DeliveryFailure(notice: head + #"{"reply": "Hi!", "status": "settled", "delivery_id": "d1"}"# + "\n]") == nil)
     let timedOut = head.replacingOccurrences(of: "completed normally (exit code 0)", with: "exited (exit code 1)") + "No reply from @scout on mini within 600s. The message may still be delivered when the Desktop reconnects; do not resend blindly.\n]"
     #expect(DeliveryFailure(notice: timedOut)?.isUnconfirmed == true)
+}
+
+@Test func lateReplyClearsAnUnconfirmedFollowUp() {
+    let start = Date(timeIntervalSince1970: 1_792_136_000)
+    let call = ToolCall(name: "message_agent", subject: "", arguments: #"{"target": "scout", "message": "Find flights."}"#, result: #"{"status": "queued", "process_id": "proc_ab12"}"#, status: .success)
+    let notice = "[IMPORTANT: Background process proc_ab12 exited (exit code 1).\nCommand: /opt/hermes/.venv/bin/python /opt/hermes/tools/bot_mode_dm.py --run-delivery --wait-reply /tmp/r.json '@scout on mini' 600\nOutput:\nNo reply from @scout on mini within 600s. The message may still be delivered when the Desktop reconnects; do not resend blindly.\n]"
+    let transcript = Transcript(turns: [
+        Turn(id: "t1", prompt: Prompt(text: "@scout find flights", sentAt: start), work: [WorkItem(id: "w1", kind: .tool(call), startedAt: start)], status: .complete, startedAt: start),
+        Turn(id: "t2", delivery: "proc_ab12", deliveryFailure: DeliveryFailure(notice: notice), status: .complete, startedAt: start.addingTimeInterval(600)),
+        Turn(id: "t3", agentMessage: AgentMessage("Message from 🤖 Scout (@scout): Found three flights."), reply: "Scout found three flights.", status: .complete, startedAt: start.addingTimeInterval(700)),
+    ])
+    let shown = transcript.visible.turns
+    #expect(shown.map(\.id) == ["t1", "t3"])
+    #expect(shown.allSatisfy { $0.agentMessage == nil && $0.deliveryFailure == nil })
+}
+
+@Test func exitZeroWithAFailedStatusIsAFailure() {
+    let notice = "[IMPORTANT: Background process proc_51ab completed normally (exit code 0).\nCommand: /opt/hermes/.venv/bin/python /opt/hermes/tools/bot_mode_dm.py --run-delivery query-file /tmp/dm\nOutput:\n" + #"{"error": "busy", "reason": "target_busy", "status": "failed"}"# + "\nsession_id: 20261022_1\n]"
+    #expect(DeliveryFailure(notice: notice) == DeliveryFailure(reason: "target_busy", detail: "busy"))
 }

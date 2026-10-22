@@ -11,7 +11,7 @@ Issue #121. When a `message_agent` delivery fails, Hermes (0.21.7, `tools/bot_fa
 
 ## Copy
 
-Headline by class, then one sentence. Hermes retries `runtime_offline`, `delivery_timeout`, `provider_rate_limit` and `provider_server_error` by itself, and `context_overflow` once after shortening the chat, so by the time Crew sees one of these that retry failed too. Crew also says "try again" for `target_busy`, `queued_expired` and `cancelled`, which pass with time; it never does for the rest.
+Headline by class, then one sentence. Hermes retries `runtime_offline`, `delivery_timeout`, `provider_rate_limit` and `provider_server_error` by itself, and `context_overflow` once after shortening the chat, so by the time Crew sees one of these that retry failed too; Crew says "ask again" because the user's next step is to ask their bot, there is no Retry button. Crew also says "ask again" for `target_busy`, `queued_expired` and `cancelled`, which pass with time; it never does for the rest.
 
 | Class | Headline |
 | --- | --- |
@@ -22,20 +22,20 @@ Headline by class, then one sentence. Hermes retries `runtime_offline`, `deliver
 
 | Code | Sentence (`<Bot>` is the target's title) |
 | --- | --- |
-| `target_busy` | <Bot> is busy right now. Try again later. |
-| `runtime_offline` | <Bot> is offline. Try again when it's back. |
-| `delivery_timeout` | <Bot> didn't answer in time. It may have seen the message; try again if it matters. |
-| `queued_expired` | <Bot>'s computer wasn't reachable in time. Try again when it's back online. |
+| `target_busy` | <Bot> is busy right now. Ask again later. |
+| `runtime_offline` | <Bot> is offline. Ask again when it's back. |
+| `delivery_timeout` | <Bot> didn't answer in time. It may have seen the message; ask again if it matters. |
+| `queued_expired` | <Bot>'s computer wasn't reachable in time. Ask again when it's back online. |
 | `cancelled` | The message to <Bot> was cancelled. Ask again if you still need it. |
-| `provider_rate_limit` | <Bot>'s AI provider is limiting requests. Try again in a few minutes. |
-| `provider_server_error` | <Bot>'s AI provider had an error. Try again later. |
-| `provider_auth_or_access` | <Bot>'s AI provider rejected its login or access. Trying again won't help. |
-| `provider_quota_limit` | <Bot>'s AI provider account has reached its usage limit. Trying again won't help. |
-| `context_overflow` | <Bot>'s chat is too long to continue. Trying again won't help. |
-| `missing_config` | <Bot> has no AI provider set up. Trying again won't help. |
-| `model_unavailable` | <Bot>'s model isn't available. Pick another model for it; trying again won't help. |
-| `agent_blocked` | <Bot> isn't taking messages. Trying again won't help. |
-| `target_scope_unresolved` | Hermes couldn't load <Bot>'s settings. Trying again won't help. |
+| `provider_rate_limit` | <Bot>'s AI provider is limiting requests. Ask again in a few minutes. |
+| `provider_server_error` | <Bot>'s AI provider had an error. Ask again later. |
+| `provider_auth_or_access` | <Bot>'s AI provider rejected its login or access. Asking again won't help. |
+| `provider_quota_limit` | <Bot>'s AI provider account has reached its usage limit. Asking again won't help. |
+| `context_overflow` | <Bot>'s chat is too long to continue. Asking again won't help. |
+| `missing_config` | <Bot> has no AI provider set up. Asking again won't help. |
+| `model_unavailable` | <Bot>'s model isn't available. Pick another model for it; asking again won't help. |
+| `agent_blocked` | <Bot> isn't taking messages. Asking again won't help. |
+| `target_scope_unresolved` | Hermes couldn't load <Bot>'s settings. Asking again won't help. |
 | unknown or unconfirmed | no sentence |
 
 ## Surfaces

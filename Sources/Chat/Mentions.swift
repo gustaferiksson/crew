@@ -90,7 +90,8 @@ nonisolated func mentionExchange(with bot: Bot.ID, from turn: Turn.ID, in transc
         return MentionExchange(message: match.message, outcome: .replied(message.body, at: turn.startedAt))
     }
     guard let delivery = transcript.turns[start...].first(where: { $0.delivery == process }) else { return MentionExchange(message: match.message, outcome: .awaiting) }
-    let failure = delivery.deliveryFailure.map { DeliveryFailure(reason: $0.reason, detail: $0.detail, isUnconfirmed: $0.isUnconfirmed, target: handle) }
+    var failure = delivery.deliveryFailure
+    failure?.target = handle
     return MentionExchange(message: match.message, outcome: failure.map { .failed($0) } ?? .delivered)
 }
 

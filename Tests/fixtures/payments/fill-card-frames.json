@@ -17,5 +17,5 @@
     "fill": "filled",
     "fill_error": null
   },
-  "next": "Click the shop's pay button. Never tick save card or remember card. Change no other checkout field now: Shopify can empty the card fields. If one still needs changing, change it and call browser_vault fill again before paying; Crew asks the user again."
+  "next": "Click the shop's pay button. Never tick save card or remember card."
 }

@@ -125,15 +125,12 @@ struct CrewCarousel: View {
     @ViewBuilder
     private func arrow(_ symbol: String, label: LocalizedStringKey, to page: Int, count: Int) -> some View {
         if (0..<count).contains(page) {
-            Button { scroll(to: page, count: count) } label: {
-                Image(systemName: symbol)
-                    .font(.body.weight(.semibold))
-                    .frame(width: 22, height: 22)
-            }
-            .buttonStyle(.glass)
-            .buttonBorderShape(.circle)
-            .controlSize(.large)
-            .accessibilityLabel(label)
+            Button(label, systemImage: symbol) { scroll(to: page, count: count) }
+                .labelStyle(.iconOnly)
+                .fontWeight(.semibold)
+                .buttonStyle(.glass)
+                .buttonBorderShape(.circle)
+                .controlSize(.extraLarge)
         } else {
             Color.clear.frame(width: 32, height: 32)
         }

@@ -1,0 +1,9 @@
+{"at": 3.19, "payload": null, "seq": 2, "session_id": "rt-1", "type": "message.start"}
+{"at": 3.245, "payload": {"kind": "compacting", "text": "ℹ Codex gpt-6.1-sol caps context at 500K, so auto-compaction was raised to 85% (from 50%) to use more of the window before summarizing.\n  Opt back out: hermes config set compression.codex_gpt55_autoraise false"}, "seq": 3, "session_id": "rt-1", "type": "status.update"}
+{"at": 3.384, "payload": {"text": "( •_•)>⌐■-■ musing..."}, "seq": 4, "session_id": "rt-1", "type": "thinking.delta"}
+{"at": 3.384, "payload": {}, "type": "sessions.changed"}
+{"at": 6.849, "payload": {"text": ""}, "seq": 5, "session_id": "rt-1", "type": "thinking.delta"}
+{"at": 6.849, "payload": {"text": "hi"}, "seq": 6, "session_id": "rt-1", "type": "message.delta"}
+{"at": 6.849, "payload": {"text": ""}, "seq": 7, "session_id": "rt-1", "type": "thinking.delta"}
+{"at": 6.867, "payload": {"persisted_turn": {"complete": true, "final_assistant_row_id": 2, "row_ids": [1, 2], "user_row_id": 1, "user_row_ids": [1]}, "status": "complete", "text": "hi", "usage": {"active_subagents": 0, "avg_latency_s": 3.4, "avg_tps": 8.2, "calls": 1, "completion": 28, "compressions": 0, "context_estimated": false, "context_max": 500000, "context_percent": 3, "context_source": "provider_usage", "context_used": 13031, "input": 13031, "model": "gpt-6.1-sol", "output": 28, "prompt": 13031, "reasoning": 21, "total": 13059}}, "seq": 8, "session_id": "rt-1", "type": "message.complete"}
+{"at": 6.911, "payload": {}, "type": "sessions.changed"}

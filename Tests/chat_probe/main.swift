@@ -291,6 +291,39 @@ if phases.contains("cold-open") {
     exit(0)
 }
 
+if phases.contains("first") {
+    let name = "crew-test-\(UUID().uuidString.prefix(6).lowercased())"
+    let store = BotStore(fixture: [], statuses: [:])
+    Task { await store.run(gateway, urlSession: urlSession) }
+    try await Task.sleep(for: .seconds(3))
+    do {
+        try await store.create(NewProfile(name: name, description: "Crew scenario bot", soul: nil, cloneFrom: nil), via: gateway) { $0.title = "Crew First" }
+        await store.reload(gateway)
+        guard let fresh = store.bots.first(where: { $0.name == name }) else { throw HermesError.invalidResponse }
+        record("first-turn")
+        let chat = ChatSession(bot: fresh, gateway: gateway, urlSession: urlSession)
+        Task { await chat.run() }
+        try await Task.sleep(for: .seconds(3))
+        chat.send("Reply with just: hi", mode: .send)
+        var seen: [String] = []
+        let started = Date.now
+        while Date.now.timeIntervalSince(started) < 120, seen.isEmpty || chat.isRunning || !chat.transcript.waiting.isEmpty {
+            if let line = chat.statusLine, seen.last != line { seen.append(line); print("FIRST statusLine:", line) }
+            if chat.isRunning, seen.isEmpty { seen.append("") }
+            try await Task.sleep(for: .milliseconds(100))
+        }
+        show("first live", chat)
+        await store.reload(gateway)
+        if let titled = store.bots.first(where: { $0.name == name }) { show("first reload", try await attached(titled)) }
+    } catch {
+        print("FIRST FAILED", error)
+    }
+    await store.reload(gateway)
+    if let bot = store.bots.first(where: { $0.name == name }) { try await store.delete(bot, via: gateway, urlSession: urlSession) }
+    print(store.bots.contains { $0.name == name } ? "THROWAWAY NOT DELETED: \(name)" : "throwaway deleted")
+    exit(0)
+}
+
 let bot = try await crewTest()
 print("canonical", bot.canonicalSession?.id.rawValue ?? "nil")
 let chat = try await attached(bot)
@@ -659,8 +692,6 @@ if phases.contains("cleared") {
         print("CLEARED roster count \(bot.canonicalSession?.messageCount ?? -1) (was \(position.messages)), marker \(bot.readPosition?.messages ?? -1), lastRead \(bot.lastRead?.messages ?? -1)")
     }
     let store = BotStore(fixture: [], statuses: [:])
-    var announced = 0
-    Task { for await _ in store.unreadCleared.stream { announced += 1 } }
     Task { await store.run(gateway, urlSession: urlSession) }
     func wait(_ label: String, until done: () async throws -> Bool) async throws {
         let begun = Date.now
@@ -672,7 +703,7 @@ if phases.contains("cleared") {
     }
     try await wait("store rewrote the marker to the current count by itself") { try await crewTest().readPosition == position }
     try await Task.sleep(for: .seconds(3))
-    print("CLEARED status after the drop: \(store.statuses["crew-test"].map { "\($0)" } ?? "idle"), read pushes: \(announced), count still \(try await crewTest().canonicalSession?.messageCount ?? -1)")
+    print("CLEARED status after the drop: \(store.statuses["crew-test"].map { "\($0)" } ?? "idle"), read pushes: \(store.takeClearedUnread().count), count still \(try await crewTest().canonicalSession?.messageCount ?? -1)")
     try await writeMarker(original.readPosition)
     print("CLEARED restored", try await crewTest().readPosition == original.readPosition)
 }

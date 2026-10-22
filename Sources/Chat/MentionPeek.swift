@@ -129,11 +129,11 @@ struct MentionPeek: View {
         } else if outcome == .relayed {
             Text("Sent through Hermes Desktop. The reply will show up there.")
                 .foregroundStyle(.secondary)
-        } else if case .failed(let reason) = outcome {
+        } else if case .failed(let failure) = outcome {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Not delivered")
-                    .foregroundStyle(.red)
-                if let reason {
+                Text(failure.headline(for: live.title))
+                    .foregroundStyle(failure.isUnconfirmed ? AnyShapeStyle(.secondary) : AnyShapeStyle(.red))
+                if let reason = failure.explanation(for: live.title) ?? failure.detail.flatMap({ $0.contains("{") || $0.contains("\n") ? nil : $0 }) {
                     Text(reason)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)

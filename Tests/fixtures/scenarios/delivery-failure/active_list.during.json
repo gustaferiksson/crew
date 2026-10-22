@@ -1,0 +1,16 @@
+{
+  "sessions" : [
+    {
+      "current" : false,
+      "id" : "35534896",
+      "last_active" : 1792698078.2369144,
+      "message_count" : 74,
+      "model" : "gpt-6.1-sol",
+      "preview" : "[IMPORTANT: Background process proc_6822ac4f5493 exited (exit code 1). Command: /opt/hermes/.venv/bin/python /opt/hermes/tools/bot_mode_dm.py --run-delivery --a",
+      "session_key" : "20261017_102454_92b952",
+      "started_at" : 1792698058.2932622,
+      "status" : "working",
+      "title" : "Bot Chat"
+    }
+  ]
+}

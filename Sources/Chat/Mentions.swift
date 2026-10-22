@@ -26,7 +26,7 @@ nonisolated struct MentionExchange: Equatable, Sendable {
         case awaiting
         case replied(String, at: Date)
         case delivered
-        case failed(String?)
+        case failed(DeliveryFailure)
         case relayed
     }
 
@@ -42,14 +42,32 @@ nonisolated private struct MessageAgentCall {
 
     var process: String? { call.status == .success ? result["process_id"] as? String : nil }
 
+    var failure: DeliveryFailure {
+        DeliveryFailure(reason: result["reason"] as? String == "runtime_offline" ? "runtime_offline" : nil, detail: (result["error"] ?? result["detail"]) as? String ?? (call.status == .error ? call.outcome : nil), isUnconfirmed: result["status"] as? String == "ambiguous", target: target)
+    }
+
+    init?(_ call: ToolCall) {
+        guard call.name == "message_agent" else { return nil }
+        let arguments = (try? JSONSerialization.jsonObject(with: Data(call.arguments.utf8))) as? [String: Any] ?? [:]
+        let target = (arguments["target"] as? String ?? call.subject).trimmingCharacters(in: .whitespaces).trimmingPrefix("@").prefix { $0 != "@" }.lowercased()
+        self.target = target == "hermes" ? "default" : target
+        message = arguments["message"] as? String ?? ""
+        self.call = call
+        result = call.result.flatMap { (try? JSONSerialization.jsonObject(with: Data($0.utf8))) as? [String: Any] } ?? [:]
+    }
+
     static func all(in turn: Turn) -> [MessageAgentCall] {
         turn.work.compactMap { item in
-            guard case .tool(let call) = item.kind, call.name == "message_agent" else { return nil }
-            let arguments = (try? JSONSerialization.jsonObject(with: Data(call.arguments.utf8))) as? [String: Any] ?? [:]
-            let target = (arguments["target"] as? String ?? call.subject).trimmingCharacters(in: .whitespaces).trimmingPrefix("@").prefix { $0 != "@" }.lowercased()
-            let result = call.result.flatMap { (try? JSONSerialization.jsonObject(with: Data($0.utf8))) as? [String: Any] } ?? [:]
-            return MessageAgentCall(target: target == "hermes" ? "default" : target, message: arguments["message"] as? String ?? "", call: call, result: result)
+            guard case .tool(let call) = item.kind else { return nil }
+            return MessageAgentCall(call)
         }
+    }
+}
+
+extension ToolCall {
+    nonisolated var deliveryFailure: DeliveryFailure? {
+        guard status == .error else { return nil }
+        return MessageAgentCall(self)?.failure
     }
 }
 
@@ -59,11 +77,10 @@ nonisolated func mentionExchange(with bot: Bot.ID, from turn: Turn.ID, in transc
           let match = MessageAgentCall.all(in: transcript.turns[start]).last(where: { $0.target == handle })
     else { return nil }
     if match.call.status == .running { return MentionExchange(message: match.message, outcome: .sending) }
-    let reason = (match.result["error"] ?? match.result["detail"]) as? String
-    guard match.call.status == .success else { return MentionExchange(message: match.message, outcome: .failed(reason ?? match.call.outcome)) }
+    guard match.call.status == .success else { return MentionExchange(message: match.message, outcome: .failed(match.failure)) }
     guard let process = match.process else {
         let isQueued = ["queued", "sent", "delivered"].contains(match.result["status"] as? String ?? "")
-        return MentionExchange(message: match.message, outcome: isQueued ? .relayed : .failed(reason))
+        return MentionExchange(message: match.message, outcome: isQueued ? .relayed : .failed(match.failure))
     }
     var awaited: [String] = []
     for turn in transcript.turns {
@@ -72,8 +89,9 @@ nonisolated func mentionExchange(with bot: Bot.ID, from turn: Turn.ID, in transc
         guard awaited.removeFirst() == process else { continue }
         return MentionExchange(message: match.message, outcome: .replied(message.body, at: turn.startedAt))
     }
-    let isDelivered = transcript.turns[start...].contains { $0.delivery == process }
-    return MentionExchange(message: match.message, outcome: isDelivered ? .delivered : .awaiting)
+    guard let delivery = transcript.turns[start...].first(where: { $0.delivery == process }) else { return MentionExchange(message: match.message, outcome: .awaiting) }
+    let failure = delivery.deliveryFailure.map { DeliveryFailure(reason: $0.reason, detail: $0.detail, isUnconfirmed: $0.isUnconfirmed, target: handle) }
+    return MentionExchange(message: match.message, outcome: failure.map { .failed($0) } ?? .delivered)
 }
 
 nonisolated struct MentionSegment: Equatable {

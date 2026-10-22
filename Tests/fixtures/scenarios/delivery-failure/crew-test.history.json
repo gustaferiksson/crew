@@ -1,0 +1,79 @@
+[
+  {
+    "content" : "@crew-test-peer hi\n\n[@mentions resolved from the Bot Mode roster — the user is referring to: @crew-test-peer = agent profile \"crew-test-peer\" (\"Crew Peer\"). If they want one of these agents contacted, compose your own message and send it with your message_agent tool (agents on other connected machines are reachable too — the Desktop relays it); never forward the user’s text verbatim. If this session has no message_agent tool, agent messaging is unavailable here — say so. Keep it brief: never narrate queueing or delivery, say at most one short line after message_agent, and relay the reply in one line when it arrives.]",
+    "display_kind" : null,
+    "id" : 134,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "user",
+    "timestamp" : 1792698068.2425792,
+    "tool_call_id" : null,
+    "tool_calls" : null
+  },
+  {
+    "content" : "",
+    "display_kind" : null,
+    "id" : 135,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "assistant",
+    "timestamp" : 1792698072.8476474,
+    "tool_call_id" : null,
+    "tool_calls" : [
+      {
+        "call_id" : "call_b19f86d7c7d2486bb6f6a7e4ed2dbeed",
+        "function" : {
+          "arguments" : "{\"target\":\"crew-test-peer\",\"message\":\"The user has greeted you in this chat. Please respond with a brief hello.\"}",
+          "name" : "message_agent"
+        },
+        "id" : "call_b19f86d7c7d2486bb6f6a7e4ed2dbeed",
+        "response_item_id" : "fc_005217149aef96c3016ada66d7fa4c8191b5de99c913000d20",
+        "type" : "function"
+      }
+    ]
+  },
+  {
+    "content" : "{\"status\": \"queued\", \"delivery_id\": \"f0357f96e74628888586f50e06ffe36ba9829791249b91d7b02aad104a4f7c6b\", \"to\": \"@crew-test-peer\", \"detail\": \"Durably queued for the live Bot Chat owner. Do NOT wait or resend; finish your turn.\", \"process_id\": \"proc_6822ac4f5493\", \"reply_delivery\": \"notification\"}",
+    "display_kind" : null,
+    "id" : 136,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "tool",
+    "timestamp" : 1792698074.3065407,
+    "tool_call_id" : "call_b19f86d7c7d2486bb6f6a7e4ed2dbeed",
+    "tool_calls" : null
+  },
+  {
+    "content" : "I’ve asked Crew Peer to say hello.",
+    "display_kind" : null,
+    "id" : 137,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "assistant",
+    "timestamp" : 1792698077.932066,
+    "tool_call_id" : null,
+    "tool_calls" : null
+  },
+  {
+    "content" : "[IMPORTANT: Background process proc_6822ac4f5493 exited (exit code 1).\nCommand: /opt/hermes/.venv/bin/python /opt/hermes/tools/bot_mode_dm.py --run-delivery --author '{\"id\":\"bot:crew-test\",\"name\":\"crew-test\",\"is_bot\":true}' query-file /opt/hermes/data --profile-home /opt/hermes/data /opt/hermes/.venv/bin/hermes -p crew-test-peer\nOutput:\n{\"reply\": \"ChatGPT or Codex Subscription rejected the request and retrying won't help. Pick another model with /model, or check the details in `~/profiles/crew-test-peer/logs/agent.log`.\\n\\nProvider said: HTTP 400: {\\\"detail\\\":\\\"The 'gpt-crew-test-missing' model is not supported when using Codex with a ChatGPT account.\\\"}\", \"error\": \"HTTP 400: {\\\"detail\\\":\\\"The 'gpt-crew-test-missing' model is not supported when using Codex with a ChatGPT account.\\\"}\", \"reason\": \"unknown\", \"status\": \"failed\", \"delivery_id\": \"f0357f96e74628888586f50e06ffe36ba9829791249b91d7b02aad104a4f7c6b\"}\n]",
+    "display_kind" : "process_complete",
+    "id" : 138,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "user",
+    "timestamp" : 1792698078.2679632,
+    "tool_call_id" : null,
+    "tool_calls" : null
+  },
+  {
+    "content" : "Crew Peer couldn’t reply because its configured model, `gpt-crew-test-missing`, is unsupported by the connected ChatGPT account.",
+    "display_kind" : null,
+    "id" : 139,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "assistant",
+    "timestamp" : 1792698083.1658652,
+    "tool_call_id" : null,
+    "tool_calls" : null
+  }
+]

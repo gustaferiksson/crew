@@ -1,0 +1,24 @@
+[
+  {
+    "content" : "Message from 🤖 Crew Test (@crew-test): The user has greeted you in this chat. Please respond with a brief hello.",
+    "display_kind" : "internal_notification",
+    "id" : 1,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "user",
+    "timestamp" : 1792698074.205743,
+    "tool_call_id" : null,
+    "tool_calls" : null
+  },
+  {
+    "content" : "Your request was not processed. Send it again if you still want me to carry it out.",
+    "display_kind" : "failed_turn",
+    "id" : 2,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "assistant",
+    "timestamp" : 1792698076.851516,
+    "tool_call_id" : null,
+    "tool_calls" : null
+  }
+]

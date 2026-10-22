@@ -131,9 +131,9 @@ private func settle(_ session: ChatSession) async throws {
     let transcript = Transcript(history: ordered.enumerated().map { index, row in
         HistoryRow(id: index + 1, role: row.role, content: row.content, toolCallId: row.toolCallId, toolCalls: row.toolCalls, timestamp: row.timestamp, reasoning: row.reasoning, reasoningContent: row.reasoningContent, displayKind: row.displayKind, displayContent: row.displayContent, displayCommentary: row.displayCommentary, displayReasoning: row.displayReasoning)
     })
-    #expect(transcript.turns.last?.deliveryFailed == true)
+    #expect(transcript.turns.last?.deliveryFailure != nil)
     #expect(transcript.visible.turns.last?.delivery != nil)
-    #expect(Transcript(history: rows).turns.contains { $0.delivery != nil && !$0.deliveryFailed })
+    #expect(Transcript(history: rows).turns.contains { $0.delivery != nil && $0.deliveryFailure == nil })
 }
 
 @Test func senderRowPreviewIsTheRelay() throws {

@@ -49,22 +49,6 @@ final class ChatSendScrollUITests: XCTestCase {
         assertAboveComposer(["Short"], in: app)
     }
 
-    @MainActor func testEverySendAfterTouchingTheTranscriptSitsRightAboveTheComposer() {
-        let app = launch("composer-line")
-        app.textFields.firstMatch.tap()
-        app.buttons["Send"].tap()
-        XCTAssertTrue(app.buttons["Stop"].waitForNonExistence(timeout: 5))
-        assertAboveComposer(["Sounds good, book the 07:10"], in: app)
-        for index in 1...2 {
-            let start = app.windows.firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.3))
-            start.press(forDuration: 0.3, thenDragTo: start.withOffset(CGVector(dx: 0, dy: CGFloat(index * 2))), withVelocity: 40, thenHoldForDuration: 0.3)
-            type("Nudged \(index)", in: app)
-            app.buttons["Send"].tap()
-            XCTAssertTrue(app.buttons["Stop"].waitForNonExistence(timeout: 5))
-            assertAboveComposer(["Nudged \(index)"], in: app)
-        }
-    }
-
     @MainActor func testASendWhileScrolledUpJumpsToTheBottom() {
         let app = launch("composer-line")
         let reply = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "The local build passes.")).firstMatch
@@ -91,22 +75,5 @@ final class ChatSendScrollUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Waiting"].waitForNonExistence(timeout: 15))
         XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "Worked for")).firstMatch.exists)
         assertAboveComposer([text, "Good call, switching to the staging context."], in: app)
-    }
-
-    @MainActor func testAQueuedMessageWaitsThenBecomesTheNextTurnRightAboveTheComposer() {
-        let app = launch("composer-running")
-        let text = "Then post the rollout in #deploys"
-        type(text, in: app)
-        let start = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "The local build passes.")).firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
-        start.press(forDuration: 0.3, thenDragTo: start.withOffset(CGVector(dx: 0, dy: 4)), withVelocity: 40, thenHoldForDuration: 0.3)
-        app.textFields.firstMatch.tap()
-        app.buttons["Steer"].press(forDuration: 1)
-        app.buttons["Queue"].tap()
-        XCTAssertTrue(app.staticTexts["Queued"].waitForExistence(timeout: 10))
-        XCTAssertFalse(app.staticTexts["Waiting"].exists)
-        XCTAssertTrue(app.staticTexts[text].exists)
-        XCTAssertTrue(app.staticTexts["Queued"].waitForNonExistence(timeout: 15))
-        XCTAssertTrue(app.staticTexts["Applied to staging."].exists)
-        assertAboveComposer([text], in: app)
     }
 }

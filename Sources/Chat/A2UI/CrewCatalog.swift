@@ -49,6 +49,11 @@ let crewCatalogs: [Catalog<ComponentImplementation>] = {
             "region": {"type": "object", "required": ["latitude", "longitude"], "properties": {
               "latitude": {"type": "number"}, "longitude": {"type": "number"}, "span": {"type": "number"}}}
             """)) { CrewMap(node: $0) },
+        ComponentImplementation(name: "Carousel", schema: crewSchema("Carousel", required: ["items"], properties: """
+            "items": {"type": "array", "items": {"type": "object", "required": ["title"], "properties": {
+              "title": {"type": "string"}, "subtitle": {"type": "string"}, "price": {"type": "string"}, "badge": {"type": "string"},
+              "tone": \(toneSchema), "image": {"type": "string"}, "url": {"type": "string"}, "text": {"type": "string"}}}}
+            """)) { CrewCarousel(node: $0) },
     ]
     let components = BasicCatalogImplementation.allComponents + crewComponents
     return [(crewCatalogID, A2UIProtocolVersion.v09), (V09BasicCatalog.catalogURI, .v09), (V09BasicCatalog.v091CatalogURI, .v091)].map { id, version in

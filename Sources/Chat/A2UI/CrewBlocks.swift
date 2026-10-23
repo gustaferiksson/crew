@@ -82,7 +82,7 @@ struct CrewSteps: View {
                         .foregroundStyle(.white)
                         .frame(width: 24, height: 24)
                         .background(.tint, in: .circle)
-                    Text((try? AttributedString(markdown: items[index], options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))) ?? AttributedString(items[index]))
+                    Text(cardMarkdown(items[index]))
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .accessibilityElement(children: .combine)

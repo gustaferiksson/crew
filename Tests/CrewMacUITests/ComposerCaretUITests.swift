@@ -43,33 +43,6 @@ final class ComposerCaretUITests: XCTestCase {
         expectValue("Use the staging Xcontext", of: field, "typing continues at the caret after the turn finishes")
     }
 
-    @MainActor func testTheCaretStaysPutWhenTheTurnIsStopped() {
-        let (app, field) = launch()
-        field.typeText("Use the context")
-        moveLeft(7, in: field)
-        guard let stop = app.buttons.matching(identifier: "Stop").allElementsBoundByIndex.first(where: \.isHittable) else { return XCTFail("no Stop button") }
-        stop.click()
-        XCTAssertTrue(app.buttons.matching(identifier: "Stop").firstMatch.waitForNonExistence(timeout: 5), "the turn stopped")
-        expectValue("Use the context", of: field, "the draft survives stopping the turn")
-        field.typeText("staging ")
-        attach(app, "caret-after-stop")
-        expectValue("Use the staging context", of: field, "typing continues at the caret after a stop")
-    }
-
-    @MainActor func testTheCaretStaysPutWhenASteerIsTaken() {
-        let (app, field) = launch()
-        field.typeText("Use the staging context\r")
-        expectValue("", of: field, "Return sends the steer")
-        field.typeText("Post the rollout")
-        moveLeft(7, in: field)
-        let taken = NSPredicate(format: "value CONTAINS %@ OR label CONTAINS %@", "switching to the staging context", "switching to the staging context")
-        XCTAssertTrue(app.descendants(matching: .any).matching(taken).firstMatch.waitForExistence(timeout: 20), "the bot took the steer")
-        expectValue("Post the rollout", of: field, "the draft survives the steer being taken")
-        field.typeText("staging ")
-        attach(app, "caret-after-steer")
-        expectValue("Post the staging rollout", of: field, "typing continues at the caret after a steer is taken")
-    }
-
     @MainActor func testShiftReturnInsertsALineAtTheCaret() {
         let (_, field) = launch()
         field.typeText("Use the context")

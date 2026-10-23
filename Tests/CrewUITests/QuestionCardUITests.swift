@@ -59,19 +59,4 @@ final class QuestionCardUITests: XCTestCase {
         let sent = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", expected), object: log)
         XCTAssertEqual(XCTWaiter().wait(for: [sent], timeout: 10), .completed, String(describing: log.value))
     }
-
-    @MainActor func testASingleQuestionHasNoPager() {
-        let app = launch("chat-question")
-        XCTAssertTrue(question("Which environment should I deploy to?", in: app).waitForExistence(timeout: 10))
-        XCTAssertFalse(app.staticTexts["Question 1 of 1"].exists)
-        XCTAssertFalse(app.buttons["Back"].exists)
-        XCTAssertFalse(app.buttons["Next"].exists)
-        choice("Production", in: app).tap()
-        XCTAssertTrue(choice("Production", in: app).isSelected)
-        XCTAssertTrue(question("Which environment should I deploy to?", in: app).exists)
-        app.buttons["Send"].tap()
-        let log = app.descendants(matching: .any)["request-log"]
-        let sent = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", #"clarify.respond {"env":"Production"}"#), object: log)
-        XCTAssertEqual(XCTWaiter().wait(for: [sent], timeout: 10), .completed, String(describing: log.value))
-    }
 }

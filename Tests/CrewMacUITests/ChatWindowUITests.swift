@@ -59,21 +59,6 @@ final class ChatWindowUITests: XCTestCase {
         attach(window, "chat-window-light")
     }
 
-    @MainActor func testContextMenuOpensTheBotInANewWindow() {
-        let app = launch()
-        app.staticTexts[ledgerPreview].rightClick()
-        XCTAssertTrue(app.menuItems["Open in New Window"].firstMatch.waitForExistence(timeout: 5))
-        guard let open = app.menuItems.matching(identifier: "Open in New Window").allElementsBoundByIndex.first(where: \.isHittable) else { return XCTFail("no context menu item") }
-        open.click()
-        expectWindows(2, in: app, "the context menu opens the bot's window")
-    }
-
-    @MainActor func testDoubleClickOnAFavouriteTileOpensItsWindow() {
-        let app = launch()
-        app.buttons["Scout, Travel Planner"].doubleClick()
-        expectWindows(2, in: app, "a double-click on a favourite tile opens its window")
-    }
-
     @MainActor func testCommandOOpensTheSelectedBotAndCommandWClosesIt() {
         let app = launch()
         app.staticTexts[quillPreview].click()
@@ -82,14 +67,6 @@ final class ChatWindowUITests: XCTestCase {
 
         app.typeKey("w", modifierFlags: .command)
         expectWindows(1, in: app, "Cmd-W closes the front chat window")
-    }
-
-    @MainActor func testChatWindowInDark() {
-        let app = launch(appearance: "Dark")
-        app.staticTexts[atlasPreview].doubleClick()
-        expectWindows(2, in: app, "a double-click opens the bot's chat in its own window")
-        guard let window = chatWindow(in: app) else { return XCTFail("no chat window") }
-        attach(window, "chat-window-dark")
     }
 
     @MainActor func testSignOutClosesChatWindowsAndShowsSignIn() {

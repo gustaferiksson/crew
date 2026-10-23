@@ -228,6 +228,8 @@ private struct WorkRow: View {
     let item: WorkItem
     @Binding var isExpanded: Bool
 
+    @Environment(BotStore.self) private var bots
+
     var body: some View {
         if case .note(let text) = item.kind {
             MarkdownText(source: text)
@@ -307,7 +309,7 @@ private struct WorkRow: View {
                 .foregroundStyle(.secondary)
         case .tool(let call):
             VStack(alignment: .leading, spacing: 8) {
-                if let outcome = call.outcome {
+                if let outcome = deliveryFailureNote ?? call.outcome {
                     Text(outcome)
                         .font(.footnote)
                         .foregroundStyle(call.status == .error ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
@@ -318,6 +320,11 @@ private struct WorkRow: View {
                 }
             }
         }
+    }
+
+    private var deliveryFailureNote: String? {
+        guard case .tool(let call) = item.kind, let failure = call.deliveryFailure else { return nil }
+        return failure.explanation(for: bots.bots.first { $0.name == failure.target }?.title ?? failure.target ?? call.subject)
     }
 
     private var appearance: (verb: String, icon: String) {

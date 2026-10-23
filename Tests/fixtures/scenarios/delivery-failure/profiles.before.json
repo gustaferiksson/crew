@@ -1,0 +1,79 @@
+{
+  "profiles" : [
+    {
+      "canonical_session" : {
+        "id" : "20261017_102454_92b952",
+        "last_active" : 1792697726.1167846,
+        "live_message_count" : 70,
+        "message_count" : 70,
+        "preview" : "A little sunshine can brighten a cloudy day.",
+        "resolved_id" : "20261017_102454_92b952",
+        "root_title" : "Bot Chat",
+        "started_at" : 1792232716.335284,
+        "title" : "Bot Chat"
+      },
+      "description" : "Crew test profile",
+      "display_name" : "",
+      "has_avatar" : false,
+      "is_default" : false,
+      "last_session" : null,
+      "model" : "gpt-6.1-sol",
+      "name" : "crew-test",
+      "path" : "/opt/hermes/data",
+      "previous_names" : [
+
+      ],
+      "provider" : "openai-codex",
+      "skill_count" : 59,
+      "ui_meta" : {
+        "crew" : {
+          "messages" : 70,
+          "session" : "20261017_102454_92b952"
+        },
+        "hermes-bots" : {
+          "color" : "#14b8a6",
+          "custom" : true,
+          "screenAutoOpen" : true,
+          "shape" : "hexagon",
+          "title" : "Crew Test"
+        }
+      },
+      "ui_meta_revisions" : {
+        "crew" : 56,
+        "hermes-bots" : 13
+      },
+      "worker_session" : null
+    },
+    {
+      "canonical_session" : null,
+      "description" : "Crew scenario peer",
+      "display_name" : "",
+      "has_avatar" : false,
+      "is_default" : false,
+      "last_session" : null,
+      "model" : "gpt-6.1-sol",
+      "name" : "crew-test-peer",
+      "path" : "/opt/hermes/data",
+      "previous_names" : [
+
+      ],
+      "provider" : "openai-codex",
+      "skill_count" : 58,
+      "ui_meta" : {
+        "hermes-bots" : {
+          "color" : "#14b8a6",
+          "created" : 1792698067573,
+          "custom" : true,
+          "expression" : "happy",
+          "imageKind" : "shape",
+          "shape" : "hexagon",
+          "title" : "Crew Peer"
+        }
+      },
+      "ui_meta_revisions" : {
+        "hermes-bots" : 1
+      },
+      "worker_session" : null
+    }
+  ]
+}

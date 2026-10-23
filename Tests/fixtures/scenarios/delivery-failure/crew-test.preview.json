@@ -1,0 +1,266 @@
+[
+  {
+    "content" : "@crew-test-old hi\n\n[@mentions resolved from the Bot Mode roster — the user is referring to: @crew-test-old = agent profile \"crew-test-old\" (\"Crew Peer\"). If they want one of these agents contacted, compose your own message and send it with your message_agent tool (agents on other connected machines are reachable too — the Desktop relays it); never forward the user’s text verbatim. If this session has no message_agent tool, agent messaging is unavailable here — say so. Keep it brief: never narrate queueing or delivery, say at most one short line after message_agent, and relay the reply in one line when it arrives.]",
+    "display_kind" : null,
+    "id" : 120,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "user",
+    "timestamp" : 1792696493.9193673,
+    "tool_call_id" : null,
+    "tool_calls" : null
+  },
+  {
+    "content" : "",
+    "display_kind" : null,
+    "id" : 121,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "assistant",
+    "timestamp" : 1792696497.9326448,
+    "tool_call_id" : null,
+    "tool_calls" : [
+      {
+        "call_id" : "call_20f2fcef12fd4e8daecb6a09ae247e0f",
+        "function" : {
+          "arguments" : "{\"target\":\"crew-test-old\",\"message\":\"The user is greeting you in this chat. Please say hello.\"}",
+          "name" : "message_agent"
+        },
+        "id" : "call_20f2fcef12fd4e8daecb6a09ae247e0f",
+        "response_item_id" : "fc_005217149aef96c3016ada60b0eff0819188240b5babe40a45",
+        "type" : "function"
+      }
+    ]
+  },
+  {
+    "content" : "{\"status\": \"ambiguous\", \"delivery_id\": \"02fa76ecd50fb1e7c5e31a5f003e389221a3ee916ceca97f9545175690e45d3b\", \"error\": \"Live delivery admission could not be confirmed: not_found. Do not resend.\", \"evidence_file\": \"/opt/hermes/data\"}",
+    "display_kind" : null,
+    "id" : 122,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "tool",
+    "timestamp" : 1792696499.117008,
+    "tool_call_id" : "call_20f2fcef12fd4e8daecb6a09ae247e0f",
+    "tool_calls" : null
+  },
+  {
+    "content" : "I couldn’t confirm contact with Crew Peer.",
+    "display_kind" : null,
+    "id" : 123,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "assistant",
+    "timestamp" : 1792696503.559031,
+    "tool_call_id" : null,
+    "tool_calls" : null
+  },
+  {
+    "content" : "@crew-test-old hi\n\n[@mentions resolved from the Bot Mode roster — the user is referring to: @crew-test-old = agent profile \"crew-test-old\" (\"Crew Peer\"). If they want one of these agents contacted, compose your own message and send it with your message_agent tool (agents on other connected machines are reachable too — the Desktop relays it); never forward the user’s text verbatim. If this session has no message_agent tool, agent messaging is unavailable here — say so. Keep it brief: never narrate queueing or delivery, say at most one short line after message_agent, and relay the reply in one line when it arrives.]",
+    "display_kind" : null,
+    "id" : 124,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "user",
+    "timestamp" : 1792697107.0260515,
+    "tool_call_id" : null,
+    "tool_calls" : null
+  },
+  {
+    "content" : "",
+    "display_kind" : null,
+    "id" : 125,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "assistant",
+    "timestamp" : 1792697110.6062818,
+    "tool_call_id" : null,
+    "tool_calls" : [
+      {
+        "call_id" : "call_0fac0fcc85834ecd895b389e74c6daaa",
+        "function" : {
+          "arguments" : "{\"target\":\"crew-test-old\",\"message\":\"The user reached out to greet you. Please respond with a brief hello.\"}",
+          "name" : "message_agent"
+        },
+        "id" : "call_0fac0fcc85834ecd895b389e74c6daaa",
+        "response_item_id" : "fc_005217149aef96c3016ada6315a6248191a09df098116062bd",
+        "type" : "function"
+      }
+    ]
+  },
+  {
+    "content" : "{\"status\": \"ambiguous\", \"delivery_id\": \"896ff30bddc5def30fc288c13ecdc89fc66d03a5f441a9ab73041f1736b18016\", \"error\": \"Live delivery admission could not be confirmed: not_found. Do not resend.\", \"evidence_file\": \"/opt/hermes/data\"}",
+    "display_kind" : null,
+    "id" : 126,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "tool",
+    "timestamp" : 1792697110.6704452,
+    "tool_call_id" : "call_0fac0fcc85834ecd895b389e74c6daaa",
+    "tool_calls" : null
+  },
+  {
+    "content" : "I couldn’t confirm contact with Crew Peer.",
+    "display_kind" : null,
+    "id" : 127,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "assistant",
+    "timestamp" : 1792697112.9337595,
+    "tool_call_id" : null,
+    "tool_calls" : null
+  },
+  {
+    "content" : "@crew-test-old hi\n\n[@mentions resolved from the Bot Mode roster — the user is referring to: @crew-test-old = agent profile \"crew-test-old\" (\"Crew Peer\"). If they want one of these agents contacted, compose your own message and send it with your message_agent tool (agents on other connected machines are reachable too — the Desktop relays it); never forward the user’s text verbatim. If this session has no message_agent tool, agent messaging is unavailable here — say so. Keep it brief: never narrate queueing or delivery, say at most one short line after message_agent, and relay the reply in one line when it arrives.]",
+    "display_kind" : null,
+    "id" : 128,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "user",
+    "timestamp" : 1792697603.468298,
+    "tool_call_id" : null,
+    "tool_calls" : null
+  },
+  {
+    "content" : "",
+    "display_kind" : null,
+    "id" : 129,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "assistant",
+    "timestamp" : 1792697606.8551834,
+    "tool_call_id" : null,
+    "tool_calls" : [
+      {
+        "call_id" : "call_c98c478e71e146918ccb46b1ae4e0cf9",
+        "function" : {
+          "arguments" : "{\"message\":\"The user is reaching out with a greeting. Please say hello briefly.\",\"target\":\"crew-test-old\"}",
+          "name" : "message_agent"
+        },
+        "id" : "call_c98c478e71e146918ccb46b1ae4e0cf9",
+        "response_item_id" : "fc_005217149aef96c3016ada6505dfb88191abaaa85a5e3725d1",
+        "type" : "function"
+      }
+    ]
+  },
+  {
+    "content" : "{\"status\": \"ambiguous\", \"delivery_id\": \"2ae6e2097bc2ee6c564fe865281b296f001635ca18b5267acca0c1ed3a67a4bf\", \"error\": \"Live delivery admission could not be confirmed: not_found. Do not resend.\", \"evidence_file\": \"/opt/hermes/data\"}",
+    "display_kind" : null,
+    "id" : 130,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "tool",
+    "timestamp" : 1792697606.921137,
+    "tool_call_id" : "call_c98c478e71e146918ccb46b1ae4e0cf9",
+    "tool_calls" : null
+  },
+  {
+    "content" : "I couldn’t confirm contact with Crew Peer.",
+    "display_kind" : null,
+    "id" : 131,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "assistant",
+    "timestamp" : 1792697609.2297266,
+    "tool_call_id" : null,
+    "tool_calls" : null
+  },
+  {
+    "content" : "Reply with one short sentence about the weather.",
+    "display_kind" : null,
+    "id" : 132,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "user",
+    "timestamp" : 1792697726.073501,
+    "tool_call_id" : null,
+    "tool_calls" : null
+  },
+  {
+    "content" : "A little sunshine can brighten a cloudy day.",
+    "display_kind" : null,
+    "id" : 133,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "assistant",
+    "timestamp" : 1792697729.3021824,
+    "tool_call_id" : null,
+    "tool_calls" : null
+  },
+  {
+    "content" : "@crew-test-peer hi\n\n[@mentions resolved from the Bot Mode roster — the user is referring to: @crew-test-peer = agent profile \"crew-test-peer\" (\"Crew Peer\"). If they want one of these agents contacted, compose your own message and send it with your message_agent tool (agents on other connected machines are reachable too — the Desktop relays it); never forward the user’s text verbatim. If this session has no message_agent tool, agent messaging is unavailable here — say so. Keep it brief: never narrate queueing or delivery, say at most one short line after message_agent, and relay the reply in one line when it arrives.]",
+    "display_kind" : null,
+    "id" : 134,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "user",
+    "timestamp" : 1792698068.2425792,
+    "tool_call_id" : null,
+    "tool_calls" : null
+  },
+  {
+    "content" : "",
+    "display_kind" : null,
+    "id" : 135,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "assistant",
+    "timestamp" : 1792698072.8476474,
+    "tool_call_id" : null,
+    "tool_calls" : [
+      {
+        "call_id" : "call_b19f86d7c7d2486bb6f6a7e4ed2dbeed",
+        "function" : {
+          "arguments" : "{\"target\":\"crew-test-peer\",\"message\":\"The user has greeted you in this chat. Please respond with a brief hello.\"}",
+          "name" : "message_agent"
+        },
+        "id" : "call_b19f86d7c7d2486bb6f6a7e4ed2dbeed",
+        "response_item_id" : "fc_005217149aef96c3016ada66d7fa4c8191b5de99c913000d20",
+        "type" : "function"
+      }
+    ]
+  },
+  {
+    "content" : "{\"status\": \"queued\", \"delivery_id\": \"f0357f96e74628888586f50e06ffe36ba9829791249b91d7b02aad104a4f7c6b\", \"to\": \"@crew-test-peer\", \"detail\": \"Durably queued for the live Bot Chat owner. Do NOT wait or resend; finish your turn.\", \"process_id\": \"proc_6822ac4f5493\", \"reply_delivery\": \"notification\"}",
+    "display_kind" : null,
+    "id" : 136,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "tool",
+    "timestamp" : 1792698074.3065407,
+    "tool_call_id" : "call_b19f86d7c7d2486bb6f6a7e4ed2dbeed",
+    "tool_calls" : null
+  },
+  {
+    "content" : "I’ve asked Crew Peer to say hello.",
+    "display_kind" : null,
+    "id" : 137,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "assistant",
+    "timestamp" : 1792698077.932066,
+    "tool_call_id" : null,
+    "tool_calls" : null
+  },
+  {
+    "content" : "[IMPORTANT: Background process proc_6822ac4f5493 exited (exit code 1).\nCommand: /opt/hermes/.venv/bin/python /opt/hermes/tools/bot_mode_dm.py --run-delivery --author '{\"id\":\"bot:crew-test\",\"name\":\"crew-test\",\"is_bot\":true}' query-file /opt/hermes/data --profile-home /opt/hermes/data /opt/hermes/.venv/bin/hermes -p crew-test-peer\nOutput:\n{\"reply\": \"ChatGPT or Codex Subscription rejected the request and retrying won't help. Pick another model with /model, or check the details in `~/profiles/crew-test-peer/logs/agent.log`.\\n\\nProvider said: HTTP 400: {\\\"detail\\\":\\\"The 'gpt-crew-test-missing' model is not supported when using Codex with a ChatGPT account.\\\"}\", \"error\": \"HTTP 400: {\\\"detail\\\":\\\"The 'gpt-crew-test-missing' model is not supported when using Codex with a ChatGPT account.\\\"}\", \"reason\": \"unknown\", \"status\": \"failed\", \"delivery_id\": \"f0357f96e74628888586f50e06ffe36ba9829791249b91d7b02aad104a4f7c6b\"}\n]",
+    "display_kind" : "process_complete",
+    "id" : 138,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "user",
+    "timestamp" : 1792698078.2679632,
+    "tool_call_id" : null,
+    "tool_calls" : null
+  },
+  {
+    "content" : "Crew Peer couldn’t reply because its configured model, `gpt-crew-test-missing`, is unsupported by the connected ChatGPT account.",
+    "display_kind" : null,
+    "id" : 139,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "assistant",
+    "timestamp" : 1792698083.1658652,
+    "tool_call_id" : null,
+    "tool_calls" : null
+  }
+]

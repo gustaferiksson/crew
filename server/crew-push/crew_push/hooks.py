@@ -255,7 +255,6 @@ def shop_tab_block(task_id: str, origins: list[str]) -> tuple[dict[str, str] | N
 
 def fill_card_frames(args: dict[str, Any], entry: dict[str, Any], task_id: str) -> dict[str, Any]:
     secret: dict[str, Any] = {}
-    report: list[dict[str, Any]] = []
     try:
         from agent.vault_backends import backend_for_handle
         from tools.browser_vault_tool import _fenced_page_op
@@ -268,15 +267,13 @@ def fill_card_frames(args: dict[str, Any], entry: dict[str, Any], task_id: str) 
             return payments.frame_result("error")
         secret = backend.resolve_secret(handle)
         outcome = json.loads(_fenced_page_op(task_id, lambda: json.dumps(
-            {"fields": frames.fill(task_id, entry["origin"], secret, report)})))
+            {"fields": frames.fill(task_id, entry["origin"], secret)})))
     except frames.FrameFillError as error:
         return payments.frame_result(error.code, error.filled)
     except Exception as error:
         log.warning("crew-push: filling Shopify's card frames failed: %s",
                     payments.scrub(str(error), frames.page_values(secret)))
         return payments.frame_result("error")
-    finally:
-        payments.update(entry["request_id"], frame_report=report)
     if "fields" not in outcome:
         return payments.frame_result("human_has_control", ("unknown",))
     return {"success": True, "filled_fields": len(outcome["fields"]), "fields": outcome["fields"], "kind": "payment",

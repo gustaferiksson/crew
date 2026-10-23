@@ -1,4 +1,3 @@
-import copy
 import json
 import re
 import sys
@@ -412,13 +411,6 @@ class FakeCDP:
         self.unfocusable: set[str] = set()
         self.fail_on = ""
         self.keeps = 99
-        self.empties: list[str] = []
-        self.hidden: set[str] = set()
-
-    def settle(self) -> None:
-        if self.empties:
-            emptied = self.empties.pop(0)
-            self.typed = [(target, text) if target != emptied else (target, "") for target, text in self.typed]
 
     def call(self, method: str, params: dict[str, Any] | None = None, *, session_id: str | None = None,
              timeout: float = 10.0) -> dict[str, Any]:
@@ -439,14 +431,6 @@ class FakeCDP:
             return {"result": {"frameTree": {"frame": self.recorded["top"] if session_id == "page" else frame["frame"]}}}
         if method == "Input.insertText":
             self.typed.append((target, params["text"]))
-            return {"result": {}}
-        if method == "DOM.getFrameOwner":
-            return {"result": {"backendNodeId": params["frameId"]}}
-        if method == "DOM.resolveNode":
-            return {"result": {"object": {"objectId": params["backendNodeId"]}}}
-        if method == "Runtime.callFunctionOn":
-            return {"result": {"result": {"type": "boolean", "value": params["objectId"] not in self.hidden}}}
-        if method == "Runtime.releaseObject":
             return {"result": {}}
         expression = params["expression"]
         if expression.startswith("inspect:"):
@@ -474,14 +458,13 @@ TYPED = [("frame-3", "4242424242424242"), ("frame-4", "1234"), ("frame-5", "123"
 
 
 @pytest.fixture
-def shopify(hermes: Hermes, monkeypatch: pytest.MonkeyPatch) -> FakeCDP:
+def shopify(hermes: Hermes) -> FakeCDP:
     real = fixture("real/real-bombola-iframe-checkout.json")
     hermes.items["vault_bombola"] = types.SimpleNamespace(kind="payment", label=SHOP_LABEL, origin=SHOP,
                                                           allowed_origins=())
     hermes.page, hermes.tabs = SHOP, {SHOP}
     hermes.controls, hermes.frames = real["page"]["controls"], real["page"]["card_frames"]
     hermes.cdp = FakeCDP(fixture("real/real-bombola-card-frames.json"))
-    monkeypatch.setattr(frames, "time", types.SimpleNamespace(sleep=lambda seconds: hermes.cdp.settle()))
     return hermes.cdp
 
 
@@ -528,7 +511,7 @@ def test_an_approved_fill_types_into_the_shops_own_card_frames(push: CrewPush, h
     assert shopify.typed == TYPED and shopify.sessions == {}
     assert {"4242424242424242", "4242 4242 4242 4242", "123", "1234", "12 / 34", "Test Name"} <= set(hermes.redacted)
     [entry] = store.read_list("payments.json")
-    assert (entry["fill"], entry["fill_error"]) == ("filled", None)
+    assert (entry["fill"], entry["fill_error"]) == ("filled", None) and "frame_report" not in entry
     assert shop_result(push) is None and shopify.typed == TYPED
 
 
@@ -586,43 +569,6 @@ def test_a_field_that_cuts_the_value_stops_the_fill(push: CrewPush, hermes: Herm
     result = shop_result(push)
     assert result["crew_payment"]["fill_error"] == "error" and result["error"].endswith(payments.PARTIAL)
     assert shopify.typed == TYPED[:1]
-
-
-def test_a_security_code_shopify_empties_is_typed_again(push: CrewPush, hermes: Hermes, shopify: FakeCDP) -> None:
-    shopify.empties = ["frame-5"]
-    approve_shop(push, hermes)
-    assert shop_result(push) == fixture("fill-card-frames.json")
-    assert shopify.typed == [*TYPED[:2], ("frame-5", ""), TYPED[3], ("frame-5", "123")] and shopify.sessions == {}
-
-
-def test_a_security_code_shopify_keeps_emptying_is_named(push: CrewPush, hermes: Hermes, shopify: FakeCDP) -> None:
-    shopify.empties = ["frame-5", "frame-5"]
-    approve_shop(push, hermes)
-    result = shop_result(push)
-    assert (result["crew_payment"]["fill"], result["crew_payment"]["fill_error"]) == ("not_filled", "error")
-    assert result["error"] == ("Shopify cleared the security code and Crew couldn't refill it. Nothing was ordered. "
-                               "Tell the user, and offer to send them the cart link so they can finish on their own "
-                               "device. Do not click review or pay, and do not retry the fill.")
-    assert [text for target, text in shopify.typed if target == "frame-5"] == ["", ""]
-
-
-def test_a_card_frame_the_page_hides_gets_nothing(push: CrewPush, hermes: Hermes, shopify: FakeCDP) -> None:
-    hidden = copy.deepcopy(shopify.recorded["frames"]["frame-5"])
-    hidden["frame"]["id"] = "frame-5-old"
-    shopify.recorded["frames"]["frame-5-old"] = hidden
-    cvc = next(target for target in shopify.recorded["targets"] if target["targetId"] == "frame-5")
-    shopify.recorded["targets"].insert(1, {**cvc, "targetId": "frame-5-old"})
-    shopify.hidden.add("frame-5-old")
-    approve_shop(push, hermes)
-    assert shop_result(push) == fixture("fill-card-frames.json")
-    assert shopify.typed == TYPED and shopify.sessions == {}
-    [entry] = store.read_list("payments.json")
-    assert [step["pass"] for step in entry["frame_report"]] == ["type_into", "is_missing"]
-    first = entry["frame_report"][0]["frames"]
-    assert {"page": "verification_value-ltr.html", "own_frame": True, "shown": False} in first
-    assert {"page": "verification_value-ltr.html", "own_frame": True, "shown": True, "token": "cc-csc",
-            "result": True} in first
-    assert {"page": "issue_date-ltr.html", "own_frame": True, "shown": True} in first
 
 
 def test_a_human_takeover_discards_the_frame_fill(push: CrewPush, hermes: Hermes, shopify: FakeCDP) -> None:

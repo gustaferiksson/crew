@@ -736,7 +736,7 @@ if phases.contains("mention") {
 
 if phases.contains("record") {
     let scenario = CommandLine.arguments.last ?? ""
-    guard ["bot-mention", "open-target"].contains(scenario) else { print("unknown scenario \(scenario)"); exit(1) }
+    guard ["bot-mention", "open-target", "delivery-failure"].contains(scenario) else { print("unknown scenario \(scenario)"); exit(1) }
     let folder = URL(fileURLWithPath: #filePath).appending(path: "../../fixtures/scenarios/\(scenario)").standardized
     try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
     let peerName = "crew-test-\(UUID().uuidString.prefix(6).lowercased())"
@@ -789,6 +789,13 @@ if phases.contains("record") {
         try save("profiles.before", before.raw)
         let firstRow = try await history(of: senderSession.resolvedID, profile: sender.name, on: server, with: urlSession, limit: 1).map(\.id).max() ?? 0
         let peerChats = ChatSessions()
+        if scenario == "delivery-failure" {
+            var changes = ProfileChanges(name: peerName)
+            changes.model = "gpt-crew-test-missing"
+            changes.provider = "openai-codex"
+            changes.confirmExpensiveModel = true
+            print("peer model change:", try await gateway.call("profiles.configure", changes, as: JSONValue.self))
+        }
         if scenario == "open-target" {
             peerChats.open(peer, on: gateway, urlSession: urlSession)
             try await Task.sleep(for: .seconds(3))

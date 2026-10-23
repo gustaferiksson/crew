@@ -22,9 +22,9 @@ The same content on every platform. It observes the current chat's `ChatSession`
    - **Message to <bot>:** the `message` argument of the mentioning turn's `message_agent` call whose `target` is this bot, quoted (what the current bot actually sent, not the user's text).
    - **<Bot>'s reply** with its time: the `Message from … (@handle)` row paired the way #32 pairs them (each queued call with a `process_id` in a user-started turn consumes the next such row from that handle, oldest call first), so an older tag never picks up a newer reply.
    - **No reply yet:** "Waiting for <bot>" with a pulsing dot while the target is working, "No reply yet" when it is idle (also when the history window doesn't hold the reply).
-   - **Delivered:** the delivery notice for the call's `process_id` arrived without a reply row (the target answered in its own chat): "Delivered. The answer is in <bot>'s chat."
+   - **Delivered:** the delivery notice for the call's `process_id` arrived, succeeded, and no reply row followed (the target answered in its own chat): "Delivered. The answer is in <bot>'s chat." A notice that failed or left the outcome open is Not delivered (see `delivery-failure.md`).
    - **Sending:** the call is still streaming (the result follows within a second): "Sending…".
-   - **Not delivered:** the call errored, or its result has neither a `process_id` nor a queued status: "Not delivered" in red with the server's short reason when there is one.
+   - **Not delivered:** the call errored, its result has neither a `process_id` nor a queued status, or its delivery notice failed: a red headline and the plain-language reason from `delivery-failure.md` (else the server's short error when it is one plain line); an unconfirmed outcome reads "Delivery to <bot> couldn't be confirmed." in secondary text.
    - **Relayed:** queued without a `process_id` (another machine through Hermes Desktop): "Sent through Hermes Desktop. The reply will show up there."
    - **Plain mention** (no `message_agent` call to this bot in that turn, group rooms, the conversation viewer): "Recent" with the bot's latest chat preview and its time from the roster, so the peek is never empty.
    - Quotes clamp to 4 lines; the full text is in the live chat.

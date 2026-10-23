@@ -430,6 +430,18 @@ struct TurnView: View {
                     }
                     .font(.footnote)
                 }
+                if let failure = turn.deliveryFailure {
+                    let bot = bots.bots.first { $0.name == failure.target }?.title ?? failure.target ?? String(localized: "the bot")
+                    let tint = failure.isUnconfirmed ? AnyShapeStyle(.secondary) : AnyShapeStyle(.red)
+                    Label {
+                        Text("\(Text(failure.headline(for: bot)).foregroundStyle(tint))\(failure.explanation(for: bot).map { " " + $0 } ?? "")")
+                    } icon: {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(tint)
+                    }
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                }
                 if turn.status == .interrupted {
                     Label("Stopped", systemImage: "stop.circle")
                         .font(.footnote)

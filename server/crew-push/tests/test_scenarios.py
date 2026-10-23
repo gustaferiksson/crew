@@ -38,3 +38,15 @@ def test_bot_mention_pushes(device, enqueued: list, profile: str, bodies: list[s
     device()
     replay(CrewPush(profile=profile), SCENARIOS / "bot-mention" / f"{profile}.history.json")
     assert [payload["aps"]["alert"]["body"] for _, _, payload in enqueued] == bodies
+
+
+@pytest.mark.parametrize(("profile", "bodies"), [
+    pytest.param("crew-test", ["I’ve asked Crew Peer to say hello.", "Crew Peer couldn’t reply because its configured model, gpt-crew-test-missing, is unsupported by the connected ChatGPT account."],
+                 id="sender-pushes-its-own-sentence-about-the-failed-delivery"),
+    pytest.param("crew-test-peer", [],
+                 id="target-mutes-the-failed-exchange"),
+])
+def test_delivery_failure_pushes(device, enqueued: list, profile: str, bodies: list[str]) -> None:
+    device()
+    replay(CrewPush(profile=profile), SCENARIOS / "delivery-failure" / f"{profile}.history.json")
+    assert [payload["aps"]["alert"]["body"] for _, _, payload in enqueued] == bodies

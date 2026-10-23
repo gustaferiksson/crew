@@ -2,7 +2,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 enum ChatFixture {
-    case conversation, history, timestamps, workLog, question, questions, questionsSnacks, offline, attachments, dictation, mentions, agentMessage, a2ui, a2uiCards, a2uiForm, a2uiTable, a2uiChart, a2uiMap, a2uiCarousel, a2uiCarouselStates
+    case conversation, history, timestamps, workLog, question, questions, questionsSnacks, offline, attachments, dictation, mentions, agentMessage, deliveryFailure, a2ui, a2uiCards, a2uiForm, a2uiTable, a2uiChart, a2uiMap, a2uiCarousel, a2uiCarouselStates
     case composerLine, composerLines, composerRunning, composerRunningText, steer, steerTaken, waiting
     case payment, paymentHolding, paymentApproved, paymentLoading, paymentFailed, paymentUnverified, paymentPunycode, paymentCountdown, paymentNotice, paymentOffer, paymentOfferHistory, paymentReceipts
 
@@ -120,6 +120,11 @@ enum ChatFixture {
                 return [ask, Turn(id: "r\(index)", agentMessage: reply.agentMessage, status: .complete, startedAt: start.addingTimeInterval(30))]
             }
             return Transcript(turns: [greeting(now.addingTimeInterval(-26 * 3600))] + earlier + [handoff(now.addingTimeInterval(-6 * 60)), reply])
+        }
+        if self == .deliveryFailure {
+            let notice = #"[IMPORTANT: Background process proc_7f3a exited (exit code 1).\#nCommand: /opt/hermes/.venv/bin/python /opt/hermes/tools/bot_mode_dm.py --run-delivery query-file /tmp/dm\#nOutput:\#n{"error": "Scout's Bot Chat is open on another surface right now.", "reason": "target_busy", "status": "failed"}\#n]"#
+            let followUp = Turn(id: "t8", delivery: "proc_7f3a", deliveryFailure: DeliveryFailure(notice: notice), reply: "Scout is busy in another chat right now, so the flight request didn't reach it.", status: .complete, startedAt: now.addingTimeInterval(-4 * 60), finishedAt: now.addingTimeInterval(-4 * 60 + 3))
+            return Transcript(turns: [greeting(now.addingTimeInterval(-26 * 3600)), handoff(now.addingTimeInterval(-6 * 60)), followUp]).visible
         }
         if self == .agentMessage { return Transcript(turns: [greeting(now.addingTimeInterval(-26 * 3600)), message("m1", "Flights for Saturday are booked.", reply: "Thanks, Scout!", at: now.addingTimeInterval(-40 * 60)), message("m2", "Can you add the Lofoten ferry to the trip notes?", reply: "Added the 08:15 ferry to the trip notes.", at: now.addingTimeInterval(-5 * 60))]).visible }
         return Transcript(turns: turns + [deploy(now.addingTimeInterval(-48))])
@@ -332,6 +337,7 @@ struct ChatFixtureScreen: View {
     @State private var tray: AttachmentTray
 
     private static let requestAfterDraft = UserDefaults.standard.string(forKey: "requestAfterDraft")
+    private static let finishTurnAfterDraft = UserDefaults.standard.string(forKey: "finishTurnAfterDraft")
 
     private static let hermes = Bot(
         name: "default", displayName: "Hermes", description: nil, model: nil, isDefault: true, hasAvatar: false, canonicalSession: nil,
@@ -397,6 +403,7 @@ struct ChatFixtureScreen: View {
         .environment(\.chatSession, session)
         .onChange(of: draft) {
             if draft == Self.requestAfterDraft { request = fixture.request }
+            if draft == Self.finishTurnAfterDraft { transcript.apply(.messageComplete(text: "Deployed to staging.", status: .complete, error: nil)) }
         }
         .sheet(isPresented: $addingShop) {
             AddShopSheet(profile: "default", site: shopOffer ?? "") { _ in }

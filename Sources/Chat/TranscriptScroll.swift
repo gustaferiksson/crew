@@ -31,6 +31,9 @@ struct TranscriptScroll<Revision: Equatable, Content: View>: View {
             if position.edge == .bottom, new.distance < 1 { position.scrollTo(id: transcriptEnd) }
             if new.height < old.height, old.distance < 40 { position.scrollTo(id: transcriptEnd) }
         }
+        .onScrollPhaseChange { _, phase in
+            if phase == .idle, isAtBottom { position.scrollTo(id: transcriptEnd) }
+        }
         .onChange(of: revision) {
             if isAtBottom { position.scrollTo(id: transcriptEnd) }
         }

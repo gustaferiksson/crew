@@ -29,10 +29,10 @@ struct TranscriptScroll<Revision: Equatable, Content: View>: View {
         .onScrollGeometryChange(for: BottomEdge.self) { BottomEdge(distance: $0.contentSize.height - $0.visibleRect.maxY + $0.contentInsets.bottom, height: $0.containerSize.height) } action: { old, new in
             isAtBottom = new.distance < 40
             if position.edge == .bottom, new.distance < 1 { position.scrollTo(id: transcriptEnd) }
-            if new.height < old.height, old.distance < 40 { position.scrollTo(id: transcriptEnd) }
+            if new.height < old.height || old.height == 0, old.distance < 40 { position.scrollTo(id: transcriptEnd) }
         }
-        .onScrollPhaseChange { _, phase in
-            if phase == .idle, isAtBottom { position.scrollTo(id: transcriptEnd) }
+        .onScrollPhaseChange { old, new in
+            if old == .decelerating || old == .tracking, new == .idle, isAtBottom { position.scrollTo(id: transcriptEnd) }
         }
         .onChange(of: revision) {
             if isAtBottom { position.scrollTo(id: transcriptEnd) }

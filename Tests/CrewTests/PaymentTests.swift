@@ -224,7 +224,7 @@ func offerComesFromTheLastVaultResult(name: String) throws {
 
 @Test func shopsDecodeEveryCardState() throws {
     let one = try decoded("payments", as: ShopList.self)
-    #expect(one.card == MasterCard(label: "Shopping card", last4: "4242", problem: nil))
+    #expect(one.card == MasterCard(label: "Shopping card", last4: "4242", problem: nil, codeMismatch: false))
     #expect(one.shops.map(\.host) == ["www.zalando.se"])
     #expect(one.terminalBackend == "local")
     #expect(one.gate == true)

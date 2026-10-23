@@ -104,6 +104,29 @@ def test_payments_with_several_masters(client: TestClient, app: FastAPI, master:
     assert client.get(f"{API}/payments", params={"profile": "scout"}).json() == fixture("payments-several.json")
 
 
+def test_payments_flags_a_code_that_does_not_fit_the_card(client: TestClient, vaults: Vaults, hermes_root: Path,
+                                                          caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level("DEBUG")
+    vaults.add(hermes_root / "vault" / "crew-push", "payment", "Shopping card",
+               {**CARD, "card_number": "5555 5555 5555 4444", "cvc": "1234"})
+    response = client.get(f"{API}/payments", params={"profile": "scout"})
+    assert response.json() == fixture("payments-code-mismatch.json")
+    assert "1234" not in response.text and "1234" not in caplog.text
+
+
+@pytest.mark.parametrize(("number", "cvc", "mismatch"), [
+    ("4242424242424242", "123", False),
+    ("3782 822463 10005", "1234", False),
+    ("378282246310005", "123", True),
+    ("4242424242424242", "12a", True),
+])
+def test_code_length_follows_the_card_brand(client: TestClient, vaults: Vaults, hermes_root: Path, number: str,
+                                            cvc: str, mismatch: bool) -> None:
+    vaults.add(hermes_root / "vault" / "crew-push", "payment", "Shopping card",
+               {**CARD, "card_number": number, "cvc": cvc})
+    assert client.get(f"{API}/payments", params={"profile": "scout"}).json()["card"]["code_mismatch"] is mismatch
+
+
 def test_old_card_when_the_master_was_replaced(client: TestClient, master: Path, vaults: Vaults) -> None:
     add_shop(client)
     vaults.records[master][0]["secret"]["card_number"] = "4000056655665556"

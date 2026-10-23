@@ -224,6 +224,11 @@ def luhn(digits: str) -> bool:
     return sum(n - 9 if n > 9 else n for n in doubled) % 10 == 0
 
 
+def code_fits(number: str, cvc: str) -> bool:
+    digits = re.sub(r"\D", "", number)
+    return re.fullmatch(r"[0-9]{4}" if digits[:2] in ("34", "37") else r"[0-9]{3}", cvc) is not None
+
+
 def card_entry(body: Any, now: datetime) -> tuple[str, dict[str, str]]:
     if not isinstance(body, dict) or not all(isinstance(body.get(key, ""), str) for key in CARD_FIELDS):
         raise InvalidCard("body")
@@ -239,7 +244,7 @@ def card_entry(body: Any, now: datetime) -> tuple[str, dict[str, str]]:
     if expiry < ((now.year, now.month - 1) if now.month > 1 else (now.year - 1, 12)):
         raise InvalidCard("expired")
     cvc = body.get("cvc", "").strip()
-    if not re.fullmatch(r"[0-9]{4}" if number[:2] in ("34", "37") else r"[0-9]{3}", cvc):
+    if not code_fits(number, cvc):
         raise InvalidCard("cvc")
     name = clean(body.get("cardholder_name", ""))
     if len(name) > 64:

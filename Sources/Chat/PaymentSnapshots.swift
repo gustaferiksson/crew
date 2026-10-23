@@ -134,6 +134,9 @@ struct ShopsFixtureScreen: View {
             let twin = Shop(id: "v4", origin: "https://www.zalando.se", host: "www.zalando.se", createdAt: Date.now.timeIntervalSince1970 - 9 * day, lastPaidAt: nil, stale: true, punycode: false)
             return ShopList(card: MasterCard(label: "Travel card", last4: "5556", problem: nil), shops: [shops[0], twin, shops[1]], terminalBackend: "docker", gate: true)
         }
+        if snapshot == .inspectorShopsCodeMismatch {
+            return ShopList(card: MasterCard(label: "Shopping card", last4: "4444", problem: nil, codeMismatch: true), shops: Array(shops.prefix(2)), terminalBackend: "docker", gate: true)
+        }
         if snapshot == .inspectorShopsSeveral { return ShopList(card: MasterCard(label: nil, last4: nil, problem: "several"), shops: Array(shops.prefix(1)), terminalBackend: "local", gate: true) }
         return ShopList(card: MasterCard(label: "Shopping card", last4: "4242", problem: nil), shops: shops, terminalBackend: "local", gate: true)
     }

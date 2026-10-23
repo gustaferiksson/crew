@@ -16,7 +16,7 @@ Everything the Shops card needs.
 
 ```json
 {
-  "card": {"label": "Shopping card", "last4": "4242", "problem": null},
+  "card": {"label": "Shopping card", "last4": "4242", "problem": null, "code_mismatch": false},
   "shops": [
     {"id": "vault_3f9a1c2b7d4e", "origin": "https://www.zalando.se", "host": "www.zalando.se",
      "created_at": 1760600000.0, "last_paid_at": 1760610000.0, "stale": false, "punycode": false}
@@ -26,7 +26,8 @@ Everything the Shops card needs.
 }
 ```
 
-- No usable master: `"card": {"label": null, "last4": null, "problem": "missing" | "several"}`. The master is the single `payment` item without origin in crew-push's vault, `get_default_hermes_root()/vault/crew-push` (0.6.0; `get_default_hermes_root()/vault` before, migrated once on the first master read or write). `legacy_cards` (0.6.0) counts the origin-less payment items still in the default vault, 0 normally. `last4` is computed inside the route; the number never leaves it.
+- `code_mismatch` (0.6.8, [card-code-length.md](card-code-length.md)): `true` when the master's security code is not 4 digits for a number starting 34 or 37, or not 3 digits otherwise; only the boolean leaves the route (fixture `payments-code-mismatch.json`). Missing from older crew-push.
+- No usable master: `"card": {"label": null, "last4": null, "problem": "missing" | "several", "code_mismatch": false}`. The master is the single `payment` item without origin in crew-push's vault, `get_default_hermes_root()/vault/crew-push` (0.6.0; `get_default_hermes_root()/vault` before, migrated once on the first master read or write). `legacy_cards` (0.6.0) counts the origin-less payment items still in the default vault, 0 normally. `last4` is computed inside the route; the number never leaves it.
 - `shops`: the profile's `payment` items with an origin. `stale`: the copy's secret differs from the master's. `punycode`: a host label starts with `xn--`. `last_paid_at`: the newest `approved` entry for that origin in the log.
 - `terminal_backend`: the profile's resolved `terminal.backend`, `local` when unset.
 - Errors: `400 invalid_profile`, `404 unknown_profile`.
@@ -49,7 +50,7 @@ Removes a `payment` item with an origin (never the master, never another kind). 
 
 crew-push 0.5.0 ([master-card.md](master-card.md)); `/status` then lists `"features": ["payments", "card"]` (0.6.0 adds `"card_vault"`). `Content-Type: application/json`, body `{"card_number": "4242 4242 4242 4242", "exp_month": "12", "exp_year": "30", "cvc": "123", "cardholder_name": "Test Card", "label": "Shopping card"}` (`cardholder_name` may be empty). Adds the master card, or replaces the single existing one, under crew-push's vault lock: `VaultStore(get_default_hermes_root() / "vault").add_item(kind="payment", label=<label>, secret={"card_number": "4242424242424242", "exp_month": "12", "exp_year": "2030", "cvc": "123", "cardholder_name": "Test Card"})` with no origin, then the previous master is removed by id. The route reads the body itself, so no error ever echoes a value.
 
-- `200 {"card": {"label": "Shopping card", "last4": "4242", "problem": null}}` (fixture `card-set.json`)
+- `200 {"card": {"label": "Shopping card", "last4": "4242", "problem": null, "code_mismatch": false}}` (fixture `card-set.json`)
 - `400 invalid_card` with `"reason": "body" | "number" | "expiry" | "expired" | "cvc" | "name" | "label"` inside `detail` (fixtures `error-invalid-card-<reason>.json`)
 - `403 login_off` (the dashboard does not report its login gate on), `409 several_cards` (nothing written), `500 vault_error`
 
@@ -203,4 +204,4 @@ Headers: `apns-push-type: background`, `apns-priority: 5`, `apns-expiration: now
 
 ## Fixtures
 
-`Tests/fixtures/payments/`: `status.json`, `payments.json`, `payments-no-card.json`, `payments-several.json`, `shop-created.json`, `shop-removed.json`, `card-set.json`, `shops-updated.json`, one error file per route code (`error-<code>.json`, `error-invalid-site-<reason>.json` and `error-invalid-card-<reason>.json` per reason), `request-pending.json`, `request-approved.json`, `request-expired.json`, `approval-frame.json` (reconstructed from Hermes 0.22.1's `ServerRequest.frame()` and `_approval_request_payload`; re-record it on `crew-test` after the deploy), `block-no-shop-card.json`, `block-missing-details.json`, `block-iframe-checkout.json`, `fill-card-frames.json`, a decorated and a raw fill result per outcome in the Results table (`fill-<outcome>.json` and `fill-<outcome>.raw.json` for `approved`, `denied`, `expired`, `cancelled`, `origin-changed`, `origin-mismatch`, `no-fields`, `no-card-number`, `human-has-control`, `error`), `list-missing-shop.json`, `push-payment.json`, `push-payment-previews-off.json`, `push-payment-resolved.json`.
+`Tests/fixtures/payments/`: `status.json`, `payments.json`, `payments-no-card.json`, `payments-several.json`, `payments-code-mismatch.json`, `shop-created.json`, `shop-removed.json`, `card-set.json`, `shops-updated.json`, one error file per route code (`error-<code>.json`, `error-invalid-site-<reason>.json` and `error-invalid-card-<reason>.json` per reason), `request-pending.json`, `request-approved.json`, `request-expired.json`, `approval-frame.json` (reconstructed from Hermes 0.22.1's `ServerRequest.frame()` and `_approval_request_payload`; re-record it on `crew-test` after the deploy), `block-no-shop-card.json`, `block-missing-details.json`, `block-iframe-checkout.json`, `fill-card-frames.json`, a decorated and a raw fill result per outcome in the Results table (`fill-<outcome>.json` and `fill-<outcome>.raw.json` for `approved`, `denied`, `expired`, `cancelled`, `origin-changed`, `origin-mismatch`, `no-fields`, `no-card-number`, `human-has-control`, `error`), `list-missing-shop.json`, `push-payment.json`, `push-payment-previews-off.json`, `push-payment-resolved.json`.

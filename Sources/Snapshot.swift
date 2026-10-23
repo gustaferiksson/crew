@@ -75,6 +75,7 @@ enum Snapshot: String {
     case addShop = "add-shop"
     case addShopError = "add-shop-error"
     case inspectorShopsUpdateError = "inspector-shops-update-error"
+    case inspectorShopsCodeMismatch = "inspector-shops-code-mismatch"
     case addCard = "add-card"
     case addCardInvalid = "add-card-invalid"
     case replaceCard = "replace-card"
@@ -99,7 +100,7 @@ enum Snapshot: String {
     }
 
     var isShops: Bool {
-        [.inspectorShops, .inspectorShopsEmpty, .inspectorShopsNoCard, .inspectorShopsSeveral, .addShop, .addShopError, .inspectorShopsUpdateError].contains(self) || isCardSheet
+        [.inspectorShops, .inspectorShopsEmpty, .inspectorShopsNoCard, .inspectorShopsSeveral, .addShop, .addShopError, .inspectorShopsUpdateError, .inspectorShopsCodeMismatch].contains(self) || isCardSheet
     }
 
     var isCardSheet: Bool {

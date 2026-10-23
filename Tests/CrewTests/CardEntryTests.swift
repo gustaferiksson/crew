@@ -51,10 +51,12 @@ func expiryDates(expiry: String, expected: String?) {
 
 @Test func securityCodeLengthFollowsTheBrand() {
     #expect(entry(cvc: "123").problem(.cvc) == nil)
-    #expect(entry(cvc: "1234").problem(.cvc) == "Enter the 3 or 4 digit code.")
-    #expect(entry(cvc: "12").problem(.cvc) == "Enter the 3 or 4 digit code.")
+    #expect(entry(cvc: "1234").problem(.cvc) == "Enter the 3 digit code.")
+    #expect(entry(cvc: "12").problem(.cvc) == "Enter the 3 digit code.")
     #expect(entry(number: "3782 822463 10005", cvc: "1234").problem(.cvc) == nil)
-    #expect(entry(number: "3782 822463 10005", cvc: "123").problem(.cvc) == "Enter the 3 or 4 digit code.")
+    #expect(entry(number: "3782 822463 10005", cvc: "123").problem(.cvc) == "Enter the 4 digit code.")
+    #expect(entry(number: "37", cvc: "123").problem(.cvc) == "Enter the 4 digit code.")
+    #expect(entry(number: "", cvc: "12").problem(.cvc) == "Enter the 3 or 4 digit code.")
 }
 
 @Test(arguments: [
@@ -107,7 +109,7 @@ func labels(label: String, expected: String?) {
 }
 
 @Test func cardRoutesDecode() throws {
-    #expect(try decoded("card-set", as: CardSet.self).card == MasterCard(label: "Shopping card", last4: "4242", problem: nil))
+    #expect(try decoded("card-set", as: CardSet.self).card == MasterCard(label: "Shopping card", last4: "4242", problem: nil, codeMismatch: false))
     let shops = try decoded("shops-updated", as: ShopsUpdated.self).shops
     #expect(shops.map(\.host) == ["www.apotea.se", "www.zalando.se"])
     #expect(shops.allSatisfy { !$0.stale })
@@ -182,6 +184,21 @@ private func shopList(card: MasterCard = MasterCard(label: "Shopping card", last
 
     let fresh = ShopsControls(list: shopList(stale: [false]), isOnline: true, supportsCardEntry: true)
     #expect(!fresh.showsUpdateShops)
+}
+
+@Test func aSavedCodeThatDoesNotFitTheCardIsFlagged() throws {
+    let mismatch = try decoded("payments-code-mismatch", as: ShopList.self)
+    #expect(mismatch.card == MasterCard(label: "Shopping card", last4: "4444", problem: nil, codeMismatch: true))
+    #expect(ShopsControls(list: mismatch, isOnline: true, supportsCardEntry: true).showsCodeWarning)
+    #expect(ShopsControls(list: mismatch, isOnline: false, supportsCardEntry: true).showsCodeWarning)
+    #expect(try !ShopsControls(list: decoded("payments", as: ShopList.self), isOnline: true, supportsCardEntry: true).showsCodeWarning)
+    let oldCrewPush = try JSONDecoder().decode(MasterCard.self, from: Data(#"{"label": "Shopping card", "last4": "4242", "problem": null}"#.utf8))
+    #expect(oldCrewPush.codeMismatch == nil)
+    #expect(!ShopsControls(list: shopList(card: oldCrewPush), isOnline: true, supportsCardEntry: true).showsCodeWarning)
+    for problem in ["missing", "several"] {
+        let card = MasterCard(label: nil, last4: nil, problem: problem, codeMismatch: true)
+        #expect(!ShopsControls(list: shopList(card: card), isOnline: true, supportsCardEntry: true).showsCodeWarning)
+    }
 }
 
 nonisolated final class RedirectProtocol: URLProtocol {

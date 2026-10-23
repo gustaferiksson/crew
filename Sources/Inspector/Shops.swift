@@ -116,6 +116,14 @@ struct ShopsCard: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
+                if controls.showsCodeWarning {
+                    Label("Security code doesn't match this card", systemImage: "exclamationmark.triangle.fill")
+                        .symbolRenderingMode(.multicolor)
+                        .padding(.top, 4)
+                    Text("Shops may decline payments. Codes have 3 digits, or 4 for American Express. Replace the card to fix this.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
                 if controls.showsCardButton {
                     Button("Replace Card…", systemImage: "creditcard") { isEditingCard = true }
                         .buttonStyle(.borderless)

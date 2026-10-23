@@ -2,7 +2,8 @@
   "card": {
     "label": null,
     "last4": null,
-    "problem": "several"
+    "problem": "several",
+    "code_mismatch": false
   },
   "shops": [
     {

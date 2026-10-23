@@ -36,7 +36,7 @@ def test_add_card_stores_the_normalised_card_without_origin(client: TestClient, 
                                                             hermes_root: Path) -> None:
     response = put_card(client)
     assert response.status_code == 200
-    assert response.json() == {"card": {"label": "Travel card", "last4": "5556", "problem": None}}
+    assert response.json() == {"card": {"label": "Travel card", "last4": "5556", "problem": None, "code_mismatch": False}}
     [card] = masters(vaults, hermes_root)
     assert card["label"] == "Travel card" and card["origin"] is None
     assert card["secret"] == {"card_number": "4000056655665556", "exp_month": "03", "exp_year": "2031", "cvc": "321",

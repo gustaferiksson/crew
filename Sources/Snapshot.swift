@@ -40,6 +40,7 @@ enum Snapshot: String {
     case chatA2UITable = "chat-a2ui-table"
     case chatA2UIChart = "chat-a2ui-chart"
     case chatA2UIMap = "chat-a2ui-map"
+    case chatA2UIProducts = "chat-a2ui-products"
     case layout
     case layoutInspector = "layout-inspector"
     case chatWindow = "chat-window"
@@ -96,7 +97,7 @@ enum Snapshot: String {
     static let scrollsToBottom = requested != nil && UserDefaults.standard.bool(forKey: "snapshotBottom")
 
     var chatFixture: ChatFixture? {
-        [.chat: .conversation, .chatHistory: .history, .chatSelection: .history, .chatTimestamps: .timestamps, .chatWorkLog: .workLog, .chatQuestion: .question, .chatQuestions: .questions, .chatQuestionsSnacks: .questionsSnacks, .chatOffline: .offline, .chatAttachments: .attachments, .chatDictation: .dictation, .chatMentions: .mentions, .composerLine: .composerLine, .composerLines: .composerLines, .composerRunning: .composerRunning, .composerRunningText: .composerRunningText, .chatSteer: .steer, .chatSteerTaken: .steerTaken, .chatWaiting: .waiting, .chatMentionPeek: .mentions, .chatMentionChat: .mentions, .chatAgentMessage: .agentMessage, .chatDeliveryFailure: .deliveryFailure, .chatA2UI: .a2ui, .chatA2UICards: .a2uiCards, .chatA2UIForm: .a2uiForm, .chatA2UITable: .a2uiTable, .chatA2UIChart: .a2uiChart, .chatA2UIMap: .a2uiMap, .chatPayment: .payment, .chatPaymentHolding: .paymentHolding, .chatPaymentApproved: .paymentApproved, .chatPaymentLoading: .paymentLoading, .chatPaymentFailed: .paymentFailed, .chatPaymentUnverified: .paymentUnverified, .chatPaymentPunycode: .paymentPunycode, .chatPaymentCountdown: .paymentCountdown, .chatPaymentNotice: .paymentNotice, .chatPaymentOffer: .paymentOffer, .chatPaymentOfferHistory: .paymentOfferHistory, .chatPaymentReceipts: .paymentReceipts][self]
+        [.chat: .conversation, .chatHistory: .history, .chatSelection: .history, .chatTimestamps: .timestamps, .chatWorkLog: .workLog, .chatQuestion: .question, .chatQuestions: .questions, .chatQuestionsSnacks: .questionsSnacks, .chatOffline: .offline, .chatAttachments: .attachments, .chatDictation: .dictation, .chatMentions: .mentions, .composerLine: .composerLine, .composerLines: .composerLines, .composerRunning: .composerRunning, .composerRunningText: .composerRunningText, .chatSteer: .steer, .chatSteerTaken: .steerTaken, .chatWaiting: .waiting, .chatMentionPeek: .mentions, .chatMentionChat: .mentions, .chatAgentMessage: .agentMessage, .chatDeliveryFailure: .deliveryFailure, .chatA2UI: .a2ui, .chatA2UICards: .a2uiCards, .chatA2UIForm: .a2uiForm, .chatA2UITable: .a2uiTable, .chatA2UIChart: .a2uiChart, .chatA2UIMap: .a2uiMap, .chatA2UIProducts: .a2uiProducts, .chatPayment: .payment, .chatPaymentHolding: .paymentHolding, .chatPaymentApproved: .paymentApproved, .chatPaymentLoading: .paymentLoading, .chatPaymentFailed: .paymentFailed, .chatPaymentUnverified: .paymentUnverified, .chatPaymentPunycode: .paymentPunycode, .chatPaymentCountdown: .paymentCountdown, .chatPaymentNotice: .paymentNotice, .chatPaymentOffer: .paymentOffer, .chatPaymentOfferHistory: .paymentOfferHistory, .chatPaymentReceipts: .paymentReceipts][self]
     }
 
     var isShops: Bool {

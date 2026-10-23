@@ -5,6 +5,7 @@ enum Snapshot: String {
     case loginUnreachable = "login-unreachable"
     case sidebar
     case sidebarFlat = "sidebar-flat"
+    case sidebarCompact = "sidebar-compact"
     case sidebarDraft = "sidebar-draft"
     case sidebarSearch = "sidebar-search"
     case searchResult = "search-result"
@@ -130,7 +131,7 @@ enum Snapshot: String {
         if isShops || chatFixture?.isPayment == true {
             return Connection(fixture: .connected, server: self == .addCardHTTP ? URL(string: "http://hermes.local:9119")! : server, crewPush: PluginStatus(pluginVersion: "0.5.0", installId: "fixture", apnsConfigured: true, http2: true, devices: 2, features: ["payments", "card"], gate: true))
         }
-        if [.sidebar, .sidebarFlat, .sidebarDraft, .sidebarSearch, .searchResult, .layout, .layoutInspector, .chatWindow, .chatWindowInspector, .chatWindowMissing, .inspectorLook, .profileSkills, .botPage, .notifications, .newBot, .groupChat, .groupWelcome, .groupInspector].contains(self) || chatFixture != nil || inspectorTab != nil { return Connection(fixture: .connected, server: server) }
+        if [.sidebar, .sidebarFlat, .sidebarCompact, .sidebarDraft, .sidebarSearch, .searchResult, .layout, .layoutInspector, .chatWindow, .chatWindowInspector, .chatWindowMissing, .inspectorLook, .profileSkills, .botPage, .notifications, .newBot, .groupChat, .groupWelcome, .groupInspector].contains(self) || chatFixture != nil || inspectorTab != nil { return Connection(fixture: .connected, server: server) }
         if self == .unreachable { return Connection(fixture: .unreachable, server: server) }
         return Connection(fixture: .signedOut, server: server)
     }
@@ -168,14 +169,14 @@ enum Snapshot: String {
     }
 
     var drafts: ChatDrafts {
-        ChatDrafts(fixture: self == .sidebarDraft ? [
+        ChatDrafts(fixture: [.sidebarDraft, .sidebarCompact].contains(self) ? [
             "ledger": "Can you also check the trains from Bodø on Friday, and whether the night train has sleeper cabins left?",
             "forge": "Yes, go ahead",
         ] : [:])
     }
 
     var selectedBot: Bot.ID? {
-        [.layout: "ada", .layoutInspector: "pixel", .searchResult: "default", .chatWindow: "ada", .chatWindowInspector: "ada", .chatWindowMissing: "gone"][self]
+        [.layout: "ada", .layoutInspector: "pixel", .sidebarCompact: "group:room-launch", .searchResult: "default", .chatWindow: "ada", .chatWindowInspector: "ada", .chatWindowMissing: "gone"][self]
     }
 
     var searchQuery: String? {
@@ -258,6 +259,7 @@ extension Snapshot {
         if self == .chatTimestamps { window.setContentSize(NSSize(width: 560, height: 900)) }
         if [.chatWindow, .chatWindowMissing].contains(self) { window.setContentSize(NSSize(width: 560, height: 640)) }
         if self == .chatWindowInspector { window.setContentSize(NSSize(width: 900, height: 640)) }
+        if self == .sidebarCompact { window.setContentSize(NSSize(width: 760, height: 1000)) }
         if height > 0 { window.setContentSize(NSSize(width: window.contentRect(forFrameRect: window.frame).width, height: height)) }
         try? await Task.sleep(for: .seconds([.chatA2UICarousel, .chatA2UICarouselStates].contains(self) ? 6 : 1.5))
         if self == .chatSelection, let reply = window.contentView.map(replyTextViews)?.first(where: { $0.string.contains("Merino") }) {
@@ -265,6 +267,12 @@ extension Snapshot {
             let start = text.range(of: "Expect").location
             reply.setSelectedRange(NSRange(location: start, length: NSMaxRange(text.range(of: "Merino top")) - start))
             try? await Task.sleep(for: .seconds(0.5))
+        }
+        if self == .sidebarCompact, let split = window.contentView.map(splitViews)?.last {
+            for position in [330.0, 250] {
+                split.setPosition(position, ofDividerAt: 0)
+                try? await Task.sleep(for: .seconds(1))
+            }
         }
         if UserDefaults.standard.bool(forKey: "measure") { await measure(window) }
         // cacheDisplay and ImageRenderer skip Liquid Glass; CGWindowListCreateImage is SDK-obsoleted but still exported for own windows.
@@ -277,6 +285,10 @@ extension Snapshot {
         try? png.write(to: output)
         print(output.path(percentEncoded: false))
         exit(0)
+    }
+
+    private func splitViews(in view: NSView) -> [NSSplitView] {
+        ((view as? NSSplitView).map { [$0] } ?? []) + view.subviews.flatMap(splitViews)
     }
 
     private func replyTextViews(in view: NSView) -> [ReplyTextView] {

@@ -11,7 +11,13 @@ extension NSAttributedString.Key {
     nonisolated static let replyPlainText = NSAttributedString.Key("crew.replyPlainText")
 }
 
+nonisolated private let builtSegments = ParseCache<[ReplySegment]>(costLimit: 4 * 1024 * 1024)
+
 nonisolated func replySegments(from source: String) -> [ReplySegment] {
+    builtSegments.value(for: source, parse: buildReplySegments)
+}
+
+nonisolated func buildReplySegments(from source: String) -> [ReplySegment] {
     var segments: [ReplySegment] = []
     let text = NSMutableAttributedString()
     var previous: MarkdownBlock.Kind?

@@ -70,8 +70,8 @@ enum ChatFixture {
     var transcript: Transcript {
         let now = Date.now
         let turns = [greeting(now.addingTimeInterval(-26 * 3600)), packing(now.addingTimeInterval(-3 * 3600)), notes(now.addingTimeInterval(-2.8 * 3600)), ciFix(now.addingTimeInterval(-25 * 60))]
-        if self == .composerLine, UserDefaults.standard.string(forKey: "historyFile") != nil { return Transcript() }
         if self == .composerLine {
+            guard UserDefaults.standard.string(forKey: "historyFile") == nil else { return Transcript() }
             let earlier = (0..<UserDefaults.standard.integer(forKey: "earlierTurns")).map { index in
                 var turn = [packing, notes, ciFix][index % 3](now.addingTimeInterval(-30 * 3600 - Double(index) * 600))
                 turn.id = "e\(index)"

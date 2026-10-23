@@ -15,29 +15,37 @@ nonisolated struct MarkdownBlock: Identifiable, Sendable {
     let content: AttributedString
 }
 
-nonisolated private final class ParsedMarkdown: Sendable {
-    let blocks: [MarkdownBlock]
+// NSCache is documented thread-safe but not marked Sendable.
+nonisolated final class ParseCache<Value>: @unchecked Sendable {
+    private final class Entry {
+        let value: Value
 
-    init(_ blocks: [MarkdownBlock]) {
-        self.blocks = blocks
+        init(_ value: Value) {
+            self.value = value
+        }
+    }
+
+    private let entries = NSCache<NSString, Entry>()
+
+    init(costLimit: Int) {
+        entries.totalCostLimit = costLimit
+    }
+
+    func value(for source: String, parse: (String) -> Value) -> Value {
+        if let entry = entries.object(forKey: source as NSString) { return entry.value }
+        let value = parse(source)
+        entries.setObject(Entry(value), forKey: source as NSString, cost: source.utf8.count)
+        return value
     }
 }
 
-// NSCache is documented thread-safe but not marked Sendable.
-nonisolated(unsafe) private let parsedMarkdown = {
-    let cache = NSCache<NSString, ParsedMarkdown>()
-    cache.countLimit = 200
-    return cache
-}()
+nonisolated private let parsedMarkdown = ParseCache<[MarkdownBlock]>(costLimit: 4 * 1024 * 1024)
 
 nonisolated func markdownBlocks(from source: String) -> [MarkdownBlock] {
-    if let parsed = parsedMarkdown.object(forKey: source as NSString) { return parsed.blocks }
-    let blocks = parseMarkdownBlocks(from: source)
-    parsedMarkdown.setObject(ParsedMarkdown(blocks), forKey: source as NSString)
-    return blocks
+    parsedMarkdown.value(for: source, parse: parseMarkdownBlocks)
 }
 
-nonisolated private func parseMarkdownBlocks(from source: String) -> [MarkdownBlock] {
+nonisolated func parseMarkdownBlocks(from source: String) -> [MarkdownBlock] {
     let options = AttributedString.MarkdownParsingOptions(interpretedSyntax: .full, failurePolicy: .returnPartiallyParsedIfPossible)
     guard let parsed = try? AttributedString(markdown: source, options: options) else {
         return [MarkdownBlock(id: 0, kind: .paragraph, content: AttributedString(source))]

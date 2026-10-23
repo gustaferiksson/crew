@@ -29,7 +29,7 @@ Two independent pull requests.
 
 ### 1. Parse each reply once
 
-`markdownBlocks(from:)` keeps its result in an `NSCache` keyed by the source text (the `CachedImage` precedent, count limit 200 so streaming deltas, each a new key, age out), so a redraw or a row scrolling back in reuses the parsed blocks on iOS and on Mac (`replySegments` calls it). A streaming reply still parses once per delta. `a2uiFenced` skips its regex when the reply has no `<a2ui-json>`. Nothing visible changes.
+`markdownBlocks(from:)` and, on Mac, `replySegments(from:)` (the attributed text built from the blocks, which cost more than the parse: about 0.9 ms per long reply) keep their results in a `ParseCache`, an `NSCache` keyed by the source text with a 4 MB cost limit by text size (the `CachedImage` precedent), so a redraw or a row scrolling back in reuses them on iOS and on Mac. A streaming reply still parses once per delta, and those prefixes age out by cost. `a2uiFenced` skips its regex when the reply has no `<a2ui-json>`. Nothing visible changes.
 
 ### 2. One scroll container on the standard idiom (iOS and Mac together)
 
@@ -74,7 +74,7 @@ Two independent pull requests.
 
 Host unit tests (macOS), each shown failing first:
 
-- `ReplyParseTests`: the six recorded long replies rendered 100 times each take under 100 ms in total (uncached that is about 420 ms on an M-series Mac); fails before the cache.
+- `ReplyParseTests`: redrawing the six recorded long replies 20 times takes under a quarter of parsing them 20 times, for the blocks and for the Mac segments, measured in the same run; fails with the cache bypassed.
 - `TranscriptScrollTests` (the real `TranscriptScroll`, rows of mixed height, a `safeAreaBar`; it replaces the print-only `ScrollAnchorExperimentTests`, which is deleted): cold open at the bottom; at the bottom a growing last row, an appended row and a growing bar keep the end in view; scrolled up, the same changes and a mid-row expansion move the reading position by under 1 pt; scrolled back down by hand, an appended row stays in view; the arrow's action from 30 000 pt up lands at the end; a search jump into rows that arrive in the same update brings the row into view. The pins-and-sentinel composition (today's `ChatView`, as `ComposerResizeTests` copies it) fails the jump and resize cases.
 - `ComposerResizeTests` is rewritten to host `TranscriptScroll` instead of its copy and gains #145's check: after the resize steps with the inspector attached (main window and chat window), the transcript is at the end and the arrow is not in the accessibility tree; fails with the copied old composition.
 

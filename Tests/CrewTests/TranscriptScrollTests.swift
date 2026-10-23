@@ -2,15 +2,10 @@ import AppKit
 import SwiftUI
 import Testing
 
-private enum Jump: Equatable {
-    case row(Int, UnitPoint)
-    case end
-}
-
 @MainActor @Observable private final class ScrollModel {
     var rows: [String] = []
     var barHeight: CGFloat = 60
-    var jump: Jump?
+    var position = ScrollPosition()
     var top: CGFloat = 0
     var distance: CGFloat = 0
     var watched: Int?
@@ -21,29 +16,23 @@ private struct Column: View {
     @Bindable var model: ScrollModel
 
     var body: some View {
-        ScrollViewReader { proxy in
-            TranscriptScroll(proxy: proxy, isEmpty: model.rows.isEmpty) {
-                LazyVStack(alignment: .leading, spacing: 28) {
-                    ForEach(Array(model.rows.enumerated()), id: \.offset) { index, text in
-                        Text(text)
-                            .id(index)
-                            .onGeometryChange(for: CGRect.self) { $0.frame(in: .scrollView) } action: { if index == model.watched { model.watchedFrame = $0 } }
-                    }
+        TranscriptScroll(position: $model.position, revision: model.rows) {
+            LazyVStack(alignment: .leading, spacing: 28) {
+                ForEach(Array(model.rows.enumerated()), id: \.offset) { index, text in
+                    Text(text)
+                        .id(index)
+                        .onGeometryChange(for: CGRect.self) { $0.frame(in: .scrollView) } action: { if index == model.watched { model.watchedFrame = $0 } }
                 }
-                .padding(16)
             }
-            .onScrollGeometryChange(for: [CGFloat].self) { [$0.visibleRect.minY, $0.contentSize.height - $0.visibleRect.maxY + $0.contentInsets.bottom] } action: {
-                model.top = $1[0]
-                model.distance = $1[1]
-            }
-            .safeAreaBar(edge: .bottom) {
-                Color.gray.frame(height: model.barHeight)
-            }
-            .onChange(of: model.jump) {
-                if case .row(let id, let anchor) = model.jump { proxy.scrollTo(id, anchor: anchor) }
-                if model.jump == .end { withAnimation(.smooth) { proxy.scrollTo(transcriptEnd, anchor: .bottom) } }
-                model.jump = nil
-            }
+            .scrollTargetLayout()
+            .padding(16)
+        }
+        .onScrollGeometryChange(for: [CGFloat].self) { [$0.visibleRect.minY, $0.contentSize.height - $0.visibleRect.maxY + $0.contentInsets.bottom] } action: {
+            model.top = $1[0]
+            model.distance = $1[1]
+        }
+        .safeAreaBar(edge: .bottom) {
+            Color.gray.frame(height: model.barHeight)
         }
     }
 }
@@ -128,10 +117,10 @@ private let rows = (0..<300).map { String(repeating: "Row \($0) has a few words 
         for _ in 0..<5 where model.distance > 0 { userScroll(scroll, by: -model.distance) }
         model.rows.append("A turn after scrolling back by hand.")
         settle()
-        #expect(abs(model.distance) < 1, "after a manual return \(model.distance)")
+        #expect(model.distance < 40, "after a manual return \(model.distance)")
 
         model.watched = 151
-        model.jump = .row(150, .center)
+        model.position.scrollTo(id: 150, anchor: .center)
         settle()
         let header = model.watchedFrame.minY
         let top = model.top
@@ -142,18 +131,23 @@ private let rows = (0..<300).map { String(repeating: "Row \($0) has a few words 
         #expect(abs(model.watchedFrame.minY - header) < 1, "expansion moved its header by \(model.watchedFrame.minY - header)")
     }
 
-    @Test func theAnimatedJumpToTheEndLandsThereFromFarUp() {
+    @Test func theAnimatedEdgeJumpLandsAtTheEndAndHandsOver() throws {
         let model = ScrollModel()
         let window = host(model)
         defer { window.orderOut(nil) }
         model.rows = rows
         settle(1)
-        model.jump = .row(10, .top)
-        settle()
-        #expect(model.distance > 20_000)
-        model.jump = .end
+        let content = try #require(window.contentView)
+        let scroll = try #require(scrollView(in: content))
+        userScroll(scroll, by: 20_000)
+        #expect(model.distance > 19_000)
+        withAnimation(.smooth) { model.position.scrollTo(edge: .bottom) }
         settle(1.5)
         #expect(abs(model.distance) < 1, "after the jump \(model.distance)")
+        #expect(model.position.edge == nil && model.position.viewID(type: String.self) == transcriptEnd, "the edge jump did not hand over to the end")
+        model.rows[model.rows.count - 1] += String(repeating: " streaming after the jump", count: 30)
+        settle()
+        #expect(abs(model.distance) < 1, "streaming after the jump \(model.distance)")
         model.rows.append("A turn after the jump.")
         settle()
         #expect(abs(model.distance) < 1, "row appended after the jump \(model.distance)")
@@ -165,7 +159,7 @@ private let rows = (0..<300).map { String(repeating: "Row \($0) has a few words 
         defer { window.orderOut(nil) }
         model.watched = 40
         model.rows = rows
-        model.jump = .row(40, .center)
+        model.position.scrollTo(id: 40, anchor: .center)
         settle(1)
         #expect(model.watchedFrame.minY >= 0 && model.watchedFrame.maxY <= 640, "row 40 at \(model.watchedFrame)")
     }

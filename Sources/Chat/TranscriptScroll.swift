@@ -7,9 +7,9 @@ private struct BottomEdge: Equatable {
     let height: CGFloat
 }
 
-struct TranscriptScroll<Content: View>: View {
-    let proxy: ScrollViewProxy
-    let isEmpty: Bool
+struct TranscriptScroll<Revision: Equatable, Content: View>: View {
+    @Binding var position: ScrollPosition
+    let revision: Revision
     @ViewBuilder let content: Content
 
     @State private var isAtBottom = true
@@ -24,34 +24,36 @@ struct TranscriptScroll<Content: View>: View {
                     .id(transcriptEnd)
             }
         }
-            .defaultScrollAnchor(.bottom)
-            .onScrollGeometryChange(for: BottomEdge.self) { BottomEdge(distance: $0.contentSize.height - $0.visibleRect.maxY + $0.contentInsets.bottom, height: $0.containerSize.height) } action: { old, new in
-                isAtBottom = new.distance < 40
-                if new.height < old.height, old.distance < 40 { proxy.scrollTo(transcriptEnd, anchor: .bottom) }
-            }
-            .onChange(of: isEmpty) {
-                proxy.scrollTo(transcriptEnd, anchor: .bottom)
-            }
-            .overlay(alignment: .bottom) {
-                ZStack {
-                    if !isAtBottom {
-                        Button("Jump to Latest", systemImage: "arrow.down") {
-                            withAnimation(reduceMotion ? nil : .smooth) { proxy.scrollTo(transcriptEnd, anchor: .bottom) }
-                        }
-                        .labelStyle(.iconOnly)
-                        .buttonStyle(.glass)
-                        .buttonBorderShape(.circle)
-                        #if os(macOS)
-                        .controlSize(.large)
-                        #endif
-                        .transition(.scale.combined(with: .opacity))
-                        .padding(.bottom, 12)
+        .defaultScrollAnchor(.bottom)
+        .scrollPosition($position)
+        .onScrollGeometryChange(for: BottomEdge.self) { BottomEdge(distance: $0.contentSize.height - $0.visibleRect.maxY + $0.contentInsets.bottom, height: $0.containerSize.height) } action: { old, new in
+            isAtBottom = new.distance < 40
+            if position.edge == .bottom, new.distance < 1 { position.scrollTo(id: transcriptEnd) }
+            if new.height < old.height, old.distance < 40 { position.scrollTo(id: transcriptEnd) }
+        }
+        .onChange(of: revision) {
+            if isAtBottom { position.scrollTo(id: transcriptEnd) }
+        }
+        .overlay(alignment: .bottom) {
+            ZStack {
+                if !isAtBottom {
+                    Button("Jump to Latest", systemImage: "arrow.down") {
+                        withAnimation(reduceMotion ? nil : .smooth) { position.scrollTo(edge: .bottom) }
                     }
+                    .labelStyle(.iconOnly)
+                    .buttonStyle(.glass)
+                    .buttonBorderShape(.circle)
+                    #if os(macOS)
+                    .controlSize(.large)
+                    #endif
+                    .transition(.scale.combined(with: .opacity))
+                    .padding(.bottom, 12)
                 }
-                .animation(.smooth, value: isAtBottom)
-                #if os(macOS)
-                .padding(.trailing, NSScroller.preferredScrollerStyle == .legacy ? NSScroller.scrollerWidth(for: .regular, scrollerStyle: .legacy) : 0)
-                #endif
             }
+            .animation(.smooth, value: isAtBottom)
+            #if os(macOS)
+            .padding(.trailing, NSScroller.preferredScrollerStyle == .legacy ? NSScroller.scrollerWidth(for: .regular, scrollerStyle: .legacy) : 0)
+            #endif
+        }
     }
 }

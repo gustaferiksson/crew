@@ -13,22 +13,22 @@ nonisolated enum ResizedWindow: CaseIterable, Sendable {
 private struct ChatColumn: View {
     @State var draft: String
     let probe: ResizeProbe
+    @State private var position = ScrollPosition()
     @FocusState private var isFocused: Bool
 
     var body: some View {
-        ScrollViewReader { proxy in
-            TranscriptScroll(proxy: proxy, isEmpty: false) {
-                LazyVStack(alignment: .leading, spacing: 28) {
-                    ForEach(0..<40) { index in
-                        Text(String(repeating: "Reply \(index) wraps when the column gets narrower. ", count: 3))
-                    }
+        TranscriptScroll(position: $position, revision: 0) {
+            LazyVStack(alignment: .leading, spacing: 28) {
+                ForEach(0..<40) { index in
+                    Text(String(repeating: "Reply \(index) wraps when the column gets narrower. ", count: 3))
                 }
-                .padding(16)
             }
-            .onScrollGeometryChange(for: CGFloat.self) { $0.contentSize.height - $0.visibleRect.maxY + $0.contentInsets.bottom } action: { probe.distance = $1 }
-            .safeAreaBar(edge: .bottom) {
-                Composer(botName: "Hermes", phase: .idle, draft: $draft, isFocused: $isFocused, tray: AttachmentTray(), mentionable: [], completePath: { _ in [] }, transcribe: { _ in "" }, send: { _ in }, stop: {})
-            }
+            .scrollTargetLayout()
+            .padding(16)
+        }
+        .onScrollGeometryChange(for: CGFloat.self) { $0.contentSize.height - $0.visibleRect.maxY + $0.contentInsets.bottom } action: { probe.distance = $1 }
+        .safeAreaBar(edge: .bottom) {
+            Composer(botName: "Hermes", phase: .idle, draft: $draft, isFocused: $isFocused, tray: AttachmentTray(), mentionable: [], completePath: { _ in [] }, transcribe: { _ in "" }, send: { _ in }, stop: {})
         }
     }
 }

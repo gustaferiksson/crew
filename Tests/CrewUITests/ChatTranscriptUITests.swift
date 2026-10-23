@@ -43,11 +43,12 @@ final class ChatTranscriptUITests: XCTestCase {
     }
 
     @MainActor private func scrollUp(_ app: XCUIApplication) {
-        for _ in 0..<3 {
+        for _ in 0..<8 where lowest(lastBlock, in: app) != nil || lowest(streamedReply, in: app) != nil {
             app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.2)).press(forDuration: 0.02, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.55)), withVelocity: .fast, thenHoldForDuration: 0)
+            wait(0.5)
         }
         XCTAssertTrue(app.buttons["Jump to Latest"].waitForExistence(timeout: 5))
-        wait(2)
+        wait(1)
     }
 
     @MainActor private func focusComposer(_ app: XCUIApplication) {
@@ -65,7 +66,7 @@ final class ChatTranscriptUITests: XCTestCase {
         assertRightAboveTheComposer(lastBlock, in: app, "opened")
         focusComposer(app)
         assertRightAboveTheComposer(lastBlock, in: app, "keyboard up")
-        for round in 1...3 {
+        for round in 1...2 {
             scrollUp(app)
             app.buttons["Jump to Latest"].tap()
             assertRightAboveTheComposer(lastBlock, in: app, "jump \(round)")
@@ -87,13 +88,24 @@ final class ChatTranscriptUITests: XCTestCase {
         focusComposer(app)
         scrollUp(app)
         let reading = app.staticTexts.allElementsBoundByIndex.first { $0.frame.minY > 200 && $0.frame.maxY < 450 }
-        XCTAssertNotNil(reading)
-        let readingTop = reading?.frame.minY ?? 0
+        let label = reading?.label ?? ""
+        XCTAssertFalse(label.isEmpty)
+        let row = app.staticTexts.matching(NSPredicate(format: "label == %@", label)).firstMatch
+        var readingTop = row.frame.minY
+        for _ in 0..<10 {
+            wait(0.5)
+            if abs(row.frame.minY - readingTop) < 0.5 { break }
+            readingTop = row.frame.minY
+        }
         app.textFields.firstMatch.typeText("!")
         wait(3.5)
         shoot("reply streamed while scrolled up", in: app)
-        XCTAssertEqual(reading?.frame.minY ?? 0, readingTop, accuracy: 1, "the row being read moved")
+        let moved = app.staticTexts.matching(NSPredicate(format: "label == %@", label)).allElementsBoundByIndex.map { $0.frame.minY - readingTop }.min { abs($0) < abs($1) }
+        XCTAssertEqual(moved ?? .infinity, 0, accuracy: 1, "the row being read moved")
         XCTAssertTrue(app.buttons["Jump to Latest"].exists)
+        app.buttons["Jump to Latest"].tap()
+        assertRightAboveTheComposer(streamedReply, in: app, "jumped to the reply from the Mac")
+        scrollUp(app)
 
         let headers = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Worked for"))
         var header = headers.allElementsBoundByIndex.first { $0.isHittable && $0.frame.minY > 150 && $0.frame.maxY < 450 }

@@ -108,7 +108,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
     }
 
     var body: some View {
-        TranscriptScroll(position: $position, last: transcript.turns.last?.id) {
+        TranscriptScroll(position: $position, revision: transcript) {
             LazyVStack(alignment: .leading, spacing: 28) {
                 ForEach(Array(transcript.turns.enumerated()), id: \.element.id) { index, turn in
                     VStack(alignment: .leading, spacing: 12) {
@@ -230,7 +230,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
                             .padding(.horizontal, 16)
                     }
                     Composer(botName: botName, phase: composerPhase, draft: $draft, isFocused: $isComposerFocused, tray: tray, mentionable: mentionable, features: features, completePath: actions.completePath, dictation: presentation.dictation, transcribe: actions.transcribe) { mode in
-                        if let last = transcript.turns.last?.id { position.scrollTo(id: last, anchor: .bottom) }
+                        position.scrollTo(id: transcriptEnd)
                         actions.send(draft, tray.take(), mentionedBots(in: draft, among: mentionable), mode)
                         draft = ""
                     } stop: {

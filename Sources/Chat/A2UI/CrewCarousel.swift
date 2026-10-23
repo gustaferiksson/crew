@@ -174,17 +174,22 @@ private struct CarouselTile: View {
     }
 
     private func content(opens: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        let placeholder = Image(systemName: "photo").font(.title).foregroundStyle(.tertiary)
+        return VStack(alignment: .leading, spacing: 8) {
             if showsImage {
-                AsyncImage(url: item.image) { phase in
-                    if let image = phase.image {
-                        image.resizable().scaledToFit()
-                    } else if item.image != nil, phase.error == nil {
-                        ProgressView()
+                Group {
+                    if let url = item.image {
+                        CachedImage(url: url) { phase in
+                            if let image = phase.image {
+                                image.resizable().scaledToFit()
+                            } else if phase.error == nil {
+                                ProgressView()
+                            } else {
+                                placeholder
+                            }
+                        }
                     } else {
-                        Image(systemName: "photo")
-                            .font(.title)
-                            .foregroundStyle(.tertiary)
+                        placeholder
                     }
                 }
                 .frame(maxWidth: .infinity)

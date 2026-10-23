@@ -146,4 +146,41 @@ extension ChatFixture {
         ]
         ```
         """#
+
+    static func productTurns(_ now: Date, count: Int) -> [Turn] {
+        (0..<count).map { index in
+            let start = now.addingTimeInterval(Double(index - count) * 600)
+            return Turn(
+                id: "p\(index)", prompt: Prompt(text: "Find a warm wool blanket under 900 kr", sentAt: start),
+                reply: productReply.replacingOccurrences(of: "SURFACE", with: "blankets-\(index)"),
+                status: .complete, startedAt: start, finishedAt: start.addingTimeInterval(40)
+            )
+        }
+    }
+
+    private static let productReply = #"""
+        Three blankets fit the budget. Prices include shipping, and all three are in stock today.
+
+        **My pick:** the **Fjäll** if warmth matters most, the **Skog** if you want something lighter for summer evenings.
+
+        ```a2ui
+        [
+          {"version":"v0.9","createSurface":{"surfaceId":"SURFACE","catalogId":"https://crew.gustaf.dev/catalogs/crew/v1.json"}},
+          {"version":"v0.9","updateComponents":{"surfaceId":"SURFACE","components":[
+            {"id":"root","component":"Card","child":"body"},
+            {"id":"body","component":"Column","children":["header","one-image","one","divider1","two-image","two","divider2","three-image","three","note"]},
+            {"id":"header","component":"Header","title":"Wool blankets under 900 kr","subtitle":"Natural colours · 130 × 180 cm · shipping included","symbol":"gift","tone":"info"},
+            {"id":"one-image","component":"Image","url":"https://picsum.photos/id/1062/1788/1788","description":"Fjäll blanket folded on a chair"},
+            {"id":"one","component":"Text","text":"### 1. [Fjäll, Example Weavers](https://example.com/fjall) · 795 kr\n**In stock in grey and oat.** Heavy lambswool woven on an old shuttle loom, so the edges are a little uneven by design. It is the warmest of the three by a wide margin.\n\n**The trade-off:** it is dry-clean only and sheds for the first few weeks. Free returns within 30 days."},
+            {"id":"divider1","component":"Divider"},
+            {"id":"two-image","component":"Image","url":"https://picsum.photos/id/1025/1600/2000","description":"Skog blanket on a sofa"},
+            {"id":"two","component":"Text","text":"### 2. [Skog, Example Mill](https://example.com/skog) · 640 kr\n**In stock in moss and sand.** A lighter merino weave that works on a bed in summer and on the sofa in winter. Machine washable on the wool programme.\n\nThinner than it looks in the photos, so it is not the one for a cold cabin."},
+            {"id":"divider2","component":"Divider"},
+            {"id":"three-image","component":"Image","url":"https://picsum.photos/id/1084/1600/2000","description":"Hav blanket with fringes"},
+            {"id":"three","component":"Text","text":"### 3. [Hav, Example Studio](https://example.com/hav) · 880 kr\n**Only the blue is in stock.** Recycled wool with long fringes and a soft brushed finish. The softest of the three against the skin.\n\nReviews mention pilling after a year of daily use."},
+            {"id":"note","component":"Text","variant":"caption","text":"Prices checked today. Nothing is ordered."}
+          ]}}
+        ]
+        ```
+        """#
 }

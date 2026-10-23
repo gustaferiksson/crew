@@ -165,10 +165,13 @@ def list_shops(profile: str) -> dict[str, Any]:
         legacy_cards = payments.migrate_master()
         try:
             card, master_secret = payments.master()
-            card_row = {"label": card.label, "last4": payments.last4(master_secret), "problem": None}
+            card_row = {"label": card.label, "last4": payments.last4(master_secret), "problem": None,
+                        "code_mismatch": not payments.code_fits(str(master_secret.get("card_number") or ""),
+                                                                str(master_secret.get("cvc") or ""))}
             master_label = f"{card.label} •••• {card_row['last4']}"
         except payments.CardProblem as problem:
-            card_row, master_secret, master_label = {"label": None, "last4": None, "problem": str(problem)}, None, None
+            card_row = {"label": None, "last4": None, "problem": str(problem), "code_mismatch": False}
+            master_secret, master_label = None, None
     vault = payments.profile_vault(profile)
     config_path = get_profile_dir(profile) / "config.yaml"
     config = hermes_yaml.safe_load(config_path.read_text()) if config_path.is_file() else None
@@ -226,7 +229,7 @@ def store_card(body: Any) -> dict[str, Any]:
     try:
         label, secret = payments.card_entry(body, datetime.now(UTC))
         card = payments.set_master(label, secret)
-        return {"card": {"label": card.label, "last4": payments.last4(secret), "problem": None}}
+        return {"card": {"label": card.label, "last4": payments.last4(secret), "problem": None, "code_mismatch": False}}
     except payments.InvalidCard as invalid:
         reason = str(invalid)
         raise failure(400, "invalid_card", reason=reason) from None

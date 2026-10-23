@@ -41,4 +41,4 @@ A scenario is one real flow recorded once from the server into `Tests/fixtures/s
 
 ## Profiling
 
-`-snapshot chat-mentions -mentionTurns <n>` puts `n` more tagged exchanges in the mention chat. Record it with `xcrun xctrace record --template 'Time Profiler' --device <private simulator> --attach <pid>` while scrolling or typing, and keep the fast checks in `MentionPerformanceTests`.
+`-snapshot chat-mentions -mentionTurns <n>` puts `n` more tagged exchanges in the mention chat. Record it with `xcrun xctrace record --template 'Time Profiler' --device <private simulator> --attach <pid>` while scrolling or typing, and keep the fast checks in `MentionPerformanceTests`. `-snapshot chat-a2ui-products -productTurns <n>` shows `n` large cards with three photos each (loaded from picsum.photos) for card scroll profiling the same way.

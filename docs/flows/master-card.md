@@ -25,7 +25,7 @@ This reverses one stated decision: the card number now passes through the client
 Only the card row and a new Update Shops row change; shop rows, Add Shop, footers and the other states stay as in [payments.md](payments.md#shops-inspector-info-tab).
 
 - **No card:** `creditcard.trianglebadge.exclamationmark` "No card on the server", footnote "Add the card Crew copies to each shop you add. Bots never see the number.", and **Add Card…** (`plus.circle`, borderless, like Add Shop). Add Shop stays disabled.
-- **One card:** card art and "Shopping card •••• 4242" (one line; a long label truncates at its end, the last four always show), then **Replace Card…** (`creditcard`, borderless) on its own line, as Add Card… in the no-card state. The default profile keeps "Kept here, never used to pay." between them.
+- **One card:** card art and "Shopping card •••• 4242" (one line; a long label truncates at its end, the last four always show), then **Replace Card…** (`creditcard`, borderless) on its own line, as Add Card… in the no-card state. A saved security code that doesn't fit the card's brand adds a warning above Replace Card… ([card-code-length.md](card-code-length.md)). The default profile keeps "Kept here, never used to pay." between them.
 - **Several cards:** unchanged: "More than one card on the server", "Keep one card without a website; Crew can't tell which to use." No Add or Replace (the server would refuse with `several_cards`). Picking which card to keep is a follow-up.
 - **Old card in some shops:** under the shop rows, **Update Shops** (`arrow.triangle.2.circlepath`, borderless) with the footnote "2 shops still use the old card. Update Shops copies the current card to them." (singular "1 shop still uses…"). While it runs, a small `ProgressView` replaces the button. On success the rows lose "Old card" and briefly highlight, as after Add Shop. Errors show in red under the button: `payment_pending` "Finish or deny the waiting payment first.", anything else "Couldn't update shops. Try again."; after any error the list reloads, so rows show their real state.
 - **Offline or `gate` not true:** Add Card, Replace and Update Shops are disabled, like Add Shop offline.
@@ -48,7 +48,7 @@ Validation, shown under the field in red footnote text once the field loses focu
 | Number | 12 to 19 digits after removing spaces and dashes, passes the Luhn check | "Check the card number." |
 | Expiry | month 01 to 12, year 2 or 4 digits, at most 20 years ahead | "Check the expiry date." |
 | Expiry | valid through the last day of its month, on the device's calendar (the server allows one month of slack for time zones) | "This card has expired." |
-| Code | 4 digits for numbers starting 34 or 37, 3 otherwise | "Enter the 3 or 4 digit code." |
+| Code | 4 digits for numbers starting 34 or 37, 3 otherwise | "Enter the 3 digit code." or "Enter the 4 digit code." for the brand; "Enter the 3 or 4 digit code." with no number yet ([card-code-length.md](card-code-length.md)) |
 | Name | at most 64 characters (Unicode scalars, after control and format characters are dropped and spaces collapsed, as the server stores it) | "Use a shorter name." |
 | Label | 1 to 40 characters after trimming, none of `•`, `·`, `'`, line breaks or control characters (they would break or fake the `<label> •••• <last4> · <host>` the payment card parses) | "Use up to 40 letters, digits and spaces." |
 

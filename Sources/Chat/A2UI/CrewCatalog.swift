@@ -10,6 +10,7 @@ let crewCatalogID = "https://crew.gustaf.dev/catalogs/crew/v1.json"
 let crewCatalogs: [Catalog<ComponentImplementation>] = {
     let crewComponents = [
         ComponentImplementation(api: BasicCatalogComponents.text) { CrewText(node: $0) },
+        ComponentImplementation(api: BasicCatalogComponents.image) { CrewImage(node: $0) },
         ComponentImplementation(api: BasicCatalogComponents.column) { CrewColumn(node: $0) },
         ComponentImplementation(api: BasicCatalogComponents.card) { CrewCard(node: $0) },
         ComponentImplementation(api: BasicCatalogComponents.button) { CrewButton(node: $0) },

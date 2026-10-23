@@ -21,7 +21,7 @@ def test_the_legacy_master_moves_into_crew_push_vault(client: TestClient, vaults
     vaults.add(hermes_root / "vault", "payment", "Shopping card", CARD)
     vaults.add(hermes_root / "vault", "login", "example.com", {"password": "x"}, "https://example.com")
     body = payments(client)
-    assert body["card"] == {"label": "Shopping card", "last4": "4242", "problem": None} and body["legacy_cards"] == 0
+    assert body["card"] == {"label": "Shopping card", "last4": "4242", "problem": None, "code_mismatch": False} and body["legacy_cards"] == 0
     [card] = origin_less(vaults, hermes_root / "vault" / "crew-push")
     assert card["label"] == "Shopping card" and card["secret"] == CARD
     assert origin_less(vaults, hermes_root / "vault") == []

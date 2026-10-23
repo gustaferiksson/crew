@@ -110,6 +110,7 @@ targets:
       - Sources/Chat/RequestCards.swift
       - Sources/Chat/Payments.swift
       - Sources/Chat/PaymentCard.swift
+      - Sources/Chat/JumpToLatest.swift
       - Sources/Push/PushRoute.swift
       - Sources/Chat/Mentions.swift
       - Sources/Profile/ProfileDraft.swift

@@ -49,10 +49,8 @@ jobs:
             .build/CompilationCache.noindex
             .build/SDKExplicitPrecompiledModules
             .build/SourcePackages
-          key: xcode-${{ hashFiles('project.yml') }}-${{ github.sha }}
-          restore-keys: |
-            xcode-${{ hashFiles('project.yml') }}-
-            xcode-
+          key: xcode-app-${{ github.sha }}
+          restore-keys: xcode-app-
 
       - name: Build (fails on any warning)
         run: ./build.sh
@@ -67,7 +65,7 @@ jobs:
             .build/CompilationCache.noindex
             .build/SDKExplicitPrecompiledModules
             .build/SourcePackages
-          key: xcode-${{ hashFiles('project.yml') }}-${{ github.sha }}
+          key: xcode-app-${{ github.sha }}
 
   plugin:
     name: crew-push tests

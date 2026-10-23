@@ -39,11 +39,10 @@ jobs:
             .build/CompilationCache.noindex
             .build/SDKExplicitPrecompiledModules
             .build/SourcePackages
-          key: xcode-ui-ios-${{ hashFiles('project.yml') }}-${{ github.sha }}
+          key: xcode-ui-ios-${{ github.sha }}
           restore-keys: |
-            xcode-ui-ios-${{ hashFiles('project.yml') }}-
             xcode-ui-ios-
-            xcode-
+            xcode-app-
 
       - name: Build UI tests
         run: |
@@ -60,7 +59,7 @@ jobs:
             .build/CompilationCache.noindex
             .build/SDKExplicitPrecompiledModules
             .build/SourcePackages
-          key: xcode-ui-ios-${{ hashFiles('project.yml') }}-${{ github.sha }}
+          key: xcode-ui-ios-${{ github.sha }}
 
       - name: UI tests
         run: Tests/ui.sh -resultBundlePath ui-ios.xcresult
@@ -87,11 +86,10 @@ jobs:
             .build/CompilationCache.noindex
             .build/SDKExplicitPrecompiledModules
             .build/SourcePackages
-          key: xcode-ui-mac-${{ hashFiles('project.yml') }}-${{ github.sha }}
+          key: xcode-ui-mac-${{ github.sha }}
           restore-keys: |
-            xcode-ui-mac-${{ hashFiles('project.yml') }}-
             xcode-ui-mac-
-            xcode-
+            xcode-app-
 
       - name: UI tests
         run: |
@@ -108,7 +106,7 @@ jobs:
             .build/CompilationCache.noindex
             .build/SDKExplicitPrecompiledModules
             .build/SourcePackages
-          key: xcode-ui-mac-${{ hashFiles('project.yml') }}-${{ github.sha }}
+          key: xcode-ui-mac-${{ github.sha }}
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: ${{ failure() }}

@@ -7,7 +7,7 @@ final class ChatTranscriptUITests: XCTestCase {
 
     @MainActor private func launch() -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["-snapshot", "composer-line", "-server", "hermes.example.com", "-username", "gustaf", "-historyFile", history, "-historyCopies", "14", "-replyAfterDraft", "Sounds good, book the 07:10!"]
+        app.launchArguments = ["-snapshot", "composer-line", "-server", "hermes.example.com", "-username", "gustaf", "-historyFile", history, "-historyCopies", "14", "-replyAfterDraft", "!"]
         app.launch()
         XCTAssertTrue(app.textFields.firstMatch.waitForExistence(timeout: 10))
         return app
@@ -95,7 +95,13 @@ final class ChatTranscriptUITests: XCTestCase {
         XCTAssertEqual(reading?.frame.minY ?? 0, readingTop, accuracy: 1, "the row being read moved")
         XCTAssertTrue(app.buttons["Jump to Latest"].exists)
 
-        let header = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Worked for")).allElementsBoundByIndex.first { $0.isHittable && $0.frame.minY > 150 && $0.frame.maxY < 450 }
+        let headers = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Worked for"))
+        var header = headers.allElementsBoundByIndex.first { $0.isHittable && $0.frame.minY > 150 && $0.frame.maxY < 450 }
+        for _ in 0..<8 where header == nil {
+            app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.2)).press(forDuration: 0.02, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.45)), withVelocity: .slow, thenHoldForDuration: 0.3)
+            wait(1)
+            header = headers.allElementsBoundByIndex.first { $0.isHittable && $0.frame.minY > 150 && $0.frame.maxY < 450 }
+        }
         guard let header else { return XCTFail("no Worked for header on screen") }
         let headerTop = header.frame.minY
         header.tap()

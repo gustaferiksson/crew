@@ -412,7 +412,7 @@ struct ChatFixtureScreen: View {
         .onChange(of: draft) {
             if draft == Self.requestAfterDraft { request = fixture.request }
             if draft == Self.finishTurnAfterDraft { transcript.apply(.messageComplete(text: "Deployed to staging.", status: .complete, error: nil)) }
-            if draft == Self.replyAfterDraft { replyFromAnotherClient() }
+            if let trigger = Self.replyAfterDraft, draft.contains(trigger) { replyFromAnotherClient() }
         }
         .sheet(isPresented: $addingShop) {
             AddShopSheet(profile: "default", site: shopOffer ?? "") { _ in }

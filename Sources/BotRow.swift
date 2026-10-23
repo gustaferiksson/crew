@@ -5,7 +5,7 @@ let rowAvatarSize: CGFloat = 40
 let rowPadding: CGFloat = 14
 let dotGutter: CGFloat = 10
 nonisolated let compactRowWidth: CGFloat = 260
-private let badgeSize: CGFloat = 12
+private let badgeSize: CGFloat = 13
 #else
 let rowAvatarSize: CGFloat = 52
 let rowPadding: CGFloat = 8
@@ -110,22 +110,19 @@ struct BotRow: View {
             nil
         }
         return BotAvatar(bot: bot, status: status, photo: photo, size: rowAvatarSize)
-            .mask {
-                Rectangle()
-                    .overlay(alignment: .bottomTrailing) {
-                        if badge != nil {
-                            Circle()
-                                .frame(width: badgeSize + 4, height: badgeSize + 4)
-                                .offset(x: 2, y: 2)
-                                .blendMode(.destinationOut)
-                        }
-                    }
-                    .compositingGroup()
+            .overlay(alignment: .bottomTrailing) {
+                if badge != nil {
+                    Circle()
+                        .frame(width: badgeSize + 4, height: badgeSize + 4)
+                        .offset(x: 2, y: 2)
+                        .blendMode(.destinationOut)
+                }
             }
+            .compositingGroup()
             .overlay(alignment: .bottomTrailing) {
                 if let badge {
                     Image(systemName: badge.symbol)
-                        .font(.system(size: badgeSize * 0.55, weight: .heavy))
+                        .font(.system(size: badgeSize * 0.6, weight: .heavy))
                         .symbolEffect(.variableColor.iterative, isActive: status == .working)
                         .foregroundStyle(.white)
                         .frame(width: badgeSize, height: badgeSize)

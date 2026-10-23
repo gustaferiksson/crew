@@ -140,7 +140,7 @@ enum Snapshot: String {
         let bot = { (name: String, minutesAgo: Double, preview: String, meta: BotMeta) in
             Bot(
                 name: name, displayName: nil, description: name == "scout" ? "Finds flights, trains and hotels, and keeps an eye on prices." : nil, model: "claude-opus-4-5", isDefault: name == "default", hasAvatar: name == "scout",
-                canonicalSession: CanonicalSession(
+                canonicalSession: self == .sidebarCompact && name == "forge" ? nil : CanonicalSession(
                     id: StoredSessionID(rawValue: "s-\(name)"), resolvedID: StoredSessionID(rawValue: "s-\(name)"), preview: preview,
                     lastActive: .now.addingTimeInterval(-minutesAgo * 60), messageCount: 12
                 ),
@@ -157,7 +157,7 @@ enum Snapshot: String {
         return BotStore(fixture: [
             bot("default", 2, "Summarised the inbox: two invoices need approval.", BotMeta(pinned: true)),
             bot("ada", 12, "Running the migration dry run now.", BotMeta(title: "Ada Lovelace", role: "Head of Research and Analytics", color: "#8b5cf6", pinned: true)),
-            bot("scout", 45, "Found three flights under 2 000 kr for the weekend.", BotMeta(title: "Scout", role: "Travel Planner", color: "#38bdf8", pinned: true)),
+            bot("scout", 45, "Found three flights under 2 000 kr for the weekend.", BotMeta(title: "Scout", role: "Travel Planner", color: "#38bdf8", pinned: self != .sidebarCompact)),
             bot("forge", 5, "Can I run `npm publish` for 0.4.2?", BotMeta(title: "Forge", role: "Release Engineer", color: "#f97316", sectionID: "work", sectionName: "Work")),
             bot("ledger", 60 * 26, "Q3 numbers reconciled against the bank export.", BotMeta(title: "Ledger", role: "Bookkeeper and Finance Controller", color: "#22c55e", sectionID: "work", sectionName: "Work")),
             bot("atlas", 60 * 3, "Tuesday's standup notes are filed.", BotMeta(title: "Atlas", color: "#14b8a6", sectionID: "work", sectionName: "Work")),
@@ -176,7 +176,7 @@ enum Snapshot: String {
     }
 
     var selectedBot: Bot.ID? {
-        [.layout: "ada", .layoutInspector: "pixel", .sidebarCompact: "group:room-launch", .searchResult: "default", .chatWindow: "ada", .chatWindowInspector: "ada", .chatWindowMissing: "gone"][self]
+        [.layout: "ada", .layoutInspector: "pixel", .sidebarCompact: "forge", .searchResult: "default", .chatWindow: "ada", .chatWindowInspector: "ada", .chatWindowMissing: "gone"][self]
     }
 
     var searchQuery: String? {

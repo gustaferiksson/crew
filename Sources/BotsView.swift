@@ -561,6 +561,7 @@ private struct GroupRow: View {
                         .font(.headline)
                         .lineLimit(1)
                         .frame(maxWidth: .infinity, minHeight: rowAvatarSize, alignment: .leading)
+                        .accessibilityValue(!isOpen && drafts.preview(for: room.selectionID) != nil ? "Draft" : "")
                 } else {
                     HStack(alignment: .firstTextBaseline, spacing: 4) {
                         Text(room.name)

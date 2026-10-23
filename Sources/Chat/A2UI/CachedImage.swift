@@ -7,18 +7,25 @@ let cachedImages = {
     return cache
 }()
 
+// ImageIO's software AV1 decoder blocks on its own workers, so decoding on Swift's cooperative pool deadlocks it on few cores.
+nonisolated private let imageDecoding = DispatchQueue(label: "dev.gustaf.crew.image-decoding", qos: .userInitiated)
+
 @concurrent func downloadDownsampledImage(_ url: URL) async throws -> CGImage {
     let (data, _) = try await URLSession.shared.data(from: url)
-    let options = [
-        kCGImageSourceCreateThumbnailFromImageAlways: true,
-        kCGImageSourceCreateThumbnailWithTransform: true,
-        kCGImageSourceShouldCacheImmediately: true,
-        kCGImageSourceThumbnailMaxPixelSize: 1200,
-    ] as CFDictionary
-    guard let source = CGImageSourceCreateWithData(data as CFData, nil), let image = CGImageSourceCreateThumbnailAtIndex(source, 0, options) else {
-        throw URLError(.cannotDecodeContentData)
+    return try await withCheckedThrowingContinuation { continuation in
+        imageDecoding.async {
+            let options = [
+                kCGImageSourceCreateThumbnailFromImageAlways: true,
+                kCGImageSourceCreateThumbnailWithTransform: true,
+                kCGImageSourceShouldCacheImmediately: true,
+                kCGImageSourceThumbnailMaxPixelSize: 1200,
+            ] as CFDictionary
+            guard let source = CGImageSourceCreateWithData(data as CFData, nil), let image = CGImageSourceCreateThumbnailAtIndex(source, 0, options) else {
+                return continuation.resume(throwing: URLError(.cannotDecodeContentData))
+            }
+            continuation.resume(returning: image)
+        }
     }
-    return image
 }
 
 struct CachedImage<Content: View>: View {

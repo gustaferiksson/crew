@@ -39,9 +39,10 @@ jobs:
             .build/CompilationCache.noindex
             .build/SDKExplicitPrecompiledModules
             .build/SourcePackages
-          key: xcode-${{ hashFiles('project.yml') }}-${{ github.sha }}
+          key: xcode-ui-ios-${{ hashFiles('project.yml') }}-${{ github.sha }}
           restore-keys: |
-            xcode-${{ hashFiles('project.yml') }}-
+            xcode-ui-ios-${{ hashFiles('project.yml') }}-
+            xcode-ui-ios-
             xcode-
 
       - name: Build UI tests
@@ -51,6 +52,15 @@ jobs:
           xcodebuild build-for-testing -quiet -project Crew.xcodeproj -scheme CrewUITests -derivedDataPath .build -skipPackagePluginValidation -skipMacroValidation \
             -destination "platform=iOS Simulator,id=$UI_DEVICE" CODE_SIGNING_ALLOWED=NO
           xcrun simctl bootstatus "$UI_DEVICE" >/dev/null
+
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: ${{ !cancelled() }}
+        with:
+          path: |
+            .build/CompilationCache.noindex
+            .build/SDKExplicitPrecompiledModules
+            .build/SourcePackages
+          key: xcode-ui-ios-${{ hashFiles('project.yml') }}-${{ github.sha }}
 
       - name: UI tests
         run: Tests/ui.sh -resultBundlePath ui-ios.xcresult
@@ -77,9 +87,10 @@ jobs:
             .build/CompilationCache.noindex
             .build/SDKExplicitPrecompiledModules
             .build/SourcePackages
-          key: xcode-${{ hashFiles('project.yml') }}-${{ github.sha }}
+          key: xcode-ui-mac-${{ hashFiles('project.yml') }}-${{ github.sha }}
           restore-keys: |
-            xcode-${{ hashFiles('project.yml') }}-
+            xcode-ui-mac-${{ hashFiles('project.yml') }}-
+            xcode-ui-mac-
             xcode-
 
       - name: UI tests
@@ -89,6 +100,15 @@ jobs:
           xcodebuild test -project Crew.xcodeproj -scheme CrewMacUITests -derivedDataPath .build -destination 'platform=macOS,arch=arm64' \
             -skipPackagePluginValidation -skipMacroValidation -resultBundlePath mac-ui.xcresult \
             CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual CODE_SIGN_ENTITLEMENTS=
+
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: ${{ !cancelled() }}
+        with:
+          path: |
+            .build/CompilationCache.noindex
+            .build/SDKExplicitPrecompiledModules
+            .build/SourcePackages
+          key: xcode-ui-mac-${{ hashFiles('project.yml') }}-${{ github.sha }}
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: ${{ failure() }}

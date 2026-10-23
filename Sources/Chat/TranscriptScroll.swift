@@ -1,5 +1,10 @@
 import SwiftUI
 
+private struct BottomEdge: Equatable {
+    let distance: CGFloat
+    let height: CGFloat
+}
+
 struct TranscriptScroll<Content: View>: View {
     @Binding var position: ScrollPosition
     @ViewBuilder let content: Content
@@ -11,7 +16,10 @@ struct TranscriptScroll<Content: View>: View {
         ScrollView { content }
             .defaultScrollAnchor(.bottom)
             .scrollPosition($position)
-            .onScrollGeometryChange(for: Bool.self) { $0.contentSize.height - $0.visibleRect.maxY + $0.contentInsets.bottom < 40 } action: { isAtBottom = $1 }
+            .onScrollGeometryChange(for: BottomEdge.self) { BottomEdge(distance: $0.contentSize.height - $0.visibleRect.maxY + $0.contentInsets.bottom, height: $0.containerSize.height) } action: { old, new in
+                isAtBottom = new.distance < 40
+                if new.height < old.height, old.distance < 40 { position.scrollTo(edge: .bottom) }
+            }
             .overlay(alignment: .bottom) {
                 ZStack {
                     if !isAtBottom {

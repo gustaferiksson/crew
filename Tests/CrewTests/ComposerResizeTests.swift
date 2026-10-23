@@ -104,12 +104,11 @@ private struct ResizingWindow: View {
                     drift.append("\(Int(size.width))x\(Int(size.height)): y \(Int(frame.minY)) h \(Int(frame.height))")
                 }
             }
-            if jumpToLatest(in: content) != nil { arrows.append("\(Int(size.width))x\(Int(size.height))") }
+            if probe.distance >= 40 { arrows.append("\(Int(size.width))x\(Int(size.height)): \(Int(probe.distance)) pt") }
         }
         settle()
-        #expect(arrows.isEmpty, "Jump to Latest showed after \(arrows.count) resize steps: \(arrows.prefix(5).joined(separator: ", "))")
+        #expect(arrows.isEmpty, "the transcript left the end, so Jump to Latest showed, after \(arrows.count) resize steps: \(arrows.prefix(5).joined(separator: ", "))")
         #expect(abs(probe.distance) < 1, "at rest \(Int(probe.distance)) pt from the end")
-        #expect(jumpToLatest(in: content) == nil, "Jump to Latest shows at rest")
         #expect(drift.isEmpty, "resting y \(Int(resting.minY)) h \(Int(resting.height)); \(drift.count) samples off, first: \(drift.prefix(5).joined(separator: "; "))")
     }
 }

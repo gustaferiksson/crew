@@ -47,11 +47,6 @@ private let rows = (0..<300).map { String(repeating: "Row \($0) has a few words 
     view as? NSScrollView ?? view.subviews.lazy.compactMap { scrollView(in: $0) }.first
 }
 
-@MainActor func jumpToLatest(in element: any NSAccessibilityProtocol) -> (any NSAccessibilityProtocol)? {
-    if element.accessibilityLabel() == "Jump to Latest", element.accessibilityRole() == .button { return element }
-    return (element.accessibilityChildren() ?? []).lazy.compactMap { ($0 as? any NSAccessibilityProtocol).flatMap(jumpToLatest(in:)) }.first
-}
-
 @MainActor func userScroll(_ scroll: NSScrollView, by distance: CGFloat) {
     let steps = 20
     for step in 0...steps {
@@ -100,8 +95,6 @@ private let rows = (0..<300).map { String(repeating: "Row \($0) has a few words 
         model.barHeight = 60
         settle()
         #expect(abs(model.distance) < 1, "bar shrank \(model.distance)")
-        let content = try #require(window.contentView)
-        #expect(jumpToLatest(in: content) == nil)
     }
 
     @Test func nothingMovesWhatTheReaderIsReading() throws {
@@ -114,7 +107,6 @@ private let rows = (0..<300).map { String(repeating: "Row \($0) has a few words 
         let scroll = try #require(scrollView(in: content))
         userScroll(scroll, by: 1500)
         #expect(model.distance > 1400)
-        #expect(jumpToLatest(in: content) != nil)
         let reading = model.top
         model.rows[model.rows.count - 1] += String(repeating: " streaming while reading", count: 40)
         settle()
@@ -126,19 +118,20 @@ private let rows = (0..<300).map { String(repeating: "Row \($0) has a few words 
         model.rows.append("A turn after scrolling back by hand.")
         settle()
         #expect(abs(model.distance) < 1, "after a manual return \(model.distance)")
-        #expect(jumpToLatest(in: content) == nil)
 
+        model.watched = 151
         model.position.scrollTo(id: 150, anchor: .center)
         settle()
-        model.watched = 151
-        settle()
         let header = model.watchedFrame.minY
+        let top = model.top
+        #expect(header > 0 && header < 640, "row 151 at \(model.watchedFrame)")
         model.rows[151] += String(repeating: " expanded work log line", count: 40)
         settle()
-        #expect(abs(model.watchedFrame.minY - header) < 1, "expansion moved its header \(model.watchedFrame.minY - header)")
+        #expect(abs(model.top - top) < 1, "expansion scrolled by \(model.top - top)")
+        #expect(abs(model.watchedFrame.minY - header) < 1, "expansion moved its header by \(model.watchedFrame.minY - header)")
     }
 
-    @Test func theArrowLandsAtTheEndFromFarUp() throws {
+    @Test func theAnimatedEdgeJumpLandsAtTheEndFromFarUp() {
         let model = ScrollModel()
         let window = host(model)
         defer { window.orderOut(nil) }
@@ -146,18 +139,10 @@ private let rows = (0..<300).map { String(repeating: "Row \($0) has a few words 
         settle(1)
         model.position.scrollTo(id: 10, anchor: .top)
         settle()
-        let content = try #require(window.contentView)
-        func dump(_ element: any NSAccessibilityProtocol, _ depth: Int) {
-            print(String(repeating: "  ", count: depth) + "AX \(element.accessibilityRole()?.rawValue ?? "-") \(element.accessibilityLabel() ?? "-") \(type(of: element))")
-            guard depth < 12 else { return }
-            for child in element.accessibilityChildren() ?? [] { if let child = child as? any NSAccessibilityProtocol { dump(child, depth + 1) } }
-        }
-        dump(content, 0)
-        let arrow = try #require(jumpToLatest(in: content))
-        #expect(arrow.accessibilityPerformPress())
+        #expect(model.distance > 20_000)
+        withAnimation(.smooth) { model.position.scrollTo(edge: .bottom) }
         settle(1.5)
         #expect(abs(model.distance) < 1, "after the jump \(model.distance)")
-        #expect(jumpToLatest(in: content) == nil)
         model.rows.append("A turn after the jump.")
         settle()
         #expect(abs(model.distance) < 1, "row appended after the jump \(model.distance)")

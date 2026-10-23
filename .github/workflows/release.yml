@@ -14,7 +14,28 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  ui-green:
+    name: UI tests green on main
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+
+      - name: Latest UI run on main passed and is in this tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          read -r conclusion sha < <(gh run list -R "${{ github.repository }}" -w ui.yml -b main -s completed -L 1 --json conclusion,headSha -q '.[0] | "\(.conclusion) \(.headSha)"')
+          echo "UI tests: $conclusion on $sha"
+          [ "$conclusion" = success ] && git merge-base --is-ancestor "$sha" "$GITHUB_SHA"
+
   macos:
+    needs: ui-green
     uses: gustaferiksson/macos-release/.github/workflows/release.yml@main
     secrets: inherit
     with:

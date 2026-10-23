@@ -1,0 +1,98 @@
+name: UI tests
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - '**'
+      - '!docs/**'
+      - '!server/crew-push/**'
+      - '!**.md'
+      - 'Sources/**/*.md'
+      - 'Tests/fixtures/**/*.md'
+  workflow_dispatch:
+
+concurrency:
+  group: ui-tests
+  cancel-in-progress: true
+
+jobs:
+  ios:
+    name: UI tests (iOS Simulator)
+    runs-on: xcode-27
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - name: Install build tools
+        run: brew install xcodegen
+
+      - name: Boot the simulator
+        run: |
+          set -euo pipefail
+          device=$(xcrun simctl create crew-ui "iPhone 18 Pro" com.apple.CoreSimulator.SimRuntime.iOS-27-0)
+          xcrun simctl boot "$device"
+          echo "UI_DEVICE=$device" >> "$GITHUB_ENV"
+
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            .build/CompilationCache.noindex
+            .build/SDKExplicitPrecompiledModules
+            .build/SourcePackages
+          key: xcode-${{ hashFiles('project.yml') }}-${{ github.sha }}
+          restore-keys: |
+            xcode-${{ hashFiles('project.yml') }}-
+            xcode-
+
+      - name: Build UI tests
+        run: |
+          set -euo pipefail
+          xcodegen generate --quiet
+          xcodebuild build-for-testing -quiet -project Crew.xcodeproj -scheme CrewUITests -derivedDataPath .build -skipPackagePluginValidation -skipMacroValidation \
+            -destination "platform=iOS Simulator,id=$UI_DEVICE" CODE_SIGNING_ALLOWED=NO
+          xcrun simctl bootstatus "$UI_DEVICE" >/dev/null
+
+      - name: UI tests
+        run: Tests/ui.sh -resultBundlePath ui-ios.xcresult
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: ${{ failure() }}
+        with:
+          name: ui-ios-results
+          path: ui-ios.xcresult
+          retention-days: 7
+
+  mac:
+    name: UI tests (macOS)
+    runs-on: xcode-27
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - name: Install build tools
+        run: brew install xcodegen
+
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            .build/CompilationCache.noindex
+            .build/SDKExplicitPrecompiledModules
+            .build/SourcePackages
+          key: xcode-${{ hashFiles('project.yml') }}-${{ github.sha }}
+          restore-keys: |
+            xcode-${{ hashFiles('project.yml') }}-
+            xcode-
+
+      - name: UI tests
+        run: |
+          set -euo pipefail
+          xcodegen generate --quiet
+          xcodebuild test -project Crew.xcodeproj -scheme CrewMacUITests -derivedDataPath .build -destination 'platform=macOS,arch=arm64' \
+            -skipPackagePluginValidation -skipMacroValidation -resultBundlePath mac-ui.xcresult \
+            CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual CODE_SIGN_ENTITLEMENTS=
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: ${{ failure() }}
+        with:
+          name: mac-ui-results
+          path: mac-ui.xcresult
+          retention-days: 7

@@ -264,23 +264,9 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
                     }
                 }
                 .animation(.smooth, value: request?.id)
-                .overlay(alignment: .top) {
-                    if !isAtBottom {
-                        Button("Jump to Latest", systemImage: "arrow.down") {
-                            withAnimation(.smooth) { proxy.scrollTo(bottomID, anchor: .bottom) }
-                        }
-                        .labelStyle(.iconOnly)
-                        .buttonStyle(.glass)
-                        .buttonBorderShape(.circle)
-                        #if os(macOS)
-                        .controlSize(.large)
-                        #endif
-                        .transition(.scale.combined(with: .opacity))
-                        .padding(.bottom, 12)
-                        .frame(height: 0, alignment: .bottom)
-                    }
-                }
-                .animation(.smooth, value: isAtBottom)
+                .modifier(JumpToLatest(isAtBottom: isAtBottom) {
+                    withAnimation(.smooth) { proxy.scrollTo(bottomID, anchor: .bottom) }
+                })
                 #if os(iOS)
                 .ignoresSafeArea(.container, edges: .bottom)
                 #endif

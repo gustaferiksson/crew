@@ -110,15 +110,19 @@ struct BotRow: View {
             nil
         }
         return BotAvatar(bot: bot, status: status, photo: photo, size: rowAvatarSize)
-            .overlay(alignment: .bottomTrailing) {
-                if badge != nil {
-                    Circle()
-                        .frame(width: badgeSize + 4, height: badgeSize + 4)
-                        .offset(x: 2, y: 2)
-                        .blendMode(.destinationOut)
+            .mask {
+                ZStack(alignment: .bottomTrailing) {
+                    Rectangle()
+                        .padding(-rowAvatarSize / 4)
+                    if badge != nil {
+                        Circle()
+                            .frame(width: badgeSize + 4, height: badgeSize + 4)
+                            .offset(x: 2, y: 2)
+                            .blendMode(.destinationOut)
+                    }
                 }
+                .compositingGroup()
             }
-            .compositingGroup()
             .overlay(alignment: .bottomTrailing) {
                 if let badge {
                     Image(systemName: badge.symbol)

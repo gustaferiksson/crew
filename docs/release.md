@@ -84,7 +84,8 @@ A full `git log --all -p` audit before publishing found no `.env`, `.env.test`, 
 From the first push on, `main` only moves through pull requests. How this plays out in practice, with measured pain points, is in `docs/development-process.md`.
 
 - One branch per change (`git switch -c <short-name>`), small and focused; `gh pr create` when it builds locally.
-- CI (`ci.yml`: `./build.sh` on `xcode-27`, crew-push pytest and the plugin version check on Ubuntu) must be green; the orchestrating agent then merges (`gh pr merge --squash --delete-branch`).
+- CI (`ci.yml`: `./build.sh` plus unit tests on `xcode-27` with the compilation cache restored from `main`, crew-push pytest and the plugin version check on Ubuntu; a new push cancels the PR's older run) must be green; the orchestrating agent then merges (`gh pr merge --squash --delete-branch`).
+- UI tests (`ui.yml`: iOS Simulator and macOS XCUITests) run after each app change lands on `main`, not on PRs. A red run gets fixed or filed before anything else; `release.yml` refuses a tag unless the latest completed `main` UI run passed and is part of the tag. Keep the suite to flows unit tests can't reach.
 - Verification stays targeted as in `CLAUDE.md`: zero-warning `./build.sh`, only the affected snapshots, only the probes for the logic touched.
 - Releases are cut by the user: `git tag v0.x.y && git push origin v0.x.y` on a green `main`. Versions stay on 0.x.
 

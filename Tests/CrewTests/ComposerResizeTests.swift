@@ -2,9 +2,13 @@ import AppKit
 import SwiftUI
 import Testing
 
+nonisolated enum ResizedWindow: CaseIterable, Sendable {
+    case main, chat
+}
+
 private struct ChatColumn: View {
+    @State var draft: String
     @State private var isAtBottom = true
-    @State private var draft = ""
     @FocusState private var isFocused: Bool
 
     var body: some View {
@@ -35,17 +39,32 @@ private struct ChatColumn: View {
     }
 }
 
-private struct MainWindow: View {
+private struct ResizingWindow: View {
+    let window: ResizedWindow
+    let draft: String
     @State private var selection: Int? = 0
 
     var body: some View {
+        if window == .chat {
+            NavigationStack { ChatColumn(draft: draft) }
+                .frame(minWidth: 320)
+                .inspector(isPresented: .constant(false)) {
+                    Text("Inspector")
+                        .inspectorColumnWidth(min: 280, ideal: 340, max: 480)
+                }
+        } else {
+            mainWindow
+        }
+    }
+
+    private var mainWindow: some View {
         NavigationSplitView {
             List(selection: $selection) {
                 ForEach(0..<5) { Text("Bot \($0)").tag($0) }
             }
             .navigationSplitViewColumnWidth(min: 240, ideal: 320, max: 400)
         } detail: {
-            NavigationStack { ChatColumn() }
+            NavigationStack { ChatColumn(draft: draft) }
                 .navigationSplitViewColumnWidth(min: 320, ideal: 640)
         }
         .inspector(isPresented: .constant(false)) {
@@ -60,10 +79,11 @@ private struct MainWindow: View {
         view as? NSTextField ?? view.subviews.lazy.compactMap { textField(in: $0) }.first
     }
 
-    @Test func theComposerStaysOnTheBottomEdgeWhileTheWindowResizes() throws {
+    @Test(arguments: ResizedWindow.allCases, ["", "Line one\nLine two\nLine three\nLine four\nLine five\nLine six\nLine seven"])
+    func theComposerStaysOnTheBottomEdgeWhileTheWindowResizes(in layout: ResizedWindow, draft: String) throws {
         let window = NSWindow(contentRect: NSRect(x: -20000, y: -20000, width: 1000, height: 600), styleMask: [.titled, .resizable, .closable, .miniaturizable, .fullSizeContentView], backing: .buffered, defer: false)
         window.isRestorable = false
-        window.contentViewController = NSHostingController(rootView: MainWindow())
+        window.contentViewController = NSHostingController(rootView: ResizingWindow(window: layout, draft: draft))
         window.setContentSize(NSSize(width: 1000, height: 600))
         window.orderBack(nil)
         defer { window.orderOut(nil) }

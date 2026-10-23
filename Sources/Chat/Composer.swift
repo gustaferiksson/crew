@@ -250,7 +250,7 @@ struct Composer: View {
                     .padding(.vertical, 8)
                     .frame(maxWidth: .infinity, minHeight: fieldHeight, alignment: .leading)
                     .focused(isFocused)
-                    .onKeyPress(.return, phases: .down) { press in
+                    .onKeyPress(.return, phases: [.down, .repeat]) { press in
                         if press.modifiers.contains(.shift) {
                             #if os(macOS)
                             NSApp.sendAction(#selector(NSResponder.insertNewlineIgnoringFieldEditor(_:)), to: nil, from: nil)
@@ -259,7 +259,14 @@ struct Composer: View {
                             #endif
                             return .handled
                         }
-                        guard canSend, !isOffline else { return .ignored }
+                        #if os(macOS)
+                        let isComposing = NSApp.windows.contains { ($0.firstResponder as? NSTextView)?.hasMarkedText() == true }
+                        if isComposing { return .ignored }
+                        let nothingToSend = KeyPress.Result.handled
+                        #else
+                        let nothingToSend = KeyPress.Result.ignored
+                        #endif
+                        guard press.phase == .down, canSend, !isOffline else { return nothingToSend }
                         send(phase == .running && features.contains(.steering) ? .steer : .send)
                         return .handled
                     }

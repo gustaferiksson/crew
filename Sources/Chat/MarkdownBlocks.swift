@@ -15,7 +15,29 @@ nonisolated struct MarkdownBlock: Identifiable, Sendable {
     let content: AttributedString
 }
 
+nonisolated private final class ParsedMarkdown: Sendable {
+    let blocks: [MarkdownBlock]
+
+    init(_ blocks: [MarkdownBlock]) {
+        self.blocks = blocks
+    }
+}
+
+// NSCache is documented thread-safe but not marked Sendable.
+nonisolated(unsafe) private let parsedMarkdown = {
+    let cache = NSCache<NSString, ParsedMarkdown>()
+    cache.countLimit = 200
+    return cache
+}()
+
 nonisolated func markdownBlocks(from source: String) -> [MarkdownBlock] {
+    if let parsed = parsedMarkdown.object(forKey: source as NSString) { return parsed.blocks }
+    let blocks = parseMarkdownBlocks(from: source)
+    parsedMarkdown.setObject(ParsedMarkdown(blocks), forKey: source as NSString)
+    return blocks
+}
+
+nonisolated private func parseMarkdownBlocks(from source: String) -> [MarkdownBlock] {
     let options = AttributedString.MarkdownParsingOptions(interpretedSyntax: .full, failurePolicy: .returnPartiallyParsedIfPossible)
     guard let parsed = try? AttributedString(markdown: source, options: options) else {
         return [MarkdownBlock(id: 0, kind: .paragraph, content: AttributedString(source))]
@@ -59,5 +81,6 @@ nonisolated func cardMarkdown(_ source: String) -> AttributedString {
 }
 
 nonisolated func a2uiFenced(_ text: String) -> String {
-    text.replacing(/<a2ui-json>\s*(?:```[a-z]*\n)?(?<body>[\s\S]*?)\s*(?:```\s*)?<\/a2ui-json>/) { "```a2ui\n\($0.output.body)\n```" }
+    guard text.contains("<a2ui-json>") else { return text }
+    return text.replacing(/<a2ui-json>\s*(?:```[a-z]*\n)?(?<body>[\s\S]*?)\s*(?:```\s*)?<\/a2ui-json>/) { "```a2ui\n\($0.output.body)\n```" }
 }

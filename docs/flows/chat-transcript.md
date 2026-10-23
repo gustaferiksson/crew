@@ -74,7 +74,7 @@ Two independent pull requests.
 
 Host unit tests (macOS), each shown failing first:
 
-- `ReplyParseTests`: the six recorded long replies rendered 100 times each take under 50 ms in total (one uncached pass is about 8 ms, so 100 passes about 800 ms); fails before the cache.
+- `ReplyParseTests`: the six recorded long replies rendered 100 times each take under 100 ms in total (uncached that is about 420 ms on an M-series Mac); fails before the cache.
 - `TranscriptScrollTests` (the real `TranscriptScroll`, rows of mixed height, a `safeAreaBar`; it replaces the print-only `ScrollAnchorExperimentTests`, which is deleted): cold open at the bottom; at the bottom a growing last row, an appended row and a growing bar keep the end in view; scrolled up, the same changes and a mid-row expansion move the reading position by under 1 pt; scrolled back down by hand, an appended row stays in view; the arrow's action from 30 000 pt up lands at the end; a search jump into rows that arrive in the same update brings the row into view. The pins-and-sentinel composition (today's `ChatView`, as `ComposerResizeTests` copies it) fails the jump and resize cases.
 - `ComposerResizeTests` is rewritten to host `TranscriptScroll` instead of its copy and gains #145's check: after the resize steps with the inspector attached (main window and chat window), the transcript is at the end and the arrow is not in the accessibility tree; fails with the copied old composition.
 

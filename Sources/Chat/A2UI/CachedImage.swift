@@ -1,25 +1,23 @@
 import ImageIO
 import SwiftUI
 
-nonisolated(unsafe) let cachedImages = {
+let cachedImages = {
     let cache = NSCache<NSURL, CGImage>()
-    cache.totalCostLimit = 96 * 1024 * 1024
+    cache.totalCostLimit = 128 * 1024 * 1024
     return cache
 }()
 
-@concurrent nonisolated func loadCachedImage(_ url: URL) async throws -> CGImage {
-    if let cached = cachedImages.object(forKey: url as NSURL) { return cached }
+@concurrent func downloadDownsampledImage(_ url: URL) async throws -> CGImage {
     let (data, _) = try await URLSession.shared.data(from: url)
     let options = [
         kCGImageSourceCreateThumbnailFromImageAlways: true,
         kCGImageSourceCreateThumbnailWithTransform: true,
         kCGImageSourceShouldCacheImmediately: true,
-        kCGImageSourceThumbnailMaxPixelSize: 1500,
+        kCGImageSourceThumbnailMaxPixelSize: 1200,
     ] as CFDictionary
     guard let source = CGImageSourceCreateWithData(data as CFData, nil), let image = CGImageSourceCreateThumbnailAtIndex(source, 0, options) else {
         throw URLError(.cannotDecodeContentData)
     }
-    cachedImages.setObject(image, forKey: url as NSURL, cost: image.bytesPerRow * image.height)
     return image
 }
 
@@ -31,12 +29,18 @@ struct CachedImage<Content: View>: View {
     @Environment(\.displayScale) private var displayScale
 
     var body: some View {
-        let cached = cachedImages.object(forKey: url as NSURL).map { AsyncImagePhase.success(Image(decorative: $0, scale: displayScale)) }
-        content(cached ?? phase)
+        let cached = cachedImages.object(forKey: url as NSURL)
+        content(cached.map { .success(Image(decorative: $0, scale: displayScale)) } ?? phase)
             .task(id: url) {
-                guard cached == nil else { return }
+                if let cached {
+                    phase = .success(Image(decorative: cached, scale: displayScale))
+                    return
+                }
+                phase = .empty
                 do {
-                    phase = .success(Image(decorative: try await loadCachedImage(url), scale: displayScale))
+                    let image = try await downloadDownsampledImage(url)
+                    cachedImages.setObject(image, forKey: url as NSURL, cost: image.bytesPerRow * image.height)
+                    phase = .success(Image(decorative: image, scale: displayScale))
                 } catch let failure where !Task.isCancelled {
                     phase = .failure(failure)
                 } catch {}

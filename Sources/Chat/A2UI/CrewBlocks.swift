@@ -52,17 +52,19 @@ struct CrewImage: View {
     let node: Node
 
     var body: some View {
-        if let url = node.string(for: "url").flatMap(URL.init(string:)), url.scheme == "https" {
-            CardImage(url: url, variant: node.string(for: "variant") ?? "mediumFeature", fit: node.string(for: "fit") ?? "fill")
-                .accessibilityElement()
-                .accessibilityLabel(node.string(for: "description") ?? "Image")
-                .accessibilityAddTraits(.isImage)
-        } else {
-            Image(systemName: "photo")
-                .font(.largeTitle)
-                .foregroundStyle(.secondary)
-                .frame(minWidth: 40, minHeight: 40)
+        Group {
+            if let url = node.string(for: "url").flatMap(URL.init(string:)), url.scheme == "https" {
+                CardImage(url: url, variant: node.string(for: "variant") ?? "mediumFeature", fit: node.string(for: "fit") ?? "fill")
+            } else {
+                Image(systemName: "photo")
+                    .font(.largeTitle)
+                    .foregroundStyle(.secondary)
+                    .frame(minWidth: 40, minHeight: 40)
+            }
         }
+        .accessibilityElement()
+        .accessibilityLabel(node.string(for: "description") ?? "Image")
+        .accessibilityAddTraits(.isImage)
     }
 }
 

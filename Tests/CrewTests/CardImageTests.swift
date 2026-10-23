@@ -19,3 +19,17 @@ private func productPhoto(width: Int, height: Int) throws -> CGImage {
     let recycledHeight = NSHostingController(rootView: recycled.fixedSize(horizontal: false, vertical: true)).sizeThatFits(in: CGSize(width: 330, height: CGFloat.infinity)).height
     #expect(abs(recycledHeight - 412.5) < 1, "\(recycledHeight)")
 }
+
+@Test @MainActor func manyShopPhotosDecodingAtOnceAllFinish() throws {
+    let photo = URL(filePath: #filePath).deletingLastPathComponent().deletingLastPathComponent().appending(path: "fixtures/images/haika-slipper.avif")
+    let count = ProcessInfo.processInfo.activeProcessorCount * 4
+    let finished = DispatchSemaphore(value: 0)
+    Task.detached {
+        let decoded = await withTaskGroup(of: Bool.self) { group in
+            for _ in 0..<count { group.addTask { (try? await downloadDownsampledImage(photo)) != nil } }
+            return await group.reduce(0) { $0 + ($1 ? 1 : 0) }
+        }
+        if decoded == count { finished.signal() }
+    }
+    #expect(finished.wait(timeout: .now() + 60) == .success, "\(count) AVIF decodes did not all succeed within 60 s")
+}

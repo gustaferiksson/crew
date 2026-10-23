@@ -24,7 +24,7 @@ nonisolated struct Turn: Identifiable, Codable, Sendable, Equatable {
     var notice: String?
     var agentMessage: AgentMessage?
     var delivery: String?
-    var deliveryFailed = false
+    var deliveryFailure: DeliveryFailure?
     var hiddenText: String?
     var work: [WorkItem] = []
     var reply = ""
@@ -187,6 +187,59 @@ nonisolated func deliveryProcess(in content: String) -> String? {
     return content.firstMatch(of: /proc_[0-9a-f]+/).map { String($0.output) }
 }
 
+nonisolated struct DeliveryFailure: Codable, Sendable, Equatable {
+    var reason: String?
+    var detail: String?
+    var isUnconfirmed = false
+    var target: String?
+}
+
+nonisolated extension DeliveryFailure {
+    init?(notice: String) {
+        guard deliveryProcess(in: notice) != nil else { return nil }
+        let body = notice.firstRange(of: "\nOutput:\n").map { String(notice[$0.upperBound...]) } ?? ""
+        let output = (body.hasSuffix("]") ? String(body.dropLast()) : body).trimmingCharacters(in: .whitespacesAndNewlines)
+        let object = output.split(separator: "\n").reversed().lazy.compactMap { (try? JSONSerialization.jsonObject(with: Data($0.utf8))) as? [String: Any] }.first
+        let status = object?["status"] as? String ?? ""
+        let isUnconfirmed = ["ambiguous", "queued", "claimed"].contains(status) || output.contains(#/(?m)^No reply from /#)
+        guard !notice.contains("completed normally (exit code 0)") || isUnconfirmed || ["failed", "cancelled"].contains(status) else { return nil }
+        if let object {
+            self.init(reason: object["reason"] as? String, detail: (object["error"] ?? object["detail"]) as? String, isUnconfirmed: isUnconfirmed)
+        } else if let tagged = output.firstMatch(of: /failed \[reason: ([a-z_]+)\]: (.+)/) {
+            self.init(reason: String(tagged.1), detail: String(tagged.2))
+        } else {
+            self.init(isUnconfirmed: isUnconfirmed)
+        }
+    }
+
+    func headline(for bot: String) -> String {
+        if isUnconfirmed { return String(localized: "Delivery to \(bot) couldn't be confirmed.") }
+        if ["runtime_offline", "queued_expired", "target_busy", "cancelled", "agent_blocked", "target_scope_unresolved"].contains(reason ?? "") { return String(localized: "Not delivered.") }
+        if explanation(for: bot) != nil { return String(localized: "\(bot) couldn't answer.") }
+        return String(localized: "Message to \(bot) failed.")
+    }
+
+    func explanation(for bot: String) -> String? {
+        let sentences = [
+            "target_busy": String(localized: "\(bot) is busy right now. Ask again later."),
+            "runtime_offline": String(localized: "\(bot) is offline. Ask again when it's back."),
+            "delivery_timeout": String(localized: "\(bot) didn't answer in time. It may have seen the message; ask again if it matters."),
+            "queued_expired": String(localized: "\(bot)'s computer wasn't reachable in time. Ask again when it's back online."),
+            "cancelled": String(localized: "The message to \(bot) was cancelled. Ask again if you still need it."),
+            "provider_rate_limit": String(localized: "\(bot)'s AI provider is limiting requests. Ask again in a few minutes."),
+            "provider_server_error": String(localized: "\(bot)'s AI provider had an error. Ask again later."),
+            "provider_auth_or_access": String(localized: "\(bot)'s AI provider rejected its login or access. Asking again won't help."),
+            "provider_quota_limit": String(localized: "\(bot)'s AI provider account has reached its usage limit. Asking again won't help."),
+            "context_overflow": String(localized: "\(bot)'s chat is too long to continue. Asking again won't help."),
+            "missing_config": String(localized: "\(bot) has no AI provider set up. Asking again won't help."),
+            "model_unavailable": String(localized: "\(bot)'s model isn't available. Pick another model for it; asking again won't help."),
+            "agent_blocked": String(localized: "\(bot) isn't taking messages. Asking again won't help."),
+            "target_scope_unresolved": String(localized: "Hermes couldn't load \(bot)'s settings. Asking again won't help."),
+        ]
+        return isUnconfirmed ? nil : reason.flatMap { sentences[$0] }
+    }
+}
+
 extension Transcript {
     var visible: Transcript {
         let log = { (turn: Turn) in
@@ -224,18 +277,22 @@ extension Transcript {
             }
             let origin = originIndex.map { turns[$0] }
             let handle = origin?.work.first { item in if case .tool(let call) = item.kind { call.result?.contains(delivery) == true } else { false } }?.messagedHandle
-            awaited.removeAll { $0.origin == origin?.id }
+            let repliedLater = turn.deliveryFailure?.isUnconfirmed == true && handle != nil && turns[(position + 1)...].contains { $0.agentMessage?.handle == handle }
+            if !repliedLater { awaited.removeAll { $0.origin == origin?.id } }
+            var followUp = turn
+            followUp.deliveryFailure?.target = handle
             if let origin, let index = exchanges[origin.id] {
                 shown[index].work += log(turn)
                 shown[index].finishedAt = turn.finishedAt
+                shown[index].deliveryFailure = shown[index].deliveryFailure ?? followUp.deliveryFailure
                 if shown[index].status == .complete {
                     shown[index].status = turn.status
                     shown[index].failure = turn.failure
                 }
-            } else if !turn.deliveryFailed, let originIndex, let index = answered.firstIndex(where: { $0.handle == handle && $0.at > originIndex }) {
+            } else if turn.deliveryFailure?.isUnconfirmed != false, let originIndex, let index = answered.firstIndex(where: { $0.handle == handle && $0.at > originIndex }) {
                 answered.remove(at: index)
-            } else if origin.map({ $0.agentMessage == nil }) ?? turns.contains(where: { $0.agentMessage == nil && $0.prompt != nil }) {
-                shown.append(turn)
+            } else if !repliedLater, origin.map({ $0.agentMessage == nil }) ?? turns.contains(where: { $0.agentMessage == nil && $0.prompt != nil }) {
+                shown.append(followUp)
             }
         }
         return Transcript(turns: shown + waiting)
@@ -262,7 +319,7 @@ extension Transcript {
                 let notice = delivery == nil ? noticeText(kind: row.displayKind, content: text) : nil
                 let prompt = notice == nil && delivery == nil && row.displayKind != "hidden" ? Prompt(raw: text, sentAt: date) : nil
                 let hiddenText = row.displayKind == "hidden" ? row.content ?? text : nil
-                turns.append(Turn(id: String(row.id), prompt: prompt, notice: notice, agentMessage: AgentMessage(text), delivery: delivery, deliveryFailed: delivery != nil && !text.contains("completed normally (exit code 0)"), hiddenText: hiddenText, status: .complete, startedAt: date, finishedAt: date))
+                turns.append(Turn(id: String(row.id), prompt: prompt, notice: notice, agentMessage: AgentMessage(text), delivery: delivery, deliveryFailure: DeliveryFailure(notice: text), hiddenText: hiddenText, status: .complete, startedAt: date, finishedAt: date))
                 continue
             }
             if row.role == "assistant" {
@@ -350,7 +407,7 @@ extension Transcript {
         let notice = delivery == nil ? noticeText(kind: displayKind, content: user) : nil
         let prompt = Prompt(raw: user, sentAt: date)
         let isShown = notice == nil && delivery == nil && displayKind != "hidden" && (!prompt.text.isEmpty || !prompt.attachments.isEmpty)
-        turns.append(Turn(id: UUID().uuidString, prompt: isShown ? prompt : nil, notice: notice, agentMessage: AgentMessage(user), delivery: delivery, deliveryFailed: delivery != nil && !user.contains("completed normally (exit code 0)"), hiddenText: displayKind == "hidden" ? user : nil, status: .streaming, startedAt: date))
+        turns.append(Turn(id: UUID().uuidString, prompt: isShown ? prompt : nil, notice: notice, agentMessage: AgentMessage(user), delivery: delivery, deliveryFailure: DeliveryFailure(notice: user), hiddenText: displayKind == "hidden" ? user : nil, status: .streaming, startedAt: date))
     }
 
     mutating func apply(_ event: TurnEvent, at date: Date = .now) {

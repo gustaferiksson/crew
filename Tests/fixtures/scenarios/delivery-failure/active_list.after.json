@@ -1,0 +1,16 @@
+{
+  "sessions" : [
+    {
+      "current" : false,
+      "id" : "35534896",
+      "last_active" : 1792698083.2003856,
+      "message_count" : 76,
+      "model" : "gpt-6.1-sol",
+      "preview" : "Crew Peer couldn’t reply because its configured model, `gpt-crew-test-missing`, is unsupported by the connected ChatGPT account.",
+      "session_key" : "20261017_102454_92b952",
+      "started_at" : 1792698058.2932622,
+      "status" : "idle",
+      "title" : "Bot Chat"
+    }
+  ]
+}

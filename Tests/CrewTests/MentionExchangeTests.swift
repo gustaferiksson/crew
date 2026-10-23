@@ -46,7 +46,7 @@ private func call(status: ToolCall.Status = .success, result: String? = #"{"stat
 
 @Test func failedCallKeepsTheReason() {
     let failed = call(status: .error, result: #"{"error": "Unknown agent @scout"}"#)
-    #expect(mentionExchange(with: "scout", from: "t1", in: mention(failed))?.outcome == .failed("Unknown agent @scout"))
+    #expect(mentionExchange(with: "scout", from: "t1", in: mention(failed))?.outcome == .failed(DeliveryFailure(detail: "Unknown agent @scout", target: "scout")))
 }
 
 @Test func queuedWithoutProcessIsRelayed() {

@@ -33,13 +33,6 @@ struct ChatPresentation {
 
 private let separatorGap: TimeInterval = 60 * 60
 
-private let bottomID = "bottom"
-
-private struct BottomEdge: Equatable {
-    let distance: CGFloat
-    let inset: CGFloat
-}
-
 private let separatorFormatter = {
     let formatter = DateFormatter()
     formatter.dateStyle = .medium
@@ -68,7 +61,6 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
     @Binding var draft: String
     let tray: AttachmentTray
     @State private var position = ScrollPosition(idType: Turn.ID.self)
-    @State private var isAtBottom = true
     @State private var barRoom = CGFloat.infinity
     @State private var expandedTurns: Set<Turn.ID>
     @State private var expandedWork: Set<WorkItem.ID>
@@ -116,212 +108,186 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
     }
 
     var body: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                VStack(spacing: 0) {
-                    LazyVStack(alignment: .leading, spacing: 28) {
-                        ForEach(Array(transcript.turns.enumerated()), id: \.element.id) { index, turn in
-                            VStack(alignment: .leading, spacing: 12) {
-                                let previousEnd = index > 0 ? transcript.turns[index - 1].finishedAt ?? transcript.turns[index - 1].startedAt : nil
-                                let start = turn.prompt?.sentAt ?? turn.startedAt
-                                if previousEnd.map({ start.timeIntervalSince($0) > separatorGap || !Calendar.current.isDate($0, inSameDayAs: start) }) ?? true {
-                                    Text(separatorFormatter.string(from: start))
-                                        .font(.caption.weight(.medium))
-                                        .foregroundStyle(.secondary)
-                                        .frame(maxWidth: .infinity)
-                                        .padding(.vertical, 4)
-                                }
-                                TurnView(
-                                    turn: turn,
-                                    surfaces: surfaces,
-                                    activity: turn.status == .streaming ? activity : nil,
-                                    reveal: reveal,
-                                    timestampWidth: timestampWidth,
-                                    mentionable: mentionable,
-                                    expandedTurns: $expandedTurns,
-                                    expandedWork: $expandedWork,
-                                    expandedRuns: $expandedRuns,
-                                    stop: offlineReason == nil ? actions.stop : nil,
-                                    retry: actions.retry,
-                                    unqueue: { actions.unqueue(turn.id) }
-                                )
-                                .background {
-                                    if highlighted == turn.id {
-                                        RoundedRectangle(cornerRadius: 12)
-                                            .fill(.tint.opacity(0.12))
-                                            .padding(-8)
-                                    }
-                                }
+        TranscriptScroll(position: $position) {
+            LazyVStack(alignment: .leading, spacing: 28) {
+                ForEach(Array(transcript.turns.enumerated()), id: \.element.id) { index, turn in
+                    VStack(alignment: .leading, spacing: 12) {
+                        let previousEnd = index > 0 ? transcript.turns[index - 1].finishedAt ?? transcript.turns[index - 1].startedAt : nil
+                        let start = turn.prompt?.sentAt ?? turn.startedAt
+                        if previousEnd.map({ start.timeIntervalSince($0) > separatorGap || !Calendar.current.isDate($0, inSameDayAs: start) }) ?? true {
+                            Text(separatorFormatter.string(from: start))
+                                .font(.caption.weight(.medium))
+                                .foregroundStyle(.secondary)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 4)
+                        }
+                        TurnView(
+                            turn: turn,
+                            surfaces: surfaces,
+                            activity: turn.status == .streaming ? activity : nil,
+                            reveal: reveal,
+                            timestampWidth: timestampWidth,
+                            mentionable: mentionable,
+                            expandedTurns: $expandedTurns,
+                            expandedWork: $expandedWork,
+                            expandedRuns: $expandedRuns,
+                            stop: offlineReason == nil ? actions.stop : nil,
+                            retry: actions.retry,
+                            unqueue: { actions.unqueue(turn.id) }
+                        )
+                        .background {
+                            if highlighted == turn.id {
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(.tint.opacity(0.12))
+                                    .padding(-8)
                             }
-                            .id(turn.id)
                         }
                     }
-                    .scrollTargetLayout()
-                    .animation(.interactiveSpring, value: reveal)
-                    .padding(16)
-                    Color.clear
-                        .frame(height: 0)
-                        .id(bottomID)
+                    .id(turn.id)
                 }
             }
-            .defaultScrollAnchor(.bottom)
-            .scrollPosition($position)
-            #if os(iOS)
-            .scrollDismissesKeyboard(.interactively)
-            #endif
-            .onScrollGeometryChange(for: BottomEdge.self) { geometry in
-                BottomEdge(distance: geometry.contentSize.height - geometry.visibleRect.maxY + geometry.contentInsets.bottom, inset: geometry.contentInsets.bottom)
-            } action: { old, new in
-                isAtBottom = new.distance < 40
-                if new.inset > old.inset, old.distance < 40 { proxy.scrollTo(bottomID, anchor: .bottom) }
-            }
-            .onGeometryChange(for: CGFloat.self) { $0.size.height + $0.safeAreaInsets.bottom } action: { barRoom = $0 }
-            .simultaneousGesture(
-                DragGesture(minimumDistance: 16, inputKinds: [.directTouch, .indirectTouch])
-                    .updating($dragTravel) { value, state, _ in
-                        guard abs(value.translation.width) > abs(value.translation.height) else { return }
-                        state = min(0, value.translation.width)
-                    }
-            )
-            .background {
-                Text(Calendar.current.date(bySettingHour: 22, minute: 58, second: 0, of: .now) ?? .now, format: .dateTime.hour().minute())
-                    .font(.caption)
-                    .monospacedDigit()
-                    .fixedSize()
-                    .hidden()
-                    .onGeometryChange(for: CGFloat.self, of: \.size.width) { timestampWidth = $0 }
-            }
-            #if os(macOS)
-            .background {
-                TrackpadSwipe { trackpadTravel = $0 }
-            }
-            #endif
-            .onChange(of: transcript) {
-                if isAtBottom { proxy.scrollTo(bottomID, anchor: .bottom) }
-            }
-            .onChange(of: transcript, initial: true) {
-                surfaces.send = actions.sendHidden
-                surfaces.sync(transcript)
-            }
-            .dropDestination(for: URL.self) { urls, _ in
-                guard features.contains(.attachments) else { return false }
-                tray.add(urls)
-                return true
-            }
-            .overlay {
-                if transcript.turns.isEmpty { emptyState }
-            }
-            .safeAreaBar(edge: .bottom) {
-                HeightCap(cap: barRoom) {
-                    VStack(spacing: 8) {
-                        if let paymentNotice {
-                            PaymentNoticeCard(text: paymentNotice, dismiss: actions.dismissPaymentNotice)
-                                .frame(maxWidth: 560)
-                                .padding(.horizontal, 16)
-                        } else if case .approval(let approval) = request, approval.isPayment {
-                            PaymentCard(
-                                request: approval,
-                                state: payment ?? PaymentCardState(lookup: .unverified(featureMissing: false)),
-                                botName: botName,
-                                avatar: avatar.scaleEffect(20 / 28).frame(width: 20, height: 20),
-                                holdProgress: presentation.holdProgress,
-                                respond: { actions.respond(approval.id, $0) },
-                                retry: { actions.retryPayment(approval.id) },
-                                expire: { actions.expirePayment(approval.id) }
-                            )
-                            .disabled(offlineReason != nil)
-                            .id(approval.id)
+            .scrollTargetLayout()
+            .animation(.interactiveSpring, value: reveal)
+            .padding(16)
+        }
+        #if os(iOS)
+        .scrollDismissesKeyboard(.interactively)
+        #endif
+        .onGeometryChange(for: CGFloat.self) { $0.size.height + $0.safeAreaInsets.bottom } action: { barRoom = $0 }
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 16, inputKinds: [.directTouch, .indirectTouch])
+                .updating($dragTravel) { value, state, _ in
+                    guard abs(value.translation.width) > abs(value.translation.height) else { return }
+                    state = min(0, value.translation.width)
+                }
+        )
+        .background {
+            Text(Calendar.current.date(bySettingHour: 22, minute: 58, second: 0, of: .now) ?? .now, format: .dateTime.hour().minute())
+                .font(.caption)
+                .monospacedDigit()
+                .fixedSize()
+                .hidden()
+                .onGeometryChange(for: CGFloat.self, of: \.size.width) { timestampWidth = $0 }
+        }
+        #if os(macOS)
+        .background {
+            TrackpadSwipe { trackpadTravel = $0 }
+        }
+        #endif
+        .onChange(of: transcript, initial: true) {
+            surfaces.send = actions.sendHidden
+            surfaces.sync(transcript)
+        }
+        .dropDestination(for: URL.self) { urls, _ in
+            guard features.contains(.attachments) else { return false }
+            tray.add(urls)
+            return true
+        }
+        .overlay {
+            if transcript.turns.isEmpty { emptyState }
+        }
+        .safeAreaBar(edge: .bottom) {
+            HeightCap(cap: barRoom) {
+                VStack(spacing: 8) {
+                    if let paymentNotice {
+                        PaymentNoticeCard(text: paymentNotice, dismiss: actions.dismissPaymentNotice)
                             .frame(maxWidth: 560)
                             .padding(.horizontal, 16)
-                            .transition(.blurReplace)
-                            #if os(iOS)
-                            .onAppear { isComposerFocused = false }
-                            .simultaneousGesture(TapGesture().onEnded { isComposerFocused = false })
-                            .simultaneousGesture(DragGesture(minimumDistance: 10).onEnded { if $0.translation.height > 0 { isComposerFocused = false } })
-                            #endif
-                        } else if case .approval(let approval) = request {
-                            ApprovalCard(request: approval, botName: botName) { actions.respond(approval.id, $0) }
-                                .frame(maxWidth: 560)
-                                .padding(.horizontal, 16)
-                        } else if request == nil, let shopOffer {
-                            ShopOfferCard(botName: botName, host: shopOffer, notNow: actions.dismissShopOffer) { actions.addShop(shopOffer) }
-                                .frame(maxWidth: 560)
-                                .padding(.horizontal, 16)
-                        }
-                        if case .question(let question) = request {
-                            QuestionCard(request: question, botName: botName, progress: presentation.questionProgress) { actions.answer(question.id, $0) }
-                                .id(question.id)
-                                .frame(maxWidth: 560)
-                                .padding(.horizontal, 16)
-                        }
-                        Composer(botName: botName, phase: composerPhase, draft: $draft, isFocused: $isComposerFocused, tray: tray, mentionable: mentionable, features: features, completePath: actions.completePath, dictation: presentation.dictation, transcribe: actions.transcribe) { mode in
-                            proxy.scrollTo(bottomID, anchor: .bottom)
-                            actions.send(draft, tray.take(), mentionedBots(in: draft, among: mentionable), mode)
-                            draft = ""
-                        } stop: {
-                            actions.stop()
-                        }
-                    }
-                }
-                .animation(.smooth, value: request?.id)
-                .modifier(JumpToLatest(isAtBottom: isAtBottom) {
-                    withAnimation(.smooth) { proxy.scrollTo(bottomID, anchor: .bottom) }
-                })
-                #if os(iOS)
-                .ignoresSafeArea(.container, edges: .bottom)
-                #endif
-                #if os(macOS)
-                .padding(.trailing, NSScroller.preferredScrollerStyle == .legacy ? NSScroller.scrollerWidth(for: .regular, scrollerStyle: .legacy) : 0)
-                #endif
-            }
-            .scrollEdgeEffectStyle(.soft, for: .top)
-            .scrollEdgeEffectHidden(true, for: .bottom)
-            .toolbar {
-                ToolbarItem(placement: .principal) {
-                    PersonaPill(botName: botName, avatar: avatar) {
+                    } else if case .approval(let approval) = request, approval.isPayment {
+                        PaymentCard(
+                            request: approval,
+                            state: payment ?? PaymentCardState(lookup: .unverified(featureMissing: false)),
+                            botName: botName,
+                            avatar: avatar.scaleEffect(20 / 28).frame(width: 20, height: 20),
+                            holdProgress: presentation.holdProgress,
+                            respond: { actions.respond(approval.id, $0) },
+                            retry: { actions.retryPayment(approval.id) },
+                            expire: { actions.expirePayment(approval.id) }
+                        )
+                        .disabled(offlineReason != nil)
+                        .id(approval.id)
+                        .frame(maxWidth: 560)
+                        .padding(.horizontal, 16)
+                        .transition(.blurReplace)
                         #if os(iOS)
-                        isComposerFocused = false
+                        .onAppear { isComposerFocused = false }
+                        .simultaneousGesture(TapGesture().onEnded { isComposerFocused = false })
+                        .simultaneousGesture(DragGesture(minimumDistance: 10).onEnded { if $0.translation.height > 0 { isComposerFocused = false } })
                         #endif
-                        actions.openPersona()
+                    } else if case .approval(let approval) = request {
+                        ApprovalCard(request: approval, botName: botName) { actions.respond(approval.id, $0) }
+                            .frame(maxWidth: 560)
+                            .padding(.horizontal, 16)
+                    } else if request == nil, let shopOffer {
+                        ShopOfferCard(botName: botName, host: shopOffer, notNow: actions.dismissShopOffer) { actions.addShop(shopOffer) }
+                            .frame(maxWidth: 560)
+                            .padding(.horizontal, 16)
                     }
-                        .contextMenu {
-                            if let models, !models.providers.isEmpty {
-                                ModelPicker(
-                                    providers: models.providers,
-                                    selection: Binding(get: { models.current }, set: { if let choice = $0 { actions.changeModel(choice) } })
-                                )
-                                .pickerStyle(.menu)
-                            }
-                        }
+                    if case .question(let question) = request {
+                        QuestionCard(request: question, botName: botName, progress: presentation.questionProgress) { actions.answer(question.id, $0) }
+                            .id(question.id)
+                            .frame(maxWidth: 560)
+                            .padding(.horizontal, 16)
+                    }
+                    Composer(botName: botName, phase: composerPhase, draft: $draft, isFocused: $isComposerFocused, tray: tray, mentionable: mentionable, features: features, completePath: actions.completePath, dictation: presentation.dictation, transcribe: actions.transcribe) { mode in
+                        position.scrollTo(edge: .bottom)
+                        actions.send(draft, tray.take(), mentionedBots(in: draft, among: mentionable), mode)
+                        draft = ""
+                    } stop: {
+                        actions.stop()
+                    }
                 }
-                .sharedBackgroundVisibility(.hidden)
             }
-            .navigationTitle(botName)
+            .animation(.smooth, value: request?.id)
             #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #else
-            .toolbar(removing: .title)
+            .ignoresSafeArea(.container, edges: .bottom)
             #endif
-            .task(id: [focus?.id.uuidString, "\(transcript.turns.count)"]) {
-                guard let focus, focus.id != handledFocus, let target = transcript.turn(matching: focus.snippet) else { return }
-                for delay in [400, 150] {
-                    try? await Task.sleep(for: .milliseconds(delay))
-                    guard !Task.isCancelled else { return }
-                    isAtBottom = false
-                    proxy.scrollTo(target.id, anchor: .center)
+            #if os(macOS)
+            .padding(.trailing, NSScroller.preferredScrollerStyle == .legacy ? NSScroller.scrollerWidth(for: .regular, scrollerStyle: .legacy) : 0)
+            #endif
+        }
+        .scrollEdgeEffectStyle(.soft, for: .top)
+        .scrollEdgeEffectHidden(true, for: .bottom)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                PersonaPill(botName: botName, avatar: avatar) {
+                    #if os(iOS)
+                    isComposerFocused = false
+                    #endif
+                    actions.openPersona()
                 }
-                handledFocus = focus.id
-                highlighted = target.id
+                    .contextMenu {
+                        if let models, !models.providers.isEmpty {
+                            ModelPicker(
+                                providers: models.providers,
+                                selection: Binding(get: { models.current }, set: { if let choice = $0 { actions.changeModel(choice) } })
+                            )
+                            .pickerStyle(.menu)
+                        }
+                    }
             }
-            .task(id: highlighted) {
-                guard highlighted != nil else { return }
-                try? await Task.sleep(for: .seconds(2))
-                withAnimation(.easeOut(duration: 0.6)) { highlighted = nil }
-            }
-            .task(id: surfaces.blocks.count) {
-                guard let target = presentation.scrollTarget else { return isAtBottom && !surfaces.blocks.isEmpty ? proxy.scrollTo(bottomID, anchor: .bottom) : () }
-                position.scrollTo(id: target, anchor: .top)
-            }
+            .sharedBackgroundVisibility(.hidden)
+        }
+        .navigationTitle(botName)
+        #if os(iOS)
+        .navigationBarTitleDisplayMode(.inline)
+        #else
+        .toolbar(removing: .title)
+        #endif
+        .onChange(of: [focus?.id.uuidString, "\(transcript.turns.count)"], initial: true) {
+            guard let focus, focus.id != handledFocus, let target = transcript.turn(matching: focus.snippet) else { return }
+            position.scrollTo(id: target.id, anchor: .center)
+            handledFocus = focus.id
+            highlighted = target.id
+        }
+        .task(id: highlighted) {
+            guard highlighted != nil else { return }
+            try? await Task.sleep(for: .seconds(2))
+            withAnimation(.easeOut(duration: 0.6)) { highlighted = nil }
+        }
+        .task(id: surfaces.blocks.count) {
+            guard let target = presentation.scrollTarget else { return }
+            position.scrollTo(id: target, anchor: .top)
         }
     }
 }

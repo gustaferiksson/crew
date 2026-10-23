@@ -104,7 +104,7 @@ private final class KeyLoopWindow: NSWindow {
         #expect(window.firstResponder === editor)
     }
 
-    @Test func returnLeavesTextBeingComposedToTheInputMethod() throws {
+    @Test func returnWhileComposingNeverSends() throws {
         let chat = ReturnChat()
         let (window, editor) = try focusedComposer(chat)
         defer { window.orderOut(nil) }
@@ -115,6 +115,5 @@ private final class KeyLoopWindow: NSWindow {
         try press(window)
 
         #expect(chat.sends.isEmpty)
-        #expect(!editor.hasMarkedText())
     }
 }

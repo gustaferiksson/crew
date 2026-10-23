@@ -2,14 +2,8 @@ import SwiftUI
 
 #if os(macOS)
 private let tileAvatarSize: CGFloat = 56
-private let rowAvatarSize: CGFloat = 40
-private let rowPadding: CGFloat = 14
-private let dotGutter: CGFloat = 10
 #else
 private let tileAvatarSize: CGFloat = 80
-private let rowAvatarSize: CGFloat = 52
-private let rowPadding: CGFloat = 8
-private let dotGutter: CGFloat = 12
 #endif
 
 struct BotsView: View {
@@ -44,6 +38,7 @@ struct BotsView: View {
     @State private var showsBot = Snapshot.requested == .layoutInspector
     @State private var models = ModelSwitcher()
     @State private var modelsBot: Bot.ID?
+    @State private var isCompact = false
 
     var body: some View {
         let selected = store.bots.first { $0.id == selection }
@@ -108,6 +103,7 @@ struct BotsView: View {
                     ContentUnavailableView.search(text: query)
                 }
             }
+            .onGeometryChange(for: Bool.self) { $0.size.width < compactRowWidth } action: { isCompact = $0 }
             .task(id: [query, "\(connection.state == .connected)", "\(searchAttempt)", "\(store.bots.count)"]) {
                 await search.run(query, in: store.bots, on: connection.state == .connected ? connection.session?.server : nil, with: connection.urlSession)
             }
@@ -143,7 +139,7 @@ struct BotsView: View {
                 showsConnectionPill = !Task.isCancelled
             }
             .navigationTitle("Crew")
-            .navigationSplitViewColumnWidth(min: 240, ideal: 320, max: 400)
+            .navigationSplitViewColumnWidth(min: 240, ideal: Snapshot.requested == .sidebarCompact ? 240 : 320, max: 400)
             .toolbar {
                 #if os(iOS)
                 ToolbarItem(placement: .primaryAction) { newChatButton }
@@ -370,7 +366,7 @@ struct BotsView: View {
     }
 
     private func groupRow(for room: Room) -> some View {
-        GroupRow(room: room, isOpen: selection == room.selectionID)
+        GroupRow(room: room, isOpen: selection == room.selectionID, isCompact: isCompact)
             .tag(room.selectionID)
             .listRowInsets(EdgeInsets(top: rowPadding, leading: 0, bottom: rowPadding, trailing: 12))
     }
@@ -399,7 +395,7 @@ struct BotsView: View {
     }
 
     private func row(for bot: Bot) -> some View {
-        BotRow(bot: bot, photo: store.photos[bot.id], isOpen: selection == bot.id)
+        BotRow(bot: bot, photo: store.photos[bot.id], isOpen: selection == bot.id, isCompact: isCompact)
             .tag(bot.id)
             .listRowInsets(EdgeInsets(top: rowPadding, leading: 0, bottom: rowPadding, trailing: 12))
             #if os(iOS)
@@ -464,89 +460,6 @@ struct BotsView: View {
             } catch {
                 failure = if case GatewayError.rpc(_, let message) = error { message } else { error.localizedDescription }
             }
-        }
-    }
-}
-
-private struct BotRow: View {
-    let bot: Bot
-    let photo: Image?
-    let isOpen: Bool
-    @Environment(\.displayScale) private var displayScale
-    @Environment(BotStore.self) private var store
-    @Environment(ChatSessions.self) private var chats
-    @Environment(ChatDrafts.self) private var drafts
-
-    var body: some View {
-        let summary = chats.summary(of: bot, in: store)
-        let status = summary.status
-        HStack(spacing: 0) {
-            Circle()
-                .fill(.tint)
-                .frame(width: 8, height: 8)
-                .opacity(status == .unread ? 1 : 0)
-                .frame(width: dotGutter)
-                .accessibilityLabel("Unread")
-                .accessibilityHidden(status != .unread)
-            BotAvatar(bot: bot, status: status, photo: photo, size: rowAvatarSize)
-                .padding(.trailing, 12)
-            VStack(alignment: .leading, spacing: 0) {
-                HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    Group {
-                        if let role = bot.role {
-                            Text("\(bot.title)\(Text(verbatim: " · \(role)").font(.subheadline).fontWeight(.regular).foregroundStyle(.secondary))")
-                                .accessibilityLabel(Text(verbatim: "\(bot.title), \(role)"))
-                        } else {
-                            Text(bot.title)
-                        }
-                    }
-                    .font(.headline)
-                    .lineLimit(1)
-                    Spacer(minLength: 4)
-                    trailingLabel(summary)
-                        .font(.subheadline)
-                        .lineLimit(1)
-                        .fixedSize()
-                }
-                Group {
-                    if !isOpen, let draft = drafts.preview(for: bot.id) {
-                        Text("\(Text("Draft:").foregroundStyle(.red)) \(draft)")
-                    } else {
-                        Text(summary.preview.isEmpty ? bot.description ?? "" : summary.preview)
-                    }
-                }
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2, reservesSpace: true)
-            }
-            .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
-            #if os(macOS)
-            .overlay(alignment: .bottom) {
-                Rectangle()
-                    .fill(.separator)
-                    .frame(height: 1 / displayScale)
-                    .padding(.trailing, -12)
-                    .offset(y: rowPadding)
-            }
-            #endif
-        }
-    }
-
-    @ViewBuilder
-    private func trailingLabel(_ summary: BotSummary) -> some View {
-        if case .waiting(let kind) = summary.status {
-            Text(kind == .payment ? "Wants to pay" : kind == .approval ? "Needs approval" : "Waiting for you")
-                .foregroundStyle(.orange)
-        } else if summary.status == .working {
-            Label("Working", systemImage: "ellipsis")
-                .symbolEffect(.variableColor.iterative)
-                .foregroundStyle(.green)
-        } else if summary.status == .failed {
-            Text("Failed")
-                .foregroundStyle(.red)
-        } else if let date = summary.time {
-            Text(date.rowLabel)
-                .foregroundStyle(.secondary)
         }
     }
 }
@@ -631,6 +544,7 @@ private enum ListRow: Identifiable {
 private struct GroupRow: View {
     let room: Room
     let isOpen: Bool
+    let isCompact: Bool
     @Environment(\.displayScale) private var displayScale
     @Environment(BotStore.self) private var store
     @Environment(ChatDrafts.self) private var drafts
@@ -642,26 +556,34 @@ private struct GroupRow: View {
             GroupAvatar(members: room.members.compactMap { member in store.bots.first { $0.name == member.profile } }, size: rowAvatarSize)
                 .padding(.trailing, 12)
             VStack(alignment: .leading, spacing: 0) {
-                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                if isCompact {
                     Text(room.name)
                         .font(.headline)
                         .lineLimit(1)
-                    Spacer(minLength: 4)
-                    Text(room.updatedAt.rowLabel)
+                        .frame(maxWidth: .infinity, minHeight: rowAvatarSize, alignment: .leading)
+                        .accessibilityValue(!isOpen && drafts.preview(for: room.selectionID) != nil ? "Draft" : "")
+                } else {
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Text(room.name)
+                            .font(.headline)
+                            .lineLimit(1)
+                        Spacer(minLength: 4)
+                        Text(room.updatedAt.rowLabel)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                    Group {
+                        if !isOpen, let draft = drafts.preview(for: room.selectionID) {
+                            Text("\(Text("Draft:").foregroundStyle(.red)) \(draft)")
+                        } else {
+                            Text(room.members.map { $0.displayName ?? $0.memberID }.formatted(.list(type: .and)))
+                        }
+                    }
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                        .lineLimit(2, reservesSpace: true)
                 }
-                Group {
-                    if !isOpen, let draft = drafts.preview(for: room.selectionID) {
-                        Text("\(Text("Draft:").foregroundStyle(.red)) \(draft)")
-                    } else {
-                        Text(room.members.map { $0.displayName ?? $0.memberID }.formatted(.list(type: .and)))
-                    }
-                }
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2, reservesSpace: true)
             }
             .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
             #if os(macOS)
@@ -674,18 +596,6 @@ private struct GroupRow: View {
             }
             #endif
         }
-    }
-}
-
-private extension Date {
-    var rowLabel: String {
-        let calendar = Calendar.current
-        if calendar.isDateInToday(self) { return formatted(date: .omitted, time: .shortened) }
-        if calendar.isDateInYesterday(self) { return String(localized: "Yesterday") }
-        let days = calendar.dateComponents([.day], from: calendar.startOfDay(for: self), to: calendar.startOfDay(for: .now)).day ?? .max
-        if days < 7 { return formatted(.dateTime.weekday(.wide)) }
-        if calendar.isDate(self, equalTo: .now, toGranularity: .year) { return formatted(.dateTime.day().month(.abbreviated)) }
-        return formatted(.dateTime.day().month(.abbreviated).year())
     }
 }
 

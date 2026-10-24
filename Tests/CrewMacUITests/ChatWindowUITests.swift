@@ -80,7 +80,11 @@ final class ChatWindowUITests: XCTestCase {
     @MainActor func testSignOutClosesChatWindowsAndShowsSignIn() {
         let app = launch(["-signOutAfterChatWindow", "YES"])
         app.staticTexts[atlasPreview].click()
-        XCTAssertTrue(app.textFields["Message Atlas"].waitForExistence(timeout: 10), "a click selects the bot")
+        let atlasComposer = NSPredicate(format: "placeholderValue == %@ OR label == %@", "Message Atlas", "Message Atlas")
+        XCTAssertTrue(
+            app.textFields.matching(atlasComposer).firstMatch.waitForExistence(timeout: 10) || app.textViews.matching(atlasComposer).firstMatch.exists,
+            "a click selects the bot"
+        )
         app.staticTexts[atlasPreview].doubleClick()
         expectWindows(2, in: app, "a double-click opens the bot's chat in its own window")
         guard let main = app.windows.allElementsBoundByIndex.first(where: { $0.staticTexts[atlasPreview].exists }) else { return XCTFail("no main window") }

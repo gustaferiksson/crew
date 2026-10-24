@@ -142,7 +142,7 @@ private let rows = (0..<300).map { String(repeating: "Row \($0) has a few words 
         userScroll(scroll, by: 20_000)
         #expect(model.distance > 19_000)
         withAnimation(.smooth) { model.position.scrollTo(edge: .bottom) }
-        settle(1.5)
+        for _ in 0..<20 where abs(model.distance) >= 1 || model.position.edge != nil { settle(0.25) }
         #expect(abs(model.distance) < 1, "after the jump \(model.distance)")
         #expect(model.position.edge == nil && model.position.viewID(type: String.self) == transcriptEnd, "the edge jump did not hand over to the end")
         model.rows[model.rows.count - 1] += String(repeating: " streaming after the jump", count: 30)
@@ -151,6 +151,23 @@ private let rows = (0..<300).map { String(repeating: "Row \($0) has a few words 
         model.rows.append("A turn after the jump.")
         settle()
         #expect(abs(model.distance) < 1, "row appended after the jump \(model.distance)")
+    }
+
+    @Test func aSearchJumpFromTheEndStaysWhereItLanded() {
+        let model = ScrollModel()
+        let window = host(model)
+        defer { window.orderOut(nil) }
+        model.rows = rows
+        settle(1)
+        #expect(abs(model.distance) < 1)
+        model.watched = 150
+        model.position.scrollTo(id: 150, anchor: .center)
+        settle()
+        #expect(model.watchedFrame.minY >= 0 && model.watchedFrame.maxY <= 640, "row 150 at \(model.watchedFrame)")
+        model.rows[model.rows.count - 1] += String(repeating: " streaming after the search", count: 30)
+        settle()
+        #expect(model.watchedFrame.minY >= 0 && model.watchedFrame.maxY <= 640, "row 150 left the screen: \(model.watchedFrame)")
+        #expect(model.distance > 10_000)
     }
 
     @Test func aSearchJumpIntoArrivingRowsShowsTheRow() {

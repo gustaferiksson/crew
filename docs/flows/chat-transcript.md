@@ -19,6 +19,7 @@ Measured with AppKit's scroll view, so every iOS claim below also has an iOS UI 
 - At the bottom: the last row growing, a row appended and the bar growing by 100 or 200 pt all keep the end in view (distance 0), also after the user scrolled up and back down by hand while `ScrollPosition` held a view id (it held 298 and 299). PLAN.md's earlier finding that new turns landed below the composer once the position held an id (seen on iOS) does not reproduce on macOS; the iOS UI tests below check it.
 - Scrolled up 1500 pt: the last row growing and a row appended move the reading position by 0 pt, and a row expanding inside the viewport while a view id is held (row 151) grows downward (0 pt). The bottom anchor only holds the end when the reader is at the end, so one `.defaultScrollAnchor(.bottom)` covers every role; no per-role split is needed.
 - `scrollTo(edge: .bottom)`, plain or in `withAnimation`, from 32 000 pt up lands at the end, and its edge state then holds the end through appends and bar growth with no overshoot. Without `.scrollTargetLayout()` the animated jump stayed where it was, so the layout keeps it.
+- Holding a turn's id does not follow that turn's growth (188 pt behind).
 - `scrollTo(id:anchor: .center)` centres a laid-out row exactly (264 to 376 of 640 pt), and issued in the same update that delivers the rows it brings the row into view (502 to 582 of 640).
 
 ### What iOS does differently (iPhone 18 Pro simulator, iOS 27)
@@ -27,7 +28,6 @@ The macOS numbers did not all carry over; each line has a UI test that failed un
 
 - An edge jump followed by content growth with the keyboard up overshoots by about a keyboard height: a send from far up left a blank transcript (#123 on the rebuild, the PLAN.md 588 pt finding). Edge state must not stay behind.
 - `ScrollViewReader.scrollTo` from far up into a long `LazyVStack` lands short (a send and every Jump to Latest failed with it), and its geometry-fired pins corrupt the Mac probe layouts (707 pt off at rest, #145).
-- Holding a turn's id does not follow that turn's growth (188 pt behind on the host).
 - After the reader scrolls back down by hand, the anchor alone does not follow a reply that arrives (2 of 3 runs), and content that grows at the end while nothing scrolls (a question card's turn, rows measured late) is not followed either.
 
 ## The change
@@ -44,7 +44,7 @@ Two independent pull requests.
 - Holding the end means `position.scrollTo(id: transcriptEnd)`: a held zero-height view at the end follows growth by construction (host and iOS tests).
 - Jump to Latest animates `scrollTo(edge: .bottom)` (no animation with Reduce Motion; an animated id scroll does not move on the Mac host) and, once it lands, hands the edge state over to holding the end, so the keyboard overshoot above cannot happen.
 - Send, Steer and Queue hold the end before sending. A search hit scrolls to its turn centred, once, when the focus is new and its turn is found (on `focus` or on the turn count changing, as today), then `handledFocus` and the 2 s tint. A fixture's `scrollTarget` scrolls to its turn at the top on `surfaces.blocks.count`, as today.
-- The end is held again, each case with the test that needs it: when the scroll view first gets its size (the blank cached open); when the end moves away while the reader was within 40 pt of it and nothing is scrolling and the container did not grow (a card, a late-measured row or the bar growing at the end, a Mac chat-window resize shrinking it); when a drag or fling comes to rest within 40 pt of the end (a reply after a manual return); and on a transcript change while at the end. A container that grows is left to the anchor, because pins on growth corrupt the Mac probe layouts.
+- The end is held again, each case with the test that needs it: when the scroll view first gets its size (the blank cached open); when the layout moves the end away while the reader was within 40 pt of it (content height or bar inset changed, or the container shrank: a card, a late-measured row, the bar, a Mac chat-window resize), never when only the offset moved, so a search hit or fixture target from the end stays where it landed; when a drag or fling (not a programmatic animation) comes to rest within 40 pt of the end (a reply after a manual return); and on a transcript change while at the end. None of these fire while a search or fixture target is held. A container that grows is left to the anchor, because pins on growth corrupt the Mac probe layouts.
 - `isAtBottom` (within 40 pt of the end) lives in `TranscriptScroll` and drives the arrow and those holds; the search hit no longer writes it.
 - The arrow is a bottom overlay of the scroll view, applied inside the `safeAreaBar`, so its safe area excludes the bar (with the bar's `.ignoresSafeArea(.container, edges: .bottom)` and the keyboard on iOS). It sits 12 pt above the top of the composer bar and any card in it (locked value, unchanged) and is hit-tested with the scroll view. On Mac it takes the composer's legacy-scroller trailing padding, so it centres on the composer. Same glass circle, label, icon, `.controlSize(.large)` on Mac, scale and fade, the animation scoped to the arrow.
 - Removed: `JumpToLatest.swift`, `ScrollViewReader`, the transcript, blocks and inset pins by proxy, the focus sleeps.
@@ -56,14 +56,14 @@ Two independent pull requests.
 
 - **Bot chat, iPhone (`ChatScreen`, opened from the list, a push tap or search; also inside the mention peek's large detent):** opens at the latest message, cold (empty, then history arrives) or cached (`ChatSessions` already holds it), with no visible scroll animation.
 - **Mac main window chat column and the separate chat window (`BotChatWindow`):** the same container; live resize with the inspector attached keeps the transcript at the bottom and the arrow hidden when the reader was at the bottom (#145).
-- **Group rooms (`GroupChatScreen`):** same container; the welcome empty state shows with no arrow.
+- **Group rooms (`GroupChatScreen`):** same container; the welcome empty state shows with no arrow (render, no test).
 - **Sender:** Send, Steer and Queue scroll to the bottom first, so the new bubble (or the outlined Waiting or Queued bubble) sits right above the composer, keyboard up or down, then the reply streams in below it and stays pinned.
 - **Receiver (replies back):** a reply streaming, a work log growing, a turn from another client or a bot-to-bot notice, and the post-turn history reload that adopts server ids keep the latest row in place while the reader is at the bottom.
 - **Reader scrolled up:** none of the above moves what they are reading; the arrow shows. A send still brings them to the bottom, like Messages.
 - **Keyboard:** raising or lowering it while at the bottom keeps the latest row right above the composer; while scrolled up it leaves the reading position alone and the arrow stays usable above the bar.
 - **Composer bar grows (multi-line draft, attachment tray, mention picker, dictation, offline line, approval, question, payment, offer or notice card, up to `HeightCap`):** at the bottom the latest row stays above the bar.
 - **Search hit (`SearchFocus`):** the matched turn scrolls into view near the centre and is tinted for 2 s, even 500 rows up.
-- **Work log or reply expanded mid-transcript:** it grows downward from the tapped header.
+- **Work log or reply expanded mid-transcript:** it grows downward from the tapped header. At the very end the transcript keeps following the end instead (the same hold that follows a streaming reply), so a long log opened there pushes its header up.
 - **Bot list (preview, time, status, unread), push, inspector:** untouched; no model, request or network change.
 - **Light and dark:** the arrow keeps its glass look; no other visual change.
 
@@ -74,8 +74,8 @@ Two independent pull requests.
 - A reply taller than the screen streaming at the bottom: the end of the text stays above the composer.
 - Mid-stream jump: lands at the bottom and stays pinned as the reply grows.
 - Offline and error turns: unchanged; the arrow and jumps still work offline.
-- Rotation, iPad split view and Mac window resizes: container size changes keep the bottom anchored.
-- VoiceOver: the arrow reads "Jump to Latest". Reduce Motion: the jump is not animated.
+- Mac window resizes keep the end (`ComposerResizeTests`); rotation and iPad split view take the same container-size path but have no test of their own.
+- VoiceOver: the arrow reads "Jump to Latest". Reduce Motion: the jump is not animated (code path only, no test).
 
 ## Tests
 
@@ -85,14 +85,13 @@ Host unit tests (macOS):
 - `TranscriptScrollTests` (the real `TranscriptScroll`, 300 rows of mixed height, a `safeAreaBar`): cold open at the end; at the end a growing last row, an appended row and a growing or shrinking bar keep the end in view; scrolled up, growth, appends and an expansion inside the viewport move the reading position by under 1 pt; scrolled back down by hand, an appended row stays in view; the animated edge jump from 20 000 pt up lands at the end, hands over to the held end and follows streaming and appends; a search jump into rows that arrive in the same update brings the row into view.
 - `ComposerResizeTests` hosts `TranscriptScroll` instead of its copy and gains #145's check: through the resize steps with the inspector attached (main window and chat window, empty and seven-line draft) the transcript never leaves the end by 40 pt (the arrow's threshold) and is at the end at rest. Fails on the v0.1.29 composition: 707 pt from the end at rest in the main window, 16 to 32 pt in the chat window.
 
-UI tests (iOS), `ChatTranscriptUITests` on `composer-line` loading the recorded long replies after the chat appears:
+UI tests (iOS), `ChatTranscriptUITests`, three launches on `composer-line` loading the recorded long replies after the chat appears, and `chat-question`:
 
-- Opens with the latest reply right above the composer; keyboard up; Jump to Latest from far up twice with the keyboard up; keyboard down. v0.1.29: both jumps fail and the arrow stays (#107).
-- Send from far up with the keyboard up: the new reply sits right above the composer. v0.1.29: fails intermittently (#123); the rebuild before the edge hand-over: blank transcript.
-- A reply from another client while scrolled up: the row being read moves by under 1 pt, the arrow then lands on the reply, and an expanded "Worked for" header stays put.
-- A reply after scrolling back down by hand ends right above the composer (4 of 4 runs).
-- A question card in the bar (`chat-question`): the latest row stays above the card and no arrow shows. v0.1.29: fails (the streaming turn sits under the card).
-- `ChatInspectorUITests` and `InAppBrowserUITests` (`layout` snapshot) failed on the rebuild until the first-size hold (blank cached open); the whole suite (15 tests) passes.
+- Opens with the latest reply right above the composer; keyboard up; Jump to Latest from far up with the keyboard up; send from far up; keyboard down. v0.1.29: the jump fails and the arrow stays (#107); the send fails intermittently (#123); the rebuild before the edge hand-over sent into a blank transcript.
+- A reply from another client while scrolled up: the row being read moves by under 1 pt and an expanded "Worked for" header stays put; the arrow then lands on the reply; back down by hand (flicks, then a slow drag that comes to rest without a fling), a second reply ends right above the composer.
+- A question card in the bar (`chat-question`): the running turn stays above the card and no arrow shows. v0.1.29: fails.
+- `ChatInspectorUITests` and `InAppBrowserUITests` (`layout` snapshot) failed on an earlier cut of the rebuild until the first-size hold (blank cached open); the whole suite passes.
+- `TranscriptScrollTests.aSearchJumpFromTheEndStaysWhereItLanded` (host) covers search hits and fixture targets from the end; it fails on the cut that held the end on any move away from it.
 
 Lag, same simulator session, `XCTCPUMetric` of the app over the same scripted flicks and a streamed reply on the long fixture (the simulator reports no hitch ratios): v0.1.29 3.38 s CPU for the scroll script, the parse cache 3.45 s, both pull requests 3.44 s; streaming 0.45 s on both. The end-to-end difference is within noise on the simulator, so the parse cache is proven on the host only; device profiling remains the way to confirm the iPhone lag.
 

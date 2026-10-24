@@ -1,5 +1,7 @@
 # Composer: drafts, the in-field action, Stop, and what a sent message shows
 
+Superseded for scrolling by `docs/flows/chat-transcript.md` (#150): `JumpToLatest`, the sentinel pins and `ScrollViewReader` described below are gone.
+
 Seven user reports from the iPhone, fixed together because they all live in the composer and the bubbles it produces. Judged against Messages (drafts, the send arrow in the field, delivery labels, Send Later) and the ChatGPT and Claude apps (Stop while a reply runs).
 
 ## 1. Drafts per chat

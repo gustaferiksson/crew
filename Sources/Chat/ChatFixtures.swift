@@ -409,10 +409,10 @@ struct ChatFixtureScreen: View {
             try? await Task.sleep(for: .milliseconds(500))
             transcript = recorded
         }
-        .onChange(of: draft) {
-            if draft == Self.requestAfterDraft { request = fixture.request }
-            if draft == Self.finishTurnAfterDraft { transcript.apply(.messageComplete(text: "Deployed to staging.", status: .complete, error: nil)) }
-            if let trigger = Self.replyAfterDraft, draft.contains(trigger) { replyFromAnotherClient() }
+        .onChange(of: draft) { old, new in
+            if new == Self.requestAfterDraft { request = fixture.request }
+            if new == Self.finishTurnAfterDraft { transcript.apply(.messageComplete(text: "Deployed to staging.", status: .complete, error: nil)) }
+            if let trigger = Self.replyAfterDraft, new.contains(trigger), !old.contains(trigger) { replyFromAnotherClient() }
         }
         .sheet(isPresented: $addingShop) {
             AddShopSheet(profile: "default", site: shopOffer ?? "") { _ in }

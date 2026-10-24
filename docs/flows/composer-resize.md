@@ -1,5 +1,7 @@
 # The composer stays put while the window resizes (#103)
 
+Superseded for scrolling by `docs/flows/chat-transcript.md` (#150): `JumpToLatest`, the sentinel pins and `ScrollViewReader` described below are gone.
+
 On the Mac, live-resizing a chat window with the inspector closed made the composer slide in from far away on every drag step instead of staying on the window's bottom edge.
 
 ## Cause

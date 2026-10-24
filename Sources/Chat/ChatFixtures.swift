@@ -2,7 +2,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 enum ChatFixture {
-    case conversation, history, timestamps, workLog, question, questions, questionsSnacks, offline, attachments, dictation, mentions, agentMessage, deliveryFailure, a2ui, a2uiCards, a2uiForm, a2uiTable, a2uiChart, a2uiMap, a2uiCarousel, a2uiCarouselStates, a2uiProducts
+    case conversation, history, timestamps, workLog, question, questions, questionsSnacks, questionLong, offline, attachments, dictation, mentions, agentMessage, deliveryFailure, a2ui, a2uiCards, a2uiForm, a2uiTable, a2uiChart, a2uiMap, a2uiCarousel, a2uiCarouselStates, a2uiProducts
     case composerLine, composerLines, composerRunning, composerRunningText, steer, steerTaken, waiting
     case payment, paymentHolding, paymentApproved, paymentLoading, paymentFailed, paymentUnverified, paymentPunycode, paymentCountdown, paymentNotice, paymentOffer, paymentOfferHistory, paymentReceipts
 
@@ -34,6 +34,7 @@ enum ChatFixture {
         if self == .agentMessage { return ChatPresentation(expandedTurns: ["m2"]) }
         if self == .paymentHolding { return ChatPresentation(holdProgress: 0.55) }
         if self == .questionsSnacks { return ChatPresentation(questionProgress: QuestionProgress(step: 1, picks: ["q0": [0], "q1": [0, 2]])) }
+        if self == .questionLong { return ChatPresentation(questionProgress: QuestionProgress(picks: ["repeat": [0]])) }
         if self == .dictation {
             let levels = (0..<Dictation.levelCount).map { 0.25 + 0.6 * abs(sin(Double($0) * 0.7)) * Double($0 % 5 + 1) / 5 }
             return ChatPresentation(dictation: Dictation(fixture: levels, startedAt: .now.addingTimeInterval(-7)))
@@ -55,6 +56,11 @@ enum ChatFixture {
         if self == .question {
             return .question(QuestionRequest(id: "srq-9f8e7d6c5b4a", questions: [
                 .init(id: "env", text: "Which environment should I deploy to?", choices: ["Staging", "Production", "Both, staging first"]),
+            ]))
+        }
+        if self == .questionLong {
+            return .question(QuestionRequest(id: "srq-7c6b5a4f3e2d", questions: [
+                .init(id: "repeat", text: "Should I repeat the same 499 kr test checkout at Crew test shop, with reason \u{201C}payment flow test\u{201D}?", choices: ["Repeat the same test purchase (Recommended)", "Use different purchase details"]),
             ]))
         }
         if self == .questions || self == .questionsSnacks {
@@ -418,7 +424,7 @@ struct ChatFixtureScreen: View {
             AddShopSheet(profile: "default", site: shopOffer ?? "") { _ in }
         }
         .overlay(alignment: .topLeading) {
-            if fixture.isPayment || [.question, .questions, .questionsSnacks].contains(fixture) {
+            if fixture.isPayment || [.question, .questions, .questionsSnacks, .questionLong].contains(fixture) {
                 Color.clear
                     .frame(width: 1, height: 1)
                     .accessibilityElement()

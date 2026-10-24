@@ -85,7 +85,7 @@ Inside the existing glass card shape (`.glassEffect(in: .rect(cornerRadius: 28))
   At large Dynamic Type sizes labels stack above values.
 - **Always on screen** (#91): the header, the "Pay <host>" line (wrapping), the TOTAL row and the buttons. In iPhone landscape the header, host and claim sit beside the details with the buttons full width below. When space is short (landscape, short Mac window, largest text) only CARD and FOR scroll and the claim line shrinks away; the button is always **Hold to Pay**, never a "Pay…" fallback.
 - **Claim line** (footnote secondary, always shown): "Scout states the amount and the shop. The card fills only on www.zalando.se."
-- **Buttons:** **Deny** (glass, destructive) leading, **Hold to Pay** (glass prominent) trailing, flexible width, capsule, as Allow Once/Deny today.
+- **Buttons:** **Deny** (bordered, destructive) leading, **Hold to Pay** (bordered prominent) trailing, flexible width, capsule, as Allow Once/Deny today.
 
 ### Which card shows
 
@@ -230,7 +230,7 @@ The receipt rows in the bot's chat are the history: payments only run in Bot Cha
 - Receipt rows read as their text.
 - Dynamic Type throughout, capped at accessibility size 3 on the payment card so its pinned parts fit; 44 pt targets on iPhone; every state has a symbol and words, never colour alone.
 - Full Keyboard Access and the Mac keyboard reach both buttons by Tab; Space or Return on Hold to Pay opens the dialog.
-- Reduce Motion as above; Reduce Transparency uses the system's opaque glass.
+- Reduce Motion as above; Reduce Transparency uses the system's opaque glass for the card.
 
 ## Security
 

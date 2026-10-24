@@ -84,7 +84,7 @@ struct PaymentCard<Avatar: View>: View {
             }
         }
         .padding(16)
-        .glassEffect(in: .rect(cornerRadius: 28))
+        .background { Color.clear.glassEffect(in: .rect(cornerRadius: 28)) }
         .dynamicTypeSize(...DynamicTypeSize.accessibility3)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(summary)
@@ -236,7 +236,7 @@ struct PaymentCard<Avatar: View>: View {
                 Text("Deny")
                     .foregroundStyle(.red)
             }
-            .buttonStyle(.glass)
+            .buttonStyle(.bordered)
             .accessibilityLabel("Deny payment")
             .disabled(state.isApproved)
             if !isUnverified {
@@ -324,7 +324,7 @@ private struct HoldToPayButton: View {
             }
             .frame(maxWidth: .infinity)
         }
-        .buttonStyle(.glassProminent)
+        .buttonStyle(.borderedProminent)
         .overlay {
             GeometryReader { geometry in
                 Rectangle()
@@ -430,11 +430,11 @@ struct PaymentNoticeCard: View {
                 .font(.subheadline)
             Spacer(minLength: 8)
             Button("OK", action: dismiss)
-                .buttonStyle(.glass)
+                .buttonStyle(.bordered)
                 .buttonBorderShape(.capsule)
         }
         .padding(16)
-        .glassEffect(in: .rect(cornerRadius: 28))
+        .background { Color.clear.glassEffect(in: .rect(cornerRadius: 28)) }
     }
 }
 
@@ -463,15 +463,15 @@ struct ShopOfferCard: View {
                 .foregroundStyle(.secondary)
             HStack(spacing: 8) {
                 Button("Not Now", action: notNow)
-                    .buttonStyle(.glass)
+                    .buttonStyle(.bordered)
                 Button("Add Shop…", action: addShop)
-                    .buttonStyle(.glassProminent)
+                    .buttonStyle(.borderedProminent)
             }
             .buttonBorderShape(.capsule)
             .buttonSizing(.flexible)
         }
         .padding(16)
-        .glassEffect(in: .rect(cornerRadius: 28))
+        .background { Color.clear.glassEffect(in: .rect(cornerRadius: 28)) }
     }
 }
 

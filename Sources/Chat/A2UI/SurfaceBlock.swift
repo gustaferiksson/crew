@@ -45,7 +45,7 @@ private struct SurfaceCard: View {
             Surface(viewModel: model, catalogs: crewCatalogs)
                 .padding(20)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .glassEffect(.regular, in: .rect(cornerRadius: 28))
+                .background { Color.clear.glassEffect(.regular, in: .rect(cornerRadius: 28)) }
                 .frame(maxWidth: 560, alignment: .leading)
         }
     }

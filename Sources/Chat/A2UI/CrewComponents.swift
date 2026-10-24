@@ -83,11 +83,11 @@ struct CrewButton: View {
         .disabled(!node.isValid)
         .accessibilityAddTraits(isChosen ? .isSelected : [])
         if variant == "primary" {
-            button.buttonStyle(.glassProminent)
+            button.buttonStyle(.borderedProminent)
         } else if variant == "borderless" {
             button.buttonStyle(.borderless)
         } else {
-            button.buttonStyle(.glass)
+            button.buttonStyle(.bordered)
         }
     }
 }
@@ -149,22 +149,20 @@ struct CrewChoicePicker: View {
             }
             if node.string(for: "displayStyle") == "chips" {
                 ScrollView(.horizontal) {
-                    GlassEffectContainer(spacing: 8) {
-                        HStack(spacing: 8) {
-                            ForEach(options, id: \.value) { option in
-                                let isSelected = selection.wrappedValue.contains(option.value)
-                                let chip = Button(option.label) { toggle(option.value) }
-                                    .buttonBorderShape(.capsule)
-                                    .accessibilityAddTraits(isSelected ? .isSelected : [])
-                                if isSelected {
-                                    chip.buttonStyle(.glassProminent)
-                                } else {
-                                    chip.buttonStyle(.glass)
-                                }
+                    HStack(spacing: 8) {
+                        ForEach(options, id: \.value) { option in
+                            let isSelected = selection.wrappedValue.contains(option.value)
+                            let chip = Button(option.label) { toggle(option.value) }
+                                .buttonBorderShape(.capsule)
+                                .accessibilityAddTraits(isSelected ? .isSelected : [])
+                            if isSelected {
+                                chip.buttonStyle(.borderedProminent)
+                            } else {
+                                chip.buttonStyle(.bordered)
                             }
                         }
-                        .padding(4)
                     }
+                    .padding(4)
                 }
                 .scrollIndicators(.hidden)
                 .padding(-4)

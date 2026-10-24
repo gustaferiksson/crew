@@ -22,13 +22,13 @@ struct ConnectionPill: View {
             Spacer(minLength: 8)
             if connection.state == .unreachable {
                 Button("Retry", action: connection.retry)
-                    .buttonStyle(.glass)
+                    .buttonStyle(.bordered)
             }
         }
         .padding(.leading, 16)
         .padding(.trailing, 8)
         .padding(.vertical, 8)
-        .glassEffect(in: .capsule)
+        .background { Color.clear.glassEffect(in: .capsule) }
         #if os(iOS)
         .padding(.horizontal, 24)
         .padding(.vertical, 8)

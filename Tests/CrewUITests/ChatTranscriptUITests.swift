@@ -89,6 +89,17 @@ final class ChatTranscriptUITests: XCTestCase {
         assertRightAboveTheComposer(NSPredicate(format: "label == %@", "On it."), in: app, "sent")
     }
 
+    @MainActor func testSendingAtTheEndWithTheKeyboardUpKeepsTheTurnAboveTheComposer() {
+        let app = launch()
+        focusComposer(app)
+        assertRightAboveTheComposer(lastBlock, in: app, "keyboard up")
+        app.buttons["Send"].tap()
+        assertRightAboveTheComposer(NSPredicate(format: "label == %@", "On it."), in: app, "first send")
+        app.textFields.firstMatch.typeText("Next one")
+        app.buttons["Send"].tap()
+        assertRightAboveTheComposer(NSPredicate(format: "label == %@", "On it."), in: app, "second send")
+    }
+
     @MainActor func testAReplyArrivingWhileScrolledUpLeavesTheReaderAlone() {
         let app = launch()
         focusComposer(app)
@@ -140,6 +151,40 @@ final class ChatTranscriptUITests: XCTestCase {
         app.textFields.firstMatch.typeText("!")
         wait(3)
         assertRightAboveTheComposer(streamedReply, in: app, "reply after a manual return")
+    }
+
+    @MainActor func testAReplyAfterExpandingJumpingAndABouncedReturnStaysAboveTheComposer() {
+        let app = launch()
+        focusComposer(app)
+        scrollUp(app)
+        app.textFields.firstMatch.typeText("!")
+        wait(3.5)
+        app.buttons["Jump to Latest"].tap()
+        assertRightAboveTheComposer(streamedReply, in: app, "jumped to the reply")
+        scrollUp(app)
+        let headers = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Worked for"))
+        var header = headers.allElementsBoundByIndex.first { $0.isHittable && $0.frame.minY > 150 && $0.frame.maxY < 450 }
+        for _ in 0..<8 where header == nil {
+            app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.2)).press(forDuration: 0.02, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.45)), withVelocity: .slow, thenHoldForDuration: 0.3)
+            wait(1)
+            header = headers.allElementsBoundByIndex.first { $0.isHittable && $0.frame.minY > 150 && $0.frame.maxY < 450 }
+        }
+        guard let header else { return XCTFail("no Worked for header on screen") }
+        header.tap()
+        wait(1)
+        app.buttons["Jump to Latest"].tap()
+        assertRightAboveTheComposer(streamedReply, in: app, "jumped after expanding")
+        scrollUp(app)
+        for _ in 0..<12 where app.buttons["Jump to Latest"].exists {
+            app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).press(forDuration: 0.02, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.1)), withVelocity: .fast, thenHoldForDuration: 0)
+            wait(1.5)
+        }
+        XCTAssertFalse(app.buttons["Jump to Latest"].exists, "never got back to the bottom by hand")
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.4)).press(forDuration: 0.1, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.33)), withVelocity: .slow, thenHoldForDuration: 0)
+        wait(1.5)
+        app.textFields.firstMatch.typeText("!")
+        wait(3)
+        assertRightAboveTheComposer(streamedReply, in: app, "reply after a bounced return")
     }
 
     @MainActor func testACardInTheBarKeepsTheLatestReplyAboveIt() {

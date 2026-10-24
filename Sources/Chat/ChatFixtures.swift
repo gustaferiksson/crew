@@ -71,6 +71,7 @@ enum ChatFixture {
         let now = Date.now
         let turns = [greeting(now.addingTimeInterval(-26 * 3600)), packing(now.addingTimeInterval(-3 * 3600)), notes(now.addingTimeInterval(-2.8 * 3600)), ciFix(now.addingTimeInterval(-25 * 60))]
         if self == .composerLine {
+            guard UserDefaults.standard.string(forKey: "historyFile") == nil else { return Transcript() }
             let earlier = (0..<UserDefaults.standard.integer(forKey: "earlierTurns")).map { index in
                 var turn = [packing, notes, ciFix][index % 3](now.addingTimeInterval(-30 * 3600 - Double(index) * 600))
                 turn.id = "e\(index)"
@@ -402,6 +403,11 @@ struct ChatFixtureScreen: View {
             )
         )
         .environment(\.chatSession, session)
+        .task {
+            guard fixture == .composerLine, let recorded = ChatFixture.recordedHistory() else { return }
+            try? await Task.sleep(for: .milliseconds(500))
+            transcript = recorded
+        }
         .onChange(of: draft) {
             if draft == Self.requestAfterDraft { request = fixture.request }
             if draft == Self.finishTurnAfterDraft { transcript.apply(.messageComplete(text: "Deployed to staging.", status: .complete, error: nil)) }
@@ -472,5 +478,34 @@ struct ChatFixtureScreen: View {
             try? await Task.sleep(for: .seconds(0.8))
             request = nil
         }
+    }
+}
+
+extension ChatFixture {
+    static func recordedHistory() -> Transcript? {
+        guard let path = UserDefaults.standard.string(forKey: "historyFile"),
+              let data = FileManager.default.contents(atPath: path),
+              let page = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              let rows = page["messages"] as? [[String: Any]]
+        else { return nil }
+        let copies = max(UserDefaults.standard.integer(forKey: "historyCopies"), 1)
+        let repeated = (0..<copies).flatMap { copy in
+            rows.map { row in
+                var row = row
+                row["id"] = copy * 10_000 + (row["id"] as? Int ?? 0)
+                row["timestamp"] = (row["timestamp"] as? Double ?? 0) - Double(copies - 1 - copy) * 86_400
+                if let call = row["tool_call_id"] as? String { row["tool_call_id"] = "c\(copy)-\(call)" }
+                if let calls = row["tool_calls"] as? [[String: Any]] {
+                    row["tool_calls"] = calls.map { call in call.merging(["id": "c\(copy)-\(call["id"] as? String ?? "")"]) { $1 } }
+                }
+                return row
+            }
+        }
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        guard let encoded = try? JSONSerialization.data(withJSONObject: repeated),
+              let decoded = try? decoder.decode([HistoryRow].self, from: encoded)
+        else { return nil }
+        return Transcript(history: decoded).visible
     }
 }

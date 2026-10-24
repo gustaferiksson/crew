@@ -854,6 +854,44 @@ if phases.contains("record") {
     print(store.bots.contains { $0.name == peerName } ? "PEER NOT DELETED" : "peer deleted")
 }
 
+if phases.contains("long-chat") {
+    let chat = try await attached(try await crewTest())
+    let prompts = [
+        "I want to buy a watch as a gift for myself, budget around 3000 kr. Give me five candidates with a short paragraph on each and why it would feel special to own.",
+        "Compare the two you like most in a markdown table: price, size, movement, water resistance and where to buy in Sweden. Then a paragraph on which you'd pick.",
+        "Explain how a sourdough starter works, with headings for feeding, timing and troubleshooting, and a bulleted checklist at the end.",
+        "Plan a three-day weekend in Lofoten in late September: one section per day, morning, afternoon and evening, plus a packing list.",
+        "Write a short Swift function that groups an array of dates by calendar day, in a code block, and explain it in two paragraphs.",
+        "Summarise everything we talked about in this chat so far as a numbered list, one or two sentences per item.",
+    ]
+    var firstRow = 0
+    if let start = try await crewTest().canonicalSession {
+        firstRow = try await history(of: start.resolvedID, profile: "crew-test", on: server, with: urlSession, limit: 1).map(\.id).max() ?? 0
+    }
+    for prompt in prompts {
+        chat.send(prompt, mode: .send)
+        try await Task.sleep(for: .seconds(2))
+        try await waitIdle(chat)
+        show("long-chat", chat)
+    }
+    try await Task.sleep(for: .seconds(3))
+    guard let session = try await crewTest().canonicalSession else { print("no session"); exit(1) }
+    let (data, _) = try await urlSession.data(for: historyRequest(of: session.resolvedID, profile: "crew-test", on: server, limit: 500))
+    guard case .object(let page) = try JSONDecoder().decode(JSONValue.self, from: data), case .array(let messages) = page["messages"] else { print("no rows"); exit(1) }
+    let keys: Set = ["id", "role", "content", "tool_call_id", "tool_calls", "timestamp", "reasoning", "reasoning_content", "display_kind"]
+    let kept = messages.compactMap { row -> JSONValue? in
+        guard case .object(let object) = row, case .number(let id) = object["id"], id > Double(firstRow) else { return nil }
+        return .object(object.filter { keys.contains($0.key) })
+    }
+    let pretty = JSONEncoder()
+    pretty.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+    let scrubs = [(server.host() ?? "", "hermes.example.com"), (env["HERMES_USER"] ?? "", "user")].filter { $0.0.count > 2 }
+    let text = scrubs.reduce(String(decoding: try pretty.encode(JSONValue.object(["messages": .array(kept)])), as: UTF8.self)) { $0.replacingOccurrences(of: $1.0, with: $1.1) }.replacingOccurrences(of: "/opt/data/", with: "/opt/hermes/data/")
+    let file = URL(fileURLWithPath: #filePath).appending(path: "../../fixtures/chat.long-replies.history.json").standardized
+    try Data((text + "\n").utf8).write(to: file)
+    print("RECORDED \(kept.count) rows to \(file.path)")
+}
+
 if phases.contains("history") {
     let reloaded = try await attached(try await crewTest())
     print("== full history")

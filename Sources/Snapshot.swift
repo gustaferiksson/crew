@@ -166,7 +166,7 @@ enum Snapshot: String {
         return BotStore(fixture: [
             bot("default", 2, "Summarised the inbox: two invoices need approval.", BotMeta(pinned: true)),
             bot("ada", 12, "Running the migration dry run now.", BotMeta(title: "Ada Lovelace", role: "Head of Research and Analytics", color: "#8b5cf6", pinned: true)),
-            bot("scout", 45, "Found three flights under 2 000 kr for the weekend.", BotMeta(title: "Scout", role: "Travel Planner", color: "#38bdf8", pinned: self != .sidebarCompact)),
+            bot("scout", 45, "Found three flights under 2 000 kr for the weekend.", BotMeta(title: "Scout", role: "Travel Planner", color: "#38bdf8", pinned: true)),
             bot("forge", 5, "Can I run `npm publish` for 0.4.2?", BotMeta(title: "Forge", role: "Release Engineer", color: "#f97316", sectionID: "work", sectionName: "Work")),
             bot("ledger", 60 * 26, "Q3 numbers reconciled against the bank export.", BotMeta(title: "Ledger", role: "Bookkeeper and Finance Controller", color: "#22c55e", sectionID: "work", sectionName: "Work")),
             bot("atlas", 60 * 3, "Tuesday's standup notes are filed.", BotMeta(title: "Atlas", color: "#14b8a6", sectionID: "work", sectionName: "Work")),
@@ -282,13 +282,15 @@ extension Snapshot {
             reply.setSelectedRange(NSRange(location: start, length: NSMaxRange(text.range(of: "Merino top")) - start))
             try? await Task.sleep(for: .seconds(0.5))
         }
-        if self == .sidebarCompact, let split = window.contentView.map(splitViews)?.last {
-            for position in [330.0, 250] {
+        let sidebarWidth = UserDefaults.standard.double(forKey: "snapshotSidebarWidth")
+        if self == .sidebarCompact || sidebarWidth > 0, let split = window.contentView.map(splitViews)?.last {
+            for position in [330, sidebarWidth > 0 ? sidebarWidth : stripWidth] {
                 split.setPosition(position, ofDividerAt: 0)
                 try? await Task.sleep(for: .seconds(1))
             }
         }
         if UserDefaults.standard.bool(forKey: "measure") { await measure(window) }
+        if let steps = UserDefaults.standard.string(forKey: "inspectorProbe") { await probeInspector(window, steps: steps.split(separator: ",")) }
         // cacheDisplay and ImageRenderer skip Liquid Glass; CGWindowListCreateImage is SDK-obsoleted but still exported for own windows.
         typealias CreateImage = @convention(c) (CGRect, CGWindowListOption, CGWindowID, CGWindowImageOption) -> Unmanaged<CGImage>?
         guard let symbol = dlsym(UnsafeMutableRawPointer(bitPattern: -2), "CGWindowListCreateImage"),
@@ -307,6 +309,26 @@ extension Snapshot {
 
     private func replyTextViews(in view: NSView) -> [ReplyTextView] {
         ((view as? ReplyTextView).map { [$0] } ?? []) + view.subviews.flatMap(replyTextViews)
+    }
+
+    private func probeInspector(_ window: NSWindow, steps: [Substring]) async {
+        func splitControllers(_ view: NSView) -> [NSSplitViewController] {
+            (((view as? NSSplitView)?.delegate as? NSSplitViewController).map { [$0] } ?? []) + view.subviews.flatMap(splitControllers)
+        }
+        let controllers = window.contentView.map(splitControllers) ?? []
+        controllers.forEach { $0.splitView.autosaveName = nil }
+        window.setFrameAutosaveName("")
+        for step in steps {
+            let value = Double(step.split(separator: ":").last ?? "") ?? 0
+            if step == "open" || step == "close" { NotificationCenter.default.post(name: .measureInspector, object: step == "open") }
+            if step.hasPrefix("sidebar:") { controllers.last?.splitView.setPosition(value, ofDividerAt: 0) }
+            if step.hasPrefix("width:") { window.setContentSize(NSSize(width: value > 0 ? value : window.contentMinSize.width, height: 640)) }
+            try? await Task.sleep(for: .seconds(2))
+            let columns = controllers.map { $0.splitViewItems.map { $0.isCollapsed ? "-" : "\(Int($0.viewController.view.frame.width))" }.joined(separator: "|") }
+            print("PROBE \(step): window \(Int(window.contentLayoutRect.width)), min \(Int(window.contentMinSize.width)), columns \(columns)")
+            fflush(stdout)
+        }
+        print("PROBE survived")
     }
 
     private func measure(_ window: NSWindow) async {

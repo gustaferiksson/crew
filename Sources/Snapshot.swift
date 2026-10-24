@@ -290,6 +290,7 @@ extension Snapshot {
             }
         }
         if UserDefaults.standard.bool(forKey: "measure") { await measure(window) }
+        if let steps = UserDefaults.standard.string(forKey: "inspectorProbe") { await probeInspector(window, steps: steps.split(separator: ",")) }
         // cacheDisplay and ImageRenderer skip Liquid Glass; CGWindowListCreateImage is SDK-obsoleted but still exported for own windows.
         typealias CreateImage = @convention(c) (CGRect, CGWindowListOption, CGWindowID, CGWindowImageOption) -> Unmanaged<CGImage>?
         guard let symbol = dlsym(UnsafeMutableRawPointer(bitPattern: -2), "CGWindowListCreateImage"),
@@ -308,6 +309,26 @@ extension Snapshot {
 
     private func replyTextViews(in view: NSView) -> [ReplyTextView] {
         ((view as? ReplyTextView).map { [$0] } ?? []) + view.subviews.flatMap(replyTextViews)
+    }
+
+    private func probeInspector(_ window: NSWindow, steps: [Substring]) async {
+        func splitControllers(_ view: NSView) -> [NSSplitViewController] {
+            (((view as? NSSplitView)?.delegate as? NSSplitViewController).map { [$0] } ?? []) + view.subviews.flatMap(splitControllers)
+        }
+        let controllers = window.contentView.map(splitControllers) ?? []
+        controllers.forEach { $0.splitView.autosaveName = nil }
+        window.setFrameAutosaveName("")
+        for step in steps {
+            let value = Double(step.split(separator: ":").last ?? "") ?? 0
+            if step == "open" || step == "close" { NotificationCenter.default.post(name: .measureInspector, object: step == "open") }
+            if step.hasPrefix("sidebar:") { controllers.last?.splitView.setPosition(value, ofDividerAt: 0) }
+            if step.hasPrefix("width:") { window.setContentSize(NSSize(width: value > 0 ? value : window.contentMinSize.width, height: 640)) }
+            try? await Task.sleep(for: .seconds(2))
+            let columns = controllers.map { $0.splitViewItems.map { $0.isCollapsed ? "-" : "\(Int($0.viewController.view.frame.width))" }.joined(separator: "|") }
+            print("PROBE \(step): window \(Int(window.contentLayoutRect.width)), min \(Int(window.contentMinSize.width)), columns \(columns)")
+            fflush(stdout)
+        }
+        print("PROBE survived")
     }
 
     private func measure(_ window: NSWindow) async {

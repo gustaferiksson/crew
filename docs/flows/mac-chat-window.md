@@ -57,7 +57,7 @@ Today the network monitor, roster and room polling, push authorization and regis
 
 ## iPhone and iPad
 
-Unchanged UI: the double-click handling, the menu item and the menu bar command are `#if os(macOS)`, and the main scene stays a `WindowGroup`. The only shared change is the `AppTasks` owner, which keeps one set of app tasks running.
+Unchanged UI: the double-click handling, the menu item and the menu bar command are `#if os(macOS)`, and the iOS main scene stays a `WindowGroup` (the Mac's is a `Window`). The only shared change is the `AppTasks` owner, which keeps one set of app tasks running.
 
 ## Tests
 

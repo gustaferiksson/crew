@@ -36,6 +36,7 @@ struct BotChatWindow: View {
             guard let bot, let gateway = connection.gateway else { return }
             await models.load(profile: bot.name, via: gateway)
         }
+        .focusedSceneValue(\.inspector, bot == nil ? nil : $showsBot)
         .onAppear {
             if let id { scenes.chatWindows.insert(id) }
         }

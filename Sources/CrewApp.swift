@@ -34,8 +34,14 @@ struct CrewApp: App {
             CommandGroup(after: .appInfo) {
                 UpdateMenuItems(updater: appDelegate.updater)
             }
-            CommandGroup(after: .newItem) {
+            CommandGroup(replacing: .newItem) {
+                NewChatCommands(connection: connection, groups: groups, scenes: scenes)
+                Divider()
                 OpenChatWindowCommand()
+            }
+            SidebarCommands()
+            CommandGroup(after: .sidebar) {
+                InspectorCommand()
             }
         }
         WindowGroup("Chat", for: Bot.ID.self) { $id in
@@ -43,6 +49,9 @@ struct CrewApp: App {
         }
         .defaultSize(width: 560, height: 640)
         .commandsRemoved()
+        Settings {
+            crewEnvironment(SettingsView())
+        }
         #else
         WindowGroup {
             crewEnvironment(RootView().task { await Snapshot.requested?.capture() })

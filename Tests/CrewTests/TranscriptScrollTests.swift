@@ -131,7 +131,7 @@ private let rows = (0..<300).map { String(repeating: "Row \($0) has a few words 
         #expect(abs(model.watchedFrame.minY - header) < 1, "expansion moved its header by \(model.watchedFrame.minY - header)")
     }
 
-    @Test func theJumpToTheEndLandsThereAndFollowsIt() throws {
+    @Test func theAnimatedEdgeJumpLandsAtTheEndAndHandsOver() throws {
         let model = ScrollModel()
         let window = host(model)
         defer { window.orderOut(nil) }
@@ -141,8 +141,9 @@ private let rows = (0..<300).map { String(repeating: "Row \($0) has a few words 
         let scroll = try #require(scrollView(in: content))
         userScroll(scroll, by: 20_000)
         #expect(model.distance > 19_000)
-        model.position.scrollTo(id: transcriptEnd)
-        for _ in 0..<20 where abs(model.distance) >= 1 { settle(0.25) }
+        withAnimation(.smooth) { model.position.scrollTo(edge: .bottom) }
+        for _ in 0..<20 where abs(model.distance) >= 1 || model.position.edge != nil { settle(0.25) }
+        #expect(model.position.edge == nil && model.position.viewID(type: String.self) == transcriptEnd, "the edge jump did not hand over to the end")
         #expect(abs(model.distance) < 1, "after the jump \(model.distance)")
         model.rows[model.rows.count - 1] += String(repeating: " streaming after the jump", count: 30)
         settle()

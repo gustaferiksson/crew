@@ -176,7 +176,7 @@ struct BotInspector: View {
                 if isEditable {
                     nameFields
                 } else {
-                    Text(draft.name)
+                    Text(draft.title)
                         .font(.title2.bold())
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 8)

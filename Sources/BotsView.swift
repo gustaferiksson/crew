@@ -47,7 +47,7 @@ struct BotsView: View {
         #endif
         NavigationSplitView {
             sidebar
-                .toolbar(removing: .sidebarToggle)
+                .toolbar(removing: isStrip ? .sidebarToggle : nil)
         } detail: {
             NavigationStack {
                 Group {

@@ -115,6 +115,7 @@ struct BotsView: View {
             .contextMenu(forSelectionType: String.self) { ids in
                 if ids.count == 1, let bot = ids.first.flatMap({ id in store.bots.first { $0.id == id } }) { menu(for: bot) }
             } primaryAction: { ids in
+                diag90("primaryAction ids=\(ids) known=\(ids.first.map { id in store.bots.contains { $0.id == id } } ?? false)")
                 if ids.count == 1, let id = ids.first, store.bots.contains(where: { $0.id == id }) { openWindow(value: id) }
             }
             #endif
@@ -244,6 +245,10 @@ struct BotsView: View {
             if let bot { store.markSeen(bot) }
         }
         .onChange(of: selection, initial: true) {
+            #if os(macOS)
+            _ = diag90Monitor
+            diag90("selection=\(selection ?? "nil")")
+            #endif
             push.show(selection)
             if focus?.bot != selection { focus = nil }
         }

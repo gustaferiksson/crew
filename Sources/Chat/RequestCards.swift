@@ -122,17 +122,22 @@ struct ApprovalCard: View {
                     }
                 }
                 GridRow {
-                    Button("Deny", role: .destructive) { respond(.deny) }
+                    Button(role: .destructive) {
+                        respond(.deny)
+                    } label: {
+                        Text("Deny")
+                            .foregroundStyle(.red)
+                    }
                     Button("Allow Once") { respond(.once) }
-                        .buttonStyle(.glassProminent)
+                        .buttonStyle(.borderedProminent)
                 }
             }
-            .buttonStyle(.glass)
+            .buttonStyle(.bordered)
             .buttonBorderShape(.capsule)
             .buttonSizing(.flexible)
         }
         .padding(16)
-        .glassEffect(in: .rect(cornerRadius: 28))
+        .background { Color.clear.glassEffect(in: .rect(cornerRadius: 28)) }
     }
 }
 
@@ -196,20 +201,20 @@ struct QuestionCard: View {
             }
             HStack(spacing: 8) {
                 Button("Skip") { answer([:]) }
-                    .buttonStyle(.glass)
+                    .buttonStyle(.bordered)
                 if progress.step > 0 {
                     Button("Back") { move(by: -1) }
-                        .buttonStyle(.glass)
+                        .buttonStyle(.bordered)
                 }
                 Button(isLastStep ? "Send" : "Next", action: advance)
-                    .buttonStyle(.glassProminent)
+                    .buttonStyle(.borderedProminent)
                     .disabled(!canAdvance)
             }
             .buttonBorderShape(.capsule)
             .buttonSizing(.flexible)
         }
         .padding(16)
-        .glassEffect(in: .rect(cornerRadius: 28))
+        .background { Color.clear.glassEffect(in: .rect(cornerRadius: 28)) }
         .animation(.smooth, value: progress.step)
         #if os(macOS)
         .focusable()
@@ -253,11 +258,12 @@ struct QuestionCard: View {
         } label: {
             HStack(spacing: 8) {
                 Label(question.choices[index], systemImage: isPicked ? "checkmark.\(indicator).fill" : indicator)
+                    .foregroundStyle(isPicked ? Color.accentColor : Color.primary)
                 Spacer(minLength: 0)
                 if question.recommended == index {
                     Text("Recommended")
                         .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.secondary)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
                         .background(.fill.tertiary, in: .capsule)
@@ -265,7 +271,8 @@ struct QuestionCard: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .buttonStyle(.glass)
+        .buttonStyle(.bordered)
+        .tint(isPicked ? .accentColor : .secondary)
         .buttonBorderShape(.roundedRectangle(radius: 12))
         .accessibilityAddTraits(isPicked ? .isSelected : [])
     }

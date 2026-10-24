@@ -37,33 +37,3 @@ struct ConnectionPill: View {
         #endif
     }
 }
-
-struct ConnectionBadge: View {
-    @Environment(Connection.self) private var connection
-
-    var body: some View {
-        let title = connection.state == .connecting ? String(localized: "Connecting…") : String(localized: "Can't reach server")
-        let host = connection.session?.server.host() ?? ""
-        Button(action: connection.retry) {
-            Group {
-                if connection.state == .connecting {
-                    ProgressView()
-                        .controlSize(.small)
-                } else {
-                    Image(systemName: "wifi.exclamationmark")
-                        .foregroundStyle(.orange)
-                }
-            }
-            .frame(width: 36, height: 36)
-            .contentShape(.circle)
-        }
-        .buttonStyle(.plain)
-        .disabled(connection.state != .unreachable)
-        .glassEffect(in: .circle)
-        .help(Text(verbatim: "\(title), \(host)"))
-        .accessibilityLabel(Text(verbatim: title))
-        .accessibilityValue(Text(verbatim: host))
-        .accessibilityHint(connection.state == .unreachable ? Text("Retry") : Text(verbatim: ""))
-        .padding(12)
-    }
-}

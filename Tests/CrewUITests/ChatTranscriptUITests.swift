@@ -135,4 +135,18 @@ final class ChatTranscriptUITests: XCTestCase {
         wait(3)
         assertRightAboveTheComposer(streamedReply, in: app, "reply after a manual return")
     }
+
+    @MainActor func testACardInTheBarKeepsTheLatestReplyAboveIt() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-snapshot", "chat-question", "-server", "hermes.example.com", "-username", "gustaf"]
+        app.launch()
+        let card = app.staticTexts["Hermes has a question"]
+        XCTAssertTrue(card.waitForExistence(timeout: 10))
+        let reply = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "The local build passes.")).firstMatch
+        XCTAssertTrue(reply.waitForExistence(timeout: 5))
+        wait(1)
+        shoot("question card", in: app)
+        XCTAssertLessThanOrEqual(reply.frame.maxY, card.frame.minY, "the latest reply sits under the card")
+        XCTAssertFalse(app.buttons["Jump to Latest"].exists)
+    }
 }

@@ -34,31 +34,24 @@ struct ConversationList: View {
             Text("No other conversations")
                 .foregroundStyle(.secondary)
         } else if let conversations {
-            VStack(spacing: 8) {
-                ForEach(conversations) { conversation in
-                    if conversation.id != conversations.first?.id {
-                        Divider()
+            ForEach(conversations) { conversation in
+                Button {
+                    open(conversation)
+                } label: {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(conversation.title ?? String(localized: "Untitled"))
+                            .foregroundStyle(.primary)
+                            .lineLimit(1)
+                        Text("\((conversation.source ?? "").replacing("_", with: " ")) · \(Date(timeIntervalSince1970: conversation.lastActive ?? conversation.startedAt), format: .relative(presentation: .named))")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
-                    Button {
-                        open(conversation)
-                    } label: {
-                        HStack(spacing: 8) {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(conversation.title ?? String(localized: "Untitled"))
-                                    .lineLimit(1)
-                                Text("\((conversation.source ?? "").replacing("_", with: " ")) · \(Date(timeIntervalSince1970: conversation.lastActive ?? conversation.startedAt), format: .relative(presentation: .named))")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            Image(systemName: "chevron.forward")
-                                .font(.footnote.weight(.semibold))
-                                .foregroundStyle(.tertiary)
-                        }
-                        .contentShape(.rect)
-                    }
-                    .buttonStyle(.plain)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(.rect)
                 }
+                #if os(macOS)
+                .buttonStyle(.plain)
+                #endif
             }
         } else if let failure {
             Label(failure, systemImage: "exclamationmark.triangle.fill")

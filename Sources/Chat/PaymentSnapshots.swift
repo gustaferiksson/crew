@@ -145,7 +145,7 @@ struct ShopsFixtureScreen: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
+            Form {
                 ShopsCard(
                     bot: scout, isBrowserOff: snapshot == .inspectorShopsEmpty, fixture: list,
                     updateFailure: snapshot == .inspectorShopsUpdateError ? String(localized: "Couldn't update shops. Try again.") : nil,
@@ -154,8 +154,8 @@ struct ShopsFixtureScreen: View {
                         return MasterCard(label: body["label"], last4: body["card_number"].map { String($0.suffix(4)) }, problem: nil)
                     }
                 )
-                .padding(16)
             }
+            .formStyle(.grouped)
             .overlay(alignment: .topLeading) {
                 Color.clear
                     .frame(width: 1, height: 1)

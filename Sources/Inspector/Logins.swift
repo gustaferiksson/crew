@@ -9,16 +9,10 @@ struct PasswordsTab: View {
     @Environment(Connection.self) private var connection
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            LoginsCard(bot: bot, vault: vault, isBrowserOff: isBrowserOff)
-            OnePasswordCard(bot: bot, vault: vault)
-            if connection.supportsPayments {
-                ShopsCard(bot: bot, isBrowserOff: isBrowserOff, fixture: shops)
-            }
-        }
-        .task(id: "\(connection.gateway.map { "\(ObjectIdentifier($0))" } ?? "") \(connection.state == .connected)") {
-            guard let link = connection.vaultLink else { return }
-            await vault.load(link)
+        LoginsCard(bot: bot, vault: vault, isBrowserOff: isBrowserOff)
+        OnePasswordCard(bot: bot, vault: vault)
+        if connection.supportsPayments {
+            ShopsCard(bot: bot, isBrowserOff: isBrowserOff, fixture: shops)
         }
     }
 }
@@ -47,37 +41,32 @@ private struct LoginsCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Card(title: "Logins") {
-                VStack(alignment: .leading, spacing: 12) {
-                    if vault.listFailed {
-                        HStack(spacing: 8) {
-                            Text(vault.tokenSaved == true ? String(localized: "Couldn't load logins. 1Password may not accept \(bot.title)'s token.") : String(localized: "Couldn't load logins."))
-                                .foregroundStyle(.secondary)
-                            Spacer(minLength: 8)
-                            Button("Try Again") { reload() }
-                                .buttonStyle(.borderless)
-                                .disabled(!isOnline)
-                        }
-                    }
-                    if vault.items != nil {
-                        if vault.listFailed { Divider() }
-                        rows
-                        Divider()
-                        Button("Add Login…", systemImage: "plus.circle") { editing = LoginTarget(item: nil) }
-                            .buttonStyle(.borderless)
-                            .disabled(!isOnline || vault.listFailed)
-                    } else if !vault.listFailed {
-                        ProgressView()
-                            .controlSize(.small)
-                    }
+        Section {
+            if vault.listFailed {
+                HStack(spacing: 8) {
+                    Text(vault.tokenSaved == true ? String(localized: "Couldn't load logins. 1Password may not accept \(bot.title)'s token.") : String(localized: "Couldn't load logins."))
+                        .foregroundStyle(.secondary)
+                    Spacer(minLength: 8)
+                    Button("Try Again") { reload() }
+                        .buttonStyle(.borderless)
+                        .disabled(!isOnline)
                 }
             }
-            ForEach(footers, id: \.self) { footer in
-                Text(footer)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 12)
+            if vault.items != nil {
+                rows
+                Button("Add Login…", systemImage: "plus.circle") { editing = LoginTarget(item: nil) }
+                    .disabled(!isOnline || vault.listFailed)
+            } else if !vault.listFailed {
+                ProgressView()
+                    .controlSize(.small)
+            }
+        } header: {
+            Text("Logins")
+        } footer: {
+            if !footers.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(footers, id: \.self) { Text($0) }
+                }
             }
         }
         .sheet(item: $editing) { target in
@@ -103,14 +92,7 @@ private struct LoginsCard: View {
             Text("\(bot.title) has no saved logins.")
                 .foregroundStyle(.secondary)
         } else {
-            VStack(alignment: .leading, spacing: 12) {
-                ForEach(logins) { login in
-                    if login.id != logins.first?.id {
-                        Divider()
-                    }
-                    row(login)
-                }
-            }
+            ForEach(logins) { row($0) }
         }
     }
 
@@ -118,22 +100,41 @@ private struct LoginsCard: View {
     private func row(_ login: Login) -> some View {
         let content = LoginRow(login: login, isRemoving: removing.contains(login.id), failure: removeFailures[login.id], isHighlighted: highlighted.contains(login.id))
         if login.isLocal {
-            content
-                .onTapGesture { if login.canEdit, isOnline { editing = LoginTarget(item: login.item) } }
-                .contextMenu {
-                    if login.canEdit {
-                        Button("Edit Login…", systemImage: "pencil") { editing = LoginTarget(item: login.item) }
-                            .disabled(!isOnline)
-                    }
-                    Button("Remove Login…", systemImage: "trash", role: .destructive) { confirmingRemoval = login }
+            Group {
+                if login.canEdit {
+                    Button { edit(login) } label: { content }
+                        #if os(macOS)
+                        .buttonStyle(.plain)
+                        #endif
+                } else {
+                    content
+                }
+            }
+            .contextMenu {
+                if login.canEdit {
+                    Button("Edit Login…", systemImage: "pencil") { editing = LoginTarget(item: login.item) }
                         .disabled(!isOnline)
                 }
-                .accessibilityAddTraits(login.canEdit ? .isButton : [])
-                .accessibilityAction(named: "Edit Login") { if login.canEdit, isOnline { editing = LoginTarget(item: login.item) } }
-                .accessibilityAction(named: "Remove Login") { if isOnline { confirmingRemoval = login } }
+                Button("Remove Login…", systemImage: "trash", role: .destructive) { confirmingRemoval = login }
+                    .disabled(!isOnline)
+            }
+            #if os(iOS)
+            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                Button("Remove", systemImage: "trash") { confirmingRemoval = login }
+                    .tint(.red)
+                    .disabled(!isOnline)
+            }
+            #endif
+            .accessibilityAction(named: "Edit Login") { edit(login) }
+            .accessibilityAction(named: "Remove Login") { if isOnline { confirmingRemoval = login } }
         } else {
             content
         }
+    }
+
+    private func edit(_ login: Login) {
+        guard login.canEdit, isOnline else { return }
+        editing = LoginTarget(item: login.item)
     }
 
     private var footers: [String] {
@@ -185,6 +186,7 @@ private struct LoginRow: View {
         HStack(spacing: 8) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(login.title)
+                    .foregroundStyle(.primary)
                     .lineLimit(1)
                     .truncationMode(.middle)
                 if let host = login.host, isPunycode(host) {
@@ -244,35 +246,33 @@ private struct OnePasswordCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Card(title: "1Password") {
-                if let status {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Label {
-                            Text(status.title)
-                        } icon: {
-                            Image(systemName: symbol(status.look))
-                                .foregroundStyle(tint(status.look))
-                        }
-                        if let action = status.action {
-                            button(action)
-                        }
-                        if let failure {
-                            Text(failure)
-                                .font(.footnote)
-                                .foregroundStyle(.red)
-                        }
-                    }
-                } else {
-                    ProgressView()
-                        .controlSize(.small)
+        Section {
+            if let status {
+                Label {
+                    Text(status.title)
+                } icon: {
+                    Image(systemName: symbol(status.look))
+                        .foregroundStyle(tint(status.look))
                 }
+                if let action = status.action {
+                    button(action)
+                }
+                if let failure {
+                    Text(failure)
+                        .font(.footnote)
+                        .foregroundStyle(.red)
+                }
+            } else {
+                ProgressView()
+                    .controlSize(.small)
             }
-            ForEach(status?.footnotes ?? [], id: \.self) { footnote in
-                Text(footnote)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 12)
+        } header: {
+            Text("1Password")
+        } footer: {
+            if let footnotes = status?.footnotes, !footnotes.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(footnotes, id: \.self) { Text($0) }
+                }
             }
         }
         .sheet(isPresented: $isConnecting) {
@@ -290,21 +290,18 @@ private struct OnePasswordCard: View {
     private func button(_ action: OnePasswordStatus.Action) -> some View {
         if action == .connect {
             Button("Connect…", systemImage: "link") { isConnecting = true }
-                .buttonStyle(.borderless)
                 .disabled(!isOnline)
         } else if action == .retry {
             Button("Try Again") {
                 guard let link = connection.vaultLink else { return }
                 Task { await vault.load(link) }
             }
-            .buttonStyle(.borderless)
             .disabled(!isOnline)
         } else if isDisconnecting {
             ProgressView()
                 .controlSize(.small)
         } else {
             Button("Disconnect…", systemImage: "minus.circle", role: .destructive) { confirmingDisconnect = true }
-                .buttonStyle(.borderless)
                 .disabled(!isOnline)
         }
     }

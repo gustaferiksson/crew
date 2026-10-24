@@ -6,29 +6,20 @@ struct TaskList: View {
 
     var body: some View {
         if todos.isEmpty {
-            ContentUnavailableView("No Tasks", systemImage: "checklist", description: Text("When \(bot.title) plans a run, its steps show up here."))
+            Section {
+                ContentUnavailableView("No Tasks", systemImage: "checklist", description: Text("When \(bot.title) plans a run, its steps show up here."))
+                    .listRowBackground(Color.clear)
+            }
         } else {
-            let done = todos.filter { $0.status == .completed }.count
-            VStack(alignment: .leading, spacing: 8) {
+            Section {
+                ForEach(todos) { TaskRow(todo: $0) }
+            } header: {
                 HStack(alignment: .firstTextBaseline) {
                     Text(todos.contains { $0.status == .inProgress || $0.status == .pending } ? "Current Run" : "Last Run")
-                        .font(.headline)
                     Spacer()
-                    Text("\(done) of \(todos.count) done")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                    Text("\(todos.filter { $0.status == .completed }.count) of \(todos.count) done")
                         .monospacedDigit()
                 }
-                .padding(.horizontal, 4)
-                VStack(spacing: 0) {
-                    ForEach(todos) { todo in
-                        TaskRow(todo: todo)
-                        if todo.id != todos.last?.id {
-                            Divider().padding(.leading, 40)
-                        }
-                    }
-                }
-                .background(.fill.quaternary, in: .rect(cornerRadius: 16))
             }
         }
     }
@@ -49,8 +40,6 @@ private struct TaskRow: View {
                 .fontWeight(todo.status == .inProgress ? .medium : .regular)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
         .accessibilityElement(children: .combine)
         .accessibilityValue(todo.status.rawValue)
     }

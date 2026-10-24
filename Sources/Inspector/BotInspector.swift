@@ -54,22 +54,36 @@ struct BotInspector: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 16) {
-                header
-                tabs
-                if tab == .info {
-                    info
-                } else if tab == .tasks {
-                    TaskList(bot: bot, todos: chats.sessions[bot.id]?.todos ?? [])
-                } else if tab == .passwords {
-                    PasswordsTab(bot: bot, vault: vault, isBrowserOff: isBrowserOff, shops: shopsFixture)
-                } else {
-                    RoutineList(bot: bot, store: routines) { isCreatingRoutine = true }
+        Form {
+            Section {
+                Picker("View", selection: $tab.animation(.snappy)) {
+                    Text("Info").tag(InspectorTab.info)
+                    Text("Tasks").tag(InspectorTab.tasks)
+                    Text("Routines").tag(InspectorTab.routines)
+                    Text("Passwords").tag(InspectorTab.passwords)
                 }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                #if os(macOS)
+                .controlSize(.small)
+                #endif
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets())
+            } header: {
+                header
             }
-            .padding(16)
+            if tab == .info {
+                info
+            } else if tab == .tasks {
+                TaskList(bot: bot, todos: chats.sessions[bot.id]?.todos ?? [])
+            } else if tab == .passwords {
+                PasswordsTab(bot: bot, vault: vault, isBrowserOff: isBrowserOff, shops: shopsFixture)
+            } else {
+                RoutineList(bot: bot, store: routines) { isCreatingRoutine = true }
+            }
         }
+        .formStyle(.grouped)
+        .frame(minWidth: 0, maxWidth: .infinity)
         .defaultScrollAnchor(Snapshot.scrollsToBottom ? .bottom : nil)
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
@@ -93,6 +107,10 @@ struct BotInspector: View {
             ConversationTranscript(bot: bot, conversation: conversation)
         }
         .modifier(BotDeletion(bot: $deleting) { _ in isPresented = false })
+        .task(id: "\(tab == .passwords) \(connection.gateway.map { "\(ObjectIdentifier($0))" } ?? "") \(connection.state == .connected)") {
+            guard tab == .passwords, let link = connection.vaultLink else { return }
+            await vault.load(link)
+        }
         .onChange(of: draft.fields) { old, new in
             var typed = old
             typed.identity.title = new.identity.title
@@ -145,47 +163,24 @@ struct BotInspector: View {
 
     private var header: some View {
         VStack(spacing: 12) {
-            Button {
-                showsLook = true
-            } label: {
-                AvatarView(
-                    shape: draft.fields.identity.shape,
-                    color: draft.fields.identity.color,
-                    expression: draft.fields.identity.expression,
-                    photo: draft.photo.map { Image(decorative: $0, scale: 1) } ?? (isEditable ? nil : store.photos[bot.id]),
-                    seed: draft.name,
-                    size: 96
-                )
-                .contentShape(.rect)
-            }
-            .buttonStyle(.plain)
-            .disabled(!isEditable)
-            .accessibilityLabel("Edit Look")
-            .popover(isPresented: $showsLook) {
-                LookEditor(draft: draft, photoItem: $photoItem)
-            }
+            avatar
             VStack(spacing: 4) {
-                TextField("Name", text: $draft.fields.identity.title, prompt: Text(draft.fallbackTitle))
-                    .textFieldStyle(.plain)
-                    .font(.title2.bold())
-                    .multilineTextAlignment(.center)
-                    .focused($focusedField, equals: .name)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(.fill.quaternary.opacity(focusedField == .name ? 1 : 0), in: .rect(cornerRadius: 8))
-                    .disabled(!isEditable)
-                    .submitLabel(.next)
-                    .onSubmit { focusedField = .role }
-                TextField("Role", text: $draft.fields.identity.role, prompt: Text("Add Role"))
-                    .textFieldStyle(.plain)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .focused($focusedField, equals: .role)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(.fill.quaternary.opacity(focusedField == .role ? 1 : 0), in: .rect(cornerRadius: 8))
-                    .disabled(!isEditable)
-                    .onSubmit { focusedField = nil }
+                if isEditable {
+                    nameFields
+                } else {
+                    Text(draft.name)
+                        .font(.title2.bold())
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                    if !draft.fields.identity.role.isEmpty {
+                        Text(draft.fields.identity.role)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                    }
+                }
                 saveStatus
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -195,6 +190,62 @@ struct BotInspector: View {
                 isCreatingRoutine = true
             }
         }
+        .font(.body)
+        .foregroundStyle(.primary)
+        .textCase(nil)
+        .frame(maxWidth: .infinity)
+        .padding(.bottom, 8)
+    }
+
+    @ViewBuilder
+    private var avatar: some View {
+        let image = AvatarView(
+            shape: draft.fields.identity.shape,
+            color: draft.fields.identity.color,
+            expression: draft.fields.identity.expression,
+            photo: draft.photo.map { Image(decorative: $0, scale: 1) } ?? (isEditable ? nil : store.photos[bot.id]),
+            seed: draft.name,
+            size: 96
+        )
+        if isEditable {
+            Button {
+                showsLook = true
+            } label: {
+                image.contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Edit Look")
+            .popover(isPresented: $showsLook) {
+                LookEditor(draft: draft, photoItem: $photoItem)
+            }
+        } else {
+            image.accessibilityHidden(true)
+        }
+    }
+
+    @ViewBuilder
+    private var nameFields: some View {
+        TextField("Name", text: $draft.fields.identity.title, prompt: Text(draft.fallbackTitle))
+            .labelsHidden()
+            .textFieldStyle(.plain)
+            .font(.title2.bold())
+            .multilineTextAlignment(.center)
+            .focused($focusedField, equals: .name)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(.fill.quaternary.opacity(focusedField == .name ? 1 : 0), in: .rect(cornerRadius: 8))
+            .submitLabel(.next)
+            .onSubmit { focusedField = .role }
+        TextField("Role", text: $draft.fields.identity.role, prompt: Text("Add Role"))
+            .labelsHidden()
+            .textFieldStyle(.plain)
+            .foregroundStyle(.secondary)
+            .multilineTextAlignment(.center)
+            .focused($focusedField, equals: .role)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(.fill.quaternary.opacity(focusedField == .role ? 1 : 0), in: .rect(cornerRadius: 8))
+            .onSubmit { focusedField = nil }
     }
 
     @ViewBuilder
@@ -230,46 +281,6 @@ struct BotInspector: View {
         isEditable && !draft.fields.toolsets.contains { $0.name == "browser" && $0.enabled }
     }
 
-    private var tabs: some View {
-        ViewThatFits(in: .horizontal) {
-            tabRow(padding: 12)
-            tabRow(padding: 8)
-            tabRow(padding: 6, spacing: 0)
-            ScrollViewReader { proxy in
-                ScrollView(.horizontal) {
-                    tabRow(padding: 12)
-                }
-                .scrollIndicators(.hidden)
-                .scrollClipDisabled()
-                .onAppear { proxy.scrollTo(tab) }
-                .onChange(of: tab) { withAnimation(.snappy) { proxy.scrollTo(tab) } }
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private func tabRow(padding: CGFloat, spacing: CGFloat = 4) -> some View {
-        HStack(spacing: spacing) {
-            ForEach([(InspectorTab.info, LocalizedStringKey("Info")), (.tasks, "Tasks"), (.routines, "Routines"), (.passwords, "Passwords")], id: \.0) { item, title in
-                Button {
-                    withAnimation(.snappy) { tab = item }
-                } label: {
-                    Text(title)
-                        .fontWeight(tab == item ? .semibold : .regular)
-                        .foregroundStyle(tab == item ? .primary : .secondary)
-                        .fixedSize()
-                        .padding(.horizontal, padding)
-                        .padding(.vertical, 8)
-                        .glassEffect(tab == item ? .regular : .identity, in: .capsule)
-                        .contentShape(.capsule)
-                }
-                .buttonStyle(.plain)
-                .accessibilityAddTraits(tab == item ? .isSelected : [])
-                .id(item)
-            }
-        }
-    }
-
     @ViewBuilder
     private var info: some View {
         BotInfo(
@@ -279,89 +290,82 @@ struct BotInspector: View {
             model: Binding(get: { models.changing ?? models.current }, set: { if let choice = $0 { changeModel(to: choice) } }),
             isChangingModel: models.changing != nil
         )
-        Card(title: "Description") {
+        Section("Description") {
             if isEditable {
                 TextField("Description", text: $draft.fields.description, prompt: Text("What this bot is for"), axis: .vertical)
-                    .textFieldStyle(.plain)
+                    .labelsHidden()
                     .focused($focusedField, equals: .description)
             } else {
                 ProgressView()
                     .controlSize(.small)
             }
         }
-        Card(title: "Instructions", footer: "Added on top of the soul in every chat. A personality chosen on the server replaces them.") {
+        Section {
             if isEditable {
                 TextArea(text: $draft.fields.instructions, placeholder: "Extra instructions for every chat")
             } else {
                 ProgressView()
                     .controlSize(.small)
             }
+        } header: {
+            Text("Instructions")
+        } footer: {
+            Text("Added on top of the soul in every chat. A personality chosen on the server replaces them.")
         }
-        Card(title: "Rich UI", footer: "Lets this bot answer with cards, checklists and forms that Crew draws natively. Other apps show them as code.") {
-            Toggle(isOn: $draft.fields.richUI) {
-                Text("Cards and Forms")
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .toggleStyle(.switch)
-            .disabled(!isEditable)
+        Section {
+            Toggle("Cards and Forms", isOn: $draft.fields.richUI)
+                .toggleStyle(.switch)
+                .disabled(!isEditable)
+        } header: {
+            Text("Rich UI")
+        } footer: {
+            Text("Lets this bot answer with cards, checklists and forms that Crew draws natively. Other apps show them as code.")
         }
-        Card(title: "Soul", footer: "The bot's identity, saved as SOUL.md. Saving replaces the whole file.") {
+        Section {
             if isEditable {
                 TextArea(text: $draft.fields.soul, placeholder: "Who this bot is")
             } else {
                 ProgressView()
                     .controlSize(.small)
             }
+        } header: {
+            Text("Soul")
+        } footer: {
+            Text("The bot's identity, saved as SOUL.md. Saving replaces the whole file.")
         }
-        Card(title: "Capabilities") {
-            VStack(spacing: 8) {
-                ForEach(CapabilityKind.allCases) { kind in
-                    let items = draft.fields[keyPath: kind.items]
-                    if kind != CapabilityKind.allCases.first {
-                        Divider()
-                    }
-                    Button {
-                        capabilitySheet = kind
+        Section("Capabilities") {
+            ForEach(CapabilityKind.allCases) { kind in
+                let items = draft.fields[keyPath: kind.items]
+                Button {
+                    capabilitySheet = kind
+                } label: {
+                    LabeledContent {
+                        Text("\(items.filter(\.enabled).count)/\(items.count)")
+                            .monospacedDigit()
                     } label: {
-                        HStack(spacing: 8) {
-                            Label {
-                                Text(kind.title)
-                            } icon: {
-                                Image(systemName: kind.systemImage)
-                                    .frame(width: 24)
-                            }
-                            Spacer(minLength: 8)
-                            Text("\(items.filter(\.enabled).count)/\(items.count)")
-                                .monospacedDigit()
-                                .foregroundStyle(.secondary)
-                            Image(systemName: "chevron.forward")
-                                .font(.footnote.weight(.semibold))
-                                .foregroundStyle(.tertiary)
-                        }
-                        .contentShape(.rect)
+                        Label(kind.title, systemImage: kind.systemImage)
+                            .foregroundStyle(.primary)
                     }
-                    .buttonStyle(.plain)
-                    .disabled(!isEditable)
+                    .contentShape(.rect)
                 }
+                #if os(macOS)
+                .buttonStyle(.plain)
+                #endif
+                .disabled(!isEditable)
             }
         }
-        Card(title: "Other Conversations", footer: "Sessions from other apps, the server and routines. Read only.") {
+        Section {
             ConversationList(conversations: conversations, failure: conversationFailure) { openedConversation = $0 }
+        } header: {
+            Text("Other Conversations")
+        } footer: {
+            Text("Sessions from other apps, the server and routines. Read only.")
         }
         if !bot.isDefault {
-            Button(role: .destructive) {
-                deleting = bot
-            } label: {
-                Text("Delete Bot")
-                    .foregroundStyle(.red)
-                    .frame(maxWidth: .infinity)
-                    .padding(12)
-                    .background(.fill.quaternary, in: .rect(cornerRadius: 16))
-                    .contentShape(.rect)
+            Section {
+                Button("Delete Bot", role: .destructive) { deleting = bot }
+                    .disabled(connection.state != .connected)
             }
-            .buttonStyle(.plain)
-            .disabled(connection.state != .connected)
-            .padding(.top, 16)
         }
     }
 
@@ -467,89 +471,48 @@ private struct BotInfo: View {
     @Environment(Connection.self) private var connection
 
     var body: some View {
-        Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 8) {
-            GridRow {
-                Text("Model").foregroundStyle(.secondary)
+        Section {
+            LabeledContent("Model") {
                 if providers.isEmpty {
                     Text(bot.model ?? String(localized: "Default"))
                 } else {
                     HStack(spacing: 8) {
+                        if isChangingModel {
+                            ProgressView()
+                                .controlSize(.small)
+                        }
                         Menu {
                             ModelPicker(providers: providers, selection: $model)
                                 .pickerStyle(.inline)
                         } label: {
                             HStack(spacing: 4) {
                                 Text(model?.model ?? bot.model ?? String(localized: "Default"))
+                                    .multilineTextAlignment(.trailing)
                                 Image(systemName: "chevron.up.chevron.down")
                                     .font(.caption.weight(.semibold))
-                                    .foregroundStyle(.secondary)
                             }
+                            .foregroundStyle(.secondary)
                             .contentShape(.rect)
                         }
                         .menuIndicator(.hidden)
                         .buttonStyle(.plain)
                         .disabled(isChangingModel || connection.state != .connected)
-                        if isChangingModel {
-                            ProgressView()
-                                .controlSize(.small)
-                        }
                     }
                 }
             }
-            Divider()
-            GridRow {
-                Text("Profile").foregroundStyle(.secondary)
-                Text(bot.name)
-            }
+            LabeledContent("Profile", value: bot.name)
             if let server {
-                Divider()
-                GridRow {
-                    Text("Server").foregroundStyle(.secondary)
-                    Text(server)
-                }
+                LabeledContent("Server", value: server)
             }
             if let session = bot.canonicalSession {
-                Divider()
-                GridRow {
-                    Text("Messages").foregroundStyle(.secondary)
+                LabeledContent("Messages") {
                     Text(session.messageCount ?? 0, format: .number)
                 }
                 if let lastActive = session.lastActive {
-                    Divider()
-                    GridRow {
-                        Text("Last Active").foregroundStyle(.secondary)
+                    LabeledContent("Last Active") {
                         Text(lastActive, format: .relative(presentation: .named))
                     }
                 }
-            }
-        }
-        .lineLimit(nil)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
-        .background(.fill.quaternary, in: .rect(cornerRadius: 16))
-    }
-}
-
-struct Card<Content: View>: View {
-    let title: LocalizedStringKey
-    var footer: LocalizedStringKey?
-    @ViewBuilder let content: Content
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .padding(.leading, 12)
-            content
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(12)
-                .background(.fill.quaternary, in: .rect(cornerRadius: 16))
-            if let footer {
-                Text(footer)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 12)
             }
         }
     }

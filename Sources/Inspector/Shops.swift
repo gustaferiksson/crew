@@ -35,41 +35,38 @@ struct ShopsCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Card(title: "Shops") {
-                if let list {
-                    VStack(alignment: .leading, spacing: 12) {
-                        cardRow(list.card, controls: controls(list))
-                        Divider()
-                        shopRows(list.shops)
-                        if controls(list).showsUpdateShops {
-                            Divider()
-                            updateShopsRow(controls(list))
-                        }
-                        Divider()
-                        Button("Add Shop…", systemImage: "plus.circle") { isAdding = true }
-                            .buttonStyle(.borderless)
-                            .disabled(!controls(list).canAddShop)
-                    }
-                } else if loadFailed {
-                    HStack(spacing: 8) {
-                        Text("Couldn't load shops.")
-                            .foregroundStyle(.secondary)
-                        Spacer(minLength: 8)
-                        Button("Try Again") { Task { await load() } }
-                            .buttonStyle(.borderless)
-                            .disabled(!isOnline)
-                    }
-                } else {
-                    ProgressView()
-                        .controlSize(.small)
+        Section {
+            if let list {
+                cardRow(list.card, controls: controls(list))
+                shopRows(list.shops)
+                if controls(list).showsUpdateShops {
+                    updateShopsRow(controls(list))
                 }
+                Button("Add Shop…", systemImage: "plus.circle") { isAdding = true }
+                    .disabled(!controls(list).canAddShop)
+            } else if loadFailed {
+                HStack(spacing: 8) {
+                    Text("Couldn't load shops.")
+                        .foregroundStyle(.secondary)
+                    Spacer(minLength: 8)
+                    Button("Try Again") { Task { await load() } }
+                        .buttonStyle(.borderless)
+                        .disabled(!isOnline)
+                }
+            } else {
+                ProgressView()
+                    .controlSize(.small)
             }
-            ForEach(footers, id: \.text) { footer in
-                Text(footer.text)
-                    .font(.footnote)
-                    .foregroundStyle(footer.isAlert ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
-                    .padding(.horizontal, 12)
+        } header: {
+            Text("Shops")
+        } footer: {
+            if !footers.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(footers, id: \.text) { footer in
+                        Text(footer.text)
+                            .foregroundStyle(footer.isAlert ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
+                    }
+                }
             }
         }
         .task(id: isOnline) {
@@ -124,12 +121,10 @@ struct ShopsCard: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
-                if controls.showsCardButton {
-                    Button("Replace Card…", systemImage: "creditcard") { isEditingCard = true }
-                        .buttonStyle(.borderless)
-                        .disabled(!controls.canEditCard)
-                        .padding(.top, 4)
-                }
+            }
+            if controls.showsCardButton {
+                Button("Replace Card…", systemImage: "creditcard") { isEditingCard = true }
+                    .disabled(!controls.canEditCard)
             }
         } else {
             VStack(alignment: .leading, spacing: 8) {
@@ -138,11 +133,10 @@ struct ShopsCard: View {
                 Text(controls.noCardText)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
-                if controls.showsCardButton {
-                    Button("Add Card…", systemImage: "plus.circle") { isEditingCard = true }
-                        .buttonStyle(.borderless)
-                        .disabled(!controls.canEditCard)
-                }
+            }
+            if controls.showsCardButton {
+                Button("Add Card…", systemImage: "plus.circle") { isEditingCard = true }
+                    .disabled(!controls.canEditCard)
             }
         }
     }
@@ -174,18 +168,20 @@ struct ShopsCard: View {
             Text("\(bot.title) can't pay anywhere yet.")
                 .foregroundStyle(.secondary)
         } else {
-            VStack(alignment: .leading, spacing: 12) {
-                ForEach(shops) { shop in
-                    if shop.id != shops.first?.id {
-                        Divider()
+            ForEach(shops) { shop in
+                ShopRow(shop: shop, isRemoving: removing.contains(shop.id), failure: removeFailures[shop.id], isHighlighted: highlighted.contains(shop.id))
+                    .contextMenu {
+                        Button("Remove Shop", systemImage: "trash", role: .destructive) { remove(shop) }
+                            .disabled(!isOnline)
                     }
-                    ShopRow(shop: shop, isRemoving: removing.contains(shop.id), failure: removeFailures[shop.id], isHighlighted: highlighted.contains(shop.id))
-                        .contextMenu {
-                            Button("Remove Shop", systemImage: "trash", role: .destructive) { remove(shop) }
-                                .disabled(!isOnline)
-                        }
-                        .accessibilityAction(named: "Remove Shop") { remove(shop) }
-                }
+                    #if os(iOS)
+                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        Button("Remove", systemImage: "trash") { remove(shop) }
+                            .tint(.red)
+                            .disabled(!isOnline)
+                    }
+                    #endif
+                    .accessibilityAction(named: "Remove Shop") { remove(shop) }
             }
         }
     }

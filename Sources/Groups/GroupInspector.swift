@@ -37,6 +37,9 @@ struct GroupInspector: View {
             }
             Section {
                 Button("Disband Group", role: .destructive) { disbanding = room }
+                    #if os(macOS)
+                    .foregroundStyle(.red)
+                    #endif
                     .disabled(connection.state != .connected)
             }
         }

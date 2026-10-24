@@ -381,6 +381,9 @@ struct BotInspector: View {
         if !bot.isDefault {
             Section {
                 Button("Delete Bot", role: .destructive) { deleting = bot }
+                    #if os(macOS)
+                    .foregroundStyle(.red)
+                    #endif
                     .disabled(connection.state != .connected)
             }
         }

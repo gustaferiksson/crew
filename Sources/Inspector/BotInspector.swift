@@ -64,6 +64,9 @@ struct BotInspector: View {
             } header: {
                 header
             }
+            #if os(iOS)
+            .listSectionSpacing(.compact)
+            #endif
             if tab == .info {
                 info
             } else if tab == .tasks {
@@ -354,6 +357,10 @@ struct BotInspector: View {
                     LabeledContent {
                         Text("\(items.filter(\.enabled).count)/\(items.count)")
                             .monospacedDigit()
+                        #if os(macOS)
+                        Image(systemName: "chevron.forward")
+                            .foregroundStyle(.tertiary)
+                        #endif
                     } label: {
                         Label {
                             Text(kind.title)

@@ -44,10 +44,10 @@ struct GroupInspector: View {
             }
         }
         .formStyle(.grouped)
-        .frame(minWidth: 0, maxWidth: .infinity)
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #else
+        .frame(minWidth: 0, maxWidth: .infinity)
         .contentMargins(.bottom, 24, for: .scrollIndicators)
         .toolbar {
             if isPresented {
@@ -152,6 +152,11 @@ struct GroupInspector: View {
                     }
                 }
                 Spacer(minLength: 8)
+                #if os(macOS)
+                Image(systemName: "chevron.forward")
+                    .foregroundStyle(.tertiary)
+                    .opacity(bot == nil ? 0 : 1)
+                #endif
             }
             .contentShape(.rect)
         }

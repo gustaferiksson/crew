@@ -49,8 +49,6 @@ struct RoutineList: View {
                             }
                             #endif
                     }
-                }
-                Section {
                     Button("New Routine", systemImage: "plus", action: onCreate)
                 }
             }

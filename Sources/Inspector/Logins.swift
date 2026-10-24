@@ -114,7 +114,7 @@ private struct LoginsCard: View {
             }
             .contextMenu {
                 if login.canEdit {
-                    Button("Edit Login…", systemImage: "pencil") { editing = LoginTarget(item: login.item) }
+                    Button("Edit Login…", systemImage: "pencil") { edit(login) }
                         .disabled(!isOnline)
                 }
                 Button("Remove Login…", systemImage: "trash", role: .destructive) { confirmingRemoval = login }
@@ -303,6 +303,7 @@ private struct OnePasswordCard: View {
                 .controlSize(.small)
         } else {
             Button("Disconnect…", systemImage: "minus.circle", role: .destructive) { confirmingDisconnect = true }
+                .foregroundStyle(.red)
                 .disabled(!isOnline)
         }
     }

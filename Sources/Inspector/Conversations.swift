@@ -38,14 +38,20 @@ struct ConversationList: View {
                 Button {
                     open(conversation)
                 } label: {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(conversation.title ?? String(localized: "Untitled"))
-                            .lineLimit(1)
-                        Text("\((conversation.source ?? "").replacing("_", with: " ")) · \(Date(timeIntervalSince1970: conversation.lastActive ?? conversation.startedAt), format: .relative(presentation: .named))")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                    HStack(spacing: 8) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(conversation.title ?? String(localized: "Untitled"))
+                                .lineLimit(1)
+                            Text("\((conversation.source ?? "").replacing("_", with: " ")) · \(Date(timeIntervalSince1970: conversation.lastActive ?? conversation.startedAt), format: .relative(presentation: .named))")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        #if os(macOS)
+                        Image(systemName: "chevron.forward")
+                            .foregroundStyle(.tertiary)
+                        #endif
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
                     .contentShape(.rect)
                 }
                 #if os(macOS)

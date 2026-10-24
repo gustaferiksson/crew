@@ -18,7 +18,7 @@ struct SettingsView: View {
             Tab("Notifications", systemImage: "bell.badge", value: .notifications) {
                 NotificationSettings()
                     .environment(Snapshot.requested == .settingsNotifications ? Snapshot.fixturePush : push)
-                    .frame(width: 480, height: 380)
+                    .frame(width: 480, height: 404)
             }
         }
     }

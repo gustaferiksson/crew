@@ -5,7 +5,7 @@ final class MenuCommandsUITests: XCTestCase {
 
     @MainActor private func launch() -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["-snapshot", "layout", "-uiTest", "YES", "-ApplePersistenceIgnoreState", "YES", "-AppleInterfaceStyle", "Light", "-server", "hermes.example.com", "-username", "gustaf"]
+        app.launchArguments = ["-snapshot", "layout", "-uiTest", "YES", "-ApplePersistenceIgnoreState", "YES", "-AppleInterfaceStyle", "Light", "-server", "hermes.example.com", "-username", "gustaf", "-settingsPane", "account"]
         app.launch()
         XCTAssertTrue(app.staticTexts[atlasPreview].waitForExistence(timeout: 20))
         return app
@@ -76,5 +76,27 @@ final class MenuCommandsUITests: XCTestCase {
         XCTAssertTrue(notifications.waitForExistence(timeout: 5), "the Notifications pane titles the window")
         XCTAssertTrue(notifications.checkBoxes["Replies"].exists || notifications.switches["Replies"].exists, "the pane holds the notification preferences")
         attach(notifications, "settings-notifications")
+    }
+
+    @MainActor func testSignOutFromSettingsClosesChatWindowsAndShowsSignIn() {
+        let app = launch()
+        app.staticTexts[atlasPreview].doubleClick()
+        let opened = Date.now.addingTimeInterval(10)
+        while app.windows.count != 2, Date.now < opened { RunLoop.current.run(until: .now + 0.2) }
+        XCTAssertEqual(app.windows.count, 2, "a double-click opens the bot's chat window")
+
+        app.typeKey(",", modifierFlags: .command)
+        let account = app.windows["Account"]
+        XCTAssertTrue(account.waitForExistence(timeout: 5))
+        account.buttons["Sign Out…"].click()
+        let confirm = app.buttons["Sign Out"]
+        XCTAssertTrue(confirm.waitForExistence(timeout: 5), "Sign Out asks first")
+        confirm.click()
+
+        XCTAssertTrue(app.buttons["Sign In"].waitForExistence(timeout: 15), "the main window comes back with the sign-in screen")
+        XCTAssertTrue(account.staticTexts["Not Signed In"].waitForExistence(timeout: 5), "Settings switches to its signed-out pane")
+        let closed = Date.now.addingTimeInterval(10)
+        while app.windows.count != 2, Date.now < closed { RunLoop.current.run(until: .now + 0.2) }
+        XCTAssertEqual(app.windows.count, 2, "only the main window and Settings stay open")
     }
 }

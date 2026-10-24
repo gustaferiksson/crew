@@ -40,7 +40,6 @@ struct ConversationList: View {
                 } label: {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(conversation.title ?? String(localized: "Untitled"))
-                            .foregroundStyle(.primary)
                             .lineLimit(1)
                         Text("\((conversation.source ?? "").replacing("_", with: " ")) · \(Date(timeIntervalSince1970: conversation.lastActive ?? conversation.startedAt), format: .relative(presentation: .named))")
                             .font(.caption)
@@ -51,6 +50,8 @@ struct ConversationList: View {
                 }
                 #if os(macOS)
                 .buttonStyle(.plain)
+                #else
+                .tint(.primary)
                 #endif
             }
         } else if let failure {

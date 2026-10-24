@@ -105,6 +105,8 @@ private struct LoginsCard: View {
                     Button { edit(login) } label: { content }
                         #if os(macOS)
                         .buttonStyle(.plain)
+                        #else
+                        .tint(.primary)
                         #endif
                 } else {
                     content
@@ -186,7 +188,6 @@ private struct LoginRow: View {
         HStack(spacing: 8) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(login.title)
-                    .foregroundStyle(.primary)
                     .lineLimit(1)
                     .truncationMode(.middle)
                 if let host = login.host, isPunycode(host) {

@@ -361,12 +361,13 @@ struct BotInspector: View {
                             Image(systemName: kind.systemImage)
                                 .frame(width: 24)
                         }
-                        .foregroundStyle(.primary)
                     }
                     .contentShape(.rect)
                 }
                 #if os(macOS)
                 .buttonStyle(.plain)
+                #else
+                .tint(.primary)
                 #endif
                 .disabled(!isEditable)
             }

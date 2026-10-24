@@ -144,7 +144,6 @@ struct GroupInspector: View {
                 }
                 VStack(alignment: .leading, spacing: 0) {
                     Text(bot?.title ?? member.displayName ?? member.memberID)
-                        .foregroundStyle(.primary)
                     if let role = bot?.role {
                         Text(role)
                             .font(.subheadline)
@@ -158,6 +157,8 @@ struct GroupInspector: View {
         }
         #if os(macOS)
         .buttonStyle(.plain)
+        #else
+        .tint(.primary)
         #endif
         .disabled(bot == nil)
     }

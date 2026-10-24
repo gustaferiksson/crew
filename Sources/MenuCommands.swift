@@ -23,11 +23,11 @@ struct NewChatCommands: View {
 }
 
 struct InspectorCommand: View {
-    @FocusedValue(\.inspector) private var isPresented
+    @FocusedBinding(\.inspector) private var isPresented
 
     var body: some View {
-        Button(isPresented?.wrappedValue == true ? "Hide Inspector" : "Show Inspector") {
-            isPresented?.wrappedValue.toggle()
+        Button(isPresented == true ? "Hide Inspector" : "Show Inspector") {
+            isPresented?.toggle()
         }
         .keyboardShortcut("i", modifiers: [.control, .command])
         .disabled(isPresented == nil)

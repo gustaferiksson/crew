@@ -10,7 +10,8 @@ struct SettingsView: View {
     @Environment(PushCenter.self) private var push
 
     var body: some View {
-        TabView(selection: Snapshot.requested == nil || Snapshot.isInteractive ? $pane : .constant(Snapshot.requested == .settingsNotifications ? .notifications : .account)) {
+        let selection = Snapshot.requested == nil || Snapshot.isInteractive ? $pane : .constant(Snapshot.requested == .settingsNotifications ? .notifications : .account)
+        TabView(selection: selection) {
             Tab("Account", systemImage: "person.crop.circle", value: .account) {
                 AccountSettings()
                     .frame(width: 480, height: 220)
@@ -31,6 +32,7 @@ private struct AccountSettings: View {
     @Environment(\.openWindow) private var openWindow
     @AppStorage("username") private var username = ""
     @State private var confirmsSignOut = false
+    @State private var isSigningOut = false
 
     var body: some View {
         if let host = connection.session?.server.host(), connection.state != .signedOut {
@@ -44,25 +46,35 @@ private struct AccountSettings: View {
                     }
                     LabeledContent("Status") {
                         HStack(spacing: 8) {
+                            status
                             if connection.state == .unreachable {
                                 Button("Retry", action: connection.retry)
                             }
-                            status
                         }
                     }
                 }
                 Section {
-                    Button("Sign Out…") { confirmsSignOut = true }
+                    HStack(spacing: 8) {
+                        Spacer()
+                        if isSigningOut {
+                            ProgressView()
+                                .controlSize(.small)
+                        }
+                        Button("Sign Out…") { confirmsSignOut = true }
+                            .disabled(isSigningOut)
+                    }
                 }
             }
             .formStyle(.grouped)
             .lineLimit(1)
             .confirmationDialog("Sign out of \(host)?", isPresented: $confirmsSignOut) {
                 Button("Sign Out", role: .destructive) {
+                    isSigningOut = true
                     Task {
                         await push.unregister(on: connection)
                         await connection.signOut()
                         drafts.reset()
+                        isSigningOut = false
                         openWindow(id: "main")
                     }
                 }

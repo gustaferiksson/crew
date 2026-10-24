@@ -5,7 +5,7 @@ final class MenuCommandsUITests: XCTestCase {
 
     @MainActor private func launch() -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["-snapshot", "layout", "-uiTest", "YES", "-ApplePersistenceIgnoreState", "YES", "-AppleInterfaceStyle", "Light", "-server", "hermes.example.com", "-username", "gustaf", "-settingsPane", "account"]
+        app.launchArguments = ["-snapshot", "layout", "-uiTest", "YES", "-ApplePersistenceIgnoreState", "YES", "-AppleInterfaceStyle", "Light", "-server", "hermes.example.com", "-username", "gustaf"]
         app.launch()
         XCTAssertTrue(app.staticTexts[atlasPreview].waitForExistence(timeout: 20))
         return app
@@ -14,6 +14,15 @@ final class MenuCommandsUITests: XCTestCase {
     @MainActor private func menuItem(_ title: String, in menu: String, of app: XCUIApplication) -> XCUIElement {
         app.menuBars.menuBarItems[menu].click()
         return app.menuBars.menuItems[title]
+    }
+
+    @MainActor private func settingsWindow(in app: XCUIApplication) -> XCUIElement? {
+        let deadline = Date.now.addingTimeInterval(5)
+        while Date.now < deadline {
+            if let window = app.windows.allElementsBoundByIndex.first(where: { ["Account", "Notifications"].contains($0.title) }) { return window }
+            RunLoop.current.run(until: .now + 0.2)
+        }
+        return nil
     }
 
     @MainActor private func attach(_ element: XCUIElement, _ name: String) {
@@ -65,13 +74,15 @@ final class MenuCommandsUITests: XCTestCase {
     @MainActor func testCommandCommaOpensSettingsWithAccountAndNotifications() {
         let app = launch()
         app.typeKey(",", modifierFlags: .command)
+        guard let settings = settingsWindow(in: app) else { return XCTFail("Command-Comma opens Settings") }
+        settings.toolbars.descendants(matching: .any)["Account"].firstMatch.click()
         let account = app.windows["Account"]
-        XCTAssertTrue(account.waitForExistence(timeout: 5), "Command-Comma opens Settings on the Account pane")
+        XCTAssertTrue(account.waitForExistence(timeout: 5), "the Account pane titles the window")
         XCTAssertTrue(account.staticTexts["hermes.example.com"].exists, "the pane shows the server")
         XCTAssertTrue(account.buttons["Sign Out…"].exists, "Sign Out lives in Settings > Account")
         attach(account, "settings-account")
 
-        account.toolbars.buttons["Notifications"].click()
+        account.toolbars.descendants(matching: .any)["Notifications"].firstMatch.click()
         let notifications = app.windows["Notifications"]
         XCTAssertTrue(notifications.waitForExistence(timeout: 5), "the Notifications pane titles the window")
         XCTAssertTrue(notifications.checkBoxes["Replies"].exists || notifications.switches["Replies"].exists, "the pane holds the notification preferences")
@@ -86,6 +97,8 @@ final class MenuCommandsUITests: XCTestCase {
         XCTAssertEqual(app.windows.count, 2, "a double-click opens the bot's chat window")
 
         app.typeKey(",", modifierFlags: .command)
+        guard let settings = settingsWindow(in: app) else { return XCTFail("Command-Comma opens Settings") }
+        settings.toolbars.descendants(matching: .any)["Account"].firstMatch.click()
         let account = app.windows["Account"]
         XCTAssertTrue(account.waitForExistence(timeout: 5))
         account.buttons["Sign Out…"].click()

@@ -3,7 +3,9 @@ import SwiftUI
 struct NotificationSettings: View {
     @Environment(Connection.self) private var connection
     @Environment(PushCenter.self) private var push
+    #if os(iOS)
     @Environment(\.dismiss) private var dismiss
+    #endif
     @State private var testResult: String?
     @State private var isSending = false
 

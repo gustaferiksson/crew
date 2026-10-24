@@ -24,7 +24,11 @@ struct AvatarPicker: View {
                         AvatarView(shape: option, color: color, expression: expression, size: 44)
                             .frame(maxWidth: .infinity, minHeight: 64)
                             .contentShape(.rect(cornerRadius: 16))
-                            .glassEffect(option == shape ? .regular.tint(.accentColor.opacity(0.25)).interactive() : .identity, in: .rect(cornerRadius: 16))
+                            .overlay {
+                                if option == shape {
+                                    RoundedRectangle(cornerRadius: 16).strokeBorder(.tint, lineWidth: 2)
+                                }
+                            }
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(option.rawValue.capitalized)
@@ -34,7 +38,7 @@ struct AvatarPicker: View {
             .padding(.vertical, 4)
         }
         Section("Color") {
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 32, maximum: 40), spacing: 12)], spacing: 12) {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 44, maximum: 48), spacing: 8)], spacing: 8) {
                 ForEach(AvatarColor.palette) { swatch in
                     Button {
                         color = swatch.hex
@@ -48,7 +52,7 @@ struct AvatarPicker: View {
                                     Circle().strokeBorder(.primary, lineWidth: 2)
                                 }
                             }
-                            .frame(width: 36, height: 36)
+                            .frame(width: 44, height: 44)
                             .contentShape(.circle)
                     }
                     .buttonStyle(.plain)

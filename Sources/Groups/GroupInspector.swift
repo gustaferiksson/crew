@@ -27,38 +27,27 @@ struct GroupInspector: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 16) {
+        Form {
+            Section {
+            } header: {
                 header
-                Card(title: "Members") {
-                    VStack(spacing: 8) {
-                        ForEach(room.members, id: \.memberID) { member in
-                            if member != room.members.first {
-                                Divider()
-                            }
-                            memberRow(member)
-                        }
-                    }
-                }
-                Button(role: .destructive) {
-                    disbanding = room
-                } label: {
-                    Text("Disband Group")
-                        .foregroundStyle(.red)
-                        .frame(maxWidth: .infinity)
-                        .padding(12)
-                        .background(.fill.quaternary, in: .rect(cornerRadius: 16))
-                        .contentShape(.rect)
-                }
-                .buttonStyle(.plain)
-                .disabled(connection.state != .connected)
-                .padding(.top, 16)
             }
-            .padding(16)
+            Section("Members") {
+                ForEach(room.members, id: \.memberID) { memberRow($0) }
+            }
+            Section {
+                Button("Disband Group", role: .destructive) { disbanding = room }
+                    #if os(macOS)
+                    .foregroundStyle(.red)
+                    #endif
+                    .disabled(connection.state != .connected)
+            }
         }
+        .formStyle(.grouped)
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #else
+        .frame(minWidth: 0, maxWidth: .infinity)
         .contentMargins(.bottom, 24, for: .scrollIndicators)
         .toolbar {
             if isPresented {
@@ -98,6 +87,7 @@ struct GroupInspector: View {
             GroupAvatar(members: members, size: 96)
             VStack(spacing: 4) {
                 TextField("Name", text: $name, prompt: Text(room.name))
+                    .labelsHidden()
                     .textFieldStyle(.plain)
                     .font(.title2.bold())
                     .multilineTextAlignment(.center)
@@ -112,6 +102,10 @@ struct GroupInspector: View {
                     .foregroundStyle(.secondary)
             }
         }
+        .foregroundStyle(.primary)
+        .textCase(nil)
+        .frame(maxWidth: .infinity)
+        .padding(.bottom, 8)
     }
 
     @ViewBuilder
@@ -158,14 +152,19 @@ struct GroupInspector: View {
                     }
                 }
                 Spacer(minLength: 8)
+                #if os(macOS)
                 Image(systemName: "chevron.forward")
-                    .font(.footnote.weight(.semibold))
                     .foregroundStyle(.tertiary)
                     .opacity(bot == nil ? 0 : 1)
+                #endif
             }
             .contentShape(.rect)
         }
+        #if os(macOS)
         .buttonStyle(.plain)
+        #else
+        .tint(.primary)
+        #endif
         .disabled(bot == nil)
     }
 

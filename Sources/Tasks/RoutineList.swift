@@ -9,41 +9,47 @@ struct RoutineList: View {
     var body: some View {
         Group {
             if !store.isLoaded, let error = store.loadError {
-                ContentUnavailableView("Couldn't Load Routines", systemImage: "exclamationmark.triangle", description: Text(error))
+                Section {
+                    ContentUnavailableView("Couldn't Load Routines", systemImage: "exclamationmark.triangle", description: Text(error))
+                        .listRowBackground(Color.clear)
+                }
             } else if !store.isLoaded {
-                ProgressView()
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 32)
+                Section {
+                    ProgressView()
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 32)
+                        .listRowBackground(Color.clear)
+                }
             } else if store.jobs.isEmpty {
-                ContentUnavailableView {
-                    Label("No Routines", systemImage: "calendar.badge.clock")
-                } description: {
-                    Text("Schedule \(bot.title) to run a prompt on its own.")
-                } actions: {
-                    Button("New Routine", systemImage: "plus", action: onCreate)
-                        .buttonStyle(.glass)
+                Section {
+                    ContentUnavailableView {
+                        Label("No Routines", systemImage: "calendar.badge.clock")
+                    } description: {
+                        Text("Schedule \(bot.title) to run a prompt on its own.")
+                    } actions: {
+                        Button("New Routine", systemImage: "plus", action: onCreate)
+                            .buttonStyle(.bordered)
+                    }
+                    .listRowBackground(Color.clear)
                 }
             } else {
-                VStack(alignment: .leading, spacing: 12) {
-                    VStack(spacing: 0) {
-                        ForEach(store.jobs) { job in
-                            RoutineRow(job: job, isBusy: store.inFlight.contains(job.id)) {
-                                Button("Run Now", systemImage: "play") { Task { await store.trigger(job) } }
+                Section {
+                    ForEach(store.jobs) { job in
+                        RoutineRow(job: job, isBusy: store.inFlight.contains(job.id)) { actions(job) }
+                            .contextMenu { actions(job) }
+                            #if os(iOS)
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                Button("Delete", systemImage: "trash") { pendingDeletion = job }
+                                    .tint(.red)
+                            }
+                            .swipeActions(edge: .leading) {
                                 Button(job.isPaused ? "Resume" : "Pause", systemImage: job.isPaused ? "play.circle" : "pause.circle") {
                                     Task { await store.toggle(job) }
                                 }
-                                Divider()
-                                Button("Delete", systemImage: "trash", role: .destructive) { pendingDeletion = job }
                             }
-                            if job.id != store.jobs.last?.id {
-                                Divider().padding(.leading, 12)
-                            }
-                        }
+                            #endif
                     }
-                    .background(.fill.quaternary, in: .rect(cornerRadius: 16))
                     Button("New Routine", systemImage: "plus", action: onCreate)
-                        .buttonStyle(.glass)
-                        .frame(maxWidth: .infinity)
                 }
             }
         }
@@ -58,12 +64,28 @@ struct RoutineList: View {
             Text(store.failure ?? "")
         }
     }
+
+    @ViewBuilder
+    private func actions(_ job: RoutineJob) -> some View {
+        Button("Run Now", systemImage: "play") { Task { await store.trigger(job) } }
+        Button(job.isPaused ? "Resume" : "Pause", systemImage: job.isPaused ? "play.circle" : "pause.circle") {
+            Task { await store.toggle(job) }
+        }
+        Divider()
+        Button("Delete…", systemImage: "trash", role: .destructive) { pendingDeletion = job }
+    }
 }
 
 private struct RoutineRow<Actions: View>: View {
     let job: RoutineJob
     let isBusy: Bool
     @ViewBuilder let actions: Actions
+
+    #if os(iOS)
+    private let actionSize = 44.0
+    #else
+    private let actionSize = 28.0
+    #endif
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -113,22 +135,21 @@ private struct RoutineRow<Actions: View>: View {
             if isBusy {
                 ProgressView()
                     .controlSize(.small)
-                    .frame(width: 28, height: 28)
+                    .frame(width: actionSize, height: actionSize)
             } else {
                 Menu {
                     actions
                 } label: {
                     Label("Actions", systemImage: "ellipsis")
                         .labelStyle(.iconOnly)
-                        .frame(width: 28, height: 28)
+                        .frame(width: actionSize, height: actionSize)
+                        .contentShape(.rect)
                 }
                 .menuIndicator(.hidden)
-                .buttonStyle(.glass)
-                .buttonBorderShape(.circle)
+                .buttonStyle(.borderless)
                 .fixedSize()
             }
         }
-        .padding(12)
         .opacity(job.isPaused ? 0.7 : 1)
     }
 

@@ -166,7 +166,7 @@ enum Snapshot: String {
         return BotStore(fixture: [
             bot("default", 2, "Summarised the inbox: two invoices need approval.", BotMeta(pinned: true)),
             bot("ada", 12, "Running the migration dry run now.", BotMeta(title: "Ada Lovelace", role: "Head of Research and Analytics", color: "#8b5cf6", pinned: true)),
-            bot("scout", 45, "Found three flights under 2 000 kr for the weekend.", BotMeta(title: "Scout", role: "Travel Planner", color: "#38bdf8", pinned: true)),
+            bot("scout", 45, "Found three flights under 2 000 kr for the weekend.", BotMeta(title: "Scout", role: "Travel Planner", color: "#38bdf8", pinned: self != .sidebarCompact)),
             bot("forge", 5, "Can I run `npm publish` for 0.4.2?", BotMeta(title: "Forge", role: "Release Engineer", color: "#f97316", sectionID: "work", sectionName: "Work")),
             bot("ledger", 60 * 26, "Q3 numbers reconciled against the bank export.", BotMeta(title: "Ledger", role: "Bookkeeper and Finance Controller", color: "#22c55e", sectionID: "work", sectionName: "Work")),
             bot("atlas", 60 * 3, "Tuesday's standup notes are filed.", BotMeta(title: "Atlas", color: "#14b8a6", sectionID: "work", sectionName: "Work")),
@@ -282,9 +282,8 @@ extension Snapshot {
             reply.setSelectedRange(NSRange(location: start, length: NSMaxRange(text.range(of: "Merino top")) - start))
             try? await Task.sleep(for: .seconds(0.5))
         }
-        let sidebarWidth = UserDefaults.standard.double(forKey: "snapshotSidebarWidth")
-        if self == .sidebarCompact || sidebarWidth > 0, let split = window.contentView.map(splitViews)?.last {
-            for position in [330, sidebarWidth > 0 ? sidebarWidth : stripWidth] {
+        if self == .sidebarCompact, let split = window.contentView.map(splitViews)?.last {
+            for position in [330.0, 250] {
                 split.setPosition(position, ofDividerAt: 0)
                 try? await Task.sleep(for: .seconds(1))
             }

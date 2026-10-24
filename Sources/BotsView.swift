@@ -37,7 +37,7 @@ struct BotsView: View {
     @State private var showsBot = Snapshot.requested == .layoutInspector
     @State private var models = ModelSwitcher()
     @State private var modelsBot: Bot.ID?
-    @State private var isStrip = false
+    @State private var isCompact = false
 
     var body: some View {
         let selected = store.bots.first { $0.id == selection }
@@ -46,8 +46,126 @@ struct BotsView: View {
         let inspector: Binding<Bool>? = selected == nil && selectedRoom == nil ? nil : $showsBot
         #endif
         NavigationSplitView {
-            sidebar
-                .toolbar(removing: isStrip ? .sidebarToggle : nil)
+            List(selection: $selection) {
+                if query.isEmpty {
+                    if !store.favourites.isEmpty {
+                        favourites
+                    }
+                    ForEach(store.sections) { section in
+                        Section {
+                            ForEach(rows(in: section)) { row in
+                                if case .bot(let bot) = row {
+                                    self.row(for: bot)
+                                } else if case .group(let room) = row {
+                                    groupRow(for: room)
+                                }
+                            }
+                        } header: {
+                            if let name = section.name { Text(name) }
+                        }
+                        .listSectionSeparator(.hidden, edges: .top)
+                    }
+                    if !store.sections.contains(where: { $0.id.isEmpty }) && !groups.rooms.isEmpty {
+                        Section {
+                            ForEach(groups.rooms) { groupRow(for: $0) }
+                        } header: {
+                            if !store.sections.isEmpty { Text("Other") }
+                        }
+                        .listSectionSeparator(.hidden, edges: .top)
+                    }
+                } else if !MessageSearch.isSearchable(query) {
+                    ForEach((store.favourites + store.sections.flatMap(\.bots)).filter {
+                        $0.title.localizedStandardContains(query) || $0.name.localizedStandardContains(query)
+                            || $0.role?.localizedStandardContains(query) == true
+                            || $0.canonicalSession?.preview?.localizedStandardContains(query) == true
+                    }) { bot in
+                        row(for: bot)
+                    }
+                    ForEach(groups.rooms.filter { $0.name.localizedStandardContains(query) }) { groupRow(for: $0) }
+                } else {
+                    if !matchingBots.isEmpty || !matchingRooms.isEmpty {
+                        Section("Conversations") {
+                            ForEach(matchingBots) { row(for: $0) }
+                            ForEach(matchingRooms) { groupRow(for: $0) }
+                        }
+                        .listSectionSeparator(.hidden, edges: .top)
+                    }
+                    if !search.hits.isEmpty || search.phase != .done || search.failed > 0 {
+                        Section("Messages") { messageResults }
+                            .listSectionSeparator(.hidden, edges: .top)
+                    }
+                }
+            }
+            .overlay {
+                if store.isLoaded && store.bots.isEmpty {
+                    ContentUnavailableView("No Bots", systemImage: "person.2", description: Text("This server has no profiles yet."))
+                } else if !store.isLoaded && connection.state == .connecting {
+                    ProgressView()
+                } else if MessageSearch.isSearchable(query) && search.phase == .done && search.hits.isEmpty && search.failed == 0 && matchingBots.isEmpty && matchingRooms.isEmpty {
+                    ContentUnavailableView.search(text: query)
+                }
+            }
+            .onGeometryChange(for: Bool.self) { $0.size.width < compactRowWidth } action: { isCompact = $0 }
+            .task(id: [query, "\(connection.state == .connected)", "\(searchAttempt)", "\(store.bots.count)"]) {
+                await search.run(query, in: store.bots, on: connection.state == .connected ? connection.session?.server : nil, with: connection.urlSession)
+            }
+            #if os(iOS)
+            .listStyle(.plain)
+            #else
+            .contextMenu(forSelectionType: String.self) { ids in
+                if ids.count == 1, let bot = ids.first.flatMap({ id in store.bots.first { $0.id == id } }) { menu(for: bot) }
+            } primaryAction: { ids in
+                if ids.count == 1, let id = ids.first, store.bots.contains(where: { $0.id == id }) { openWindow(value: id) }
+            }
+            #endif
+            .searchable(text: $query, placement: .sidebar, prompt: "Search")
+            .safeAreaBar(edge: .bottom) {
+                VStack(spacing: 8) {
+                    #if os(iOS)
+                    if let version = updates.available, let url = updates.installURL {
+                        Link(destination: url) {
+                            Label("Install Crew \(version)", systemImage: "arrow.down.circle")
+                        }
+                        .buttonStyle(.glassProminent)
+                    }
+                    #endif
+                    if showsConnectionPill {
+                        ConnectionPill()
+                    }
+                }
+            }
+            .task(id: connection.state == .connected) {
+                showsConnectionPill = false
+                guard connection.state != .connected else { return }
+                try? await Task.sleep(for: .seconds(2))
+                showsConnectionPill = !Task.isCancelled
+            }
+            .navigationTitle("Crew")
+            .navigationSplitViewColumnWidth(min: 240, ideal: Snapshot.requested == .sidebarCompact ? 240 : 320, max: 400)
+            #if os(iOS)
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) { newChatButton }
+                ToolbarItem(placement: .primaryAction) {
+                    Menu("Account", systemImage: "person.crop.circle") {
+                        Section(connection.session?.server.host() ?? "") {
+                            Button("Notifications…", systemImage: "bell.badge") { showsNotifications = true }
+                            Button(updates.isChecking ? "Checking for Updates…" : "Check for Updates", systemImage: "arrow.down.circle") {
+                                Task { await updates.checkNow() }
+                            }
+                            .disabled(updates.isChecking)
+                            Text("Crew \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "") (\(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? ""))")
+                            Button("Sign Out", systemImage: "rectangle.portrait.and.arrow.right", role: .destructive) {
+                                Task {
+                                    await push.unregister(on: connection)
+                                    await connection.signOut()
+                                    drafts.reset()
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            #endif
         } detail: {
             NavigationStack {
                 Group {
@@ -170,165 +288,6 @@ struct BotsView: View {
         }
     }
 
-    private var sidebar: some View {
-        Group {
-            if isStrip {
-                sidebarList
-                    .frame(width: stripWidth)
-                    .scrollIndicators(.never)
-            } else {
-                sidebarList
-                    .searchable(text: $query, placement: .sidebar, prompt: "Search")
-            }
-        }
-        .frame(maxWidth: .infinity)
-        #if os(macOS)
-        .onGeometryChange(for: Bool.self) { $0.size.width < stripThreshold } action: { isStrip = $0 }
-        #endif
-        .task(id: [query, "\(connection.state == .connected)", "\(searchAttempt)", "\(store.bots.count)", "\(isStrip)"]) {
-            guard !isStrip else { return }
-            await search.run(query, in: store.bots, on: connection.state == .connected ? connection.session?.server : nil, with: connection.urlSession)
-        }
-        .task(id: connection.state == .connected) {
-            showsConnectionPill = false
-            guard connection.state != .connected else { return }
-            try? await Task.sleep(for: .seconds(2))
-            showsConnectionPill = !Task.isCancelled
-        }
-        .navigationTitle("Crew")
-        #if os(macOS)
-        .navigationSplitViewColumnWidth(min: stripWidth, ideal: 320, max: 400)
-        #else
-        .navigationSplitViewColumnWidth(min: 240, ideal: 320, max: 400)
-        #endif
-    }
-
-    private var sidebarList: some View {
-        List(selection: $selection) {
-            if isStrip {
-                ForEach(store.favourites) { stripTile(for: $0) }
-                ForEach(store.sections) { section in
-                    ForEach(rows(in: section)) { row in
-                        if case .bot(let bot) = row {
-                            stripTile(for: bot)
-                        } else if case .group(let room) = row {
-                            stripTile(for: room)
-                        }
-                    }
-                }
-                if !store.sections.contains(where: { $0.id.isEmpty }) {
-                    ForEach(groups.rooms) { stripTile(for: $0) }
-                }
-            } else if query.isEmpty {
-                if !store.favourites.isEmpty {
-                    favourites
-                }
-                ForEach(store.sections) { section in
-                    Section {
-                        ForEach(rows(in: section)) { row in
-                            if case .bot(let bot) = row {
-                                self.row(for: bot)
-                            } else if case .group(let room) = row {
-                                groupRow(for: room)
-                            }
-                        }
-                    } header: {
-                        if let name = section.name { Text(name) }
-                    }
-                    .listSectionSeparator(.hidden, edges: .top)
-                }
-                if !store.sections.contains(where: { $0.id.isEmpty }) && !groups.rooms.isEmpty {
-                    Section {
-                        ForEach(groups.rooms) { groupRow(for: $0) }
-                    } header: {
-                        if !store.sections.isEmpty { Text("Other") }
-                    }
-                    .listSectionSeparator(.hidden, edges: .top)
-                }
-            } else if !MessageSearch.isSearchable(query) {
-                ForEach((store.favourites + store.sections.flatMap(\.bots)).filter {
-                    $0.title.localizedStandardContains(query) || $0.name.localizedStandardContains(query)
-                        || $0.role?.localizedStandardContains(query) == true
-                        || $0.canonicalSession?.preview?.localizedStandardContains(query) == true
-                }) { bot in
-                    row(for: bot)
-                }
-                ForEach(groups.rooms.filter { $0.name.localizedStandardContains(query) }) { groupRow(for: $0) }
-            } else {
-                if !matchingBots.isEmpty || !matchingRooms.isEmpty {
-                    Section("Conversations") {
-                        ForEach(matchingBots) { row(for: $0) }
-                        ForEach(matchingRooms) { groupRow(for: $0) }
-                    }
-                    .listSectionSeparator(.hidden, edges: .top)
-                }
-                if !search.hits.isEmpty || search.phase != .done || search.failed > 0 {
-                    Section("Messages") { messageResults }
-                        .listSectionSeparator(.hidden, edges: .top)
-                }
-            }
-        }
-        .overlay {
-            if store.isLoaded && store.bots.isEmpty {
-                ContentUnavailableView("No Bots", systemImage: "person.2", description: Text("This server has no profiles yet."))
-            } else if !store.isLoaded && connection.state == .connecting {
-                ProgressView()
-            } else if !isStrip && MessageSearch.isSearchable(query) && search.phase == .done && search.hits.isEmpty && search.failed == 0 && matchingBots.isEmpty && matchingRooms.isEmpty {
-                ContentUnavailableView.search(text: query)
-            }
-        }
-        #if os(iOS)
-        .listStyle(.plain)
-        #else
-        .contextMenu(forSelectionType: String.self) { ids in
-            if ids.count == 1, let bot = ids.first.flatMap({ id in store.bots.first { $0.id == id } }) { menu(for: bot) }
-        } primaryAction: { ids in
-            if ids.count == 1, let id = ids.first, store.bots.contains(where: { $0.id == id }) { openWindow(value: id) }
-        }
-        #endif
-        .safeAreaBar(edge: .bottom) {
-            VStack(spacing: 8) {
-                #if os(iOS)
-                if let version = updates.available, let url = updates.installURL {
-                    Link(destination: url) {
-                        Label("Install Crew \(version)", systemImage: "arrow.down.circle")
-                    }
-                    .buttonStyle(.glassProminent)
-                }
-                #endif
-                if showsConnectionPill && isStrip {
-                    ConnectionBadge()
-                } else if showsConnectionPill {
-                    ConnectionPill()
-                }
-            }
-        }
-        #if os(iOS)
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) { newChatButton }
-            ToolbarItem(placement: .primaryAction) {
-                Menu("Account", systemImage: "person.crop.circle") {
-                    Section(connection.session?.server.host() ?? "") {
-                        Button("Notifications…", systemImage: "bell.badge") { showsNotifications = true }
-                        Button(updates.isChecking ? "Checking for Updates…" : "Check for Updates", systemImage: "arrow.down.circle") {
-                            Task { await updates.checkNow() }
-                        }
-                        .disabled(updates.isChecking)
-                        Text("Crew \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "") (\(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? ""))")
-                        Button("Sign Out", systemImage: "rectangle.portrait.and.arrow.right", role: .destructive) {
-                            Task {
-                                await push.unregister(on: connection)
-                                await connection.signOut()
-                                drafts.reset()
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        #endif
-    }
-
     @ViewBuilder
     private var newChatButton: some View {
         if groups.isSupported {
@@ -416,29 +375,9 @@ struct BotsView: View {
     }
 
     private func groupRow(for room: Room) -> some View {
-        GroupRow(room: room, isOpen: selection == room.selectionID)
+        GroupRow(room: room, isOpen: selection == room.selectionID, isCompact: isCompact)
             .tag(room.selectionID)
             .listRowInsets(EdgeInsets(top: rowPadding, leading: 0, bottom: rowPadding, trailing: 12))
-    }
-
-    private func stripTile(for bot: Bot) -> some View {
-        BotStripTile(bot: bot, photo: store.photos[bot.id], isOpen: selection == bot.id)
-            .tag(bot.id)
-            .listRowInsets(EdgeInsets())
-            .listRowSeparator(.hidden)
-    }
-
-    private func stripTile(for room: Room) -> some View {
-        StripTile(name: room.name) {
-            GroupAvatar(members: room.members.compactMap { member in store.bots.first { $0.name == member.profile } }, size: rowAvatarSize)
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text(verbatim: room.name))
-        .help(room.name)
-        .accessibilityValue(selection != room.selectionID && drafts.preview(for: room.selectionID) != nil ? "Draft" : "")
-        .tag(room.selectionID)
-        .listRowInsets(EdgeInsets())
-        .listRowSeparator(.hidden)
     }
 
     private var favourites: some View {
@@ -465,7 +404,7 @@ struct BotsView: View {
     }
 
     private func row(for bot: Bot) -> some View {
-        BotRow(bot: bot, photo: store.photos[bot.id], isOpen: selection == bot.id)
+        BotRow(bot: bot, photo: store.photos[bot.id], isOpen: selection == bot.id, isCompact: isCompact)
             .tag(bot.id)
             .listRowInsets(EdgeInsets(top: rowPadding, leading: 0, bottom: rowPadding, trailing: 12))
             #if os(iOS)
@@ -614,6 +553,7 @@ private enum ListRow: Identifiable {
 private struct GroupRow: View {
     let room: Room
     let isOpen: Bool
+    let isCompact: Bool
     @Environment(\.displayScale) private var displayScale
     @Environment(BotStore.self) private var store
     @Environment(ChatDrafts.self) private var drafts
@@ -625,26 +565,34 @@ private struct GroupRow: View {
             GroupAvatar(members: room.members.compactMap { member in store.bots.first { $0.name == member.profile } }, size: rowAvatarSize)
                 .padding(.trailing, 12)
             VStack(alignment: .leading, spacing: 0) {
-                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                if isCompact {
                     Text(room.name)
                         .font(.headline)
                         .lineLimit(1)
-                    Spacer(minLength: 4)
-                    Text(room.updatedAt.rowLabel)
+                        .frame(maxWidth: .infinity, minHeight: rowAvatarSize, alignment: .leading)
+                        .accessibilityValue(!isOpen && drafts.preview(for: room.selectionID) != nil ? "Draft" : "")
+                } else {
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Text(room.name)
+                            .font(.headline)
+                            .lineLimit(1)
+                        Spacer(minLength: 4)
+                        Text(room.updatedAt.rowLabel)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                    Group {
+                        if !isOpen, let draft = drafts.preview(for: room.selectionID) {
+                            Text("\(Text("Draft:").foregroundStyle(.red)) \(draft)")
+                        } else {
+                            Text(room.members.map { $0.displayName ?? $0.memberID }.formatted(.list(type: .and)))
+                        }
+                    }
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                        .lineLimit(2, reservesSpace: true)
                 }
-                Group {
-                    if !isOpen, let draft = drafts.preview(for: room.selectionID) {
-                        Text("\(Text("Draft:").foregroundStyle(.red)) \(draft)")
-                    } else {
-                        Text(room.members.map { $0.displayName ?? $0.memberID }.formatted(.list(type: .and)))
-                    }
-                }
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2, reservesSpace: true)
             }
             .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
             #if os(macOS)

@@ -185,7 +185,8 @@ struct BotsView: View {
         #if os(macOS)
         .onGeometryChange(for: Bool.self) { $0.size.width < stripThreshold } action: { isStrip = $0 }
         #endif
-        .task(id: [query, "\(connection.state == .connected)", "\(searchAttempt)", "\(store.bots.count)"]) {
+        .task(id: [query, "\(connection.state == .connected)", "\(searchAttempt)", "\(store.bots.count)", "\(isStrip)"]) {
+            guard !isStrip else { return }
             await search.run(query, in: store.bots, on: connection.state == .connected ? connection.session?.server : nil, with: connection.urlSession)
         }
         .task(id: connection.state == .connected) {
@@ -295,7 +296,9 @@ struct BotsView: View {
                     .buttonStyle(.glassProminent)
                 }
                 #endif
-                if showsConnectionPill {
+                if showsConnectionPill && isStrip {
+                    ConnectionBadge()
+                } else if showsConnectionPill {
                     ConnectionPill()
                 }
             }

@@ -43,7 +43,7 @@ final class ChatTranscriptUITests: XCTestCase {
     }
 
     @MainActor private func assertTheArrowHangsAboveTheComposer(in app: XCUIApplication, _ message: String, file: StaticString = #filePath, line: UInt = #line) {
-        let gap = app.textFields.firstMatch.frame.minY - app.buttons["Jump to Latest"].frame.maxY
+        let gap = app.buttons["Attach"].frame.minY - app.buttons["Jump to Latest"].frame.maxY
         XCTAssertEqual(gap, 12, accuracy: 2, "\(message): the arrow hangs \(Int(gap)) pt above the composer", file: file, line: line)
     }
 

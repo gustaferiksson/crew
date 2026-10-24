@@ -113,7 +113,6 @@ struct Composer: View {
                         .frame(maxWidth: .infinity, minHeight: fieldHeight)
                         .glassEffect(.regular.interactive(), in: .rect(cornerRadius: fieldHeight / 2))
                         .glassEffectID("field", in: glass)
-                        .background(.background.opacity(0.85), in: .rect(cornerRadius: fieldHeight / 2))
                     #if os(macOS)
                     if phase == .running {
                         Button("Stop", systemImage: "stop.fill", action: stop)

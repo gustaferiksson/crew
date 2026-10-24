@@ -248,8 +248,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
             #endif
             .onGeometryChange(for: CGFloat.self, of: \.size.height) { barHeight = $0 }
         }
-        .scrollEdgeEffectStyle(.soft, for: .top)
-        .scrollEdgeEffectHidden(true, for: .bottom)
+        .scrollEdgeEffectStyle(.soft, for: .vertical)
         .toolbar {
             ToolbarItem(placement: .principal) {
                 PersonaPill(botName: botName, avatar: avatar) {

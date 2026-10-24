@@ -90,7 +90,7 @@ Host unit tests (macOS):
 UI tests (iOS), `ChatTranscriptUITests`, on `composer-line` loading the recorded long replies after the chat appears, and on `chat-question`:
 
 - Opens with the latest reply right above the composer; keyboard up; the arrow hangs 12 ± 2 pt above the composer bar with the keyboard up and down; Jump to Latest from far up with the keyboard up; keyboard down. v0.1.29: the jump fails and the arrow stays (#107).
-- Send from far up with the keyboard up: the new reply sits right above the composer (since #153 a non-strict expected failure on iOS, it can land short: #162). v0.1.29: fails intermittently (#123); the rebuild before the edge hand-over sent into a blank transcript.
+- Send from far up with the keyboard up: the new reply sits right above the composer (since #153 a non-strict expected failure on iOS, it can still go blank: #162). v0.1.29: fails intermittently (#123); the rebuild before the edge hand-over sent into a blank transcript.
 - A reply from another client while scrolled up: the row being read moves by under 1 pt, an expanded "Worked for" header stays put, and the arrow then lands on the reply.
 - A reply after scrolling back down by hand ends right above the composer (4 of 4 runs).
 - A question card in the bar (`chat-question`): the running turn stays above the card and no arrow shows. v0.1.29: fails.

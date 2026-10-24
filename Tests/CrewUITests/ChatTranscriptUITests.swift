@@ -88,7 +88,7 @@ final class ChatTranscriptUITests: XCTestCase {
         app.buttons["Send"].tap()
         let options = XCTExpectedFailure.Options()
         options.isStrict = false
-        XCTExpectFailure("A send from far up can land short of the LazyVStack's estimated end on iOS 27 (#162)", options: options) {
+        XCTExpectFailure("A send from far up can still leave the transcript blank on iOS 27, LazyVStack estimates (#162)", options: options) {
             assertRightAboveTheComposer(NSPredicate(format: "label == %@", "On it."), in: app, "sent")
         }
     }

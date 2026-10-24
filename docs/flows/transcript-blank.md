@@ -12,10 +12,10 @@ None of the end holds cause it: with no programmatic scroll at all (sentinel, ho
 
 - iOS only: the bottom anchor keeps its `.initialOffset` and `.alignment` roles and drops `.sizeChanges`. Following the end while the reader is there is already done by the existing end holds (send, transcript change at the end, rest after a scroll), which resolve against the drawn rows.
 - macOS keeps `.defaultScrollAnchor(.bottom)`: the AppKit host does not re-estimate like this (300 or 70 tall rows keep a stable height), and without the size-change role a growing last row hung the host and a window resize left the transcript 647 pt from the end (`ComposerResizeTests`).
-- Growth at the end on iOS now relies on those holds, not the anchor: a streaming reply and a reply from another client (transcript-change hold; the send, bounced-return and manual-return tests), a send (send hold; send tests and `ChatSendScrollUITests`), cards and the offline line in the bar and late-measured rows (end-moved hold; `testACardInTheBarKeepsTheLatestReplyAboveIt`), the keyboard going down (`testALongChatOpensAtTheEndAndJumpToLatestBringsItBack`, "keyboard down after the jump"), a work log expanded at the end (transcript-change hold, no test of its own). Rotation, iPad multitasking resizes and Dynamic Type changes take the end-moved hold and have no test.
+- Growth at the end on iOS now relies on those holds, not the anchor: a streaming reply and a reply from another client (transcript-change hold; the send, bounced-return and manual-return tests), a send (send hold; send tests and `ChatSendScrollUITests`), cards and the offline line in the bar and late-measured rows (end-moved hold; `testACardInTheBarKeepsTheLatestReplyAboveIt`), the keyboard going down (a growing container, excluded from the end-moved hold; covered by "keyboard down after the jump" in `testALongChatOpensAtTheEndAndJumpToLatestBringsItBack`, which passed in the full suite run on this change), a work log expanded at the end (it changes `expandedTurns`, not the transcript, so only the end-moved hold can catch it, and only while no turn id is held; no test). Rotation, iPad multitasking resizes and Dynamic Type changes take the end-moved hold and have no test.
 - Jump to Latest from far up and the cold open are unchanged and stay covered by the existing UI tests.
 - Docs: PLAN.md gets a Decisions line for the iOS anchor roles; `docs/flows/chat-transcript.md` notes the split where it claimed one anchor covers every role, and its #153 known issue points here.
-- Nothing visible changes except the far-up send below: same arrow, same locked offsets, same composer.
+- Nothing visible changes apart from the far-up send below: same arrow, same locked offsets, same composer.
 
 ## Surfaces and directions
 
@@ -33,7 +33,7 @@ None of the end holds cause it: with no programmatic scroll at all (sentinel, ho
 
 ## Known limitation, not fixed here
 
-A send from far up (`ChatTranscriptUITests.testASendFromFarUpLandsRightAboveTheComposer`) can land short on iOS, because the end sentinel's position is the lazy stack's estimate. This is the same SwiftUI estimate behaviour; per the user's direction it is not worked around in the app (a blank screen after a send was the worse failure). Tracked in #162; the test is wrapped in a non-strict `XCTExpectFailure` naming #162, so `ui.yml` on main stays green whether it lands or not (it failed 1 of 5 runs after the change, and also on main's `ui.yml` run 40087202502 before it, so it is not new).
+A send from far up (`ChatTranscriptUITests.testASendFromFarUpLandsRightAboveTheComposer`) can still leave the transcript blank on iOS: 1 of 5 runs after the change, and main's `ui.yml` run 40087202502 failed the same way ("sent: not on screen", a blank screen) before it. The send holds the end sentinel, whose position comes from the same lazy stack estimate. Per the user's direction this SwiftUI behaviour is not worked around in the app. Tracked in #162; the test is wrapped in a non-strict `XCTExpectFailure` naming #162 so `ui.yml` on main stays green, which means that one test no longer catches a blank after a far-up send.
 
 ## Tests
 

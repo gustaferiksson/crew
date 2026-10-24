@@ -193,6 +193,7 @@ Gotcha: on macOS the data-protection keychain needs a **team-signed** app (an ap
 - `ScrollView { LazyVStack { ForEach } .scrollTargetLayout() }` + **`.defaultScrollAnchor(.bottom)`**. With no role, it applies to initial offset, size changes and alignment: it opens at the newest message, short conversations sit at the bottom, and a streaming reply growing at the bottom keeps the view pinned while the user is at the bottom. Use `.defaultScrollAnchor(.bottom, for: .sizeChanges)` to apply it to one role only.
 - `@State var position = ScrollPosition(idType: Message.ID.self)` + `.scrollPosition($position)`; jump with `position.scrollTo(edge: .bottom)` or `scrollTo(id:anchor:)`.
 - "Am I at the bottom" comes from `onScrollGeometryChange(for: Bool.self) { $0.visibleRect.maxY >= $0.contentSize.height - 40 } action: { isAtBottom = $1 }`. Drive the jump button's visibility from that.
+- Crew measured where this pattern breaks on iOS 27 and what `TranscriptScroll` does instead (edge state left behind overshoots by a keyboard height; hold a zero-height end sentinel by id): `docs/flows/chat-transcript.md`.
 - Don't use a flipped/inverted ScrollView (`rotationEffect(.degrees(180))`). That was the pre-iOS-17 hack and it breaks context menus, accessibility order and text selection.
 - `.scrollDismissesKeyboard(.interactively)` on iOS.
 

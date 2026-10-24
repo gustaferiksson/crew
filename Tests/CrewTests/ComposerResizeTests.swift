@@ -6,35 +6,29 @@ nonisolated enum ResizedWindow: CaseIterable, Sendable {
     case main, chat
 }
 
+@MainActor @Observable private final class ResizeProbe {
+    var distance: CGFloat = 0
+}
+
 private struct ChatColumn: View {
     @State var draft: String
-    @State private var isAtBottom = true
+    let probe: ResizeProbe
+    @State private var position = ScrollPosition()
     @FocusState private var isFocused: Bool
 
     var body: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                VStack(spacing: 0) {
-                    LazyVStack(alignment: .leading, spacing: 28) {
-                        ForEach(0..<40) { index in
-                            Text(String(repeating: "Reply \(index) wraps when the column gets narrower. ", count: 3))
-                        }
-                    }
-                    .padding(16)
-                    Color.clear
-                        .frame(height: 0)
-                        .id("bottom")
+        TranscriptScroll(position: $position, revision: 0, barHeight: 0) {
+            LazyVStack(alignment: .leading, spacing: 28) {
+                ForEach(0..<40) { index in
+                    Text(String(repeating: "Reply \(index) wraps when the column gets narrower. ", count: 3))
                 }
             }
-            .defaultScrollAnchor(.bottom)
-            .onScrollGeometryChange(for: [CGFloat].self) { [$0.contentSize.height - $0.visibleRect.maxY + $0.contentInsets.bottom, $0.contentInsets.bottom] } action: { old, new in
-                isAtBottom = new[0] < 40
-                if new[1] > old[1], old[0] < 40 { proxy.scrollTo("bottom", anchor: .bottom) }
-            }
-            .safeAreaBar(edge: .bottom) {
-                Composer(botName: "Hermes", phase: .idle, draft: $draft, isFocused: $isFocused, tray: AttachmentTray(), mentionable: [], completePath: { _ in [] }, transcribe: { _ in "" }, send: { _ in }, stop: {})
-                    .modifier(JumpToLatest(isAtBottom: isAtBottom) {})
-            }
+            .scrollTargetLayout()
+            .padding(16)
+        }
+        .onScrollGeometryChange(for: CGFloat.self) { $0.contentSize.height - $0.visibleRect.maxY + $0.contentInsets.bottom } action: { probe.distance = $1 }
+        .safeAreaBar(edge: .bottom) {
+            Composer(botName: "Hermes", phase: .idle, draft: $draft, isFocused: $isFocused, tray: AttachmentTray(), mentionable: [], completePath: { _ in [] }, transcribe: { _ in "" }, send: { _ in }, stop: {})
         }
     }
 }
@@ -42,11 +36,12 @@ private struct ChatColumn: View {
 private struct ResizingWindow: View {
     let window: ResizedWindow
     let draft: String
+    let probe: ResizeProbe
     @State private var selection: Int? = 0
 
     var body: some View {
         if window == .chat {
-            NavigationStack { ChatColumn(draft: draft) }
+            NavigationStack { ChatColumn(draft: draft, probe: probe) }
                 .frame(minWidth: 320)
                 .inspector(isPresented: .constant(false)) {
                     Text("Inspector")
@@ -64,7 +59,7 @@ private struct ResizingWindow: View {
             }
             .navigationSplitViewColumnWidth(min: 240, ideal: 320, max: 400)
         } detail: {
-            NavigationStack { ChatColumn(draft: draft) }
+            NavigationStack { ChatColumn(draft: draft, probe: probe) }
                 .navigationSplitViewColumnWidth(min: 320, ideal: 640)
         }
         .inspector(isPresented: .constant(false)) {
@@ -83,7 +78,8 @@ private struct ResizingWindow: View {
     func theComposerStaysOnTheBottomEdgeWhileTheWindowResizes(in layout: ResizedWindow, draft: String) throws {
         let window = NSWindow(contentRect: NSRect(x: -20000, y: -20000, width: 1000, height: 600), styleMask: [.titled, .resizable, .closable, .miniaturizable, .fullSizeContentView], backing: .buffered, defer: false)
         window.isRestorable = false
-        window.contentViewController = NSHostingController(rootView: ResizingWindow(window: layout, draft: draft))
+        let probe = ResizeProbe()
+        window.contentViewController = NSHostingController(rootView: ResizingWindow(window: layout, draft: draft, probe: probe))
         window.setContentSize(NSSize(width: 1000, height: 600))
         window.orderBack(nil)
         defer { window.orderOut(nil) }
@@ -95,6 +91,7 @@ private struct ResizingWindow: View {
         let shrinking = (1...10).map { NSSize(width: 1000 - $0 * 12, height: 600 - $0 * 9) }
         let growing = (1...10).map { NSSize(width: 880 + $0 * 12, height: 510 + $0 * 9) }
         var drift: [String] = []
+        var arrows: [String] = []
         for size in shrinking + growing {
             window.setContentSize(size)
             content.layoutSubtreeIfNeeded()
@@ -107,7 +104,11 @@ private struct ResizingWindow: View {
                     drift.append("\(Int(size.width))x\(Int(size.height)): y \(Int(frame.minY)) h \(Int(frame.height))")
                 }
             }
+            if probe.distance >= 40 { arrows.append("\(Int(size.width))x\(Int(size.height)): \(Int(probe.distance)) pt") }
         }
+        settle()
+        #expect(arrows.isEmpty, "the transcript left the end, so Jump to Latest showed, after \(arrows.count) resize steps: \(arrows.prefix(5).joined(separator: ", "))")
+        #expect(abs(probe.distance) < 1, "at rest \(Int(probe.distance)) pt from the end")
         #expect(drift.isEmpty, "resting y \(Int(resting.minY)) h \(Int(resting.height)); \(drift.count) samples off, first: \(drift.prefix(5).joined(separator: "; "))")
     }
 }

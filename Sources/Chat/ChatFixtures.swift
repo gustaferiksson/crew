@@ -340,6 +340,7 @@ struct ChatFixtureScreen: View {
 
     private static let requestAfterDraft = UserDefaults.standard.string(forKey: "requestAfterDraft")
     private static let finishTurnAfterDraft = UserDefaults.standard.string(forKey: "finishTurnAfterDraft")
+    private static let replyAfterDraft = UserDefaults.standard.string(forKey: "replyAfterDraft")
 
     private static let hermes = Bot(
         name: "default", displayName: "Hermes", description: nil, model: nil, isDefault: true, hasAvatar: false, canonicalSession: nil,
@@ -408,9 +409,10 @@ struct ChatFixtureScreen: View {
             try? await Task.sleep(for: .milliseconds(500))
             transcript = recorded
         }
-        .onChange(of: draft) {
-            if draft == Self.requestAfterDraft { request = fixture.request }
-            if draft == Self.finishTurnAfterDraft { transcript.apply(.messageComplete(text: "Deployed to staging.", status: .complete, error: nil)) }
+        .onChange(of: draft) { old, new in
+            if new == Self.requestAfterDraft { request = fixture.request }
+            if new == Self.finishTurnAfterDraft { transcript.apply(.messageComplete(text: "Deployed to staging.", status: .complete, error: nil)) }
+            if let trigger = Self.replyAfterDraft, new.components(separatedBy: trigger).count > old.components(separatedBy: trigger).count { replyFromAnotherClient() }
         }
         .sheet(isPresented: $addingShop) {
             AddShopSheet(profile: "default", site: shopOffer ?? "") { _ in }
@@ -449,6 +451,17 @@ struct ChatFixtureScreen: View {
             }
             transcript.apply(.messageComplete(text: "Applied to staging.", status: .complete, error: nil))
             if let next = transcript.dequeue() { transcript.begin(prompt: next.text) }
+        }
+    }
+
+    private func replyFromAnotherClient() {
+        transcript.begin(remote: "Sent from the Mac: what's on for tomorrow?", displayKind: nil, at: .now)
+        Task {
+            for line in 1...8 {
+                try? await Task.sleep(for: .milliseconds(250))
+                transcript.apply(.messageDelta("Line \(line) of the reply from the Mac streams in here. "))
+            }
+            transcript.apply(.messageComplete(text: "", status: .complete, error: nil))
         }
     }
 

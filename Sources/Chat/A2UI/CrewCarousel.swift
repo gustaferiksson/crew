@@ -39,7 +39,14 @@ struct CrewCarousel: View {
 
     @Environment(\.carouselBleed) private var bleed
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.colorScheme) private var colorScheme
+    #if os(iOS)
+    private static let currentDot = Color(.label)
+    private static let otherDot = Color(.tertiaryLabel)
+    #else
+    private static let currentDot = Color(nsColor: .labelColor)
+    private static let otherDot = Color(nsColor: .tertiaryLabelColor)
+    #endif
+
     @State private var width: CGFloat = 0
     @State private var current = 0
     @State private var position = ScrollPosition(idType: Int.self)
@@ -108,7 +115,7 @@ struct CrewCarousel: View {
         HStack(spacing: 9) {
             ForEach(0..<count, id: \.self) { index in
                 Circle()
-                    .fill((colorScheme == .dark ? Color.white : Color.black).opacity(index == current ? 0.85 : 0.25))
+                    .fill(index == current ? Self.currentDot : Self.otherDot)
                     .frame(width: 7, height: 7)
             }
         }

@@ -150,7 +150,7 @@ struct WorkLog: View {
                     Text("Worked for \(Duration.seconds(Int((turn.finishedAt ?? turn.startedAt).timeIntervalSince(turn.startedAt))).formatted(elapsedStyle))")
                 }
                 if !turn.work.isEmpty || turn.agentMessage != nil {
-                    Image(systemName: "chevron.right")
+                    Image(systemName: "chevron.forward")
                         .font(.caption.weight(.semibold))
                         .rotationEffect(.degrees(isExpanded ? 90 : 0))
                 }
@@ -246,6 +246,7 @@ private struct WorkRow: View {
                     summary
                 }
                 .buttonStyle(.plain)
+                .accessibilityValue(isExpanded ? String(localized: "Expanded") : String(localized: "Collapsed"))
                 if isExpanded {
                     details
                         .padding(.leading, 28)
@@ -261,7 +262,7 @@ private struct WorkRow: View {
             Image(systemName: appearance.icon)
                 .foregroundStyle(.secondary)
                 .frame(width: 20)
-            Text("\(Text(appearance.verb).fontWeight(.semibold)) \(Text(subject).foregroundStyle(.secondary))")
+            (subject.isEmpty ? Text(appearance.verb).fontWeight(.semibold) : Text("\(Text(appearance.verb).fontWeight(.semibold)) \(Text(subject).foregroundStyle(.secondary))"))
                 .lineLimit(1)
                 .truncationMode(.tail)
             Spacer(minLength: 8)
@@ -272,7 +273,7 @@ private struct WorkRow: View {
                     .foregroundStyle(.tertiary)
             }
             status
-            Image(systemName: "chevron.right")
+            Image(systemName: "chevron.forward")
                 .font(.caption2.weight(.bold))
                 .foregroundStyle(.tertiary)
                 .rotationEffect(.degrees(isExpanded ? 90 : 0))
@@ -338,6 +339,8 @@ private struct WorkRow: View {
 
     private var subject: String {
         switch item.kind {
+        case .thinking where isExpanded:
+            ""
         case .thinking(let text), .note(let text):
             text.split(whereSeparator: \.isNewline).first.map { $0.replacing("**", with: "").replacing("#", with: "").trimmingCharacters(in: .whitespaces) } ?? ""
         case .tool(let call) where call.name == "browser_vault":

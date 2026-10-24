@@ -57,7 +57,7 @@ struct MentionPeek: View {
                 .padding(.trailing, 20)
                 .padding(16)
                 .overlay(alignment: .trailing) {
-                    Image(systemName: "chevron.right")
+                    Image(systemName: "chevron.forward")
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(.tertiary)
                         .padding(.trailing, 16)

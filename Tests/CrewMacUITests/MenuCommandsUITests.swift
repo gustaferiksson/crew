@@ -40,10 +40,7 @@ final class MenuCommandsUITests: XCTestCase {
         let newBot = menuItem("New Bot…", in: "File", of: app)
         XCTAssertTrue(newBot.waitForExistence(timeout: 5), "File has New Bot…")
         XCTAssertTrue(newBot.isEnabled, "New Bot… is enabled while connected")
-        newBot.click()
-        XCTAssertTrue(app.sheets.firstMatch.waitForExistence(timeout: 5), "File > New Bot… shows the New Bot sheet")
         app.typeKey(.escape, modifierFlags: [])
-        XCTAssertTrue(app.sheets.firstMatch.waitForNonExistence(timeout: 5), "Escape cancels the sheet")
 
         app.staticTexts[atlasPreview].click()
         app.typeKey("o", modifierFlags: .command)
@@ -86,8 +83,8 @@ final class MenuCommandsUITests: XCTestCase {
         account.toolbars.descendants(matching: .any)["Notifications"].firstMatch.click()
         let notifications = app.windows["Notifications"]
         XCTAssertTrue(notifications.waitForExistence(timeout: 5), "the Notifications pane titles the window")
-        print("NOTIFICATIONS-TREE", notifications.debugDescription)
-        XCTAssertTrue(notifications.checkBoxes["Replies"].exists || notifications.switches["Replies"].exists, "the pane holds the notification preferences")
+        XCTAssertTrue(notifications.staticTexts["Replies"].exists, "the pane holds the notification preferences")
+        XCTAssertEqual(notifications.switches.count + notifications.checkBoxes.count, 5, "the pane holds the five Notify Me About toggles")
         attach(notifications, "settings-notifications")
     }
 

@@ -258,11 +258,13 @@ private struct WorkRow: View {
     }
 
     private var summary: some View {
-        HStack(spacing: 8) {
+        let verb = Text(appearance.verb).fontWeight(.semibold)
+        let subject = subject
+        return HStack(spacing: 8) {
             Image(systemName: appearance.icon)
                 .foregroundStyle(.secondary)
                 .frame(width: 20)
-            (subject.isEmpty ? Text(appearance.verb).fontWeight(.semibold) : Text("\(Text(appearance.verb).fontWeight(.semibold)) \(Text(subject).foregroundStyle(.secondary))"))
+            (subject.isEmpty ? verb : Text("\(verb) \(Text(subject).foregroundStyle(.secondary))"))
                 .lineLimit(1)
                 .truncationMode(.tail)
             Spacer(minLength: 8)

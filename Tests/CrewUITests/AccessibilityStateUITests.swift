@@ -18,6 +18,7 @@ final class AccessibilityStateUITests: XCTestCase {
         XCTAssertTrue(closedThought.exists, "a closed Thinking row keeps its preview")
         XCTAssertEqual(closedThought.value as? String, "Collapsed")
         closedThought.tap()
+        XCTAssertTrue(closedThought.waitForNonExistence(timeout: 3), "the opened row drops its preview")
         XCTAssertEqual(openThoughts.count, 2)
     }
 

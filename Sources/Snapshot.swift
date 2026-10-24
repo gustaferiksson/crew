@@ -58,6 +58,9 @@ enum Snapshot: String {
     case botPage = "bot-page"
     case notifications
     case newBot = "new-bot"
+    case settingsAccount = "settings-account"
+    case settingsAccountSignedOut = "settings-account-signed-out"
+    case settingsNotifications = "settings-notifications"
     case groupChat = "group-chat"
     case groupWelcome = "group-welcome"
     case groupInspector = "group-inspector"
@@ -104,6 +107,12 @@ enum Snapshot: String {
         [.chat: .conversation, .chatHistory: .history, .chatSelection: .history, .chatTimestamps: .timestamps, .chatWorkLog: .workLog, .chatQuestion: .question, .chatQuestions: .questions, .chatQuestionsSnacks: .questionsSnacks, .chatQuestionLong: .questionLong, .chatOffline: .offline, .chatAttachments: .attachments, .chatDictation: .dictation, .chatMentions: .mentions, .composerLine: .composerLine, .composerLines: .composerLines, .composerRunning: .composerRunning, .composerRunningText: .composerRunningText, .chatSteer: .steer, .chatSteerTaken: .steerTaken, .chatWaiting: .waiting, .chatMentionPeek: .mentions, .chatMentionChat: .mentions, .chatAgentMessage: .agentMessage, .chatDeliveryFailure: .deliveryFailure, .chatA2UI: .a2ui, .chatA2UICards: .a2uiCards, .chatA2UIForm: .a2uiForm, .chatA2UITable: .a2uiTable, .chatA2UIChart: .a2uiChart, .chatA2UIMap: .a2uiMap, .chatA2UICarousel: .a2uiCarousel, .chatA2UICarouselStates: .a2uiCarouselStates, .chatA2UIProducts: .a2uiProducts, .chatPayment: .payment, .chatPaymentHolding: .paymentHolding, .chatPaymentApproved: .paymentApproved, .chatPaymentLoading: .paymentLoading, .chatPaymentFailed: .paymentFailed, .chatPaymentUnverified: .paymentUnverified, .chatPaymentPunycode: .paymentPunycode, .chatPaymentCountdown: .paymentCountdown, .chatPaymentNotice: .paymentNotice, .chatPaymentOffer: .paymentOffer, .chatPaymentOfferHistory: .paymentOfferHistory, .chatPaymentReceipts: .paymentReceipts][self]
     }
 
+    var isSettings: Bool {
+        [.settingsAccount, .settingsAccountSignedOut, .settingsNotifications].contains(self)
+    }
+
+    static let fixturePush = PushCenter(fixture: .registered(apnsConfigured: true), plugin: PluginStatus(pluginVersion: "0.2.0", installId: "fixture", apnsConfigured: true, http2: true, devices: 2))
+
     var isShops: Bool {
         [.inspectorShops, .inspectorShopsEmpty, .inspectorShopsNoCard, .inspectorShopsSeveral, .addShop, .addShopError, .inspectorShopsUpdateError, .inspectorShopsCodeMismatch].contains(self) || isCardSheet
     }
@@ -132,7 +141,7 @@ enum Snapshot: String {
         if isShops || chatFixture?.isPayment == true {
             return Connection(fixture: .connected, server: self == .addCardHTTP ? URL(string: "http://hermes.local:9119")! : server, crewPush: PluginStatus(pluginVersion: "0.5.0", installId: "fixture", apnsConfigured: true, http2: true, devices: 2, features: ["payments", "card"], gate: true))
         }
-        if [.sidebar, .sidebarFlat, .sidebarCompact, .sidebarDraft, .sidebarSearch, .searchResult, .layout, .layoutInspector, .chatWindow, .chatWindowInspector, .chatWindowMissing, .inspectorLook, .profileSkills, .botPage, .notifications, .newBot, .groupChat, .groupWelcome, .groupInspector].contains(self) || chatFixture != nil || inspectorTab != nil { return Connection(fixture: .connected, server: server) }
+        if [.sidebar, .sidebarFlat, .sidebarCompact, .sidebarDraft, .sidebarSearch, .searchResult, .layout, .layoutInspector, .chatWindow, .chatWindowInspector, .chatWindowMissing, .inspectorLook, .profileSkills, .botPage, .notifications, .newBot, .settingsAccount, .settingsNotifications, .groupChat, .groupWelcome, .groupInspector].contains(self) || chatFixture != nil || inspectorTab != nil { return Connection(fixture: .connected, server: server) }
         if self == .unreachable { return Connection(fixture: .unreachable, server: server) }
         return Connection(fixture: .signedOut, server: server)
     }
@@ -252,7 +261,12 @@ extension Snapshot {
             if height > 0, let window = NSApp.windows.first(where: \.isVisible) { window.setContentSize(NSSize(width: window.contentRect(forFrameRect: window.frame).width, height: height)) }
             return
         }
-        guard let window = NSApp.windows.first(where: \.isVisible) else { exit(1) }
+        if isSettings {
+            try? await Task.sleep(for: .seconds(1))
+            NSApp.windows.first { $0.identifier?.rawValue == "main" }?.orderOut(nil)
+            try? await Task.sleep(for: .seconds(0.5))
+        }
+        guard let window = isSettings ? NSApp.windows.first(where: { $0.isVisible && $0.identifier?.rawValue.contains("Settings") == true }) : NSApp.windows.first(where: \.isVisible) else { exit(1) }
         window.isRestorable = false
         window.setFrameOrigin(NSPoint(x: -4000, y: 0))
         if self == .layoutInspector { window.setContentSize(NSSize(width: 860, height: 640)) }

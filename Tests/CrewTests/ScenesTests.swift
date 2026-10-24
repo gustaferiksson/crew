@@ -31,3 +31,12 @@ import Testing
     scenes.release(vanished)
     #expect(scenes.owner == next)
 }
+
+@MainActor @Test func aNewChatRequestIsTakenOnceSoADroppedOneNeverFiresLater() {
+    let scenes = Scenes()
+    scenes.newChat = .group
+
+    #expect(scenes.takeNewChat() == .group)
+    #expect(scenes.newChat == nil)
+    #expect(scenes.takeNewChat() == nil)
+}

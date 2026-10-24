@@ -15,7 +15,7 @@ struct RootView: View {
                 BotPageFixtureScreen()
             } else if Snapshot.requested == .notifications {
                 NotificationSettings()
-                    .environment(PushCenter(fixture: .registered(apnsConfigured: true), plugin: PluginStatus(pluginVersion: "0.2.0", installId: "fixture", apnsConfigured: true, http2: true, devices: 2)))
+                    .environment(Snapshot.fixturePush)
             } else if Snapshot.requested == .avatars {
                 AvatarGallery()
             } else if Snapshot.requested == .avatarPicker {
@@ -34,6 +34,10 @@ struct RootView: View {
                 #if os(macOS)
                 BotChatWindow(id: snapshot.selectedBot)
                 #endif
+            } else if Snapshot.requested?.isSettings == true {
+                #if os(macOS)
+                SettingsOpener()
+                #endif
             } else if connection.state == .signedOut {
                 LoginView()
             } else {
@@ -42,3 +46,15 @@ struct RootView: View {
         }
     }
 }
+
+#if os(macOS)
+private struct SettingsOpener: View {
+    @Environment(\.openSettings) private var openSettings
+
+    var body: some View {
+        Color.clear
+            .frame(width: 200, height: 100)
+            .onAppear { openSettings() }
+    }
+}
+#endif

@@ -15,14 +15,13 @@ struct BotsView: View {
     @Environment(ChatDrafts.self) private var drafts
     @Environment(Scenes.self) private var scenes
     #if os(macOS)
-    @Environment(AppUpdater.self) private var updater
     @Environment(\.openWindow) private var openWindow
     @Environment(\.appearsActive) private var appearsActive
     #else
     @Environment(UpdateCheck.self) private var updates
+    @State private var showsNotifications = false
     #endif
     @State private var selection = Snapshot.requested?.selectedBot
-    @State private var showsNotifications = false
     @State private var query = Snapshot.requested?.searchQuery ?? ""
     @State private var search = MessageSearch(fixture: Snapshot.requested?.searchHits)
     @State private var searchAttempt = 0
@@ -43,6 +42,9 @@ struct BotsView: View {
     var body: some View {
         let selected = store.bots.first { $0.id == selection }
         let selectedRoom = groups.rooms.first { $0.selectionID == selection }
+        #if os(macOS)
+        let inspector: Binding<Bool>? = selected == nil && selectedRoom == nil ? nil : $showsBot
+        #endif
         NavigationSplitView {
             List(selection: $selection) {
                 if query.isEmpty {
@@ -140,22 +142,17 @@ struct BotsView: View {
             }
             .navigationTitle("Crew")
             .navigationSplitViewColumnWidth(min: 240, ideal: Snapshot.requested == .sidebarCompact ? 240 : 320, max: 400)
+            #if os(iOS)
             .toolbar {
-                #if os(iOS)
                 ToolbarItem(placement: .primaryAction) { newChatButton }
-                #endif
                 ToolbarItem(placement: .primaryAction) {
                     Menu("Account", systemImage: "person.crop.circle") {
                         Section(connection.session?.server.host() ?? "") {
                             Button("Notifications…", systemImage: "bell.badge") { showsNotifications = true }
-                            #if os(macOS)
-                            UpdateMenuItems(updater: updater)
-                            #else
                             Button(updates.isChecking ? "Checking for Updates…" : "Check for Updates", systemImage: "arrow.down.circle") {
                                 Task { await updates.checkNow() }
                             }
                             .disabled(updates.isChecking)
-                            #endif
                             Text("Crew \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "") (\(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? ""))")
                             Button("Sign Out", systemImage: "rectangle.portrait.and.arrow.right", role: .destructive) {
                                 Task {
@@ -168,6 +165,7 @@ struct BotsView: View {
                     }
                 }
             }
+            #endif
         } detail: {
             NavigationStack {
                 Group {
@@ -254,6 +252,8 @@ struct BotsView: View {
             if appearsActive { push.show(selection) }
         }
         .focusedSceneValue(\.selectedBot, selected?.id)
+        .focusedSceneValue(\.inspector, inspector)
+        .onChange(of: scenes.newChat, initial: true, presentNewChat)
         #endif
         .sheet(item: $reading) { hit in
             if let bot = store.bots.first(where: { $0.id == hit.bot }) {
@@ -273,9 +273,11 @@ struct BotsView: View {
             selection = route.profile
             if route.kind == "payment", let requestID = route.requestID { chats.expectPayment(requestID, for: route.profile) }
         }
+        #if os(iOS)
         .sheet(isPresented: $showsNotifications) {
             NotificationSettings()
         }
+        #endif
         .task(id: [selected?.id, selected?.model, connection.gateway.map { "\(ObjectIdentifier($0))" }]) {
             if modelsBot != selected?.id {
                 models = ModelSwitcher()
@@ -299,6 +301,13 @@ struct BotsView: View {
                 .disabled(connection.state != .connected)
         }
     }
+
+    #if os(macOS)
+    private func presentNewChat() {
+        guard let kind = scenes.takeNewChat(), !isCreating, !isCreatingGroup, reading == nil, deleting == nil, filing == nil, failure == nil else { return }
+        if kind == .bot { isCreating = true } else { isCreatingGroup = true }
+    }
+    #endif
 
     private var matchingBots: [Bot] {
         let name = query.trimmingCharacters(in: .whitespacesAndNewlines)

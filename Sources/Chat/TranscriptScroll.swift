@@ -50,9 +50,6 @@ struct TranscriptScroll<Revision: Equatable, Content: View>: View {
             phase = new
             if old.isScrolling, old != .animating, new == .idle, isAtBottom { position.scrollTo(id: transcriptEnd) }
         }
-        .onChange(of: position.edge) {
-            if position.edge == .bottom, isAtBottom { position.scrollTo(id: transcriptEnd) }
-        }
         .onChange(of: revision) {
             if isAtBottom, phase == .idle { position.scrollTo(id: transcriptEnd) }
         }

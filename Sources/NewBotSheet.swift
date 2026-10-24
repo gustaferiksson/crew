@@ -76,9 +76,10 @@ struct NewBotSheet: View {
                 Section {
                     VStack(spacing: 8) {
                         BotAvatar(bot: preview, status: .idle, photo: nil, size: 96)
-                        Text(resolvedTitle ?? (slug.isEmpty ? String(localized: "New Bot") : slug))
+                        Text(verbatim: resolvedTitle ?? (slug.isEmpty ? " " : slug))
                             .font(.title2.bold())
                             .multilineTextAlignment(.center)
+                            .accessibilityHidden(resolvedTitle == nil && slug.isEmpty)
                         if let role = preview.role {
                             Text(role)
                                 .foregroundStyle(.secondary)

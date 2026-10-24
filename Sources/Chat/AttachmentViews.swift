@@ -221,15 +221,19 @@ struct PendingAttachments: View {
                         }
                     }
                     .overlay(alignment: .topTrailing) {
-                        Button("Remove \(attachment.name)", systemImage: "xmark.circle.fill") {
+                        Button {
                             withAnimation(.smooth) { tray.remove(attachment.id) }
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.title3)
+                                .symbolRenderingMode(.palette)
+                                .foregroundStyle(.white, .black.opacity(0.6))
+                                .padding(4)
+                                .frame(width: 44, height: 44, alignment: .topTrailing)
+                                .contentShape(.rect)
                         }
-                        .labelStyle(.iconOnly)
                         .buttonStyle(.plain)
-                        .font(.title3)
-                        .symbolRenderingMode(.palette)
-                        .foregroundStyle(.white, .black.opacity(0.6))
-                        .padding(4)
+                        .accessibilityLabel("Remove \(attachment.name)")
                     }
                     .transition(.scale.combined(with: .opacity))
                 }

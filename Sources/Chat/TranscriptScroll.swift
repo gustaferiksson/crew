@@ -32,7 +32,13 @@ struct TranscriptScroll<Revision: Equatable, Content: View>: View {
                     .id(transcriptEnd)
             }
         }
+        #if os(iOS)
+        // iOS 27 applies the size-change anchor to LazyVStack height estimates and parks the viewport past the drawn rows (#153).
+        .defaultScrollAnchor(.bottom, for: .initialOffset)
+        .defaultScrollAnchor(.bottom, for: .alignment)
+        #else
         .defaultScrollAnchor(.bottom)
+        #endif
         .scrollPosition($position)
         .onScrollGeometryChange(for: BottomEdge.self) { BottomEdge(distance: $0.contentSize.height - $0.visibleRect.maxY + $0.contentInsets.bottom, height: $0.containerSize.height, inset: $0.contentInsets.bottom) } action: { old, new in
             isAtBottom = new.distance < 40
@@ -43,6 +49,9 @@ struct TranscriptScroll<Revision: Equatable, Content: View>: View {
         .onScrollPhaseChange { old, new in
             phase = new
             if old.isScrolling, old != .animating, new == .idle, isAtBottom { position.scrollTo(id: transcriptEnd) }
+        }
+        .onChange(of: position.edge) {
+            if position.edge == .bottom, isAtBottom { position.scrollTo(id: transcriptEnd) }
         }
         .onChange(of: revision) {
             if isAtBottom, phase == .idle { position.scrollTo(id: transcriptEnd) }

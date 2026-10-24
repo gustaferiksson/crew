@@ -67,7 +67,7 @@ private let rows = (0..<300).map { String(repeating: "Row \($0) has a few words 
 
 @MainActor struct TranscriptScrollTests {
     private func host(_ model: ScrollModel) -> NSWindow {
-        let window = NSWindow(contentRect: NSRect(x: -20000, y: -20000, width: 600, height: 700), styleMask: [.titled, .resizable], backing: .buffered, defer: false)
+        let window = NSWindow(contentRect: NSRect(x: -20000, y: -20000, width: 600, height: 700), styleMask: [.borderless], backing: .buffered, defer: false)
         window.isRestorable = false
         window.contentViewController = NSHostingController(rootView: Column(model: model))
         window.setContentSize(NSSize(width: 600, height: 700))

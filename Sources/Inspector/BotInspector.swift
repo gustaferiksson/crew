@@ -56,19 +56,11 @@ struct BotInspector: View {
     var body: some View {
         Form {
             Section {
-                Picker("View", selection: $tab.animation(.snappy)) {
-                    Text("Info").tag(InspectorTab.info)
-                    Text("Tasks").tag(InspectorTab.tasks)
-                    Text("Routines").tag(InspectorTab.routines)
-                    Text("Passwords").tag(InspectorTab.passwords)
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                #if os(macOS)
-                .controlSize(.small)
+                #if os(iOS)
+                tabPicker
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets())
                 #endif
-                .listRowBackground(Color.clear)
-                .listRowInsets(EdgeInsets())
             } header: {
                 header
             }
@@ -83,11 +75,10 @@ struct BotInspector: View {
             }
         }
         .formStyle(.grouped)
-        .frame(minWidth: 0, maxWidth: .infinity)
-        .defaultScrollAnchor(Snapshot.scrollsToBottom ? .bottom : nil)
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #else
+        .frame(minWidth: 0, maxWidth: .infinity)
         .contentMargins(.bottom, 24, for: .scrollIndicators)
         .toolbar {
             if isPresented {
@@ -161,6 +152,23 @@ struct BotInspector: View {
         }
     }
 
+    private var tabPicker: some View {
+        Picker("View", selection: $tab.animation(.snappy)) {
+            ForEach([(InspectorTab.info, LocalizedStringKey("Info"), "info.circle"), (.tasks, "Tasks", "checklist"), (.routines, "Routines", "calendar.badge.clock"), (.passwords, "Passwords", "key")], id: \.0) { item, title, systemImage in
+                #if os(macOS)
+                Label(title, systemImage: systemImage)
+                    .labelStyle(.iconOnly)
+                    .help(Text(title))
+                    .tag(item)
+                #else
+                Text(title).tag(item)
+                #endif
+            }
+        }
+        .pickerStyle(.segmented)
+        .labelsHidden()
+    }
+
     private var header: some View {
         VStack(spacing: 12) {
             avatar
@@ -189,6 +197,10 @@ struct BotInspector: View {
                 tab = .routines
                 isCreatingRoutine = true
             }
+            #if os(macOS)
+            tabPicker
+                .padding(.top, 4)
+            #endif
         }
         .font(.body)
         .foregroundStyle(.primary)
@@ -343,8 +355,13 @@ struct BotInspector: View {
                         Text("\(items.filter(\.enabled).count)/\(items.count)")
                             .monospacedDigit()
                     } label: {
-                        Label(kind.title, systemImage: kind.systemImage)
-                            .foregroundStyle(.primary)
+                        Label {
+                            Text(kind.title)
+                        } icon: {
+                            Image(systemName: kind.systemImage)
+                                .frame(width: 24)
+                        }
+                        .foregroundStyle(.primary)
                     }
                     .contentShape(.rect)
                 }

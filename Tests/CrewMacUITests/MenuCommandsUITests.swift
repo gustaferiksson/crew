@@ -42,13 +42,14 @@ final class MenuCommandsUITests: XCTestCase {
         XCTAssertTrue(newBot.isEnabled, "New Bot… is enabled while connected")
         newBot.click()
         XCTAssertTrue(app.sheets.firstMatch.waitForExistence(timeout: 5), "File > New Bot… shows the New Bot sheet")
-        app.sheets.firstMatch.buttons["Cancel"].click()
-        XCTAssertFalse(app.sheets.firstMatch.waitForExistence(timeout: 2))
+        app.typeKey(.escape, modifierFlags: [])
+        XCTAssertTrue(app.sheets.firstMatch.waitForNonExistence(timeout: 5), "Escape cancels the sheet")
 
-        app.staticTexts[atlasPreview].doubleClick()
-        let deadline = Date.now.addingTimeInterval(10)
-        while app.windows.count != 2, Date.now < deadline { RunLoop.current.run(until: .now + 0.2) }
-        XCTAssertEqual(app.windows.count, 2, "a double-click opens the bot's chat window")
+        app.staticTexts[atlasPreview].click()
+        app.typeKey("o", modifierFlags: .command)
+        let opened = Date.now.addingTimeInterval(10)
+        while app.windows.count != 2, Date.now < opened { RunLoop.current.run(until: .now + 0.2) }
+        XCTAssertEqual(app.windows.count, 2, "File > Open in New Window opens the bot's chat window")
         app.typeKey("n", modifierFlags: .command)
         guard let main = app.windows.allElementsBoundByIndex.first(where: { $0.staticTexts[atlasPreview].exists }) else { return XCTFail("no main window") }
         XCTAssertTrue(main.sheets.firstMatch.waitForExistence(timeout: 5), "Command-N from a chat window shows the sheet in the main window")
@@ -85,16 +86,18 @@ final class MenuCommandsUITests: XCTestCase {
         account.toolbars.descendants(matching: .any)["Notifications"].firstMatch.click()
         let notifications = app.windows["Notifications"]
         XCTAssertTrue(notifications.waitForExistence(timeout: 5), "the Notifications pane titles the window")
+        print("NOTIFICATIONS-TREE", notifications.debugDescription)
         XCTAssertTrue(notifications.checkBoxes["Replies"].exists || notifications.switches["Replies"].exists, "the pane holds the notification preferences")
         attach(notifications, "settings-notifications")
     }
 
     @MainActor func testSignOutFromSettingsClosesChatWindowsAndShowsSignIn() {
         let app = launch()
-        app.staticTexts[atlasPreview].doubleClick()
+        app.staticTexts[atlasPreview].click()
+        app.typeKey("o", modifierFlags: .command)
         let opened = Date.now.addingTimeInterval(10)
         while app.windows.count != 2, Date.now < opened { RunLoop.current.run(until: .now + 0.2) }
-        XCTAssertEqual(app.windows.count, 2, "a double-click opens the bot's chat window")
+        XCTAssertEqual(app.windows.count, 2, "File > Open in New Window opens the bot's chat window")
 
         app.typeKey(",", modifierFlags: .command)
         guard let settings = settingsWindow(in: app) else { return XCTFail("Command-Comma opens Settings") }
@@ -102,7 +105,7 @@ final class MenuCommandsUITests: XCTestCase {
         let account = app.windows["Account"]
         XCTAssertTrue(account.waitForExistence(timeout: 5))
         account.buttons["Sign Out…"].click()
-        let confirm = app.buttons["Sign Out"]
+        let confirm = account.sheets.firstMatch.buttons["Sign Out"]
         XCTAssertTrue(confirm.waitForExistence(timeout: 5), "Sign Out asks first")
         confirm.click()
 

@@ -17,7 +17,7 @@ private struct ChatColumn: View {
     @FocusState private var isFocused: Bool
 
     var body: some View {
-        TranscriptScroll(position: $position, revision: 0) {
+        TranscriptScroll(position: $position, revision: 0, barHeight: 0) {
             LazyVStack(alignment: .leading, spacing: 28) {
                 ForEach(0..<40) { index in
                     Text(String(repeating: "Reply \(index) wraps when the column gets narrower. ", count: 3))

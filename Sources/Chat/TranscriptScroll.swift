@@ -5,12 +5,14 @@ let transcriptEnd = "transcript-end"
 private struct BottomEdge: Equatable {
     let distance: CGFloat
     let height: CGFloat
+    // The bar's inset can change without the distance changing, and the action must still run.
     let inset: CGFloat
 }
 
 struct TranscriptScroll<Revision: Equatable, Content: View>: View {
     @Binding var position: ScrollPosition
     let revision: Revision
+    let barHeight: CGFloat
     @ViewBuilder let content: Content
 
     @State private var isAtBottom = true
@@ -40,7 +42,7 @@ struct TranscriptScroll<Revision: Equatable, Content: View>: View {
         }
         .onScrollPhaseChange { old, new in
             phase = new
-            if old == .decelerating || old == .tracking, new == .idle, isAtBottom { position.scrollTo(id: transcriptEnd) }
+            if old.isScrolling, old != .animating, new == .idle, isAtBottom { position.scrollTo(id: transcriptEnd) }
         }
         .onChange(of: revision) {
             if isAtBottom, phase == .idle { position.scrollTo(id: transcriptEnd) }
@@ -58,10 +60,11 @@ struct TranscriptScroll<Revision: Equatable, Content: View>: View {
                     .controlSize(.large)
                     #endif
                     .transition(.scale.combined(with: .opacity))
-                    .padding(.bottom, 12)
                 }
             }
             .animation(.smooth, value: isAtBottom)
+            .padding(.bottom, barHeight + 12)
+            .ignoresSafeArea(.container, edges: .bottom)
             #if os(macOS)
             .padding(.trailing, NSScroller.preferredScrollerStyle == .legacy ? NSScroller.scrollerWidth(for: .regular, scrollerStyle: .legacy) : 0)
             #endif

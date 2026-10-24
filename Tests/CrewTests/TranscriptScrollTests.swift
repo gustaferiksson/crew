@@ -16,7 +16,7 @@ private struct Column: View {
     @Bindable var model: ScrollModel
 
     var body: some View {
-        TranscriptScroll(position: $model.position, revision: model.rows) {
+        TranscriptScroll(position: $model.position, revision: model.rows, barHeight: model.barHeight) {
             LazyVStack(alignment: .leading, spacing: 28) {
                 ForEach(Array(model.rows.enumerated()), id: \.offset) { index, text in
                     Text(text)
@@ -131,7 +131,7 @@ private let rows = (0..<300).map { String(repeating: "Row \($0) has a few words 
         #expect(abs(model.watchedFrame.minY - header) < 1, "expansion moved its header by \(model.watchedFrame.minY - header)")
     }
 
-    @Test func theAnimatedEdgeJumpLandsAtTheEndAndHandsOver() throws {
+    @Test func theEdgeJumpLandsAtTheEndAndHandsOver() throws {
         let model = ScrollModel()
         let window = host(model)
         defer { window.orderOut(nil) }
@@ -141,7 +141,7 @@ private let rows = (0..<300).map { String(repeating: "Row \($0) has a few words 
         let scroll = try #require(scrollView(in: content))
         userScroll(scroll, by: 20_000)
         #expect(model.distance > 19_000)
-        withAnimation(.smooth) { model.position.scrollTo(edge: .bottom) }
+        model.position.scrollTo(edge: .bottom)
         for _ in 0..<20 where abs(model.distance) >= 1 || model.position.edge != nil { settle(0.25) }
         #expect(model.position.edge == nil && model.position.viewID(type: String.self) == transcriptEnd, "the edge jump did not hand over to the end")
         #expect(abs(model.distance) < 1, "after the jump \(model.distance)")

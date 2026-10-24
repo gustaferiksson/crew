@@ -62,6 +62,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
     let tray: AttachmentTray
     @State private var position = ScrollPosition(idType: Turn.ID.self)
     @State private var barRoom = CGFloat.infinity
+    @State private var barHeight: CGFloat = 0
     @State private var expandedTurns: Set<Turn.ID>
     @State private var expandedWork: Set<WorkItem.ID>
     @State private var expandedRuns: Set<String> = []
@@ -108,7 +109,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
     }
 
     var body: some View {
-        TranscriptScroll(position: $position, revision: transcript) {
+        TranscriptScroll(position: $position, revision: transcript, barHeight: barHeight) {
             LazyVStack(alignment: .leading, spacing: 28) {
                 ForEach(Array(transcript.turns.enumerated()), id: \.element.id) { index, turn in
                     VStack(alignment: .leading, spacing: 12) {
@@ -245,6 +246,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
             #if os(macOS)
             .padding(.trailing, NSScroller.preferredScrollerStyle == .legacy ? NSScroller.scrollerWidth(for: .regular, scrollerStyle: .legacy) : 0)
             #endif
+            .onGeometryChange(for: CGFloat.self, of: \.size.height) { barHeight = $0 }
         }
         .scrollEdgeEffectStyle(.soft, for: .top)
         .scrollEdgeEffectHidden(true, for: .bottom)

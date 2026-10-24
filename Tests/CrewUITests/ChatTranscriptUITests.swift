@@ -42,6 +42,11 @@ final class ChatTranscriptUITests: XCTestCase {
         XCTAssertFalse(app.buttons["Jump to Latest"].exists, "\(message): Jump to Latest still shows", file: file, line: line)
     }
 
+    @MainActor private func assertTheArrowHangsAboveTheComposer(in app: XCUIApplication, _ message: String, file: StaticString = #filePath, line: UInt = #line) {
+        let gap = app.textFields.firstMatch.frame.minY - app.buttons["Jump to Latest"].frame.maxY
+        XCTAssertEqual(gap, 12, accuracy: 2, "\(message): the arrow hangs \(Int(gap)) pt above the composer", file: file, line: line)
+    }
+
     @MainActor private func scrollUp(_ app: XCUIApplication) {
         for _ in 0..<8 where lowest(lastBlock, in: app) != nil || lowest(streamedReply, in: app) != nil {
             app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.2)).press(forDuration: 0.02, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.55)), withVelocity: .fast, thenHoldForDuration: 0)
@@ -66,13 +71,14 @@ final class ChatTranscriptUITests: XCTestCase {
         assertRightAboveTheComposer(lastBlock, in: app, "opened")
         focusComposer(app)
         assertRightAboveTheComposer(lastBlock, in: app, "keyboard up")
-        for round in 1...1 {
-            scrollUp(app)
-            app.buttons["Jump to Latest"].tap()
-            assertRightAboveTheComposer(lastBlock, in: app, "jump \(round)")
-        }
+        scrollUp(app)
+        assertTheArrowHangsAboveTheComposer(in: app, "keyboard up")
+        app.buttons["Jump to Latest"].tap()
+        assertRightAboveTheComposer(lastBlock, in: app, "jumped")
         lowerKeyboard(app)
-        assertRightAboveTheComposer(lastBlock, in: app, "keyboard down after the jumps")
+        assertRightAboveTheComposer(lastBlock, in: app, "keyboard down after the jump")
+        scrollUp(app)
+        assertTheArrowHangsAboveTheComposer(in: app, "keyboard down")
     }
 
     @MainActor func testASendFromFarUpLandsRightAboveTheComposer() {

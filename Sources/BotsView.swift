@@ -170,14 +170,35 @@ struct BotsView: View {
         }
     }
 
-    @ViewBuilder
     private var sidebar: some View {
-        if isStrip {
-            sidebarList
-        } else {
-            sidebarList
-                .searchable(text: $query, placement: .sidebar, prompt: "Search")
+        Group {
+            if isStrip {
+                sidebarList
+                    .frame(width: stripWidth)
+            } else {
+                sidebarList
+                    .searchable(text: $query, placement: .sidebar, prompt: "Search")
+            }
         }
+        .frame(maxWidth: .infinity)
+        #if os(macOS)
+        .onGeometryChange(for: Bool.self) { $0.size.width < stripThreshold } action: { isStrip = $0 }
+        #endif
+        .task(id: [query, "\(connection.state == .connected)", "\(searchAttempt)", "\(store.bots.count)"]) {
+            await search.run(query, in: store.bots, on: connection.state == .connected ? connection.session?.server : nil, with: connection.urlSession)
+        }
+        .task(id: connection.state == .connected) {
+            showsConnectionPill = false
+            guard connection.state != .connected else { return }
+            try? await Task.sleep(for: .seconds(2))
+            showsConnectionPill = !Task.isCancelled
+        }
+        .navigationTitle("Crew")
+        #if os(macOS)
+        .navigationSplitViewColumnWidth(min: stripWidth, ideal: 320, max: 400)
+        #else
+        .navigationSplitViewColumnWidth(min: 240, ideal: 320, max: 400)
+        #endif
     }
 
     private var sidebarList: some View {
@@ -250,15 +271,9 @@ struct BotsView: View {
                 ContentUnavailableView("No Bots", systemImage: "person.2", description: Text("This server has no profiles yet."))
             } else if !store.isLoaded && connection.state == .connecting {
                 ProgressView()
-            } else if MessageSearch.isSearchable(query) && search.phase == .done && search.hits.isEmpty && search.failed == 0 && matchingBots.isEmpty && matchingRooms.isEmpty {
+            } else if !isStrip && MessageSearch.isSearchable(query) && search.phase == .done && search.hits.isEmpty && search.failed == 0 && matchingBots.isEmpty && matchingRooms.isEmpty {
                 ContentUnavailableView.search(text: query)
             }
-        }
-        #if os(macOS)
-        .onGeometryChange(for: Bool.self) { $0.size.width < stripThreshold } action: { isStrip = $0 }
-        #endif
-        .task(id: [query, "\(connection.state == .connected)", "\(searchAttempt)", "\(store.bots.count)"]) {
-            await search.run(query, in: store.bots, on: connection.state == .connected ? connection.session?.server : nil, with: connection.urlSession)
         }
         #if os(iOS)
         .listStyle(.plain)
@@ -284,18 +299,6 @@ struct BotsView: View {
                 }
             }
         }
-        .task(id: connection.state == .connected) {
-            showsConnectionPill = false
-            guard connection.state != .connected else { return }
-            try? await Task.sleep(for: .seconds(2))
-            showsConnectionPill = !Task.isCancelled
-        }
-        .navigationTitle("Crew")
-        #if os(macOS)
-        .navigationSplitViewColumnWidth(min: stripWidth, ideal: 320, max: 400)
-        #else
-        .navigationSplitViewColumnWidth(min: 240, ideal: 320, max: 400)
-        #endif
         #if os(iOS)
         .toolbar {
             ToolbarItem(placement: .primaryAction) { newChatButton }
@@ -427,6 +430,7 @@ struct BotsView: View {
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(verbatim: room.name))
+        .help(room.name)
         .accessibilityValue(selection != room.selectionID && drafts.preview(for: room.selectionID) != nil ? "Draft" : "")
         .tag(room.selectionID)
         .listRowInsets(EdgeInsets())

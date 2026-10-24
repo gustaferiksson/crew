@@ -282,9 +282,9 @@ extension Snapshot {
             reply.setSelectedRange(NSRange(location: start, length: NSMaxRange(text.range(of: "Merino top")) - start))
             try? await Task.sleep(for: .seconds(0.5))
         }
-        if self == .sidebarCompact, let split = window.contentView.map(splitViews)?.last {
-            let width = UserDefaults.standard.double(forKey: "snapshotSidebarWidth")
-            for position in [330, width > 0 ? width : stripWidth] {
+        let sidebarWidth = UserDefaults.standard.double(forKey: "snapshotSidebarWidth")
+        if self == .sidebarCompact || sidebarWidth > 0, let split = window.contentView.map(splitViews)?.last {
+            for position in [330, sidebarWidth > 0 ? sidebarWidth : stripWidth] {
                 split.setPosition(position, ofDividerAt: 0)
                 try? await Task.sleep(for: .seconds(1))
             }

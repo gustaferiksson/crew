@@ -11,9 +11,9 @@ let rowPadding: CGFloat = 8
 let dotGutter: CGFloat = 12
 private let badgeSize: CGFloat = 14
 #endif
-nonisolated let stripWidth: CGFloat = 94
-nonisolated let stripThreshold: CGFloat = 260
-nonisolated let stripTileHeight: CGFloat = 86
+nonisolated let stripWidth: CGFloat = 98
+nonisolated let stripThreshold: CGFloat = 280
+nonisolated let stripTileSize = CGSize(width: 78, height: 86)
 
 struct BotRow: View {
     let bot: Bot
@@ -124,7 +124,7 @@ struct StripTile<Avatar: View>: View {
         }
         .padding(.top, 15)
         .padding(.horizontal, 4)
-        .frame(maxWidth: .infinity, minHeight: stripTileHeight, alignment: .top)
+        .frame(width: stripTileSize.width, height: stripTileSize.height, alignment: .top)
     }
 }
 
@@ -177,9 +177,10 @@ struct BotStripTile: View {
                         .fill(.tint)
                         .frame(width: 8, height: 8)
                         .opacity(status == .unread ? 1 : 0)
-                        .offset(x: -dotGutter - 4)
+                        .offset(x: -dotGutter / 2 - 4)
                 }
         }
+        .help([bot.title, bot.role].compactMap { $0 }.joined(separator: " · "))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(verbatim: [bot.title, bot.role].compactMap { $0 }.joined(separator: ", ")))
         .accessibilityValue(Text(verbatim: [status.label, isOpen ? nil : drafts.preview(for: bot.id).map { _ in String(localized: "Draft") }].compactMap { $0 }.joined(separator: ", ")))

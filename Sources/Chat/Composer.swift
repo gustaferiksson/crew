@@ -8,7 +8,11 @@ private let rowSpacing: CGFloat = 8
 private let fieldHeight: CGFloat = 40
 private let rowSpacing: CGFloat = 12
 #endif
+#if os(macOS)
 private let sideMargin: CGFloat = 16
+#else
+private let sideMargin: CGFloat = 28
+#endif
 private let holdThreshold = Duration.milliseconds(250)
 
 nonisolated enum SendMode: Sendable {

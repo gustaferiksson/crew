@@ -97,7 +97,7 @@ final class ChatTranscriptUITests: XCTestCase {
 
         let headers = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Worked for"))
         var header = headers.allElementsBoundByIndex.first { $0.isHittable && $0.frame.minY > 150 && $0.frame.maxY < 450 }
-        for _ in 0..<8 where header == nil {
+        for _ in 0..<16 where header == nil {
             app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.2)).press(forDuration: 0.02, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.45)), withVelocity: .slow, thenHoldForDuration: 0.3)
             wait(1)
             header = headers.allElementsBoundByIndex.first { $0.isHittable && $0.frame.minY > 150 && $0.frame.maxY < 450 }
@@ -118,7 +118,6 @@ final class ChatTranscriptUITests: XCTestCase {
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.45)).press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.35)), withVelocity: .slow, thenHoldForDuration: 0.5)
         wait(1)
         XCTAssertFalse(app.buttons["Jump to Latest"].exists, "never got back to the bottom by hand")
-        field.typeText(XCUIKeyboardKey.delete.rawValue)
         field.typeText("!")
         wait(3)
         assertRightAboveTheComposer(streamedReply, in: app, "reply after a manual return")

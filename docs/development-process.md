@@ -25,7 +25,7 @@ Model choice is fixed by the user: Opus (or Fable) only, never smaller models. W
 | 4 | Flow spec | Implementer | `docs/flows/<feature>.md` | Spec reviewer agent |
 | 5 | Code | Implementer | SwiftUI app, crew-push Python plugin | |
 | 6 | Tests | Implementer | Unit and scenario replay, iOS simulator UI tests, macOS UI tests (CI only), pytest | Local runs, then CI |
-| 7 | Renders | Implementer | `./snapshot.sh` / `-snapshot <screen>`, light and dark | Orchestrator looks at them |
+| 7 | Renders | Implementer | `./snapshot.sh <mac|ios|both> <screen>...`, only the screens and platforms the change touches, light and dark | Orchestrator looks at them |
 | 8 | Build | Implementer | `./build.sh`, zero warnings | Build fails on any warning |
 | 9 | PR | Implementer | `gh pr create`, never `--draft` | |
 | 10 | CI | GitHub Actions | `ci.yml` | `gh pr checks` green |

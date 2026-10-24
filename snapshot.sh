@@ -1,27 +1,39 @@
 #!/usr/bin/env bash
-# Renders every -snapshot screen to snapshots/ (macOS and iOS light + dark, iOS when an iOS 27 simulator exists). Run ./build.sh first.
+# Usage: ./snapshot.sh <mac|ios|both> <screen>... renders only the named screens, light + dark, to snapshots/. Run ./build.sh first.
 set -euo pipefail
 cd "$(dirname "$0")"
 
 ALL=( login login-unreachable sidebar sidebar-flat sidebar-compact sidebar-draft sidebar-search search-result unreachable avatars avatar-picker chat chat-history chat-selection chat-timestamps chat-worklog chat-question chat-questions chat-questions-snacks chat-offline chat-attachments chat-dictation chat-mentions composer-line composer-lines composer-running composer-running-text chat-steer chat-steer-taken chat-waiting chat-mention-peek chat-mention-chat chat-delivery-failure chat-window chat-window-inspector chat-window-missing chat-a2ui chat-a2ui-cards chat-a2ui-form chat-a2ui-table chat-a2ui-chart chat-a2ui-map chat-a2ui-carousel chat-a2ui-carousel-states layout layout-inspector inspector-info inspector-tasks inspector-routines inspector-look profile-skills bot-page notifications new-bot group-chat group-welcome group-inspector chat-payment chat-payment-holding chat-payment-approved chat-payment-loading chat-payment-failed chat-payment-unverified chat-payment-punycode chat-payment-countdown chat-payment-notice chat-payment-offer chat-payment-offer-history chat-payment-receipts inspector-shops inspector-shops-empty inspector-shops-no-card inspector-shops-several add-shop add-shop-error inspector-shops-update-error inspector-shops-code-mismatch add-card add-card-invalid replace-card add-card-http add-card-cover inspector-passwords inspector-passwords-empty inspector-passwords-error inspector-passwords-offline inspector-passwords-narrow add-login add-login-invalid edit-login connect-1password )
-SCREENS=( "${@:-${ALL[@]}}" )
+PLATFORM=${1:-}
+shift || true
+SCREENS=( "$@" )
+if [[ ! $PLATFORM =~ ^(mac|ios|both)$ || ${#SCREENS[@]} -eq 0 ]]; then
+  echo "usage: ./snapshot.sh <mac|ios|both> <screen>...  (screens: ${ALL[*]})" >&2
+  exit 1
+fi
+for screen in "${SCREENS[@]}"; do
+  [[ " ${ALL[*]} " == *" $screen "* ]] || { echo "unknown screen: $screen" >&2; exit 1; }
+done
 FIXTURE_ARGS=( -server hermes.example.com -username gustaf )
 MAC_APP=.build/Build/Products/Debug/Crew.app/Contents/MacOS/Crew
 IOS_APP=.build/Build/Products/Debug-iphonesimulator/Crew.app
 mkdir -p snapshots
 
-for screen in "${SCREENS[@]}"; do
-  for appearance in Light Dark; do
-    suffix=$([[ $appearance == Dark ]] && echo "-dark" || echo "")
-    "$MAC_APP" -snapshot "$screen" -AppleInterfaceStyle "$appearance" -ApplePersistenceIgnoreState YES "${FIXTURE_ARGS[@]}" >snapshots/.out 2>/dev/null &
-    pid=$!
-    ( sleep 20 && kill "$pid" 2>/dev/null ) &
-    wait "$pid"
-    cp "$(tail -1 snapshots/.out)" "snapshots/macos-${screen}${suffix}.png"
-    echo "▸ snapshots/macos-${screen}${suffix}.png"
+if [[ $PLATFORM != ios ]]; then
+  for screen in "${SCREENS[@]}"; do
+    for appearance in Light Dark; do
+      suffix=$([[ $appearance == Dark ]] && echo "-dark" || echo "")
+      "$MAC_APP" -snapshot "$screen" -AppleInterfaceStyle "$appearance" -ApplePersistenceIgnoreState YES "${FIXTURE_ARGS[@]}" >snapshots/.out 2>/dev/null &
+      pid=$!
+      ( sleep 20 && kill "$pid" 2>/dev/null ) &
+      wait "$pid"
+      cp "$(tail -1 snapshots/.out)" "snapshots/macos-${screen}${suffix}.png"
+      echo "▸ snapshots/macos-${screen}${suffix}.png"
+    done
   done
-done
-rm -f snapshots/.out
+  rm -f snapshots/.out
+fi
+[[ $PLATFORM == mac ]] && exit 0
 
 DEVICE=$(xcrun simctl list devices available | awk -v name="${IOS_SIMULATOR:-iPhone 18 Pro}" '/^-- iOS 27/{ios=1; next} /^--/{ios=0} ios && index($0, name " (") {match($0, /[0-9A-F-]{36}/); print substr($0, RSTART, RLENGTH); exit}')
 if [[ -z "$DEVICE" ]]; then

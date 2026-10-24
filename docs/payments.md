@@ -88,7 +88,7 @@ Then restart Hermes the way it runs on `<host>` (for example its systemd service
 - **Changes:** an approval with `pattern_key == "mcp_elicitation"` whose command starts with `Fill payment card '` is a payment. `PaymentCard` shows "Pay at <host>?", the card label, and amount, merchant and reason taken from the latest `browser_vault` `tool.start` arguments in the transcript (hidden if missing). Buttons: **Deny** and **Approve Once** (sends `once`). Rendered wherever approvals render (bot chats and group rooms), though step 2 only lets payments run in Bot Chat.
 - **Files:** `Sources/Chat/RequestCards.swift`, `Sources/Chat/ChatSession.swift` (`ApprovalParams.patternKey`), `Sources/Groups/GroupSession.swift`, `Sources/Chat/ChatFixtures.swift` (snapshot `chat-payment`), a parser test in `Tests/`, a Decisions line in `docs/PLAN.md`.
 - **Server:** none.
-- **Verify:** `./build.sh` with no warnings; `./snapshot.sh chat-payment` light and dark; the step 1 flow on crew-test shows the payment card with the amount, also when Crew is opened cold from the push (if the in-flight `tool.start` is not replayed, the amount is hidden); `./device.sh`.
+- **Verify:** `./build.sh` with no warnings; `./snapshot.sh both chat-payment` light and dark; the step 1 flow on crew-test shows the payment card with the amount, also when Crew is opened cold from the push (if the in-flight `tool.start` is not replayed, the amount is hidden); `./device.sh`.
 
 ### 4. One card per shop (M, about 80 Python and 150 Swift lines)
 

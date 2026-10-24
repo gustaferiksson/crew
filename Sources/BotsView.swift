@@ -175,6 +175,7 @@ struct BotsView: View {
             if isStrip {
                 sidebarList
                     .frame(width: stripWidth)
+                    .scrollIndicators(.never)
             } else {
                 sidebarList
                     .searchable(text: $query, placement: .sidebar, prompt: "Search")

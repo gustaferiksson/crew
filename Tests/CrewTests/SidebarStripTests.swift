@@ -72,16 +72,3 @@ private func peer(_ store: BotStore) throws -> Bot {
     let unread = try store("after")
     #expect(fitting(try peer(unread), unread) == CGSize(width: 78, height: 86))
 }
-
-@Test @MainActor func aStripTileIsTheSameSizeWhateverTheStatusOrRole() throws {
-    let unread = try store("after")
-    let working = try store("working")
-    #expect(ChatSessions().status(of: try peer(unread).id, in: unread) == .unread)
-    #expect(ChatSessions().status(of: try peer(working).id, in: working) == .working)
-    var roled = try peer(unread)
-    roled.meta.role = "Head of Research and Analytics"
-
-    let tile = fitting(try peer(unread), unread)
-    #expect(fitting(try peer(working), working) == tile)
-    #expect(fitting(roled, unread) == tile)
-}

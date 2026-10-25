@@ -24,7 +24,7 @@ struct CrewHeader: View {
                 .accessibilityHidden(true)
             }
             HStack(spacing: 12) {
-                if let symbol = node.string(for: "symbol") {
+                if let symbol = systemSymbol(node.string(for: "symbol")) {
                     Image(systemName: symbol)
                         .font(.title3.weight(.medium))
                         .foregroundStyle(.white)
@@ -97,7 +97,7 @@ struct CrewBadge: View {
     var body: some View {
         let tint = crewTones[node.string(for: "tone") ?? ""] ?? .secondary
         HStack(spacing: 4) {
-            if let symbol = node.string(for: "symbol") {
+            if let symbol = systemSymbol(node.string(for: "symbol")) {
                 Image(systemName: symbol)
             }
             Text(node.string(for: "text") ?? "")
@@ -168,7 +168,7 @@ struct CrewKeyValue: View {
                     Divider()
                 }
                 HStack(alignment: .firstTextBaseline, spacing: 16) {
-                    if let symbol = items[index].string(for: "symbol") {
+                    if let symbol = systemSymbol(items[index].string(for: "symbol")) {
                         Image(systemName: symbol)
                             .foregroundStyle(.tint)
                             .frame(width: 24)

@@ -121,6 +121,7 @@ targets:
       - Sources/AvatarView.swift
       - Sources/Chat/A2UI/MapPinPoint.swift
       - Sources/Chat/A2UI/CachedImage.swift
+      - Sources/Chat/A2UI/SystemSymbol.swift
       - Sources/Groups/GroupStore.swift
       - Sources/Groups/GroupSession.swift
       - Sources/Search/MessageSearch.swift

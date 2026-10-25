@@ -18,6 +18,7 @@ nonisolated func otherConversations(of bot: Bot, on server: URL, with urlSession
         URLQueryItem(name: "profile", value: bot.name),
         URLQueryItem(name: "order", value: "recent"),
         URLQueryItem(name: "limit", value: "50"),
+        URLQueryItem(name: "archived", value: "include"),
     ])
     let canonical = [bot.canonicalSession?.id, bot.canonicalSession?.resolvedID]
     return try await fetch(request, with: urlSession, as: ConversationPage.self).sessions

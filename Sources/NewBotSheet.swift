@@ -183,7 +183,7 @@ struct NewBotSheet: View {
         }
         .interactiveDismissDisabled(isCreating)
         #if os(macOS)
-        .frame(minWidth: 440, minHeight: 600)
+        .frame(minWidth: 440, idealHeight: 600)
         #endif
     }
 

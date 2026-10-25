@@ -185,5 +185,14 @@ private let rows = (0..<300).map { String(repeating: "Row \($0) has a few words 
         model.rows.append("A turn after the search.")
         settle()
         #expect(abs(model.watchedFrame.minY - landed) < 1, "row 40 moved by \(model.watchedFrame.minY - landed)")
+
+        model.position.scrollTo(edge: .bottom)
+        for _ in 0..<20 where abs(model.distance) >= 1 || model.position.edge != nil { settle(0.25) }
+        #expect(abs(model.distance) < 1, "after Jump to Latest \(model.distance)")
+        model.rows[model.rows.count - 1] += String(repeating: " streaming after the hand-back", count: 30)
+        settle()
+        model.rows.append("A turn after the hand-back.")
+        settle()
+        #expect(abs(model.distance) < 1, "follows the end again \(model.distance)")
     }
 }

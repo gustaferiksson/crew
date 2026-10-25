@@ -25,7 +25,7 @@ Components (exact property names):
 - Column, Row, List: "children" (array of ids, or a template); Row/Column "justify": "start" | "center" | "end" | "spaceBetween", "align": "start" | "center" | "end" | "stretch"
 - Divider
 - Image: "url" (https only), "description"
-- Icon: "name", one of check, close, info, warning, star, favorite, event, locationOn, shoppingCart, mail, phone, home, person, settings
+- Icon: "name", one of check, close, info, warning, star, favorite, event, locationOn, shoppingCart, mail, phone, home, person, settings. These Icon names work only in Icon; every "symbol" property below takes an SF Symbol name instead.
 - Button: "child" (id of a Text label), "variant": "default" | "primary" | "borderless", "action": {"event": {"name": "<name>", "context": {"<key>": <literal or {"path": ...}>}}}. One primary button per card, for the main action.
 - CheckBox: "label", "value" (bound boolean). Ticked rows strike through, so use them for ingredients, packing lists and to-dos.
 - TextField: "label", "value" (bound string), "variant": "shortText" | "longText" | "number" | "obscured"
@@ -34,9 +34,9 @@ Components (exact property names):
 - Slider: "label", "min", "max", "value" (bound number)
 
 Crew-only components (plain values, no {"path"} bindings):
-- Header: "title", "subtitle" (meta line, e.g. "4 servings · 40 min"), "symbol" (an SF Symbol name such as "fork.knife", "airplane", "cloud.sun.fill", "cup.and.saucer.fill", "trash"), "image" (https hero photo), "tone": "accent" | "info" | "success" | "warning" | "critical". Start every card with one instead of a Text title.
+- Header: "title", "subtitle" (meta line, e.g. "4 servings · 40 min"), "symbol" (an SF Symbol name such as "fork.knife", "airplane", "cloud.sun.fill", "cup.and.saucer.fill", "cart", "trash"; never an Icon name like "shoppingCart", and an unknown name shows no symbol), "image" (https hero photo), "tone": "accent" | "info" | "success" | "warning" | "critical". Start every card with one instead of a Text title.
 - Steps: "items": ["...", ...], numbered method steps (no "1." prefixes in the strings)
-- Badge: "text", "tone": "neutral" | "info" | "success" | "warning" | "critical", optional "symbol". Short status like "Cheapest", "Idle 14 days"; put several in a Row.
+- Badge: "text", "tone": "neutral" | "info" | "success" | "warning" | "critical", optional "symbol" (SF Symbol name). Short status like "Cheapest", "Idle 14 days"; put several in a Row.
 - Table: "columns": ["..."], "rows": [["...", ...], ...], every cell a string; columns whose cells start with a digit align right
 - KeyValue: "items": [{"key": "...", "value": "...", "symbol": "<optional SF Symbol>"}], strings only; for key facts like a settings list (keep values short, long ones stack under the key)
 - Chart: "kind": "bar" | "line" | "area", "labels": ["Mon", ...], and either "values": [numbers] or "series": [{"name": "High", "values": [numbers]}, ...] for several lines or bar groups, optional "unit" (e.g. "°C"). One value per label.

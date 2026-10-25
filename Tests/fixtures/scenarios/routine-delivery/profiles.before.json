@@ -1,0 +1,30 @@
+{
+  "profiles" : [
+    {
+      "canonical_session" : null,
+      "description" : "Crew scenario bot",
+      "display_name" : "",
+      "has_avatar" : false,
+      "is_default" : false,
+      "last_session" : null,
+      "model" : "gpt-6.1-sol",
+      "name" : "crew-test-peer",
+      "path" : "/opt/hermes/data",
+      "previous_names" : [
+
+      ],
+      "provider" : "openai-codex",
+      "skill_count" : 0,
+      "ui_meta" : {
+        "hermes-bots" : {
+          "created" : 1792933016510,
+          "title" : "Crew Routine"
+        }
+      },
+      "ui_meta_revisions" : {
+        "hermes-bots" : 1
+      },
+      "worker_session" : null
+    }
+  ]
+}

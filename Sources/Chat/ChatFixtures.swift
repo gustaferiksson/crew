@@ -2,7 +2,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 enum ChatFixture {
-    case conversation, history, timestamps, workLog, question, questions, questionsSnacks, questionLong, offline, attachments, dictation, mentions, agentMessage, deliveryFailure, a2ui, a2uiCards, a2uiForm, a2uiTable, a2uiChart, a2uiMap, a2uiCarousel, a2uiCarouselStates, a2uiProducts
+    case conversation, history, timestamps, workLog, question, questions, questionsSnacks, questionLong, offline, attachments, dictation, mentions, agentMessage, routine, deliveryFailure, a2ui, a2uiCards, a2uiForm, a2uiTable, a2uiChart, a2uiMap, a2uiCarousel, a2uiCarouselStates, a2uiProducts
     case composerLine, composerLines, composerRunning, composerRunningText, steer, steerTaken, waiting
     case payment, paymentHolding, paymentApproved, paymentLoading, paymentFailed, paymentUnverified, paymentPunycode, paymentCountdown, paymentNotice, paymentOffer, paymentOfferHistory, paymentReceipts
 
@@ -135,6 +135,17 @@ enum ChatFixture {
             return Transcript(turns: [greeting(now.addingTimeInterval(-26 * 3600)), handoff(now.addingTimeInterval(-6 * 60)), followUp]).visible
         }
         if self == .agentMessage { return Transcript(turns: [greeting(now.addingTimeInterval(-26 * 3600)), message("m1", "Flights for Saturday are booked.", reply: "Thanks, Scout!", at: now.addingTimeInterval(-40 * 60)), message("m2", "Can you add the Lofoten ferry to the trip notes?", reply: "Added the 08:15 ferry to the trip notes.", at: now.addingTimeInterval(-5 * 60))]).visible }
+        if self == .routine {
+            let start = now.addingTimeInterval(-5 * 60)
+            let brief = "[Cronjob \"[bot:atlas] Morning brief\" output — scheduled job, not the user. Review it, act on anything that needs action, and summarize for the chat.]\n\nTwo new emails."
+            let routine = Turn(
+                id: "r1", notice: noticeText(kind: "internal_notification", content: brief),
+                work: [WorkItem(id: "r1-w0", kind: .tool(ToolCall(name: "skill_view", subject: "email-inbox-triage", arguments: #"{"name": "email-inbox-triage"}"#, status: .success)), startedAt: start.addingTimeInterval(8), duration: 1)],
+                reply: "Two items need attention, according to the morning brief:\n\n- Anna wants to move Friday's lunch to 12:30. Does that work for you?\n- Telia's invoice for 412 kr is due October 31.\n\nNo reply, calendar change, or payment has been made.",
+                status: .complete, startedAt: start, finishedAt: start.addingTimeInterval(14), isRoutine: true
+            )
+            return Transcript(turns: [greeting(now.addingTimeInterval(-26 * 3600)), routine])
+        }
         return Transcript(turns: turns + [deploy(now.addingTimeInterval(-48))])
     }
 

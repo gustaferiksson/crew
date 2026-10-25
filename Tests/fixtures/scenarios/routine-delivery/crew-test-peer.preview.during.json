@@ -1,0 +1,13 @@
+[
+  {
+    "content" : "[Cronjob \"[bot:crew-test-peer] Morning brief\" output — scheduled job, not the user. Review it, act on anything that needs action, and summarize for the chat.]\n\nTwo new emails. Anna asks to move Friday's lunch to 12:30. The Telia invoice of 412 kr is due on October 31.",
+    "display_kind" : "internal_notification",
+    "id" : 3,
+    "reasoning" : null,
+    "reasoning_content" : null,
+    "role" : "user",
+    "timestamp" : 1792933051.427218,
+    "tool_call_id" : null,
+    "tool_calls" : null
+  }
+]

@@ -30,6 +30,7 @@ struct BotsView: View {
     @State private var isCreating = Snapshot.requested == .newBot
     @State private var isCreatingGroup = false
     @State private var deleting: Bot?
+    @State private var toggles = 0
     @State private var filing: Bot?
     @State private var sectionName = ""
     @State private var failure: String?
@@ -314,6 +315,7 @@ struct BotsView: View {
                 ContentUnavailableView.search(text: query)
             }
         }
+        .sensoryFeedback(.impact(weight: .light), trigger: toggles)
         #if os(iOS)
         .listStyle(.plain)
         #else
@@ -522,6 +524,7 @@ struct BotsView: View {
     private func hideButton(for bot: Bot) -> some View {
         Button(bot.meta.hidden == true ? "Unhide" : "Hide", systemImage: bot.meta.hidden == true ? "eye" : "eye.slash") {
             if bot.meta.hidden != true && selection == bot.id { selection = nil }
+            toggles += 1
             perform { try await store.toggleHidden(bot, via: $0) }
         }
         .disabled(connection.state != .connected)
@@ -529,6 +532,7 @@ struct BotsView: View {
 
     private func pinButton(for bot: Bot) -> some View {
         Button(bot.meta.pinned == true ? "Unpin" : "Pin", systemImage: bot.meta.pinned == true ? "pin.slash.fill" : "pin.fill") {
+            toggles += 1
             perform { try await store.togglePin(bot, via: $0) }
         }
         .disabled(connection.state != .connected)

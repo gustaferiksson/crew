@@ -89,6 +89,7 @@ struct PaymentCard<Avatar: View>: View {
         .accessibilityElement(children: .contain)
         .accessibilityLabel(summary)
         .task(id: deadline) { await countDown() }
+        .sensoryFeedback(.error, trigger: state.failure) { _, failure in failure != nil }
     }
 
     private var header: some View {

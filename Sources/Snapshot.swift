@@ -104,6 +104,9 @@ enum Snapshot: String {
     case addLoginInvalid = "add-login-invalid"
     case editLogin = "edit-login"
     case connectOnePassword = "connect-1password"
+    case inspectorConnections = "inspector-connections"
+    case addConnection = "add-connection"
+    case customConnection = "custom-connection"
 
     static let requested = UserDefaults.standard.string(forKey: "snapshot").flatMap(Snapshot.init(rawValue:))
     static let isInteractive = UserDefaults.standard.bool(forKey: "uiTest")
@@ -131,6 +134,7 @@ enum Snapshot: String {
 
     var inspectorTab: InspectorTab? {
         if isPasswords { return .passwords }
+        if [.inspectorConnections, .addConnection, .customConnection].contains(self) { return .info }
         return [.inspectorInfo: .info, .inspectorTasks: .tasks, .inspectorRoutines: .routines, .inspectorRoutinesEmpty: .routines][self]
     }
 

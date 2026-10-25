@@ -51,6 +51,7 @@ struct InspectorFixtureScreen: View {
                 }
         }
         .modifier(PasswordsFixtureSheets(snapshot: snapshot, vault: vault))
+        .modifier(ConnectionsFixtureSheets(snapshot: snapshot, store: connections))
         #else
         NavigationStack(path: .constant([0])) {
             Text("Ada")
@@ -58,10 +59,50 @@ struct InspectorFixtureScreen: View {
         }
         .dynamicTypeSize(snapshot == .inspectorPasswordsNarrow ? .accessibility1 : .large)
         .modifier(PasswordsFixtureSheets(snapshot: snapshot, vault: vault))
+        .modifier(ConnectionsFixtureSheets(snapshot: snapshot, store: connections))
         #endif
     }
 
     @State private var vault = InspectorFixtureScreen.vault(for: Snapshot.requested)
+    @State private var connections = InspectorFixtureScreen.connections
+
+    private static var connections: BotConnections {
+        let server = { (name: String, url: String, auth: String?, enabled: Bool) in
+            MCPServer(name: name, transport: "http", url: url, command: nil, args: [], auth: auth, enabled: enabled, source: "config", plugin: nil)
+        }
+        let tools = (0..<9).map { MCPTool(name: "tool\($0)") }
+        let entry = { (name: String, description: String, auth: String, installed: Bool) in
+            MCPCatalogEntry(name: name, description: description, transport: "http", authType: auth, requiredEnv: [], command: nil, args: [], url: "https://mcp.\(name).com/mcp", postInstall: "", installed: installed)
+        }
+        return BotConnections(
+            fixture: "ada",
+            servers: [
+                server("deepwiki", "https://mcp.deepwiki.com/mcp", nil, true),
+                server("files", "http://host.containers.internal:8766/mcp", "header", true),
+                server("linear", "https://mcp.linear.app/mcp", "oauth", true),
+                server("notion", "https://mcp.notion.com/mcp", "oauth", true),
+                server("research-archive-with-a-very-long-server-name", "https://archive.example.com/mcp", nil, true),
+                server("wolfram", "https://mcp.wolframalpha.com/mcp", nil, false),
+            ],
+            tests: [
+                "deepwiki": MCPTestResult(ok: true, error: nil, tools: Array(tools.prefix(3))),
+                "files": MCPTestResult(ok: true, error: nil, tools: tools),
+                "linear": MCPTestResult(ok: false, error: "MCP OAuth for 'linear': no cached tokens found.", tools: []),
+                "research-archive-with-a-very-long-server-name": MCPTestResult(ok: false, error: "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate (_ssl.c:1082)", tools: []),
+            ],
+            signingIn: ["notion": "flow"],
+            catalog: [
+                entry("airtable", "Bases, tables, and records from your Airtable workspace.", "oauth", false),
+                entry("context7", "Up-to-date, version-specific library docs and code examples.", "none", false),
+                entry("deepwiki", "Ask questions about any public GitHub repo (Devin's DeepWiki).", "none", true),
+                entry("hugging_face", "Models, datasets, Spaces, and papers from the Hugging Face Hub.", "oauth", false),
+                entry("linear", "Find, create, and update Linear issues, projects, and comments.", "oauth", true),
+                entry("microsoft-learn", "Official Microsoft, Azure, and .NET docs and code samples.", "none", false),
+                entry("notion", "Pages and databases from your Notion workspace.", "oauth", true),
+                entry("sentry", "Issues, stack traces, and error context from Sentry.", "oauth", false),
+            ]
+        )
+    }
 
     private static func vault(for snapshot: Snapshot?) -> BotVault {
         let local = { (id: String, host: String, user: String?, created: String, otp: Bool) in
@@ -99,9 +140,19 @@ struct InspectorFixtureScreen: View {
         Conversation(id: StoredSessionID(rawValue: "c3"), title: "Morning briefing · Oct 13 08:00", source: "cron", startedAt: Date.now.addingTimeInterval(-30 * 3600).timeIntervalSince1970, lastActive: nil),
     ]
 
+    @ViewBuilder
     private var inspector: some View {
+        if [.inspectorConnections, .addConnection, .customConnection].contains(snapshot) {
+            Form { ConnectionsSection(bot: ada, store: connections) }
+                .formStyle(.grouped)
+        } else {
+            botInspector
+        }
+    }
+
+    private var botInspector: some View {
         BotInspector(
-            bot: ada, tab: tab, routines: RoutineStore(fixture: snapshot == .inspectorRoutinesEmpty ? [] : routines), draft: Snapshot.profileDraft, conversations: conversations, shops: shops, vault: vault, models: Snapshot.profileModels,
+            bot: ada, tab: tab, routines: RoutineStore(fixture: snapshot == .inspectorRoutinesEmpty ? [] : routines), draft: Snapshot.profileDraft, conversations: conversations, shops: shops, vault: vault, connections: connections, models: Snapshot.profileModels,
             isPresented: .constant(true)
         )
             .environment(ChatSessions(fixture: [ada.id: ChatSession(fixture: ada, transcript: Transcript(), todos: adaTodos)]))
@@ -131,6 +182,26 @@ private struct PasswordsFixtureSheets: ViewModifier {
             }
             .sheet(isPresented: .constant(snapshot == .connectOnePassword)) {
                 ConnectOnePasswordSheet(bot: ada, vault: BotVault(fixture: "ada", items: [], sources: [VaultSource(name: "onepassword", installed: false, enabled: false, unlocked: false)], tokenSaved: false))
+            }
+    }
+}
+
+private struct ConnectionsFixtureSheets: ViewModifier {
+    let snapshot: Snapshot?
+    let store: BotConnections
+
+    func body(content: Content) -> some View {
+        content
+            .sheet(isPresented: .constant(snapshot == .addConnection)) {
+                AddConnectionSheet(bot: ada, store: store)
+            }
+            .sheet(isPresented: .constant(snapshot == .customConnection)) {
+                NavigationStack {
+                    CustomConnectionForm(store: store, entry: CustomConnection(name: "Docs", kind: .url, url: "https://docs.example.com/mcp", auth: .apiKey, token: "secret")) {}
+                }
+                #if os(macOS)
+                .frame(width: 420, height: 560)
+                #endif
             }
     }
 }

@@ -1,0 +1,7 @@
+{
+  "flow_id": "FLOW",
+  "server_name": "linear",
+  "status": "authorization_required",
+  "authorization_url": "https://mcp.linear.app/authorize?response_type=code&client_id=nvkNr8GbABqNiNeY&redirect_uri=https%3A%2F%2Fhermes.gustaf.dev%2Fapi%2Fmcp%2Foauth%2Fcallback%2Flinear&state=REDACTED&code_challenge=REDACTED&code_challenge_method=S256&resource=https%3A%2F%2Fmcp.linear.app%2Fmcp&scope=read+write",
+  "error": null
+}

@@ -1,0 +1,43 @@
+{
+  "servers": [
+    {
+      "name": "crew-probe",
+      "transport": "http",
+      "url": "https://example.invalid/mcp",
+      "command": null,
+      "args": [],
+      "env": {},
+      "auth": null,
+      "enabled": true,
+      "tools": null,
+      "source": "config",
+      "plugin": null
+    },
+    {
+      "name": "deepwiki",
+      "transport": "http",
+      "url": "https://mcp.deepwiki.com/mcp",
+      "command": null,
+      "args": [],
+      "env": {},
+      "auth": null,
+      "enabled": false,
+      "tools": null,
+      "source": "config",
+      "plugin": null
+    },
+    {
+      "name": "linear",
+      "transport": "http",
+      "url": "https://mcp.linear.app/mcp",
+      "command": null,
+      "args": [],
+      "env": {},
+      "auth": "oauth",
+      "enabled": true,
+      "tools": null,
+      "source": "config",
+      "plugin": null
+    }
+  ]
+}

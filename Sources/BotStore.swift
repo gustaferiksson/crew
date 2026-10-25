@@ -288,13 +288,18 @@ final class BotStore {
     private var gateway: Gateway?
     private var urlSession: URLSession?
     private var reloadTask: Task<Void, Never>?
+    private var isRosterSaved = false
 
     init() {
         let cacheURL = URL.applicationSupportDirectory.appending(path: "bots.json")
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .secondsSince1970
         let cached = (try? Data(contentsOf: cacheURL)).flatMap { try? decoder.decode([Bot].self, from: $0) }
+        #if os(iOS)
+        let photoDirectory = VoiceBot.photoDirectory ?? URL.cachesDirectory.appending(path: "avatars")
+        #else
         let photoDirectory = URL.cachesDirectory.appending(path: "avatars")
+        #endif
         self.cacheURL = cacheURL
         self.photoDirectory = photoDirectory
         self.bots = cached ?? []
@@ -558,9 +563,10 @@ final class BotStore {
 
     func apply(roster: [Bot]) {
         if !isLoaded { isLoaded = true }
-        if roster != bots {
+        if roster != bots || !isRosterSaved {
             bots = roster
             saveCache()
+            isRosterSaved = true
         }
         seenActivity = seenActivity.filter { seen in bots.contains { $0.id == seen.key && $0.needsMarker(at: seen.value) } }
         clearingUnread = clearingUnread.filter { seenActivity[$0] != nil }
@@ -584,6 +590,16 @@ final class BotStore {
         encoder.dateEncodingStrategy = .secondsSince1970
         try? FileManager.default.createDirectory(at: cacheURL.deletingLastPathComponent(), withIntermediateDirectories: true)
         try? encoder.encode(bots).write(to: cacheURL, options: .atomic)
+        #if os(iOS)
+        guard let voiceURL = VoiceBot.cacheURL else { return }
+        let voiceBots = bots.map { bot in
+            let look = bot.meta.look(name: bot.name)
+            let photo = bot.hasAvatar && bot.meta.imageKind != "shape"
+            return VoiceBot(name: bot.name, title: bot.title, session: bot.canonicalSession?.id.rawValue, lastActive: bot.canonicalSession?.lastActive, shape: look.shape.rawValue, color: look.color, expression: photo ? nil : bot.meta.expression, hidden: bot.meta.hidden == true)
+        }
+        try? FileManager.default.createDirectory(at: voiceURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try? encoder.encode(voiceBots).write(to: voiceURL, options: .atomic)
+        #endif
     }
 
     private func refreshPhotos(_ gateway: Gateway) async {

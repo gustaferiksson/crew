@@ -28,15 +28,17 @@ nonisolated private func restore(_ cookies: [StoredCookie], into jar: HTTPCookie
     }
 }
 
-nonisolated func denyPayment(in sessionID: String, requestID: String) async -> Bool {
-    guard let stored = readKeychain(account: "session").flatMap({ try? JSONDecoder().decode(StoredSession.self, from: $0) }) else { return false }
+nonisolated func restoredURLSession() -> (session: StoredSession, urlSession: URLSession)? {
+    guard let stored = readKeychain(account: "session").flatMap({ try? JSONDecoder().decode(StoredSession.self, from: $0) }) else { return nil }
     let configuration = URLSessionConfiguration.ephemeral
     configuration.timeoutIntervalForRequest = 10
-    let jar = configuration.httpCookieStorage ?? HTTPCookieStorage.shared
-    restore(stored.cookies, into: jar)
-    let urlSession = URLSession(configuration: configuration)
-    let gateway = Gateway(server: stored.server, urlSession: urlSession) {
-        try await fetch(hermesRequest("api/auth/ws-ticket", on: stored.server, json: [:]), with: urlSession, as: WebSocketTicket.self).ticket
+    restore(stored.cookies, into: configuration.httpCookieStorage ?? HTTPCookieStorage.shared)
+    return (stored, URLSession(configuration: configuration))
+}
+
+nonisolated func connectedGateway(to server: URL, with urlSession: URLSession) async -> Gateway? {
+    let gateway = Gateway(server: server, urlSession: urlSession) {
+        try await fetch(hermesRequest("api/auth/ws-ticket", on: server, json: [:]), with: urlSession, as: WebSocketTicket.self).ticket
     }
     let statuses = gateway.statuses()
     await gateway.connect()
@@ -56,8 +58,17 @@ nonisolated func denyPayment(in sessionID: String, requestID: String) async -> B
         group.cancelAll()
         return first
     }
+    guard isConnected else {
+        await gateway.disconnect()
+        return nil
+    }
+    return gateway
+}
+
+nonisolated func denyPayment(in sessionID: String, requestID: String) async -> Bool {
+    guard let (stored, urlSession) = restoredURLSession(), let gateway = await connectedGateway(to: stored.server, with: urlSession) else { return false }
     let params = ["session_id": sessionID, "choice": "deny", "request_id": requestID]
-    let answered = isConnected ? (try? await gateway.call("approval.respond", params, as: JSONValue.self)) != nil : false
+    let answered = (try? await gateway.call("approval.respond", params, as: JSONValue.self)) != nil
     await gateway.disconnect()
     return answered
 }

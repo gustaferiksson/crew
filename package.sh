@@ -57,6 +57,7 @@ if [[ "$PLATFORM" == mac ]]; then
 fi
 
 install_profile "${IOS_ADHOC_PROFILE_PATH:-.secrets/Crew_Ad_Hoc.mobileprovision}" mobileprovision
+install_profile "${IOS_WIDGETS_ADHOC_PROFILE_PATH:-.secrets/Crew_Widgets_Ad_Hoc.mobileprovision}" mobileprovision
 echo "▸ Archiving Crew ${VERSION} (${BUILD}) for iOS…"
 rm -rf .build/Crew.xcarchive .build/export
 xcodebuild "${COMMON[@]}" -destination 'generic/platform=iOS' -archivePath .build/Crew.xcarchive archive

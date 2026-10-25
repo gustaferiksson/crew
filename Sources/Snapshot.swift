@@ -110,6 +110,7 @@ enum Snapshot: String {
     case inspectorConnections = "inspector-connections"
     case addConnection = "add-connection"
     case customConnection = "custom-connection"
+    case voiceActivity = "voice-activity"
 
     static let requested = UserDefaults.standard.string(forKey: "snapshot").flatMap(Snapshot.init(rawValue:))
     static let isInteractive = UserDefaults.standard.bool(forKey: "uiTest")

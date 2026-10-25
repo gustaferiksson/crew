@@ -96,7 +96,7 @@ From the first push on, `main` only moves through pull requests. How this plays 
 
 ## Maintenance
 
-- New iPhone/iPad: register in the portal (or `./device.sh` once), regenerate the Ad Hoc profile [me], update `IOS_ADHOC_PROFILE` [claude], tag a release; already-installed devices are unaffected.
+- New iPhone/iPad: register in the portal (or `./device.sh` once), regenerate both Ad Hoc profiles, `Crew Ad Hoc` and `Crew Widgets Ad Hoc` [me], update `IOS_ADHOC_PROFILE` and `IOS_WIDGETS_ADHOC_PROFILE` [claude], tag a release; already-installed devices are unaffected.
 - Distribution and Developer ID certs and the Developer ID profile expire: renew, re-export to 1Password, refresh the secrets and the committed profile.
 - The public IPA embeds the Ad Hoc profile, so registered device UDIDs are readable by anyone who downloads it. Low risk, but that is the cost of public OTA hosting.
 

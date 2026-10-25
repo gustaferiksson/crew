@@ -331,18 +331,8 @@ final class ChatSession {
 
     private func attach() async {
         do {
-            if stored == nil {
-                stored = try await gateway.call("session.list", ListParams(profile: profile), as: StoredSessions.self).sessions.first?.id
-            }
-            let snapshot = if let stored {
-                try await gateway.call("session.resume", ResumeParams(sessionID: stored, profile: profile), as: LiveSnapshot.self)
-            } else {
-                try await gateway.call("session.create", CreateParams(profile: profile), as: LiveSnapshot.self)
-            }
-            if stored == nil {
-                // session.create writes no row until the first prompt; a reaped runtime then resumes the key as an untitled, visible row.
-                _ = try await gateway.call("session.title", ["session_id": snapshot.sessionID.rawValue, "title": "Bot Chat"], as: JSONValue.self)
-            }
+            let (stored, snapshot) = try await openBotChat(stored, profile: profile, via: gateway)
+            self.stored = stored
             try await load(snapshot)
             slashCommands = (try? await gateway.call("commands.catalog", ["profile": profile], as: SlashCatalog.self).commands) ?? slashCommands
         } catch {
@@ -656,6 +646,19 @@ nonisolated private struct HistoryPage: Decodable, Sendable {
     let messages: [HistoryRow]
 }
 
+nonisolated func openBotChat(_ known: StoredSessionID?, profile: String, via gateway: Gateway) async throws -> (stored: StoredSessionID?, snapshot: LiveSnapshot) {
+    let stored = if let known { known } else {
+        try await gateway.call("session.list", ListParams(profile: profile), as: StoredSessions.self).sessions.first?.id
+    }
+    if let stored {
+        return (stored, try await gateway.call("session.resume", ResumeParams(sessionID: stored, profile: profile), as: LiveSnapshot.self))
+    }
+    let snapshot = try await gateway.call("session.create", CreateParams(profile: profile), as: LiveSnapshot.self)
+    // session.create writes no row until the first prompt; a reaped runtime then resumes the key as an untitled, visible row.
+    _ = try await gateway.call("session.title", ["session_id": snapshot.sessionID.rawValue, "title": "Bot Chat"], as: JSONValue.self)
+    return (nil, snapshot)
+}
+
 nonisolated func history(of stored: StoredSessionID, profile: String, on server: URL, with urlSession: URLSession, limit: Int = 500) async throws -> [HistoryRow] {
     try await fetch(historyRequest(of: stored, profile: profile, on: server, limit: limit), with: urlSession, as: HistoryPage.self).messages
 }
@@ -712,7 +715,7 @@ nonisolated func historyRequest(of stored: StoredSessionID, profile: String, on 
     return request
 }
 
-nonisolated private struct LiveSnapshot: Decodable, Sendable {
+nonisolated struct LiveSnapshot: Decodable, Sendable {
     struct Inflight: Decodable, Sendable {
         let user: String?
         let assistant: String?

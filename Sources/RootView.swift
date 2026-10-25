@@ -18,6 +18,10 @@ struct RootView: View {
                     .environment(Snapshot.fixturePush)
             } else if Snapshot.requested == .avatars {
                 AvatarGallery()
+            } else if Snapshot.requested == .voiceActivity {
+                #if os(iOS)
+                VoiceActivityFixture()
+                #endif
             } else if Snapshot.requested == .avatarPicker {
                 AvatarPickerFixture()
             } else if Snapshot.requested == .profileSkills {

@@ -10,6 +10,7 @@ enum Snapshot: String {
     case sidebarSearch = "sidebar-search"
     case sidebarHidden = "sidebar-hidden"
     case searchResult = "search-result"
+    case otherConversation = "other-conversation"
     case unreachable
     case avatars
     case avatarPicker = "avatar-picker"
@@ -153,7 +154,7 @@ enum Snapshot: String {
         if isShops || chatFixture?.isPayment == true {
             return Connection(fixture: .connected, server: self == .addCardHTTP ? URL(string: "http://hermes.local:9119")! : server, crewPush: PluginStatus(pluginVersion: "0.5.0", installId: "fixture", apnsConfigured: true, http2: true, devices: 2, features: ["payments", "card"], gate: true))
         }
-        if [.sidebar, .sidebarHidden, .sidebarFlat, .sidebarCompact, .sidebarDraft, .sidebarSearch, .searchResult, .layout, .layoutInspector, .chatWindow, .chatWindowInspector, .chatWindowMissing, .inspectorLook, .profileSkills, .botPage, .notifications, .newBot, .newGroup, .settingsAccount, .settingsNotifications, .settingsNotificationsAsk, .groupChat, .groupWelcome, .groupInspector].contains(self) || chatFixture != nil || inspectorTab != nil { return Connection(fixture: .connected, server: server) }
+        if [.sidebar, .sidebarHidden, .sidebarFlat, .sidebarCompact, .sidebarDraft, .sidebarSearch, .searchResult, .otherConversation, .layout, .layoutInspector, .chatWindow, .chatWindowInspector, .chatWindowMissing, .inspectorLook, .profileSkills, .botPage, .notifications, .newBot, .newGroup, .settingsAccount, .settingsNotifications, .settingsNotificationsAsk, .groupChat, .groupWelcome, .groupInspector].contains(self) || chatFixture != nil || inspectorTab != nil { return Connection(fixture: .connected, server: server) }
         if self == .unreachable { return Connection(fixture: .unreachable, server: server) }
         return Connection(fixture: .signedOut, server: server)
     }
@@ -211,12 +212,17 @@ enum Snapshot: String {
     }
 
     var searchQuery: String? {
-        [.sidebarSearch: "boat", .searchResult: "boat"][self]
+        [.sidebarSearch: "boat", .searchResult: "boat", .otherConversation: "boat"][self]
     }
 
     var searchFocus: SearchFocus? {
         guard self == .searchResult, let hit = searchHits?.first else { return nil }
         return SearchFocus(bot: hit.bot, snippet: hit.snippet)
+    }
+
+    var openedConversation: MessageHit? {
+        guard self == .otherConversation else { return nil }
+        return searchHits?.first { !$0.isInBotChat }
     }
 
     var searchHits: [MessageHit]? {

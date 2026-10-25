@@ -430,6 +430,42 @@ if phases.contains("slash") {
     exit(0)
 }
 
+if phases.contains("other") {
+    nonisolated struct Row: Decodable, Sendable { let id: StoredSessionID; let title: String?; let source: String? }
+    nonisolated struct Page: Decodable, Sendable { let sessions: [Row] }
+    func otherRows() async throws -> [Row] {
+        var request = hermesRequest("api/sessions", on: server)
+        request.url?.append(queryItems: [URLQueryItem(name: "profile", value: "crew-test"), URLQueryItem(name: "order", value: "recent"), URLQueryItem(name: "limit", value: "50")])
+        let bot = try await crewTest()
+        return try await fetch(request, with: urlSession, as: Page.self).sessions.filter { $0.title != "Bot Chat" && $0.id != bot.canonicalSession?.id && $0.id != bot.canonicalSession?.resolvedID }
+    }
+    if try await otherRows().isEmpty {
+        let seeded = try await gateway.call("session.create", ["profile": "crew-test", "title": "Crew other conversation probe"], as: JSONValue.self)
+        guard case .object(let fields) = seeded, case .string(let runtime) = fields["session_id"] else { print("no runtime"); exit(1) }
+        _ = try await gateway.call("prompt.submit", ["session_id": runtime, "text": "Reply with exactly: seeded"], as: JSONValue.self)
+        try await Task.sleep(for: .seconds(20))
+    }
+    let bot = try await crewTest()
+    let botChatBefore = try await history(of: bot.canonicalSession!.id, profile: "crew-test", on: server, with: urlSession).count
+    let before = try await otherRows()
+    let target = before[0]
+    print("other", target.id.rawValue, target.title ?? "-", target.source ?? "-")
+    record("other-conversation")
+    let chat = ChatSession(bot: bot, resuming: target.id, gateway: gateway, urlSession: urlSession)
+    Task { await chat.run() }
+    try await waitIdle(chat, timeout: 20) { !$0.transcript.turns.isEmpty || $0.failure != nil }
+    show("other attach", chat)
+    chat.send("Reply with exactly: other-ok", mode: .send)
+    try await waitIdle(chat)
+    show("other reply", chat)
+    let rows = try await history(of: target.id, profile: "crew-test", on: server, with: urlSession)
+    print("other history has reply", rows.contains { $0.content?.contains("other-ok") == true })
+    print("bot chat rows unchanged", try await history(of: bot.canonicalSession!.id, profile: "crew-test", on: server, with: urlSession).count == botChatBefore)
+    let after = try await otherRows().first { $0.id == target.id }
+    print("other row after", after?.title ?? "missing", after?.source ?? "-")
+    exit(0)
+}
+
 let bot = try await crewTest()
 print("canonical", bot.canonicalSession?.id.rawValue ?? "nil")
 let chat = try await attached(bot)

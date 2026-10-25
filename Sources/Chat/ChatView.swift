@@ -43,6 +43,7 @@ private let separatorFormatter = {
 
 struct ChatView<Avatar: View, EmptyState: View>: View {
     let botName: String
+    var title: String?
     let avatar: Avatar
     let transcript: Transcript
     let emptyState: EmptyState
@@ -76,8 +77,9 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
     @FocusState private var isComposerFocused: Bool
     private let presentation: ChatPresentation
 
-    init(botName: String, avatar: Avatar, transcript: Transcript, emptyState: EmptyState, mentionable: [Bot], slashCommands: [SlashCommand] = [], draft: Binding<String>, tray: AttachmentTray, features: ComposerFeatures = .all, request: PendingRequest? = nil, payment: PaymentCardState? = nil, paymentNotice: String? = nil, shopOffer: String? = nil, offlineReason: String? = nil, activity: String? = nil, models: ModelSwitcher? = nil, focus: SearchFocus? = nil, presentation: ChatPresentation = ChatPresentation(), actions: ChatActions = ChatActions()) {
+    init(botName: String, title: String? = nil, avatar: Avatar, transcript: Transcript, emptyState: EmptyState, mentionable: [Bot], slashCommands: [SlashCommand] = [], draft: Binding<String>, tray: AttachmentTray, features: ComposerFeatures = .all, request: PendingRequest? = nil, payment: PaymentCardState? = nil, paymentNotice: String? = nil, shopOffer: String? = nil, offlineReason: String? = nil, activity: String? = nil, models: ModelSwitcher? = nil, focus: SearchFocus? = nil, presentation: ChatPresentation = ChatPresentation(), actions: ChatActions = ChatActions()) {
         self.botName = botName
+        self.title = title
         self.avatar = avatar
         self.transcript = transcript
         self.emptyState = emptyState
@@ -253,12 +255,17 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
         .scrollEdgeEffectStyle(.soft, for: .vertical)
         .toolbar {
             ToolbarItem(placement: .principal) {
-                PersonaPill(botName: botName, avatar: avatar) {
-                    #if os(iOS)
-                    isComposerFocused = false
-                    #endif
-                    actions.openPersona()
-                }
+                if let title {
+                    Text(title)
+                        .font(.headline)
+                        .lineLimit(1)
+                } else {
+                    PersonaPill(botName: botName, avatar: avatar) {
+                        #if os(iOS)
+                        isComposerFocused = false
+                        #endif
+                        actions.openPersona()
+                    }
                     .contextMenu {
                         if let models, !models.providers.isEmpty {
                             ModelPicker(
@@ -268,10 +275,11 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
                             .pickerStyle(.menu)
                         }
                     }
+                }
             }
             .sharedBackgroundVisibility(.hidden)
         }
-        .navigationTitle(botName)
+        .navigationTitle(title ?? botName)
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #else

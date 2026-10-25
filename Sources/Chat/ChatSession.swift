@@ -56,10 +56,10 @@ final class ChatSession {
     private var serverPosition: ReadPosition?
     private var isSyncing = false
 
-    init(bot: Bot, gateway: Gateway, urlSession: URLSession) {
+    init(bot: Bot, resuming session: StoredSessionID? = nil, gateway: Gateway, urlSession: URLSession) {
         self.profile = bot.name
-        self.stored = bot.canonicalSession?.id
-        self.syncedPosition = bot.canonicalSession?.position
+        self.stored = session ?? bot.canonicalSession?.id
+        self.syncedPosition = session == nil ? bot.canonicalSession?.position : nil
         self.gateway = gateway
         self.urlSession = urlSession
     }

@@ -156,8 +156,8 @@ def announce_read(body: ReadIn) -> dict[str, int]:
 
 
 @router.get("/payments")
-def list_shops(profile: str) -> dict[str, Any]:
-    checked_profile(profile)
+def list_shops(bot: str) -> dict[str, Any]:
+    checked_profile(bot)
     import hermes_yaml
     from hermes_cli.profiles import get_profile_dir
 
@@ -172,12 +172,12 @@ def list_shops(profile: str) -> dict[str, Any]:
         except payments.CardProblem as problem:
             card_row = {"label": None, "last4": None, "problem": str(problem), "code_mismatch": False}
             master_secret, master_label = None, None
-    vault = payments.profile_vault(profile)
-    config_path = get_profile_dir(profile) / "config.yaml"
+    vault = payments.profile_vault(bot)
+    config_path = get_profile_dir(bot) / "config.yaml"
     config = hermes_yaml.safe_load(config_path.read_text()) if config_path.is_file() else None
     terminal = config.get("terminal") if isinstance(config, dict) else None
     return {"card": card_row,
-            "shops": [payments.shop(item, vault.resolve_secret(item.id), master_secret, profile, master_label)
+            "shops": [payments.shop(item, vault.resolve_secret(item.id), master_secret, bot, master_label)
                       for item in payments.shops(vault)],
             "terminal_backend": str(terminal.get("backend") or "local") if isinstance(terminal, dict) else "local",
             "gate": store.read_gate(), "legacy_cards": legacy_cards}
@@ -252,9 +252,9 @@ async def set_card(request: Request) -> dict[str, Any]:
 
 
 @router.delete("/payments/shops/{shop_id}")
-def remove_shop(shop_id: str, profile: str) -> dict[str, bool]:
-    checked_profile(profile)
-    vault = payments.profile_vault(profile)
+def remove_shop(shop_id: str, bot: str) -> dict[str, bool]:
+    checked_profile(bot)
+    vault = payments.profile_vault(bot)
     with payments.vault_lock():
         if not any(item.id == shop_id for item in payments.shops(vault)) or not vault.remove_item(shop_id):
             raise HTTPException(404, {"code": "unknown_shop", "message": ERRORS["unknown_shop"]})

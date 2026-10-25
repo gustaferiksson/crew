@@ -204,7 +204,7 @@ struct ShopsCard: View {
     private func load() async {
         guard let server = connection.session?.server else { return }
         do {
-            list = try await paymentsCall("payments", query: [URLQueryItem(name: "profile", value: bot.name)], on: server, with: connection.urlSession, as: ShopList.self)
+            list = try await paymentsCall("payments", query: [URLQueryItem(name: "bot", value: bot.name)], on: server, with: connection.urlSession, as: ShopList.self)
             loadFailed = false
         } catch {
             loadFailed = list == nil
@@ -218,7 +218,7 @@ struct ShopsCard: View {
         Task {
             defer { removing.remove(shop.id) }
             do {
-                _ = try await paymentsCall("payments/shops/\(shop.id)", query: [URLQueryItem(name: "profile", value: bot.name)], method: "DELETE", on: server, with: connection.urlSession, as: JSONValue.self)
+                _ = try await paymentsCall("payments/shops/\(shop.id)", query: [URLQueryItem(name: "bot", value: bot.name)], method: "DELETE", on: server, with: connection.urlSession, as: JSONValue.self)
             } catch let error as PaymentsError where error.code == "unknown_shop" {
             } catch {
                 removeFailures[shop.id] = String(localized: "Couldn't remove this shop. Try again.")

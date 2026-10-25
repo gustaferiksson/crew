@@ -82,14 +82,14 @@ def test_payments_lists_the_card_and_shops(client: TestClient, master: Path, vau
          "decided_at": 1760620000.0},
         {"request_id": "c" * 32, "profile": "other", "origin": "https://www.zalando.se", "state": "approved",
          "decided_at": 1760630000.0}])
-    response = client.get(f"{API}/payments", params={"profile": "scout"})
+    response = client.get(f"{API}/payments", params={"bot": "scout"})
     assert response.status_code == 200
     assert response.json() == fixture("payments.json")
     assert "4242 4242" not in response.text
 
 
 def test_payments_without_a_master(client: TestClient, vaults: Vaults) -> None:
-    assert client.get(f"{API}/payments", params={"profile": "scout"}).json() == fixture("payments-no-card.json")
+    assert client.get(f"{API}/payments", params={"bot": "scout"}).json() == fixture("payments-no-card.json")
 
 
 def test_payments_with_several_masters(client: TestClient, app: FastAPI, master: Path,
@@ -101,7 +101,7 @@ def test_payments_with_several_masters(client: TestClient, app: FastAPI, master:
     store.mutate_payments(lambda entries: [{"request_id": "a" * 32, "profile": "scout", "state": "approved",
                                             "origin": "https://www.zalando.se", "decided_at": 1760610000.0}])
     app.state.auth_required = False
-    assert client.get(f"{API}/payments", params={"profile": "scout"}).json() == fixture("payments-several.json")
+    assert client.get(f"{API}/payments", params={"bot": "scout"}).json() == fixture("payments-several.json")
 
 
 def test_payments_flags_a_code_that_does_not_fit_the_card(client: TestClient, vaults: Vaults, hermes_root: Path,
@@ -109,7 +109,7 @@ def test_payments_flags_a_code_that_does_not_fit_the_card(client: TestClient, va
     caplog.set_level("DEBUG")
     vaults.add(hermes_root / "vault" / "crew-push", "payment", "Shopping card",
                {**CARD, "card_number": "5555 5555 5555 4444", "cvc": "1234"})
-    response = client.get(f"{API}/payments", params={"profile": "scout"})
+    response = client.get(f"{API}/payments", params={"bot": "scout"})
     assert response.json() == fixture("payments-code-mismatch.json")
     assert "1234" not in response.text and "1234" not in caplog.text
 
@@ -124,13 +124,13 @@ def test_code_length_follows_the_card_brand(client: TestClient, vaults: Vaults, 
                                             cvc: str, mismatch: bool) -> None:
     vaults.add(hermes_root / "vault" / "crew-push", "payment", "Shopping card",
                {**CARD, "card_number": number, "cvc": cvc})
-    assert client.get(f"{API}/payments", params={"profile": "scout"}).json()["card"]["code_mismatch"] is mismatch
+    assert client.get(f"{API}/payments", params={"bot": "scout"}).json()["card"]["code_mismatch"] is mismatch
 
 
 def test_old_card_when_the_master_was_replaced(client: TestClient, master: Path, vaults: Vaults) -> None:
     add_shop(client)
     vaults.records[master][0]["secret"]["card_number"] = "4000056655665556"
-    [shop] = client.get(f"{API}/payments", params={"profile": "scout"}).json()["shops"]
+    [shop] = client.get(f"{API}/payments", params={"bot": "scout"}).json()["shops"]
     assert shop["stale"] is True
 
 
@@ -212,17 +212,23 @@ def test_add_shop_needs_exactly_one_master(client: TestClient, vaults: Vaults, h
     ("ghost", 404, "error-unknown-profile.json"),
 ])
 def test_profile_errors(client: TestClient, vaults: Vaults, profile: str, status: int, name: str) -> None:
-    for response in (client.get(f"{API}/payments", params={"profile": profile}),
+    for response in (client.get(f"{API}/payments", params={"bot": profile}),
                      add_shop(client, profile=profile),
-                     client.delete(f"{API}/payments/shops/vault_3f9a1c2b7d4e", params={"profile": profile})):
+                     client.delete(f"{API}/payments/shops/vault_3f9a1c2b7d4e", params={"bot": profile})):
         assert response.status_code == status and response.json() == fixture(name)
+
+
+def test_bot_query_never_named_profile(client: TestClient, vaults: Vaults) -> None:
+    for response in (client.get(f"{API}/payments", params={"profile": "scout"}),
+                     client.delete(f"{API}/payments/shops/vault_3f9a1c2b7d4e", params={"profile": "scout"})):
+        assert response.status_code == 422 and response.json()["detail"][0]["loc"] == ["query", "bot"]
 
 
 def test_remove_shop(client: TestClient, master: Path, vaults: Vaults, hermes_root: Path) -> None:
     shop_id = add_shop(client).json()["shop"]["id"]
-    response = client.delete(f"{API}/payments/shops/{shop_id}", params={"profile": "scout"})
+    response = client.delete(f"{API}/payments/shops/{shop_id}", params={"bot": "scout"})
     assert response.status_code == 200 and response.json() == fixture("shop-removed.json")
-    response = client.delete(f"{API}/payments/shops/{shop_id}", params={"profile": "scout"})
+    response = client.delete(f"{API}/payments/shops/{shop_id}", params={"bot": "scout"})
     assert response.status_code == 404 and response.json() == fixture("error-unknown-shop.json")
 
 
@@ -231,7 +237,7 @@ def test_remove_refuses_the_master_and_other_kinds(client: TestClient, master: P
     master_id = vaults.records[master][0]["id"]
     login = vaults.add(scout_vault(hermes_root), "login", "Zalando", {"password": "x"}, "https://www.zalando.se")
     for profile, item_id in (("default", master_id), ("scout", login.id), ("scout", master_id)):
-        response = client.delete(f"{API}/payments/shops/{item_id}", params={"profile": profile})
+        response = client.delete(f"{API}/payments/shops/{item_id}", params={"bot": profile})
         assert response.status_code == 404 and response.json() == fixture("error-unknown-shop.json")
     assert len(vaults.records[master]) == 1 and len(vaults.records[scout_vault(hermes_root)]) == 1
 

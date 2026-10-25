@@ -141,7 +141,7 @@ def main() -> None:
     VaultStore(home / "vault").add_item(kind="payment", label="Shopping card", secret=CARD)
     created = client.post("/api/plugins/crew-push/payments/shops",
                           json={"profile": "default", "site": "https://www.zalando.se/checkout"})
-    listed = client.get("/api/plugins/crew-push/payments", params={"profile": "default"}).json()
+    listed = client.get("/api/plugins/crew-push/payments", params={"bot": "default"}).json()
     copy = next(i for i in VaultStore(home / "vault").list_items() if i.origin)
     result["shop"] = {"status": created.status_code, "card": listed["card"], "hosts": [s["host"] for s in listed["shops"]],
                       "label": copy.label, "same_secret": VaultStore(home / "vault").resolve_secret(copy.id) == CARD,
@@ -169,7 +169,7 @@ def main() -> None:
     _mount_one_plugin_api(dashboard, plugin, {"crew-push"}, set())
     anonymous = TestClient(dashboard, base_url="http://127.0.0.1")
     result["anonymous"] = {path: anonymous.request(method, f"/api/plugins/crew-push/{path}").status_code
-                           for method, path in (("GET", "status"), ("GET", "payments?profile=default"),
+                           for method, path in (("GET", "status"), ("GET", "payments?bot=default"),
                                                 ("POST", "payments/shops"), ("GET", f"payments/requests/{'0' * 32}"),
                                                 ("PUT", "payments/card"), ("POST", "payments/shops/update"))}
     print("RESULT " + json.dumps(result))

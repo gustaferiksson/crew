@@ -442,9 +442,9 @@ def test(body: dict):
 | POST | `/api/plugins/crew-push/devices` | `{token, platform: "ios"\|"macos", environment: "sandbox"\|"production", name, prefs: {replies, approvals, questions, routines, previews}}` | `200 {ok, install_id, apns_configured}`. Upsert by token; also the way to change prefs |
 | DELETE | `/api/plugins/crew-push/devices/{token}` | | `200 {ok}`, idempotent |
 | POST | `/api/plugins/crew-push/test` | `{token}` | `202`; sends one push to that device only |
-| GET | `/api/plugins/crew-push/payments?profile=` | | crew-push 0.4.0: the Shops card (master card row, shops, `terminal_backend`, `gate`); `/status` also reports `features: ["payments"]` and `gate`. Shapes: [flows/payments-contract.md](flows/payments-contract.md) |
+| GET | `/api/plugins/crew-push/payments?bot=` | | crew-push 0.4.0: the Shops card (master card row, shops, `terminal_backend`, `gate`); `/status` also reports `features: ["payments"]` and `gate`. Shapes: [flows/payments-contract.md](flows/payments-contract.md) |
 | POST | `/api/plugins/crew-push/payments/shops` | `{profile, site}` | `201 {shop}`: copies the master card to that exact `https` origin |
-| DELETE | `/api/plugins/crew-push/payments/shops/{id}?profile=` | | `200 {removed: true}`; only a payment item with an origin |
+| DELETE | `/api/plugins/crew-push/payments/shops/{id}?bot=` | | `200 {removed: true}`; only a payment item with an origin |
 | GET | `/api/plugins/crew-push/payments/requests/{request_id}` | | the payment request crew-push recorded for an approval, for Hold to Pay |
 | PUT | `/api/plugins/crew-push/payments/card` | `{card_number, exp_month, exp_year, cvc, cardholder_name, label}` | crew-push 0.5.0: `200 {card: {label, last4}}`; adds or replaces the master card without origin. Never logged or echoed; `403 login_off` without the login gate |
 | POST | `/api/plugins/crew-push/payments/shops/update` | `{profile}` | `200 {shops}`: re-copies the current card into that bot's stale shops |

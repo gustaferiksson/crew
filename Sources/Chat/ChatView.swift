@@ -255,6 +255,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
             .animation(.smooth, value: request?.id)
             .sensoryFeedback(.warning, trigger: request?.id) { _, id in id != nil }
             .sensoryFeedback(.success, trigger: sends)
+            .sensoryFeedback(.selection, trigger: models?.current) { previous, _ in previous != nil }
             .sensoryFeedback(trigger: responses) { _, responses in responses.last }
             .sensoryFeedback(trigger: transcript.turns.last { $0.pending == nil && $0.prompt != nil }?.status) { old, new in
                 guard old == .streaming else { return nil }

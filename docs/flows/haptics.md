@@ -17,7 +17,7 @@ Haptics confirm what the user did and mark state changes they care about, the wa
 | Dictation starts | Composer | `.start` | Existing (`Composer`) |
 | Pin / Unpin, Hide / Unhide | Bot list rows (menu and swipe buttons) | `.impact(weight: .light)` | Button tap (`BotsView`) |
 | Inspector tab changed | Bot inspector segmented control | `.selection` | `tab` (`BotInspector`) |
-| Model changed | Chat model switcher | `.selection` | `ModelSwitcher.current` changes after load (`ChatScreen`) |
+| Model changed | Chat model switcher | `.selection` | `ModelSwitcher.current` changes after load (`ChatView`) |
 
 ## Deliberately silent
 

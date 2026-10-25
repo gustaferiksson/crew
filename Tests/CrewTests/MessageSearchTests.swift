@@ -30,6 +30,24 @@ private func emphasised(_ text: AttributedString) -> [String] {
     text.runs.filter { $0.font != nil }.map { String(text[$0.range].characters) }
 }
 
+nonisolated private final class WeatherSearchFixture: URLProtocol {
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+    override func stopLoading() {}
+
+    override func startLoading() {
+        guard let url = request.url, let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil),
+              let data = try? Data(contentsOf: URL(filePath: #filePath).deletingLastPathComponent().deletingLastPathComponent().appending(path: "fixtures/sessions.search.weather.v0.22.2.json"))
+        else {
+            client?.urlProtocol(self, didFailWithError: URLError(.fileDoesNotExist))
+            return
+        }
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: data)
+        client?.urlProtocolDidFinishLoading(self)
+    }
+}
+
 private nonisolated struct HistoryPage: Decodable {
     let messages: [HistoryRow]
 }
@@ -136,5 +154,17 @@ private nonisolated struct HistoryPage: Decodable {
         await search.run("train", in: [], on: nil, with: .shared)
         #expect(search.hits.isEmpty)
         #expect(search.phase == .done)
+    }
+
+    @Test func hiddenBotsAreStillSearched() async throws {
+        var hidden = crewTest
+        hidden.meta.hidden = true
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [WeatherSearchFixture.self]
+        let search = MessageSearch()
+        await search.run("weather", in: [hidden], on: URL(string: "https://hermes.invalid"), with: URLSession(configuration: configuration))
+        #expect(search.searched == 1)
+        #expect(search.hits.count == 4)
+        #expect(search.hits.allSatisfy { $0.bot == hidden.id })
     }
 }

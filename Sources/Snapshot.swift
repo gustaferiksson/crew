@@ -8,6 +8,7 @@ enum Snapshot: String {
     case sidebarCompact = "sidebar-compact"
     case sidebarDraft = "sidebar-draft"
     case sidebarSearch = "sidebar-search"
+    case sidebarHidden = "sidebar-hidden"
     case searchResult = "search-result"
     case unreachable
     case avatars
@@ -147,7 +148,7 @@ enum Snapshot: String {
         if isShops || chatFixture?.isPayment == true {
             return Connection(fixture: .connected, server: self == .addCardHTTP ? URL(string: "http://hermes.local:9119")! : server, crewPush: PluginStatus(pluginVersion: "0.5.0", installId: "fixture", apnsConfigured: true, http2: true, devices: 2, features: ["payments", "card"], gate: true))
         }
-        if [.sidebar, .sidebarFlat, .sidebarCompact, .sidebarDraft, .sidebarSearch, .searchResult, .layout, .layoutInspector, .chatWindow, .chatWindowInspector, .chatWindowMissing, .inspectorLook, .profileSkills, .botPage, .notifications, .newBot, .newGroup, .settingsAccount, .settingsNotifications, .settingsNotificationsAsk, .groupChat, .groupWelcome, .groupInspector].contains(self) || chatFixture != nil || inspectorTab != nil { return Connection(fixture: .connected, server: server) }
+        if [.sidebar, .sidebarHidden, .sidebarFlat, .sidebarCompact, .sidebarDraft, .sidebarSearch, .searchResult, .layout, .layoutInspector, .chatWindow, .chatWindowInspector, .chatWindowMissing, .inspectorLook, .profileSkills, .botPage, .notifications, .newBot, .newGroup, .settingsAccount, .settingsNotifications, .settingsNotificationsAsk, .groupChat, .groupWelcome, .groupInspector].contains(self) || chatFixture != nil || inspectorTab != nil { return Connection(fixture: .connected, server: server) }
         if self == .unreachable { return Connection(fixture: .unreachable, server: server) }
         return Connection(fixture: .signedOut, server: server)
     }
@@ -168,7 +169,16 @@ enum Snapshot: String {
                 bot("default", 3, "Done. The release notes are in the shared folder.", BotMeta()),
                 bot("scout", 90, "Found three flights under 2 000 kr for the weekend.", BotMeta(title: "Scout", color: "#38bdf8")),
                 bot("quill", 60 * 30, "Draft two is ready for review.", BotMeta(title: "Quill", color: "#ec4899")),
+                bot("ghost", 1, "Hidden until someone unhides it.", BotMeta(title: "Ghost", color: "#8e8e93", hidden: true)),
             ], statuses: ["scout": .unread])
+        }
+        if self == .sidebarHidden {
+            return BotStore(fixture: [
+                bot("default", 3, "Done. The release notes are in the shared folder.", BotMeta(pinned: true)),
+                bot("scout", 90, "Found three flights under 2 000 kr for the weekend.", BotMeta(title: "Scout", color: "#38bdf8")),
+                bot("ghost", 1, "Hidden until someone unhides it.", BotMeta(title: "Ghost", color: "#8e8e93", hidden: true)),
+                bot("quill", 60 * 30, "Draft two is ready for review.", BotMeta(title: "Quill", color: "#ec4899", pinned: true, hidden: true)),
+            ], statuses: ["ghost": .unread])
         }
         return BotStore(fixture: [
             bot("default", 2, "Summarised the inbox: two invoices need approval.", BotMeta(pinned: true)),
@@ -179,7 +189,7 @@ enum Snapshot: String {
             bot("atlas", 60 * 3, "Tuesday's standup notes are filed.", BotMeta(title: "Atlas", color: "#14b8a6", sectionID: "work", sectionName: "Work")),
             bot("chef", 60 * 24 * 3, "Shopping list for the week is in Reminders.", BotMeta(title: "Chef", color: "#f59e0b", sectionID: "home", sectionName: "Home")),
             bot("quill", 60 * 24 * 12, "Draft two is ready for review.", BotMeta(title: "Quill", color: "#ec4899")),
-            bot("ghost", 1, "Hidden bots never show.", BotMeta(title: "Ghost", hidden: true)),
+            bot("ghost", 1, "Hidden until someone unhides it.", BotMeta(title: "Ghost", color: "#8e8e93", hidden: true)),
             bot("pixel", 60 * 24 * 40, "Resized the screenshots for the App Store listing.", BotMeta(title: "Pixel", sectionID: "home", sectionName: "Home")),
         ], statuses: ["scout": .working, "forge": .waiting(.approval), "atlas": .unread, "default": .unread, "chef": .failed], photos: Snapshot.samplePhoto.map { ["scout": $0] } ?? [:])
     }

@@ -311,11 +311,15 @@ final class BotStore {
     }
 
     var favourites: [Bot] {
-        ranked.filter { $0.meta.pinned == true }
+        ranked.filter { $0.meta.pinned == true && $0.meta.hidden != true }
+    }
+
+    var hiddenBots: [Bot] {
+        ranked.filter { $0.meta.hidden == true }
     }
 
     var sections: [BotSection] {
-        let listed = ranked.filter { $0.meta.pinned != true }
+        let listed = ranked.filter { $0.meta.pinned != true && $0.meta.hidden != true }
         let isFiled = { (bot: Bot) in bot.meta.sectionID?.isEmpty == false && bot.meta.sectionName?.isEmpty == false }
         let filed = Dictionary(grouping: listed.filter(isFiled)) { $0.meta.sectionID ?? "" }
         let named = filed
@@ -334,7 +338,6 @@ final class BotStore {
             return status == .unread ? 1 : 0
         }
         return bots
-            .filter { $0.meta.hidden != true }
             .sorted { lhs, rhs in
                 guard rank(lhs) == rank(rhs) else { return rank(lhs) > rank(rhs) }
                 return (lhs.canonicalSession?.lastActive ?? .distantPast) > (rhs.canonicalSession?.lastActive ?? .distantPast)
@@ -419,6 +422,11 @@ final class BotStore {
     func togglePin(_ bot: Bot, via gateway: Gateway) async throws {
         let pinned = bot.meta.pinned != true
         try await updateMeta(of: bot.name, via: gateway) { $0.pinned = pinned }
+    }
+
+    func toggleHidden(_ bot: Bot, via gateway: Gateway) async throws {
+        let hidden = bot.meta.hidden != true
+        try await updateMeta(of: bot.name, via: gateway) { $0.hidden = hidden }
     }
 
     func move(_ bot: Bot, to section: SectionTag?, via gateway: Gateway) async throws {

@@ -89,7 +89,7 @@ struct Composer: View {
                     .foregroundStyle(.secondary)
             }
             if showsHoldHint {
-                Label("Hold to record", systemImage: "waveform")
+                Label("Hold to record", systemImage: "waveform.mid")
                     .font(.footnote.weight(.medium))
                     .foregroundStyle(.secondary)
                     .transition(.opacity)

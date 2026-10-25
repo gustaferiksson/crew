@@ -3,6 +3,23 @@ import SwiftUI
 nonisolated struct SlashCommand: Hashable, Sendable {
     let name: String
     let summary: String
+    var isSkill = false
+}
+
+nonisolated struct SlashReply: Decodable, Sendable {
+    let output: String?
+    let warning: String?
+    let type: String?
+    let target: String?
+    let message: String?
+    let notice: String?
+    let display: String?
+}
+
+nonisolated func slashInvocation(_ text: String, in commands: [SlashCommand]) -> (command: SlashCommand, arg: String)? {
+    let name = text.prefix { !$0.isWhitespace }
+    guard let command = commands.first(where: { $0.name == name }) else { return nil }
+    return (command, text.dropFirst(name.count).trimmingCharacters(in: .whitespacesAndNewlines))
 }
 
 nonisolated struct SlashCatalog: Decodable, Sendable {
@@ -21,7 +38,9 @@ nonisolated struct SlashCatalog: Decodable, Sendable {
         let builtIns = try container.decode([String: BuiltIn].self, forKey: .commands)
         let skills = try container.decode([String: JSONValue].self, forKey: .skills)
         commands = try container.decode([[String]].self, forKey: .pairs).compactMap { pair in
-            guard pair.count == 2, skills[pair[0]] != nil || builtIns[pair[0]].map({ $0.desktop == nil }) == true else { return nil }
+            guard pair.count == 2, !["/branch", "/resume"].contains(pair[0]) else { return nil }
+            if skills[pair[0]] != nil { return SlashCommand(name: pair[0], summary: pair[1], isSkill: true) }
+            guard builtIns[pair[0]].map({ $0.desktop == nil }) == true else { return nil }
             return SlashCommand(name: pair[0], summary: pair[1])
         }
     }

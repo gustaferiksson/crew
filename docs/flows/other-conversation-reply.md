@@ -12,7 +12,7 @@ The sheet is the same `ChatView` as the Bot Chat, driven by its own `ChatSession
 - **Opened from:** the inspector's Other Conversations card and a message-search hit outside the Bot Chat (which still scrolls to and tints the matching turn).
 - **Bot list:** unchanged. The sheet's session is not the bot's Bot Chat, so the row's preview, time, status and unread do not follow replies sent here.
 - **Bot Chat:** unchanged; the reply lands only in the opened session (probe-checked).
-- **Push:** unchanged. A reply here streams in the sheet; Hermes' own delivery for that session (e.g. a cron origin) is not affected.
+- **Push:** unchanged. crew-push only notifies for the Bot Chat and cron runs, so a reply in a routine's conversation may also arrive as a routine banner when that device has routine pushes on; accepted, no suppression.
 - **Light/dark:** system colours, see renders `other-conversation`.
 
 ## States

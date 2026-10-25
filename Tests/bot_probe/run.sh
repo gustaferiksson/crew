@@ -1,5 +1,5 @@
 #!/bin/zsh
-# Headless bot management probe against the real server: creates, duplicates, files and deletes crew-test-tmp(-2) only. With an m4a argument it only sends that to /api/audio/transcribe on crew-test.
+# Headless bot management probe against the real server: creates, duplicates, files, hides and deletes crew-test-tmp(-2) only. With an m4a argument it only sends that to /api/audio/transcribe on crew-test.
 set -e
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 OUT="$(mktemp -d)"

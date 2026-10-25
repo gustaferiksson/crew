@@ -65,6 +65,17 @@ do {
         await store.reload(gateway)
         check(bot(original)?.meta.sectionID == nil && bot(original)?.meta.title == "Crew Probe", "move: removed from section, title kept")
     }
+    if let shown = bot(original) {
+        try await store.toggleHidden(shown, via: gateway)
+        await store.reload(gateway)
+        check(bot(original)?.meta.hidden == true && store.hiddenBots.contains { $0.name == original }, "hide: hermes-bots.hidden persisted, in Hidden")
+        check(!store.sections.flatMap(\.bots).contains { $0.name == original } && bot(original)?.meta.title == "Crew Probe", "hide: out of the list, look kept")
+    }
+    if let hidden = bot(original) {
+        try await store.toggleHidden(hidden, via: gateway)
+        await store.reload(gateway)
+        check(bot(original)?.meta.hidden == false && store.sections.flatMap(\.bots).contains { $0.name == original }, "unhide: back in the list")
+    }
 } catch {
     failures.append("error: \(error)")
     print("FAIL", error)

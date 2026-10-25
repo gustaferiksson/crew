@@ -142,8 +142,7 @@ final class MessageSearch {
 
     func run(_ query: String, in bots: [Bot], on server: URL?, with urlSession: URLSession) async {
         let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        let targets = bots.filter { $0.meta.hidden != true }
-        let key = [query, server?.absoluteString ?? ""] + targets.map(\.id)
+        let key = [query, server?.absoluteString ?? ""] + bots.map(\.id)
         guard key != completed || phase != .done else { return }
         guard Self.isSearchable(query) else {
             hits = []
@@ -169,7 +168,7 @@ final class MessageSearch {
         var fresh: [MessageHit]?
         var failures = 0
         await withTaskGroup(of: [MessageHit]?.self) { group in
-            var pending = targets.makeIterator()
+            var pending = bots.makeIterator()
             for _ in 0..<4 {
                 guard let bot = pending.next() else { break }
                 group.addTask { try? await searchMessages(of: bot, matching: query, on: server, with: urlSession) }
@@ -190,7 +189,7 @@ final class MessageSearch {
         guard !Task.isCancelled else { return }
         hits = fresh ?? []
         failed = failures
-        searched = targets.count
+        searched = bots.count
         completed = key
         phase = .done
     }

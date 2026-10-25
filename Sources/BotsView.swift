@@ -38,6 +38,7 @@ struct BotsView: View {
     @State private var models = ModelSwitcher()
     @State private var modelsBot: Bot.ID?
     @State private var isNarrow = false
+    @State private var showsHidden = Snapshot.requested == .sidebarHidden
 
     var body: some View {
         let selected = store.bots.first { $0.id == selection }
@@ -248,8 +249,35 @@ struct BotsView: View {
                     }
                     .listSectionSeparator(.hidden, edges: .top)
                 }
+                if !store.hiddenBots.isEmpty {
+                    Section {
+                        if showsHidden {
+                            ForEach(store.hiddenBots) { row(for: $0) }
+                        }
+                    } header: {
+                        Button {
+                            withAnimation { showsHidden.toggle() }
+                        } label: {
+                            HStack {
+                                Text("Hidden")
+                                Spacer()
+                                Text(store.hiddenBots.count, format: .number)
+                                Image(systemName: "chevron.right")
+                                    .rotationEffect(.degrees(showsHidden ? 90 : 0))
+                                    .accessibilityHidden(true)
+                            }
+                            #if os(macOS)
+                            .padding(.trailing, 12)
+                            #endif
+                            .contentShape(.rect)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityValue(showsHidden ? Text("Expanded") : Text("Collapsed"))
+                    }
+                    .listSectionSeparator(.hidden, edges: .top)
+                }
             } else if !MessageSearch.isSearchable(query) {
-                ForEach((store.favourites + store.sections.flatMap(\.bots)).filter {
+                ForEach((store.favourites + store.sections.flatMap(\.bots) + store.hiddenBots).filter {
                     $0.title.localizedStandardContains(query) || $0.name.localizedStandardContains(query)
                         || $0.role?.localizedStandardContains(query) == true
                         || $0.canonicalSession?.preview?.localizedStandardContains(query) == true
@@ -355,7 +383,7 @@ struct BotsView: View {
 
     private var matchingBots: [Bot] {
         let name = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        return (store.favourites + store.sections.flatMap(\.bots)).filter {
+        return (store.favourites + store.sections.flatMap(\.bots) + store.hiddenBots).filter {
             $0.title.localizedStandardContains(name) || $0.name.localizedStandardContains(name) || $0.role?.localizedStandardContains(name) == true
         }
     }
@@ -479,6 +507,18 @@ struct BotsView: View {
                     .labelStyle(.iconOnly)
                     .tint(.orange)
             }
+            .swipeActions(edge: .trailing) {
+                hideButton(for: bot)
+                    .labelStyle(.iconOnly)
+            }
+    }
+
+    private func hideButton(for bot: Bot) -> some View {
+        Button(bot.meta.hidden == true ? "Unhide" : "Hide", systemImage: bot.meta.hidden == true ? "eye" : "eye.slash") {
+            if bot.meta.hidden != true && selection == bot.id { selection = nil }
+            perform { try await store.toggleHidden(bot, via: $0) }
+        }
+        .disabled(connection.state != .connected)
     }
 
     private func pinButton(for bot: Bot) -> some View {
@@ -495,6 +535,7 @@ struct BotsView: View {
         Divider()
         #endif
         pinButton(for: bot)
+        hideButton(for: bot)
         Group {
             Button("Duplicate", systemImage: "plus.square.on.square") {
                 perform { selection = try await store.duplicate(bot, via: $0) }

@@ -89,7 +89,7 @@ struct Composer: View {
                     .foregroundStyle(.secondary)
             }
             if showsHoldHint {
-                Label("Hold to record", systemImage: "waveform")
+                Label("Hold to record", systemImage: "waveform.mid")
                     .font(.footnote.weight(.medium))
                     .foregroundStyle(.secondary)
                     .transition(.opacity)
@@ -275,9 +275,11 @@ struct Composer: View {
                     }
             }
             if !canSend || dictation.phase != .idle {
-                Image(systemName: hold?.cancels == true ? "xmark.circle.fill" : "waveform")
-                    .foregroundStyle(dictation.phase == .listening ? Color.red : Color.secondary)
-                    .frame(width: 24, height: fieldHeight)
+                Image(systemName: hold?.cancels == true ? "xmark.circle.fill" : "waveform.mid")
+                    .font(.title3)
+                    .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+                    .foregroundStyle(dictation.phase == .listening ? AnyShapeStyle(.red) : AnyShapeStyle(.tertiary))
+                    .frame(width: 24, height: fieldHeight, alignment: .trailing)
                     .contentShape(.rect)
                     .gesture(
                         DragGesture(minimumDistance: 0)
@@ -311,7 +313,7 @@ struct Composer: View {
         }
         .padding(.leading, 16)
         #if os(iOS)
-        .padding(.trailing, dictation.phase == .idle && (canSend || phase == .running) ? 0 : 12)
+        .padding(.trailing, dictation.phase == .idle && (canSend || phase == .running) ? 0 : 10)
         #else
         .padding(.trailing, canSend && dictation.phase == .idle ? 16 : 12)
         #endif

@@ -318,6 +318,10 @@ final class BotStore {
         ranked.filter { $0.meta.hidden == true }
     }
 
+    var hasUnreadHidden: Bool {
+        hiddenBots.contains { statuses[$0.id] == .unread }
+    }
+
     var sections: [BotSection] {
         let listed = ranked.filter { $0.meta.pinned != true && $0.meta.hidden != true }
         let isFiled = { (bot: Bot) in bot.meta.sectionID?.isEmpty == false && bot.meta.sectionName?.isEmpty == false }

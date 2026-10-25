@@ -22,3 +22,14 @@ private func bot(_ name: String, minutesAgo: Double, _ meta: BotMeta) -> Bot {
     #expect(store.sections.flatMap(\.bots).map(\.id) == ["forge", "quill"])
     #expect(store.hiddenBots.map(\.id) == ["ghost", "shade"])
 }
+
+@MainActor @Test func hiddenSectionIsUnreadOnlyWhileAHiddenBotIsUnread() {
+    let bots = [
+        bot("ada", minutesAgo: 5, BotMeta()),
+        bot("ghost", minutesAgo: 30, BotMeta(hidden: true)),
+        bot("shade", minutesAgo: 1, BotMeta(hidden: true)),
+    ]
+    #expect(BotStore(fixture: bots, statuses: ["ghost": .unread, "shade": .working]).hasUnreadHidden)
+    #expect(!BotStore(fixture: bots, statuses: ["ada": .unread, "shade": .waiting(.approval)]).hasUnreadHidden)
+    #expect(!BotStore(fixture: bots, statuses: [:]).hasUnreadHidden)
+}

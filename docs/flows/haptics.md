@@ -4,8 +4,7 @@ Haptics confirm what the user did and mark state changes they care about, the wa
 
 | Event | Surface | Feedback | Trigger |
 | --- | --- | --- | --- |
-| Message, steer or queued message sent | Bot chat, group chat | `.success` | Composer send (`ChatView`) |
-| Bot reply finished (chat open) | Bot chat, group chat | `.success` | Last prompted turn goes streaming to complete (`ChatView`) |
+| Message sent, reply finished | Bot chat, group chat | none | Messages plays no haptic for either |
 | Reply failed (chat open) | Bot chat, group chat | `.error` | Last prompted turn goes streaming to error (`ChatView`) |
 | Steer failed | Bot chat | `.error` | `ChatSession.failure` set (`ChatScreen`) |
 | Approval, question or payment card appears | Composer bar | `.warning` | New `request.id` (`ChatView`) |

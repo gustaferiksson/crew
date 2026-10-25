@@ -74,7 +74,6 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
     @State private var surfaces = SurfaceStore()
     @State private var highlighted: Turn.ID?
     @State private var handledFocus: UUID?
-    @State private var sends = 0
     @State private var responses: [SensoryFeedback] = []
     @FocusState private var isComposerFocused: Bool
     private let presentation: ChatPresentation
@@ -246,7 +245,6 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
                         position.scrollTo(id: transcriptEnd)
                         actions.send(draft, tray.take(), mentionedBots(in: draft, among: mentionable), mode)
                         draft = ""
-                        sends += 1
                     } stop: {
                         actions.stop()
                     }
@@ -254,12 +252,11 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
             }
             .animation(.smooth, value: request?.id)
             .sensoryFeedback(.warning, trigger: request?.id) { _, id in id != nil }
-            .sensoryFeedback(.success, trigger: sends)
             .sensoryFeedback(.selection, trigger: models?.current) { previous, _ in previous != nil }
             .sensoryFeedback(trigger: responses) { _, responses in responses.last }
             .sensoryFeedback(trigger: transcript.turns.last { $0.pending == nil && $0.prompt != nil }?.status) { old, new in
                 guard old == .streaming else { return nil }
-                return new == .complete ? .success : new == .error ? .error : nil
+                return new == .error ? .error : nil
             }
             #if os(iOS)
             .ignoresSafeArea(.container, edges: .bottom)

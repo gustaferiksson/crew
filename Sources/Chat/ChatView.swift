@@ -340,6 +340,15 @@ struct TurnView: View {
                         .multilineTextAlignment(.center)
                         .frame(maxWidth: .infinity)
                 }
+                if let output = turn.output {
+                    ReplyText(source: "```\n\(output)\n```")
+                        .modifier(MessageMenu(text: output, shape: .rect(cornerRadius: 12)))
+                }
+                if turn.isCommand, turn.finishedAt == nil {
+                    ProgressView()
+                        .controlSize(.small)
+                        .frame(maxWidth: .infinity)
+                }
                 if let prompt = turn.prompt {
                     if !prompt.attachments.isEmpty {
                         PromptAttachments(attachments: prompt.attachments)

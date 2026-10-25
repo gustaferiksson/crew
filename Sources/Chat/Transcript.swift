@@ -38,6 +38,8 @@ nonisolated struct Turn: Identifiable, Codable, Sendable, Equatable {
     var isSteer = false
     var isRoutine = false
     var answer: String?
+    var isCommand = false
+    var output: String?
 }
 
 nonisolated struct Prompt: Codable, Sendable, Equatable {
@@ -45,6 +47,7 @@ nonisolated struct Prompt: Codable, Sendable, Equatable {
     var sentAt: Date
     var attachments: [Attachment] = []
     var mentionNote = ""
+    var payload: String?
 }
 
 nonisolated struct AgentMessage: Codable, Sendable, Equatable {
@@ -365,6 +368,26 @@ extension Transcript {
         }
         guard let last = old.turns.last, last.status == .error, !turns.contains(where: { $0.id == last.id }) else { return }
         turns.append(last)
+    }
+
+    mutating func keepCommands(from old: Transcript) {
+        for turn in old.turns where turn.isCommand && !turns.contains(where: { $0.id == turn.id }) {
+            let shownAt = turn.finishedAt ?? .distantFuture
+            turns.insert(turn, at: turns.firstIndex { $0.startedAt > shownAt } ?? turns.endIndex)
+        }
+    }
+
+    mutating func beginCommand(_ line: String, id: String, at date: Date = .now) {
+        turns.append(Turn(id: id, notice: line, status: .complete, startedAt: date, isCommand: true))
+    }
+
+    mutating func finishCommand(_ id: String, output: String?, notice: String? = nil, failure: String? = nil, at date: Date = .now) {
+        guard let index = turns.firstIndex(where: { $0.id == id }) else { return }
+        if let notice, !notice.isEmpty { turns[index].notice = [turns[index].notice, notice].compactMap(\.self).joined(separator: "\n") }
+        turns[index].output = output.flatMap { $0.trimmingCharacters(in: .newlines).isEmpty ? nil : $0 }
+        turns[index].failure = failure
+        turns[index].status = failure == nil ? .complete : .error
+        turns[index].finishedAt = date
     }
 
     mutating func wait(_ prompt: Prompt, as pending: Turn.Pending, id: String = UUID().uuidString) {

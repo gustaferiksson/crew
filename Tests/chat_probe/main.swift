@@ -466,10 +466,89 @@ if phases.contains("other") {
     exit(0)
 }
 
+if phases.contains("slash-raw") {
+    let bot = try await crewTest()
+    let resumed = try await gateway.call("session.resume", ["session_id": bot.canonicalSession?.id.rawValue ?? "", "profile": "crew-test"], as: JSONValue.self)
+    guard case .object(let snapshot) = resumed, case .string(let runtime) = snapshot["session_id"] else { print("no runtime"); exit(1) }
+    print("runtime", runtime, "stored", snapshot["stored_session_id"] ?? .null, "count", snapshot["message_count"] ?? .null)
+    var recorded: [String: JSONValue] = [:]
+    for command in (env["SLASH"] ?? "/status").split(separator: ",") {
+        do {
+            let result = try await gateway.call("slash.exec", ["session_id": runtime, "command": String(command)], as: JSONValue.self)
+            recorded[String(command)] = result
+            print("SLASH", command, String(decoding: try encoder.encode(result), as: UTF8.self).prefix(400))
+        } catch {
+            if case GatewayError.rpc(let code, let message) = error { recorded[String(command)] = .object(["error": .object(["code": .number(Double(code)), "message": .string(message)])]) }
+            print("SLASH", command, "ERROR", error)
+        }
+    }
+    if env["RECORD"] != nil {
+        let pretty = JSONEncoder()
+        pretty.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+        let file = URL(fileURLWithPath: #filePath).appending(path: "../../fixtures/slash.exec.v0.22.5.json").standardized
+        try (pretty.encode(JSONValue.object(recorded)) + Data("\n".utf8)).write(to: file)
+        print("RECORDED", file.lastPathComponent, recorded.count)
+    }
+    if env["COMPRESS"] != nil {
+        let started = Date.now
+        do {
+            let result = try await gateway.call("session.compress", ["session_id": runtime], as: JSONValue.self, timeout: .seconds(240))
+            guard case .object(var object) = result else { throw HermesError.invalidResponse }
+            object["messages"] = nil
+            object["info"] = nil
+            object["usage"] = nil
+            print("COMPRESS", Date.now.timeIntervalSince(started), String(decoding: try encoder.encode(JSONValue.object(object)), as: UTF8.self).prefix(1500))
+        } catch {
+            print("COMPRESS", Date.now.timeIntervalSince(started), "ERROR", error)
+        }
+    }
+    if let skill = env["SKILL"] {
+        do {
+            let result = try await gateway.call("command.dispatch", ["session_id": runtime, "name": skill, "arg": env["ARG"] ?? ""], as: JSONValue.self)
+            print("DISPATCH", skill, String(decoding: try encoder.encode(result), as: UTF8.self).prefix(600))
+            if env["SUBMIT"] != nil, case .object(let directive) = result, case .string(let message) = directive["message"] {
+                _ = try await gateway.call("prompt.submit", ["session_id": runtime, "text": message], as: JSONValue.self)
+                try await Task.sleep(for: .seconds(Double(env["SUBMIT"] ?? "") ?? 60))
+                let stored = bot.canonicalSession?.resolvedID ?? StoredSessionID(rawValue: "")
+                let (data, _) = try await urlSession.data(for: historyRequest(of: stored, profile: "crew-test", on: server, limit: 6))
+                guard case .object(let page) = try JSONDecoder().decode(JSONValue.self, from: data), case .array(let messages) = page["messages"] else { throw HermesError.invalidResponse }
+                let pretty = JSONEncoder()
+                pretty.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+                let file = URL(fileURLWithPath: #filePath).appending(path: "../../fixtures/skill-invocation.history.json").standardized
+                try (pretty.encode(JSONValue.array(messages)) + Data("\n".utf8)).write(to: file)
+                print("RECORDED", file.lastPathComponent, messages.count)
+            }
+        } catch {
+            print("DISPATCH", skill, "ERROR", error)
+        }
+    }
+    let after = try await gateway.call("session.resume", ["session_id": bot.canonicalSession?.id.rawValue ?? "", "profile": "crew-test"], as: JSONValue.self)
+    if case .object(let snapshot) = after { print("after runtime", snapshot["session_id"] ?? .null, "stored", snapshot["stored_session_id"] ?? .null, "count", snapshot["message_count"] ?? .null) }
+    exit(0)
+}
+
 let bot = try await crewTest()
 print("canonical", bot.canonicalSession?.id.rawValue ?? "nil")
 let chat = try await attached(bot)
 show("attach", chat)
+
+if phases.contains("slash-run") {
+    func local(_ chat: ChatSession) -> String {
+        chat.transcript.turns.filter(\.isCommand).map { "\($0.notice ?? "") -> \($0.finishedAt == nil ? "running" : $0.failure.map { "!\($0)" } ?? ($0.output ?? "<no output>").prefix(80).replacingOccurrences(of: "\n", with: " | "))" }.joined(separator: "\n   ")
+    }
+    print("catalog", chat.slashCommands.count)
+    for line in (env["SLASH_LINES"] ?? "/status").components(separatedBy: ";;") {
+        let before = chat.transcript.turns.filter { !$0.isCommand }.count
+        chat.send(line, mode: .send)
+        try await Task.sleep(for: .seconds(1))
+        try await waitIdle(chat, until: { chat in !chat.isRunning && chat.transcript.waiting.isEmpty && chat.transcript.turns.allSatisfy { !$0.isCommand || $0.finishedAt != nil } })
+        print("== \(line): turns \(before) -> \(chat.transcript.turns.filter { !$0.isCommand }.count), returned \(chat.returned.map { String($0.prefix(60)) }), failure \(chat.failure ?? "-")")
+        print("   " + local(chat))
+        for summary in summary(chat.transcript).suffix(2) { print("  ", summary) }
+        chat.returned = []
+    }
+    exit(0)
+}
 
 if phases.contains("tool") {
     record("tool-turn")

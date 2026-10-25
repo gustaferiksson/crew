@@ -2,7 +2,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 enum ChatFixture {
-    case conversation, history, timestamps, workLog, question, questions, questionsSnacks, questionLong, offline, attachments, dictation, mentions, slash, agentMessage, routine, deliveryFailure, a2ui, a2uiCards, a2uiForm, a2uiTable, a2uiChart, a2uiMap, a2uiCarousel, a2uiCarouselStates, a2uiProducts
+    case conversation, history, timestamps, workLog, question, questions, questionsSnacks, questionLong, offline, attachments, dictation, mentions, slash, slashOutput, agentMessage, routine, deliveryFailure, a2ui, a2uiCards, a2uiForm, a2uiTable, a2uiChart, a2uiMap, a2uiCarousel, a2uiCarouselStates, a2uiProducts
     case composerLine, composerLines, composerRunning, composerRunningText, steer, steerTaken, waiting
     case payment, paymentHolding, paymentApproved, paymentLoading, paymentFailed, paymentUnverified, paymentPunycode, paymentCountdown, paymentNotice, paymentOffer, paymentOfferHistory, paymentReceipts
 
@@ -136,6 +136,18 @@ enum ChatFixture {
             return Transcript(turns: [greeting(now.addingTimeInterval(-26 * 3600)), handoff(now.addingTimeInterval(-6 * 60)), followUp]).visible
         }
         if self == .agentMessage { return Transcript(turns: [greeting(now.addingTimeInterval(-26 * 3600)), message("m1", "Flights for Saturday are booked.", reply: "Thanks, Scout!", at: now.addingTimeInterval(-40 * 60)), message("m2", "Can you add the Lofoten ferry to the trip notes?", reply: "Added the 08:15 ferry to the trip notes.", at: now.addingTimeInterval(-5 * 60))]).visible }
+        if self == .slashOutput {
+            var transcript = Transcript(turns: [greeting(now.addingTimeInterval(-26 * 3600))])
+            transcript.beginCommand("/status", id: "c1", at: now.addingTimeInterval(-6 * 60))
+            transcript.finishCommand("c1", output: "Hermes TUI Status\n\nSession ID: 20261017_102454_92b952\nPath: ~/profiles/atlas\nTitle: Bot Chat\nModel: gpt-6.1-sol (openai-codex)\nCreated: 2026-10-17 10:25\nLast Activity: 2026-10-25 17:41\nTokens: 0\nAgent Running: No", at: now.addingTimeInterval(-6 * 60))
+            transcript.beginCommand("/steer", id: "c2", at: now.addingTimeInterval(-5 * 60))
+            transcript.finishCommand("c2", output: nil, failure: "usage: /steer <prompt>", at: now.addingTimeInterval(-5 * 60))
+            transcript.beginCommand("/undo", id: "c3", at: now.addingTimeInterval(-4 * 60))
+            transcript.finishCommand("c3", output: nil, notice: "↶ Undid 1 turn (2 message(s)). Edit and resubmit, or send a new message.", at: now.addingTimeInterval(-4 * 60))
+            transcript.turns.append(Turn(id: "t9", prompt: Prompt(text: "/humanizer Rewrite in one short line: The system has been successfully updated.", sentAt: now.addingTimeInterval(-60)), reply: "The system is up to date.", status: .complete, startedAt: now.addingTimeInterval(-60), finishedAt: now.addingTimeInterval(-58)))
+            transcript.beginCommand("/compress", id: "c4", at: now)
+            return transcript
+        }
         if self == .routine {
             let start = now.addingTimeInterval(-5 * 60)
             let brief = "[Cronjob \"[bot:atlas] Morning brief\" output — scheduled job, not the user. Review it, act on anything that needs action, and summarize for the chat.]\n\nTwo new emails."

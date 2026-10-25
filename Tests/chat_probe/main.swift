@@ -420,6 +420,16 @@ if phases.contains("routine") {
     exit(0)
 }
 
+if phases.contains("slash") {
+    let catalog = try await gateway.call("commands.catalog", ["profile": "crew-test"], as: JSONValue.self)
+    let pretty = JSONEncoder()
+    pretty.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+    let file = URL(fileURLWithPath: #filePath).appending(path: "../../fixtures/commands.catalog.v0.22.5.json").standardized
+    try (pretty.encode(catalog) + Data("\n".utf8)).write(to: file)
+    print("RECORDED", file.lastPathComponent, try JSONDecoder().decode(SlashCatalog.self, from: pretty.encode(catalog)).commands.count, "commands")
+    exit(0)
+}
+
 let bot = try await crewTest()
 print("canonical", bot.canonicalSession?.id.rawValue ?? "nil")
 let chat = try await attached(bot)

@@ -45,6 +45,7 @@ struct ChatScreen: View {
             transcript: session?.transcript.visible ?? Transcript(),
             emptyState: EmptyView(),
             mentionable: bots.bots.filter { $0.id != bot.id },
+            slashCommands: session?.slashCommands ?? [],
             draft: Binding(get: { drafts.texts[bot.id, default: ""] }, set: { drafts.update(bot.id, to: $0) }),
             tray: drafts.tray(for: bot.id),
             request: session?.request,

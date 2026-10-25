@@ -41,6 +41,7 @@ final class ChatSession {
     private(set) var generatingTool: String?
     private(set) var statusLine: String?
     private(set) var failure: String?
+    private(set) var slashCommands: [SlashCommand] = []
 
     let profile: String
     private let gateway: Gateway
@@ -316,6 +317,7 @@ final class ChatSession {
                 _ = try await gateway.call("session.title", ["session_id": snapshot.sessionID.rawValue, "title": "Bot Chat"], as: JSONValue.self)
             }
             try await load(snapshot)
+            slashCommands = (try? await gateway.call("commands.catalog", ["profile": profile], as: SlashCatalog.self).commands) ?? slashCommands
         } catch {
             failure = error.localizedDescription
         }

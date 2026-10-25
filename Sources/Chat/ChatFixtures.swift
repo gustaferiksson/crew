@@ -2,7 +2,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 enum ChatFixture {
-    case conversation, history, timestamps, workLog, question, questions, questionsSnacks, questionLong, offline, attachments, dictation, mentions, agentMessage, routine, deliveryFailure, a2ui, a2uiCards, a2uiForm, a2uiTable, a2uiChart, a2uiMap, a2uiCarousel, a2uiCarouselStates, a2uiProducts
+    case conversation, history, timestamps, workLog, question, questions, questionsSnacks, questionLong, offline, attachments, dictation, mentions, slash, agentMessage, routine, deliveryFailure, a2ui, a2uiCards, a2uiForm, a2uiTable, a2uiChart, a2uiMap, a2uiCarousel, a2uiCarouselStates, a2uiProducts
     case composerLine, composerLines, composerRunning, composerRunningText, steer, steerTaken, waiting
     case payment, paymentHolding, paymentApproved, paymentLoading, paymentFailed, paymentUnverified, paymentPunycode, paymentCountdown, paymentNotice, paymentOffer, paymentOfferHistory, paymentReceipts
 
@@ -28,6 +28,7 @@ enum ChatFixture {
             ])
         }
         if self == .mentions { return ChatPresentation(draft: "Loop in @ada and @sc") }
+        if self == .slash { return ChatPresentation(draft: "/re") }
         if self == .composerLine { return ChatPresentation(draft: "Sounds good, book the 07:10") }
         if self == .composerLines { return ChatPresentation(draft: "Sounds good. Book the 07:10 SAS flight on Friday, window seat if there is one, and put the confirmation in the trip notes so Chef can plan the meals around it.") }
         if self == .composerRunningText { return ChatPresentation(draft: "Use the staging context, not prod") }
@@ -364,6 +365,16 @@ struct ChatFixtureScreen: View {
         meta: BotMeta(shape: "blob", color: "#8b5cf6", expression: "happy"), metaRevision: nil
     )
 
+    private static let slashCommands = [
+        SlashCommand(name: "/retry", summary: "Retry the last message (resend to agent)"),
+        SlashCommand(name: "/refine", summary: "Review this conversation now and save lessons to memory/skills (usage: /refine [focus instructions])"),
+        SlashCommand(name: "/review", summary: "Spawn an independent subagent to review the work just discussed (PR, code, docs) (usage: /review [review instructions])"),
+        SlashCommand(name: "/resume", summary: "Resume a previously-named session (usage: /resume [name])"),
+        SlashCommand(name: "/reasoning", summary: "Manage reasoning effort and display (usage: /reasoning [level|show|hide|full|clamp] [--global])"),
+        SlashCommand(name: "/requesting-code-review", summary: "Pre-commit review: security scan, quality gates, auto-fix."),
+        SlashCommand(name: "/status", summary: "Show session, model, token, and context info"),
+    ]
+
     init(fixture: ChatFixture) {
         self.fixture = fixture
         _session = State(initialValue: fixture == .mentions ? ChatSession(fixture: Self.hermes, transcript: fixture.transcript, todos: []) : nil)
@@ -400,6 +411,7 @@ struct ChatFixtureScreen: View {
             transcript: fixture.isLive ? transcript.visible : transcript,
             emptyState: EmptyView(),
             mentionable: bots.bots.filter { $0.id != "default" },
+            slashCommands: fixture == .slash ? Self.slashCommands : [],
             draft: $draft,
             tray: tray,
             request: request,

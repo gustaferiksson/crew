@@ -113,6 +113,7 @@ targets:
       - Sources/Chat/TranscriptScroll.swift
       - Sources/Push/PushRoute.swift
       - Sources/Chat/Mentions.swift
+      - Sources/Chat/SlashCommands.swift
       - Sources/Profile/ProfileDraft.swift
       - Sources/Profile/CrewUISkill.swift
       - Sources/AvatarShape.swift

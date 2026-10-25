@@ -10,16 +10,20 @@ struct SettingsView: View {
     @Environment(PushCenter.self) private var push
 
     var body: some View {
-        let selection = Snapshot.requested == nil || Snapshot.isInteractive ? $pane : .constant(Snapshot.requested == .settingsNotifications ? .notifications : .account)
+        let selection = Snapshot.requested == nil || Snapshot.isInteractive ? $pane : .constant([.settingsNotifications, .settingsNotificationsAsk].contains(Snapshot.requested) ? .notifications : .account)
         TabView(selection: selection) {
             Tab("Account", systemImage: "person.crop.circle", value: .account) {
                 AccountSettings()
-                    .frame(width: 480, height: 220)
+                    .frame(width: 480)
+                    .scrollDisabled(true)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             Tab("Notifications", systemImage: "bell.badge", value: .notifications) {
                 NotificationSettings()
-                    .environment(Snapshot.requested == .settingsNotifications ? Snapshot.fixturePush : push)
-                    .frame(width: 480, height: 404)
+                    .environment([.settingsNotifications, .settingsNotificationsAsk].contains(Snapshot.requested) ? Snapshot.fixturePush : push)
+                    .frame(width: 480)
+                    .scrollDisabled(true)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }

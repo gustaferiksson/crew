@@ -58,9 +58,11 @@ enum Snapshot: String {
     case botPage = "bot-page"
     case notifications
     case newBot = "new-bot"
+    case newGroup = "new-group"
     case settingsAccount = "settings-account"
     case settingsAccountSignedOut = "settings-account-signed-out"
     case settingsNotifications = "settings-notifications"
+    case settingsNotificationsAsk = "settings-notifications-ask"
     case groupChat = "group-chat"
     case groupWelcome = "group-welcome"
     case groupInspector = "group-inspector"
@@ -107,10 +109,13 @@ enum Snapshot: String {
     }
 
     var isSettings: Bool {
-        [.settingsAccount, .settingsAccountSignedOut, .settingsNotifications].contains(self)
+        [.settingsAccount, .settingsAccountSignedOut, .settingsNotifications, .settingsNotificationsAsk].contains(self)
     }
 
-    static let fixturePush = PushCenter(fixture: .registered(apnsConfigured: true), plugin: PluginStatus(pluginVersion: "0.2.0", installId: "fixture", apnsConfigured: true, http2: true, devices: 2))
+    static let fixturePush = PushCenter(
+        fixture: .registered(apnsConfigured: true), plugin: PluginStatus(pluginVersion: "0.2.0", installId: "fixture", apnsConfigured: true, http2: true, devices: 2),
+        authorization: requested == .settingsNotificationsAsk ? .notDetermined : .authorized
+    )
 
     var isShops: Bool {
         [.inspectorShops, .inspectorShopsEmpty, .inspectorShopsNoCard, .inspectorShopsSeveral, .addShop, .addShopError, .inspectorShopsUpdateError, .inspectorShopsCodeMismatch].contains(self) || isCardSheet
@@ -140,7 +145,7 @@ enum Snapshot: String {
         if isShops || chatFixture?.isPayment == true {
             return Connection(fixture: .connected, server: self == .addCardHTTP ? URL(string: "http://hermes.local:9119")! : server, crewPush: PluginStatus(pluginVersion: "0.5.0", installId: "fixture", apnsConfigured: true, http2: true, devices: 2, features: ["payments", "card"], gate: true))
         }
-        if [.sidebar, .sidebarFlat, .sidebarCompact, .sidebarDraft, .sidebarSearch, .searchResult, .layout, .layoutInspector, .chatWindow, .chatWindowInspector, .chatWindowMissing, .inspectorLook, .profileSkills, .botPage, .notifications, .newBot, .settingsAccount, .settingsNotifications, .groupChat, .groupWelcome, .groupInspector].contains(self) || chatFixture != nil || inspectorTab != nil { return Connection(fixture: .connected, server: server) }
+        if [.sidebar, .sidebarFlat, .sidebarCompact, .sidebarDraft, .sidebarSearch, .searchResult, .layout, .layoutInspector, .chatWindow, .chatWindowInspector, .chatWindowMissing, .inspectorLook, .profileSkills, .botPage, .notifications, .newBot, .newGroup, .settingsAccount, .settingsNotifications, .settingsNotificationsAsk, .groupChat, .groupWelcome, .groupInspector].contains(self) || chatFixture != nil || inspectorTab != nil { return Connection(fixture: .connected, server: server) }
         if self == .unreachable { return Connection(fixture: .unreachable, server: server) }
         return Connection(fixture: .signedOut, server: server)
     }

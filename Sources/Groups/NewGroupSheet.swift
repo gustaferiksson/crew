@@ -31,9 +31,10 @@ struct NewGroupSheet: View {
                 Section {
                     VStack(spacing: 8) {
                         GroupAvatar(members: members, size: 96)
-                        Text(resolvedName.isEmpty ? String(localized: "New Group") : resolvedName)
+                        Text(verbatim: resolvedName.isEmpty ? " " : resolvedName)
                             .font(.title2.bold())
                             .multilineTextAlignment(.center)
+                            .accessibilityHidden(resolvedName.isEmpty)
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 8)
@@ -102,7 +103,7 @@ struct NewGroupSheet: View {
         }
         .interactiveDismissDisabled(isCreating)
         #if os(macOS)
-        .frame(minWidth: 440, minHeight: 600)
+        .frame(minWidth: 440, idealHeight: 600)
         #endif
     }
 

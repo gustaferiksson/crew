@@ -89,10 +89,6 @@ nonisolated enum ConnectionStatus: Equatable, Sendable {
     }
 }
 
-nonisolated func connectionTitle(_ name: String) -> String {
-    name.replacing("-", with: " ").replacing("_", with: " ").capitalized
-}
-
 nonisolated func mcpRequest(_ path: String, profile: String, method: String = "GET", body: [String: JSONValue]? = nil, on server: URL) -> URLRequest {
     var request = hermesRequest("api/mcp/\(path)", on: server)
     request.url?.append(queryItems: [URLQueryItem(name: "profile", value: profile)])

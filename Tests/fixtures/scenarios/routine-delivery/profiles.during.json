@@ -1,0 +1,48 @@
+{
+  "profiles" : [
+    {
+      "canonical_session" : {
+        "id" : "local-3cc069a14e87d22cf07e92a8b50cc627efb3433e22757abb5a71a9a964acb860",
+        "last_active" : 1792933051.5328703,
+        "live_message_count" : 1,
+        "message_count" : 1,
+        "preview" : "[Cronjob \"[bot:crew-test-peer] Morning brief\" output — scheduled job, not the ...",
+        "resolved_id" : "local-3cc069a14e87d22cf07e92a8b50cc627efb3433e22757abb5a71a9a964acb860",
+        "root_title" : "Bot Chat",
+        "started_at" : 1792933051.409571,
+        "title" : "Bot Chat"
+      },
+      "description" : "Crew scenario bot",
+      "display_name" : "",
+      "has_avatar" : false,
+      "is_default" : false,
+      "last_session" : {
+        "id" : "local-3cc069a14e87d22cf07e92a8b50cc627efb3433e22757abb5a71a9a964acb860",
+        "last_active" : 1792933051.5328703,
+        "live_message_count" : 1,
+        "message_count" : 1,
+        "preview" : "[Cronjob \"[bot:crew-test-peer] Morning brief\" output — scheduled job, not the ...",
+        "started_at" : 1792933051.409571,
+        "title" : "Bot Chat"
+      },
+      "model" : "gpt-6.1-sol",
+      "name" : "crew-test-peer",
+      "path" : "/opt/hermes/data",
+      "previous_names" : [
+
+      ],
+      "provider" : "openai-codex",
+      "skill_count" : 0,
+      "ui_meta" : {
+        "hermes-bots" : {
+          "created" : 1792933016510,
+          "title" : "Crew Routine"
+        }
+      },
+      "ui_meta_revisions" : {
+        "hermes-bots" : 1
+      },
+      "worker_session" : null
+    }
+  ]
+}

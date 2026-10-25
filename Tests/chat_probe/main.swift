@@ -324,6 +324,102 @@ if phases.contains("first") {
     exit(0)
 }
 
+if phases.contains("routine") {
+    let name = "crew-test-\(UUID().uuidString.prefix(6).lowercased())"
+    let folder = URL(fileURLWithPath: #filePath).appending(path: "../../fixtures/scenarios/routine-delivery").standardized
+    try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+    let pretty = JSONEncoder()
+    pretty.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+    let scrubs = [(server.host() ?? "", "hermes.example.com"), (env["HERMES_USER"] ?? "", "user"), (env["HERMES_PASSWORD"] ?? "", "***"), (name, "crew-test-peer")].filter { $0.0.count > 2 }
+    func save(_ file: String, _ value: JSONValue) throws {
+        let text = scrubs.reduce(String(decoding: try pretty.encode(value), as: UTF8.self)) { $0.replacingOccurrences(of: $1.0, with: $1.1) }.replacing(/\/opt\/data\/[^\s"'\\]*/, with: "/opt/hermes/data").replacing(/uid:[0-9]+/, with: "uid:user")
+        try Data((text + "\n").utf8).write(to: folder.appending(path: "\(file).json"))
+        print("RECORDED \(file).json")
+    }
+    func roster() async throws -> (raw: JSONValue, bot: Bot?) {
+        let raw = try await gateway.call("profiles.list", ["include_sessions": true], as: JSONValue.self)
+        guard case .object(let object) = raw, case .array(let profiles) = object["profiles"] else { return (.object(["profiles": .array([])]), nil) }
+        let kept = profiles.filter { if case .object(let profile) = $0, case .string(name) = profile["name"] { true } else { false } }
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .secondsSince1970
+        return (.object(["profiles": .array(kept)]), try decoder.decode([Bot].self, from: encoder.encode(JSONValue.array(kept))).first)
+    }
+    func rows(of bot: Bot?, limit: Int) async throws -> [JSONValue] {
+        guard let session = bot?.canonicalSession else { return [] }
+        let (data, _) = try await urlSession.data(for: historyRequest(of: session.resolvedID, profile: name, on: server, limit: limit))
+        guard case .object(let page) = try JSONDecoder().decode(JSONValue.self, from: data), case .array(let messages) = page["messages"] else { return [] }
+        let keys: Set = ["id", "role", "content", "tool_call_id", "tool_calls", "timestamp", "reasoning", "reasoning_content", "display_kind"]
+        return messages.map { row in if case .object(let object) = row { .object(object.filter { keys.contains($0.key) }) } else { row } }
+    }
+    func field(_ row: JSONValue, _ key: String) -> String? {
+        if case .object(let object) = row, case .string(let value) = object[key] { value } else { nil }
+    }
+    func replied(_ window: [JSONValue]) -> Bool? {
+        guard let brief = window.lastIndex(where: { field($0, "display_kind") == "internal_notification" }) else { return nil }
+        return window[(brief + 1)...].contains { field($0, "role") == "assistant" && !(field($0, "content") ?? "").isEmpty }
+    }
+
+    let store = BotStore(fixture: [], statuses: [:])
+    Task { await store.run(gateway, urlSession: urlSession) }
+    try await Task.sleep(for: .seconds(3))
+    var jobID: String?
+    do {
+        try await store.create(NewProfile(name: name, description: "Crew scenario bot", soul: nil, cloneFrom: nil), via: gateway) { $0.title = "Crew Routine" }
+        try save("profiles.before", try await roster().raw)
+        let added = try await gateway.call("cron.manage", [
+            "action": .string("add"), "profile": .string(name), "name": .string("[bot:\(name)] Morning brief"), "schedule": .string("every 1440m"),
+            "prompt": .string("Reply with exactly this text and nothing else: Two new emails. Anna asks to move Friday's lunch to 12:30. The Telia invoice of 412 kr is due on October 31."),
+            "deliver": .string("bot-chat"),
+        ] as [String: JSONValue], as: JSONValue.self)
+        guard case .object(let job) = added, case .string(let id) = job["job_id"] else { print("ADD FAILED", added); throw HermesError.invalidResponse }
+        jobID = id
+        print("routine added", id)
+        var trigger = hermesRequest("api/cron/jobs/\(id)/trigger", on: server, json: [:])
+        trigger.url?.append(queryItems: [URLQueryItem(name: "profile", value: name)])
+        _ = try await fetch(trigger, with: urlSession, as: JSONValue.self)
+        let started = Date.now
+        print("triggered")
+        var duringSaved = false
+        var quietSince: Date?
+        var last = ""
+        while Date.now.timeIntervalSince(started) < 600 {
+            try await Task.sleep(for: .seconds(1))
+            let current = try await roster()
+            let window = try await rows(of: current.bot, limit: 20)
+            let state = "session \(current.bot?.canonicalSession?.resolvedID.rawValue ?? "none"): " + window.map { "\(field($0, "role") ?? "?")/\(field($0, "display_kind") ?? "-")" }.joined(separator: " ")
+            if state != last { print(String(format: "+%.0fs ", Date.now.timeIntervalSince(started)) + state) }
+            last = state
+            let done = replied(window)
+            if !duringSaved, done == false {
+                try save("profiles.during", current.raw)
+                try save("crew-test-peer.preview.during", .array(window))
+                duringSaved = true
+            }
+            quietSince = done == true ? quietSince ?? .now : nil
+            if let quietSince, Date.now.timeIntervalSince(quietSince) > 15 { break }
+        }
+        let after = try await roster()
+        try save("profiles.after", after.raw)
+        try save("crew-test-peer.history", .array(try await rows(of: after.bot, limit: 500)))
+        try save("crew-test-peer.preview", .array(try await rows(of: after.bot, limit: 20)))
+        let listed = try await gateway.call("session.list", ["profile": .string(name), "include_hidden": .bool(true), "limit": .number(20)] as [String: JSONValue], as: JSONValue.self)
+        if case .object(let object) = listed, case .array(let sessions) = object["sessions"] {
+            for session in sessions { print("SESSION", field(session, "id") ?? "-", field(session, "title") ?? "-", field(session, "source") ?? "-") }
+        }
+        print("canonical", after.bot?.canonicalSession?.id.rawValue ?? "none")
+    } catch {
+        print("ROUTINE FAILED", error)
+    }
+    if let jobID {
+        let removed = try? await gateway.call("cron.manage", ["action": .string("remove"), "profile": .string(name), "name": .string(jobID)] as [String: JSONValue], as: JSONValue.self)
+        print("routine removed:", removed.map { "\($0)" } ?? "failed")
+    }
+    await store.reload(gateway)
+    if let bot = store.bots.first(where: { $0.name == name }) { try await store.delete(bot, via: gateway, urlSession: urlSession) }
+    print(store.bots.contains { $0.name == name } ? "THROWAWAY NOT DELETED: \(name)" : "throwaway deleted")
+    exit(0)
+}
+
 let bot = try await crewTest()
 print("canonical", bot.canonicalSession?.id.rawValue ?? "nil")
 let chat = try await attached(bot)

@@ -44,7 +44,7 @@ final class ChatSessions {
 
     func summary(of bot: Bot, in store: BotStore) -> BotSummary {
         let last = sessions[bot.id]?.transcript.preview ?? store.previews[bot.id]
-        return BotSummary(status: status(of: bot.id, in: store), preview: last?.text ?? bot.canonicalSession?.preview ?? "", time: last?.date ?? bot.canonicalSession?.lastActive)
+        return BotSummary(status: status(of: bot.id, in: store), preview: last?.text ?? bot.canonicalSession?.preview.map { noticeText(kind: nil, content: $0) ?? $0 } ?? "", time: last?.date ?? bot.canonicalSession?.lastActive)
     }
 
     func reset() {

@@ -84,7 +84,7 @@ nonisolated func mentionExchange(with bot: Bot.ID, from turn: Turn.ID, in transc
     }
     var awaited: [String] = []
     for turn in transcript.turns {
-        if turn.prompt != nil { awaited += MessageAgentCall.all(in: turn).filter { $0.target == handle }.compactMap(\.process) }
+        if turn.prompt != nil || turn.isRoutine { awaited += MessageAgentCall.all(in: turn).filter { $0.target == handle }.compactMap(\.process) }
         guard turn.agentMessage?.handle == handle, let message = turn.agentMessage, !awaited.isEmpty else { continue }
         guard awaited.removeFirst() == process else { continue }
         return MentionExchange(message: match.message, outcome: .replied(message.body, at: turn.startedAt))

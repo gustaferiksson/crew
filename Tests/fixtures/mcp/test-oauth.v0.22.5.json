@@ -1,0 +1,5 @@
+{
+  "ok": false,
+  "error": "MCP OAuth for 'linear': non-interactive environment and no cached tokens found. Run `hermes mcp login linear` interactively first to complete initial authorization.",
+  "tools": []
+}

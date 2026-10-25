@@ -129,6 +129,7 @@ targets:
       - Sources/Links.swift
       - Sources/Scenes.swift
       - Sources/Inspector/Vault.swift
+      - Sources/Inspector/MCP.swift
       - Tests/CrewTests
     settings:
       base:

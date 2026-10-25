@@ -31,13 +31,14 @@ struct BotInspector: View {
     @State private var openedConversation: Conversation?
     private let shopsFixture: ShopList?
     @State private var vault: BotVault
+    @State private var connections: BotConnections
     @FocusState private var focusedField: FocusedField?
 
     private enum FocusedField {
         case name, role, description
     }
 
-    init(bot: Bot, tab: InspectorTab = .info, routines: RoutineStore = RoutineStore(), draft: ProfileDraft? = nil, conversations: [Conversation]? = nil, shops: ShopList? = nil, vault: BotVault? = nil, models: ModelSwitcher, isPresented: Binding<Bool>) {
+    init(bot: Bot, tab: InspectorTab = .info, routines: RoutineStore = RoutineStore(), draft: ProfileDraft? = nil, conversations: [Conversation]? = nil, shops: ShopList? = nil, vault: BotVault? = nil, connections: BotConnections? = nil, models: ModelSwitcher, isPresented: Binding<Bool>) {
         self.bot = bot
         self.shopsFixture = shops
         self.models = models
@@ -47,6 +48,7 @@ struct BotInspector: View {
         _draft = State(initialValue: draft ?? ProfileDraft(bot: bot))
         _conversations = State(initialValue: conversations)
         _vault = State(initialValue: vault ?? BotVault(profile: bot.name))
+        _connections = State(initialValue: connections ?? BotConnections(profile: bot.name))
     }
 
     private var isEditable: Bool {
@@ -104,6 +106,10 @@ struct BotInspector: View {
         .task(id: "\(tab == .passwords) \(connection.gateway.map { "\(ObjectIdentifier($0))" } ?? "") \(connection.state == .connected)") {
             guard tab == .passwords, let link = connection.vaultLink else { return }
             await vault.load(link)
+        }
+        .task(id: "\(tab == .info) \(connection.state == .connected)") {
+            guard tab == .info, Snapshot.requested == nil, connection.state == .connected, let server = connection.session?.server else { return }
+            await connections.load(on: server, with: connection.urlSession)
         }
         .onChange(of: draft.fields) { old, new in
             var typed = old
@@ -379,6 +385,7 @@ struct BotInspector: View {
                 .disabled(!isEditable)
             }
         }
+        ConnectionsSection(bot: bot, store: connections)
         Section {
             ConversationList(conversations: conversations, failure: conversationFailure) { openedConversation = $0 }
         } header: {

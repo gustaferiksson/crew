@@ -25,7 +25,8 @@ Who makes such routines: Crew's Routines sheet sends no `deliver`, so today they
 ## Push
 
 - The bot's reply in the Bot Chat sends the normal reply push (the hand-off is not a user turn, the reply is a Bot Chat reply).
-- The cron run sends the routine banner only with `prefs.routines` on, with the job name as subtitle (crew-push 0.6.9 reads it from the 0.22.5 cron execution identity), and never for a run whose reply is `[SILENT]`. Known gap: with `prefs.routines` on, one bot-chat routine run gives two banners (routine, then reply).
+- A run whose reply is `[SILENT]` is suppressed by Hermes itself: no hand-off lands, so no reply push. Crew and crew-push add nothing for it.
+- The routine banner stays off by default (`prefs.routines`); the Bot Chat reply push carries the delivery. With `prefs.routines` on, the cron run also sends its banner, with the job name as subtitle (crew-push 0.6.9 reads it from the 0.22.5 cron execution identity), so one run gives two banners.
 
 ## Search
 

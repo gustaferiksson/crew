@@ -37,13 +37,15 @@ struct TranscriptScroll<Revision: Equatable, Content: View>: View {
         .defaultScrollAnchor(.bottom, for: .initialOffset)
         .defaultScrollAnchor(.bottom, for: .alignment)
         #else
-        .defaultScrollAnchor(.bottom)
+        .defaultScrollAnchor(.bottom, for: .initialOffset)
+        .defaultScrollAnchor(.bottom, for: .alignment)
+        .defaultScrollAnchor(followsEnd ? .bottom : nil, for: .sizeChanges)
         #endif
         .scrollPosition($position)
         .onScrollGeometryChange(for: BottomEdge.self) { BottomEdge(distance: $0.contentSize.height - $0.visibleRect.maxY + $0.contentInsets.bottom, height: $0.containerSize.height, inset: $0.contentInsets.bottom) } action: { old, new in
             isAtBottom = new.distance < 40
             if position.edge == .bottom, new.distance < 1 { position.scrollTo(id: transcriptEnd) }
-            if old.height == 0, new.height > 0 { position.scrollTo(id: transcriptEnd) }
+            if followsEnd, old.height == 0, new.height > 0 { position.scrollTo(id: transcriptEnd) }
             if followsEnd, old.distance < 40, new.distance >= 1, phase == .idle, new.height <= old.height { position.scrollTo(id: transcriptEnd) }
         }
         .onScrollPhaseChange { old, new in
@@ -51,7 +53,7 @@ struct TranscriptScroll<Revision: Equatable, Content: View>: View {
             if old.isScrolling, old != .animating, new == .idle, isAtBottom { position.scrollTo(id: transcriptEnd) }
         }
         .onChange(of: revision) {
-            if isAtBottom, phase == .idle { position.scrollTo(id: transcriptEnd) }
+            if followsEnd, isAtBottom, phase == .idle { position.scrollTo(id: transcriptEnd) }
         }
         .overlay(alignment: .bottom) {
             ZStack {

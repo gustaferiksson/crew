@@ -178,6 +178,12 @@ private let rows = (0..<300).map { String(repeating: "Row \($0) has a few words 
         model.rows = rows
         model.position.scrollTo(id: 40, anchor: .center)
         settle(1)
-        #expect(model.watchedFrame.minY >= 0 && model.watchedFrame.maxY <= 640, "row 40 at \(model.watchedFrame)")
+        #expect(model.watchedFrame.height > 0 && model.watchedFrame.minY >= 0 && model.watchedFrame.maxY <= 640, "row 40 at \(model.watchedFrame)")
+        let landed = model.watchedFrame.minY
+        model.rows[model.rows.count - 1] += String(repeating: " streaming after the search", count: 30)
+        settle()
+        model.rows.append("A turn after the search.")
+        settle()
+        #expect(abs(model.watchedFrame.minY - landed) < 1, "row 40 moved by \(model.watchedFrame.minY - landed)")
     }
 }

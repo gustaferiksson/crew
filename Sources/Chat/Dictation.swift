@@ -116,6 +116,10 @@ final class Dictation {
         reset()
     }
 
+    func finalize() async {
+        try? await analyzer?.finalize(through: nil)
+    }
+
     func cancel() async {
         guard phase == .listening else { return }
         engine.inputNode.removeTap(onBus: 0)

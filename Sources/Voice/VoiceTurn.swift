@@ -19,10 +19,15 @@ nonisolated enum VoiceTurn {
     static let quietLevel = 0.35
     static let quietSpan = 12
 
-    static func utterance(text: String, settled: String, heard: Int, levels: [Double]) -> String? {
-        guard text == settled, settled.count > heard, levels.count >= quietSpan, levels.suffix(quietSpan).allSatisfy({ $0 < quietLevel }) else { return nil }
+    enum Listening: Equatable {
+        case speaking, settling, said(String)
+    }
+
+    static func listen(text: String, settled: String, heard: Int, levels: [Double]) -> Listening {
+        guard text.count > heard, levels.count >= quietSpan, levels.suffix(quietSpan).allSatisfy({ $0 < quietLevel }) else { return .speaking }
+        guard text == settled else { return .settling }
         let spoken = settled.dropFirst(heard).trimmingCharacters(in: .whitespacesAndNewlines)
-        return spoken.isEmpty ? nil : spoken
+        return spoken.isEmpty ? .speaking : .said(spoken)
     }
 
     static func reply(to text: String, in session: RuntimeSessionID, via gateway: Gateway) async throws -> String {

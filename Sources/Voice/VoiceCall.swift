@@ -105,9 +105,14 @@ final class VoiceCall: NSObject, AVSpeechSynthesizerDelegate {
 
     private func nextUtterance(after heard: Int) async throws -> String {
         let changes = Observations { [dictation] in (dictation.text, dictation.settledText, dictation.levels, dictation.failure) }
+        var finalized = false
         for await (text, settled, levels, failure) in changes {
             if let failure { throw VoiceFailure(errorDescription: failure) }
-            if let said = VoiceTurn.utterance(text: text, settled: settled, heard: heard, levels: levels) { return said }
+            let listening = VoiceTurn.listen(text: text, settled: settled, heard: heard, levels: levels)
+            if case .said(let said) = listening { return said }
+            guard listening == .settling, !finalized else { continue }
+            finalized = true
+            await dictation.finalize()
         }
         throw CancellationError()
     }

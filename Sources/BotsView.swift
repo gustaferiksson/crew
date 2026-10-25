@@ -37,7 +37,7 @@ struct BotsView: View {
     @State private var showsBot = Snapshot.requested == .layoutInspector
     @State private var models = ModelSwitcher()
     @State private var modelsBot: Bot.ID?
-    @State private var isStrip = false
+    @State private var isNarrow = false
 
     var body: some View {
         let selected = store.bots.first { $0.id == selection }
@@ -169,6 +169,10 @@ struct BotsView: View {
         }
     }
 
+    private var isStrip: Bool {
+        isNarrow && !showsBot
+    }
+
     private var sidebar: some View {
         Group {
             if isStrip {
@@ -182,7 +186,7 @@ struct BotsView: View {
         }
         .frame(maxWidth: .infinity)
         #if os(macOS)
-        .onGeometryChange(for: Bool.self) { $0.size.width < stripThreshold } action: { isStrip = $0 }
+        .onGeometryChange(for: Bool.self) { $0.size.width < stripThreshold } action: { isNarrow = $0 }
         #endif
         .task(id: [query, "\(connection.state == .connected)", "\(searchAttempt)", "\(store.bots.count)", "\(isStrip)"]) {
             guard !isStrip else { return }
@@ -196,7 +200,7 @@ struct BotsView: View {
         }
         .navigationTitle("Crew")
         #if os(macOS)
-        .navigationSplitViewColumnWidth(min: stripWidth, ideal: 320, max: 400)
+        .navigationSplitViewColumnWidth(min: showsBot ? 240 : stripWidth, ideal: 320, max: 400)
         #else
         .navigationSplitViewColumnWidth(min: 240, ideal: 320, max: 400)
         #endif

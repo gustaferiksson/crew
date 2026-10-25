@@ -8,9 +8,11 @@ Who makes such routines: Crew's Routines sheet sends no `deliver`, so today they
 
 ## Bot Chat (iPhone, Mac main window, Mac chat window)
 
-- Matching: the row's text (`display_content ?? content`) starts with `[Cronjob "` and contains `" output — scheduled job`, with kind `internal_notification` or none (the live path may lack the kind). Any other `internal_notification` row keeps today's handling.
+- Matching: the row's text (`display_content ?? content`) starts with `[Cronjob "<name>" output — ` (the server preview's truncated form, cut with `...`, also counts), with kind `internal_notification` or none (the live path may lack the kind). Any other `internal_notification` row keeps today's handling.
 - The hand-off is a centred caption notice "Routine: <title>", the same view as "Switched to <model>" (`noticeText`). `<title>` is the job name without Crew's `[bot:<profile>] ` prefix (same rule as `RoutineJob.title`), so it matches the Routines list. Never a user bubble. VoiceOver reads it as static text; it scales with Dynamic Type and wraps.
 - The bot's work log and reply follow under the notice in the same turn. The raw output is not shown and the notice does not expand (no notice does): the reply summarizes the output, and the full run stays in its own session (inspector > Conversations, source cron).
+- Search: the raw brief is kept as the turn's hidden text, so a server search hit on the brief still focuses the routine turn.
+- A bot that messages another bot while handling the routine gets its reply paired as a relay, as in a user-started turn.
 - Arrival: the turn runs on Hermes' own Bot Chat owner, not on Crew's runtime (see Delivery refused), so an open chat sees it through the read-position refetch, as finished rows, like a bot-to-bot exchange (`agent-messages.md`). A message the user sends meanwhile is an ordinary prompt.
 - Long output: never rendered. A long job name wraps.
 - Light and dark: secondary system colour only.
@@ -18,7 +20,7 @@ Who makes such routines: Crew's Routines sheet sends no `deliver`, so today they
 ## Bot list (iPhone and Mac sidebars)
 
 - Preview: a routine hand-off is a preview candidate like a bot-to-bot message. While its reply is still empty the row reads "Routine: <title>" at the hand-off's time; after the reply, the reply at the reply's time. Other notices (model switch etc.) never become the preview.
-- Server fallback: when the 20-row window has no user row (a long tool run), the row shows the server's preview; a raw brief there is shown as "Routine: <title>" too (recorded `profiles.during.json`: Hermes' preview is the truncated brief).
+- Server fallback: when the 20-row window has no user row (a long tool run), the row shows the server's preview; a raw brief there is shown as "Routine: <title>" too, even when Hermes cut it inside a long name (recorded `profiles.during.json`: Hermes' preview is the brief cut at about 80 characters). The same mapping turns a raw `[System: The active model …` server preview into its "Switched to <model>" notice.
 - Time: the preview's own time, as above. Unread: `message_count` past the read position, so the hand-off alone marks the bot unread, and the reply keeps it so.
 - Working: from `session.active_list`, as today.
 
@@ -30,7 +32,7 @@ Who makes such routines: Crew's Routines sheet sends no `deliver`, so today they
 
 ## Search
 
-- Server search can match words of the brief; the hit's snippet is the raw text. Known gap, not changed here.
+- Server search can match words of the brief; the hit's snippet is the raw text (known gap); opening it focuses the routine turn.
 
 ## States
 

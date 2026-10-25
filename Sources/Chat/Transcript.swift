@@ -176,7 +176,7 @@ nonisolated func noticeText(kind: String?, content: String) -> String? {
     if kind == "hidden", let host = content.wholeMatch(of: /I added https:\/\/(\S+) to your shops\. Continue the purchase\./)?.1 {
         return String(localized: "Added \(String(host)) to Shops")
     }
-    if kind == "internal_notification" || kind == nil, let name = content.firstMatch(of: /^\[Cronjob "(.+?)" output — scheduled job/)?.1 {
+    if kind == "internal_notification" || kind == nil, let name = content.prefixMatch(of: /\[Cronjob "(.+?)(?:" output — |\.\.\.$)/)?.1 {
         return String(localized: "Routine: \(String(name.wholeMatch(of: /\[bot:[A-Za-z0-9][A-Za-z0-9_-]*\]\s*(.*)/)?.1 ?? name))")
     }
     if kind == "personality_switch" { return String(localized: "Personality changed") }
@@ -272,7 +272,7 @@ extension Transcript {
                 continue
             }
             guard let delivery = turn.delivery else {
-                if turn.prompt != nil { awaited += turn.work.compactMap { $0.messagedHandle.map { ($0, turn.id) } } }
+                if turn.prompt != nil || turn.isRoutine { awaited += turn.work.compactMap { $0.messagedHandle.map { ($0, turn.id) } } }
                 shown.append(turn)
                 continue
             }
@@ -295,7 +295,7 @@ extension Transcript {
                 }
             } else if turn.deliveryFailure?.isUnconfirmed != false, let originIndex, let index = answered.firstIndex(where: { $0.handle == handle && $0.at > originIndex }) {
                 answered.remove(at: index)
-            } else if !repliedLater, origin.map({ $0.agentMessage == nil }) ?? turns.contains(where: { $0.agentMessage == nil && $0.prompt != nil }) {
+            } else if !repliedLater, origin.map({ $0.agentMessage == nil }) ?? turns.contains(where: { $0.agentMessage == nil && ($0.prompt != nil || $0.isRoutine) }) {
                 shown.append(followUp)
             }
         }
@@ -322,8 +322,9 @@ extension Transcript {
                 let delivery = deliveryProcess(in: text)
                 let notice = delivery == nil ? noticeText(kind: row.displayKind, content: text) : nil
                 let prompt = notice == nil && delivery == nil && row.displayKind != "hidden" ? Prompt(raw: text, sentAt: date) : nil
-                let hiddenText = row.displayKind == "hidden" ? row.content ?? text : nil
-                turns.append(Turn(id: String(row.id), prompt: prompt, notice: notice, agentMessage: AgentMessage(text), delivery: delivery, deliveryFailure: DeliveryFailure(notice: text), hiddenText: hiddenText, status: .complete, startedAt: date, finishedAt: date, isRoutine: notice != nil && text.hasPrefix("[Cronjob \"")))
+                let isRoutine = notice != nil && text.hasPrefix("[Cronjob \"")
+                let hiddenText = row.displayKind == "hidden" || isRoutine ? row.content ?? text : nil
+                turns.append(Turn(id: String(row.id), prompt: prompt, notice: notice, agentMessage: AgentMessage(text), delivery: delivery, deliveryFailure: DeliveryFailure(notice: text), hiddenText: hiddenText, status: .complete, startedAt: date, finishedAt: date, isRoutine: isRoutine))
                 continue
             }
             if row.role == "assistant" {
@@ -410,8 +411,9 @@ extension Transcript {
         let delivery = deliveryProcess(in: user)
         let notice = delivery == nil ? noticeText(kind: displayKind, content: user) : nil
         let prompt = Prompt(raw: user, sentAt: date)
+        let isRoutine = notice != nil && user.hasPrefix("[Cronjob \"")
         let isShown = notice == nil && delivery == nil && displayKind != "hidden" && (!prompt.text.isEmpty || !prompt.attachments.isEmpty)
-        turns.append(Turn(id: UUID().uuidString, prompt: isShown ? prompt : nil, notice: notice, agentMessage: AgentMessage(user), delivery: delivery, deliveryFailure: DeliveryFailure(notice: user), hiddenText: displayKind == "hidden" ? user : nil, status: .streaming, startedAt: date, isRoutine: notice != nil && user.hasPrefix("[Cronjob \"")))
+        turns.append(Turn(id: UUID().uuidString, prompt: isShown ? prompt : nil, notice: notice, agentMessage: AgentMessage(user), delivery: delivery, deliveryFailure: DeliveryFailure(notice: user), hiddenText: displayKind == "hidden" || isRoutine ? user : nil, status: .streaming, startedAt: date, isRoutine: isRoutine))
     }
 
     mutating func apply(_ event: TurnEvent, at date: Date = .now) {

@@ -139,12 +139,12 @@ enum ChatFixture {
             let start = now.addingTimeInterval(-5 * 60)
             let brief = "[Cronjob \"[bot:atlas] Morning brief\" output — scheduled job, not the user. Review it, act on anything that needs action, and summarize for the chat.]\n\nTwo new emails."
             let routine = Turn(
-                id: "r1", notice: noticeText(kind: "internal_notification", content: brief),
+                id: "r1", notice: noticeText(kind: "internal_notification", content: brief), hiddenText: brief,
                 work: [WorkItem(id: "r1-w0", kind: .tool(ToolCall(name: "skill_view", subject: "email-inbox-triage", arguments: #"{"name": "email-inbox-triage"}"#, status: .success)), startedAt: start.addingTimeInterval(8), duration: 1)],
                 reply: "Two items need attention, according to the morning brief:\n\n- Anna wants to move Friday's lunch to 12:30. Does that work for you?\n- Telia's invoice for 412 kr is due October 31.\n\nNo reply, calendar change, or payment has been made.",
                 status: .complete, startedAt: start, finishedAt: start.addingTimeInterval(14), isRoutine: true
             )
-            return Transcript(turns: [greeting(now.addingTimeInterval(-26 * 3600)), routine])
+            return Transcript(turns: [greeting(now.addingTimeInterval(-26 * 3600)), routine]).visible
         }
         return Transcript(turns: turns + [deploy(now.addingTimeInterval(-48))])
     }

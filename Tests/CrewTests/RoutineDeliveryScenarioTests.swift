@@ -53,3 +53,32 @@ private func summary(roster: String, window: String?) throws -> BotSummary {
     #expect(row.preview == reply)
     #expect(row.time == Date(timeIntervalSince1970: 1792933065.298869))
 }
+
+@Test func searchHitInTheBriefFindsTheRoutineTurn() throws {
+    let transcript = Transcript(history: try history("crew-test-peer.history"))
+    #expect(transcript.turn(matching: "...Two new emails. Anna asks to move >>>Friday's<<< lunch...")?.id == "3")
+}
+
+@Test func longRoutineNameInTheServersTruncatedPreviewStillReadsAsTheRoutine() {
+    #expect(noticeText(kind: nil, content: "[Cronjob \"[bot:assistant] Weekly finance summary for Anna\" output — sche...") == "Routine: Weekly finance summary for Anna")
+    #expect(noticeText(kind: nil, content: "[Cronjob \"[bot:assistant] Weekly finance summary for Anna and the whole...") == "Routine: Weekly finance summary for Anna and the whole")
+}
+
+@Test func otherNoticesNeverBecomeThePreview() {
+    var transcript = Transcript()
+    transcript.begin(remote: "", displayKind: "auto_continue", at: .now)
+    #expect(transcript.turns.last?.notice != nil)
+    #expect(transcript.preview == nil)
+}
+
+@Test func botMessagedWhileHandlingARoutineRepliesAsARelay() {
+    var transcript = Transcript()
+    transcript.begin(remote: "[Cronjob \"Morning brief\" output — scheduled job, not the user. Review it, act on anything that needs action, and summarize for the chat.]\n\nTwo new emails.", displayKind: "internal_notification", at: .now)
+    transcript.apply(.toolStart(id: "c1", name: "message_agent", context: nil, arguments: #"{"target": "@scout"}"#))
+    transcript.apply(.toolComplete(id: "c1", duration: nil, summary: nil, result: #"{"status": "queued", "process_id": "proc_1"}"#))
+    transcript.apply(.messageComplete(text: "Asked Scout.", status: .complete, error: nil))
+    transcript.begin(remote: "Message from 🤖 Scout (@scout): Noted.", displayKind: nil, at: .now)
+    transcript.apply(.messageComplete(text: "@scout replied: Noted.", status: .complete, error: nil))
+    #expect(transcript.visible.turns.map(\.agentMessage) == [nil, nil])
+    #expect(transcript.visible.turns.last?.reply == "@scout replied: Noted.")
+}

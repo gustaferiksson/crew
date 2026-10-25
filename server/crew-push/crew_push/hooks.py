@@ -155,7 +155,7 @@ def job_name(session_id: str) -> str:
     except Exception:
         execution = None
     if execution is not None:
-        return str(execution.job_name or "")
+        return execution.job_name
     try:
         from cron.jobs import get_job
 

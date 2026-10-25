@@ -108,7 +108,7 @@ struct BotInspector: View {
             await vault.load(link)
         }
         .task(id: "\(tab == .info) \(connection.state == .connected)") {
-            guard tab == .info, connection.state == .connected, let server = connection.session?.server else { return }
+            guard tab == .info, Snapshot.requested == nil, connection.state == .connected, let server = connection.session?.server else { return }
             await connections.load(on: server, with: connection.urlSession)
         }
         .onChange(of: draft.fields) { old, new in

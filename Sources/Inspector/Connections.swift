@@ -144,7 +144,7 @@ private struct ConnectionRow: View {
                         .buttonStyle(.plain)
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.tint)
-                        .disabled(!isOnline)
+                        .disabled(!isOnline || isBusy)
                 }
                 if let failure {
                     Text(failure)
@@ -153,6 +153,7 @@ private struct ConnectionRow: View {
                         .lineLimit(4)
                 }
             }
+            .accessibilityElement(children: .combine)
             Spacer(minLength: 8)
             if isBusy || status == .signingIn || status == .checking {
                 ProgressView()
@@ -170,7 +171,6 @@ private struct ConnectionRow: View {
             }
         }
         .padding(.vertical, 2)
-        .accessibilityElement(children: .combine)
     }
 
     @ViewBuilder

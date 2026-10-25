@@ -283,11 +283,15 @@ final class BotConnections {
 
     func signIn(_ name: String, on server: URL, with urlSession: URLSession, browse: @escaping (URL) async throws -> Void) async {
         if isFixture { return requests.append("sign in \(name)") }
+        guard !busy.contains(name), signingIn[name] == nil else { return }
         failures[name] = nil
+        busy.insert(name)
         let flow: MCPOAuthFlow
         do {
             flow = try await fetch(mcpRequest("servers/\(name)/auth", profile: profile, method: "POST", on: server), with: urlSession, as: MCPOAuthFlow.self)
+            busy.remove(name)
         } catch {
+            busy.remove(name)
             failures[name] = error.localizedDescription
             return
         }

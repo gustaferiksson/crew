@@ -147,6 +147,7 @@ struct Composer: View {
         .animation(.smooth, value: showsHoldHint)
         .animation(.smooth, value: hold?.cancels)
         .sensoryFeedback(.start, trigger: dictation.phase) { _, phase in phase == .listening }
+        .sensoryFeedback(.warning, trigger: isOffline) { wasOffline, offline in !wasOffline && offline }
         .onChange(of: hold) { previous, current in
             guard let previous else { return beginHold(current) }
             if current == nil { endHold(previous) }

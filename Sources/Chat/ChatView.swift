@@ -74,6 +74,8 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
     @State private var surfaces = SurfaceStore()
     @State private var highlighted: Turn.ID?
     @State private var handledFocus: UUID?
+    @State private var sends = 0
+    @State private var responses: [SensoryFeedback] = []
     @FocusState private var isComposerFocused: Bool
     private let presentation: ChatPresentation
 
@@ -220,7 +222,10 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
                         .simultaneousGesture(DragGesture(minimumDistance: 10).onEnded { if $0.translation.height > 0 { isComposerFocused = false } })
                         #endif
                     } else if case .approval(let approval) = request {
-                        ApprovalCard(request: approval, botName: botName) { actions.respond(approval.id, $0) }
+                        ApprovalCard(request: approval, botName: botName) { choice in
+                            responses.append(choice == .deny ? .impact(flexibility: .rigid) : .success)
+                            actions.respond(approval.id, choice)
+                        }
                             .frame(maxWidth: 560)
                             .padding(.horizontal, 16)
                     } else if request == nil, let shopOffer {
@@ -229,7 +234,10 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
                             .padding(.horizontal, 16)
                     }
                     if case .question(let question) = request {
-                        QuestionCard(request: question, botName: botName, progress: presentation.questionProgress) { actions.answer(question.id, $0) }
+                        QuestionCard(request: question, botName: botName, progress: presentation.questionProgress) { answers in
+                            responses.append(.success)
+                            actions.answer(question.id, answers)
+                        }
                             .id(question.id)
                             .frame(maxWidth: 560)
                             .padding(.horizontal, 16)
@@ -238,12 +246,21 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
                         position.scrollTo(id: transcriptEnd)
                         actions.send(draft, tray.take(), mentionedBots(in: draft, among: mentionable), mode)
                         draft = ""
+                        sends += 1
                     } stop: {
                         actions.stop()
                     }
                 }
             }
             .animation(.smooth, value: request?.id)
+            .sensoryFeedback(.warning, trigger: request?.id) { _, id in id != nil }
+            .sensoryFeedback(.success, trigger: sends)
+            .sensoryFeedback(.selection, trigger: models?.current) { previous, _ in previous != nil }
+            .sensoryFeedback(trigger: responses) { _, responses in responses.last }
+            .sensoryFeedback(trigger: transcript.turns.last { $0.pending == nil && $0.prompt != nil }?.status) { old, new in
+                guard old == .streaming else { return nil }
+                return new == .complete ? .success : new == .error ? .error : nil
+            }
             #if os(iOS)
             .ignoresSafeArea(.container, edges: .bottom)
             #endif

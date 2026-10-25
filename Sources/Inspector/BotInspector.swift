@@ -176,6 +176,7 @@ struct BotInspector: View {
         }
         .pickerStyle(.segmented)
         .labelsHidden()
+        .sensoryFeedback(.selection, trigger: tab)
     }
 
     private var header: some View {

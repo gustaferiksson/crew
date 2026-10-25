@@ -15,11 +15,11 @@ struct TalkControl: ControlWidget {
     var body: some ControlWidgetConfiguration {
         AppIntentControlConfiguration(kind: "dev.gustaf.crew.talk", intent: TalkControlConfiguration.self) { configuration in
             ControlWidgetButton(action: TalkToBotIntent(bot: configuration.bot)) {
-                Label(configuration.bot?.title ?? String(localized: "Talk to Bot"), systemImage: "waveform")
+                Label(configuration.bot?.title ?? String(localized: "Talk to Bot"), systemImage: "phone.fill")
             }
         }
         .displayName("Talk to Bot")
-        .description("Record a voice message and send it to a bot.")
+        .description("Start a voice call with a bot. Press again to end it.")
     }
 }
 
@@ -33,22 +33,15 @@ struct VoiceActivity: Widget {
                     VoiceAvatar(bot: context.attributes.bot, size: 44)
                 }
                 DynamicIslandExpandedRegion(.center) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(context.attributes.bot.title)
-                            .font(.headline)
-                        VoiceStatus(attributes: context.attributes, state: context.state)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    VoiceCallSummary(attributes: context.attributes, state: context.state)
                 }
-                DynamicIslandExpandedRegion(.bottom) {
-                    VoiceControls(phase: context.state.phase)
+                DynamicIslandExpandedRegion(.trailing) {
+                    VoiceEndButton()
                 }
             } compactLeading: {
                 VoiceAvatar(bot: context.attributes.bot, size: 24)
             } compactTrailing: {
-                VoicePhaseSymbol(phase: context.state.phase)
+                VoiceCompactTrailing(attributes: context.attributes, state: context.state)
             } minimal: {
                 VoiceAvatar(bot: context.attributes.bot, size: 24)
             }

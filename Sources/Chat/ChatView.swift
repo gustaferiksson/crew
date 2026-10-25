@@ -242,7 +242,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
                             .padding(.horizontal, 16)
                     }
                     Composer(botName: botName, phase: composerPhase, draft: $draft, isFocused: $isComposerFocused, tray: tray, mentionable: mentionable, slashCommands: slashCommands, features: features, completePath: actions.completePath, dictation: presentation.dictation, transcribe: actions.transcribe) { mode in
-                        position.scrollTo(id: transcriptEnd)
+                        position.scrollTo(id: transcriptEnd, anchor: .bottom)
                         actions.send(draft, tray.take(), mentionedBots(in: draft, among: mentionable), mode)
                         draft = ""
                     } stop: {

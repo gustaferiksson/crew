@@ -65,20 +65,22 @@ jobs:
           IOS_DIST_P12: ${{ secrets.IOS_DIST_P12 }}
           IOS_DIST_P12_PASSWORD: ${{ secrets.IOS_DIST_P12_PASSWORD }}
           IOS_ADHOC_PROFILE: ${{ secrets.IOS_ADHOC_PROFILE }}
+          IOS_WIDGETS_ADHOC_PROFILE: ${{ secrets.IOS_WIDGETS_ADHOC_PROFILE }}
         run: |
           set -euo pipefail
-          for name in IOS_DIST_P12 IOS_DIST_P12_PASSWORD IOS_ADHOC_PROFILE; do
+          for name in IOS_DIST_P12 IOS_DIST_P12_PASSWORD IOS_ADHOC_PROFILE IOS_WIDGETS_ADHOC_PROFILE; do
             if [ -z "${!name:-}" ]; then
               echo "::error::secret $name is empty, refusing to release"
               exit 1
             fi
           done
 
-      - name: Import the Apple Distribution certificate and Ad Hoc profile
+      - name: Import the Apple Distribution certificate and Ad Hoc profiles
         env:
           IOS_DIST_P12: ${{ secrets.IOS_DIST_P12 }}
           IOS_DIST_P12_PASSWORD: ${{ secrets.IOS_DIST_P12_PASSWORD }}
           IOS_ADHOC_PROFILE: ${{ secrets.IOS_ADHOC_PROFILE }}
+          IOS_WIDGETS_ADHOC_PROFILE: ${{ secrets.IOS_WIDGETS_ADHOC_PROFILE }}
         run: |
           set -euo pipefail
           KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
@@ -95,6 +97,7 @@ jobs:
           security find-identity -v -p codesigning "$KEYCHAIN" | grep -q "Apple Distribution" \
             || { echo "::error::no Apple Distribution identity in the imported keychain"; exit 1; }
           echo "$IOS_ADHOC_PROFILE" | base64 --decode > "$RUNNER_TEMP/Crew_AdHoc.mobileprovision"
+          echo "$IOS_WIDGETS_ADHOC_PROFILE" | base64 --decode > "$RUNNER_TEMP/Crew_Widgets_AdHoc.mobileprovision"
 
       - name: Build the IPA
         env:
@@ -104,7 +107,8 @@ jobs:
           set -euo pipefail
           # gnu-tar: upload-pages-artifact runs gtar on macOS runners.
           brew install xcodegen gnu-tar
-          VERSION="${VERSION#v}" IOS_ADHOC_PROFILE_PATH="$RUNNER_TEMP/Crew_AdHoc.mobileprovision" ./package.sh ios
+          VERSION="${VERSION#v}" IOS_ADHOC_PROFILE_PATH="$RUNNER_TEMP/Crew_AdHoc.mobileprovision" \
+            IOS_WIDGETS_ADHOC_PROFILE_PATH="$RUNNER_TEMP/Crew_Widgets_AdHoc.mobileprovision" ./package.sh ios
 
       - name: Upload the IPA, manifest and crew-push to the release
         env:

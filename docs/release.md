@@ -35,7 +35,7 @@ A full `git log --all -p` audit before publishing found no `.env`, `.env.test`, 
 3. [me] Export the **Apple Distribution: Gustaf Eriksson (82K3YC8HVF)** cert as `.p12` with a password. In the 1Password release item, section "Crew iOS release": files `AppleDistribution.p12`, `Crew_Ad_Hoc.mobileprovision`, `Crew_DeveloperID.provisionprofile` and the field "AppleDistribution.p12 password". Done: `Crew Ad Hoc` covers the registered iPhone; `Crew Developer ID` includes `aps-environment` production and time-sensitive.
 4. [claude, after your OK] `gh secret set` on `gustaferiksson/crew` from `op read` (same source as rinse/amped/tinecast):
    - reused, same values: `APPLE_CERT_P12`, `APPLE_CERT_PASSWORD`, `NOTARY_APPLE_ID`, `NOTARY_PASSWORD`, `TAP_GITHUB_TOKEN` (`op://Private/Github/Tokens/homebrew-tap`).
-   - new, from section "Crew iOS release": `IOS_DIST_P12` = base64 of file `AppleDistribution.p12`, `IOS_DIST_P12_PASSWORD` = field "AppleDistribution.p12 password", `IOS_ADHOC_PROFILE` = base64 of file `Crew_Ad_Hoc.mobileprovision`.
+   - new, from section "Crew iOS release": `IOS_DIST_P12` = base64 of file `AppleDistribution.p12`, `IOS_DIST_P12_PASSWORD` = field "AppleDistribution.p12 password", `IOS_ADHOC_PROFILE` = base64 of file `Crew_Ad_Hoc.mobileprovision`, `IOS_WIDGETS_ADHOC_PROFILE` = base64 of file `Crew_Widgets_Ad_Hoc.mobileprovision`.
    No App Store Connect API key needed.
 
 ### 2. Scrub and publish the source
@@ -96,7 +96,7 @@ From the first push on, `main` only moves through pull requests. How this plays 
 
 ## Maintenance
 
-- New iPhone/iPad: register in the portal (or `./device.sh` once), regenerate the Ad Hoc profile [me], update `IOS_ADHOC_PROFILE` [claude], tag a release; already-installed devices are unaffected.
+- New iPhone/iPad: register in the portal (or `./device.sh` once), regenerate both Ad Hoc profiles, `Crew Ad Hoc` and `Crew Widgets Ad Hoc` [me], update `IOS_ADHOC_PROFILE` and `IOS_WIDGETS_ADHOC_PROFILE` [claude], tag a release; already-installed devices are unaffected.
 - Distribution and Developer ID certs and the Developer ID profile expire: renew, re-export to 1Password, refresh the secrets and the committed profile.
 - The public IPA embeds the Ad Hoc profile, so registered device UDIDs are readable by anyone who downloads it. Low risk, but that is the cost of public OTA hosting.
 

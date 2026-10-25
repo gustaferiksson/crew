@@ -3,6 +3,8 @@ import Observation
 
 @Observable
 final class ChatDrafts {
+    static let shared = ChatDrafts()
+
     private(set) var texts: [String: String]
     @ObservationIgnored private var trays: [String: AttachmentTray] = [:]
     private let fileURL: URL?

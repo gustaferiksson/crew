@@ -48,6 +48,8 @@ targets:
     dependencies:
       - package: A2UI
         products: [A2UISwiftCore, A2UISwiftUI, BasicCatalog, BasicCatalogSwiftUI]
+      - target: CrewWidgets
+        destinationFilters: [iOS]
     sources:
       - path: Sources
         type: syncedFolder
@@ -88,6 +90,37 @@ targets:
           OTHER_CODE_SIGN_FLAGS[sdk=macosx*]: --timestamp
           CODE_SIGN_IDENTITY[sdk=iphoneos*]: Apple Distribution
           PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]: Crew Ad Hoc
+  CrewWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - Widgets
+      - Sources/Voice/VoiceShared.swift
+      - Sources/Voice/VoiceBot.swift
+      - Sources/AvatarView.swift
+      - Sources/AvatarShape.swift
+    info:
+      path: Widgets/Info.plist
+      properties:
+        CFBundleDisplayName: Crew
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.gustaf.crew.widgets
+        PRODUCT_NAME: CrewWidgets
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) WIDGET_EXTENSION
+        CODE_SIGN_ENTITLEMENTS: Entitlements/CrewWidgets.entitlements
+        SKIP_INSTALL: YES
+      configs:
+        Release:
+          CODE_SIGN_INJECT_BASE_ENTITLEMENTS: NO
+          DEVELOPMENT_TEAM: 82K3YC8HVF
+          CODE_SIGN_STYLE: Manual
+          CODE_SIGN_IDENTITY: Apple Distribution
+          PROVISIONING_PROFILE_SPECIFIER: Crew Widgets Ad Hoc
   CrewTests:
     type: bundle.unit-test
     platform: macOS
@@ -131,6 +164,7 @@ targets:
       - Sources/Inspector/Vault.swift
       - Sources/Inspector/MCP.swift
       - Sources/NewBotAdvanced.swift
+      - Sources/Voice/VoiceBot.swift
       - Tests/CrewTests
     settings:
       base:

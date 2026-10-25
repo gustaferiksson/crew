@@ -14,7 +14,7 @@ def origin_less(vaults: Vaults, base: Path) -> list[dict[str, Any]]:
 
 
 def payments(client: TestClient) -> dict[str, Any]:
-    return client.get(f"{API}/payments", params={"profile": "scout"}).json()
+    return client.get(f"{API}/payments", params={"bot": "scout"}).json()
 
 
 def test_the_legacy_master_moves_into_crew_push_vault(client: TestClient, vaults: Vaults, hermes_root: Path) -> None:

@@ -2,7 +2,7 @@
 
 The API behind [payments.md](payments.md). PR A (crew-push) implements it, PR B (Crew) consumes it; the JSON here is canonical and lands first as fixtures in `Tests/fixtures/payments/` (one file per example below), which both test suites read.
 
-Conventions: routes live under `/api/plugins/crew-push/` behind the dashboard login, like the existing ones (Crew's cookie). Bodies are JSON. Errors are FastAPI's shape with a code: `{"detail": {"code": "<code>", "message": "<one line for logs>"}}`; Crew maps codes, never messages. Timestamps are Unix seconds (float). `profile` matches `^[a-z0-9][a-z0-9_-]{0,63}$`.
+Conventions: routes live under `/api/plugins/crew-push/` behind the dashboard login, like the existing ones (Crew's cookie). Bodies are JSON. Errors are FastAPI's shape with a code: `{"detail": {"code": "<code>", "message": "<one line for logs>"}}`; Crew maps codes, never messages. Timestamps are Unix seconds (float). The bot is `?bot=` on GET and DELETE (since 0.7.0: Hermes 0.22.5 claims any `?profile=` on a plugin route) and `profile` in JSON bodies; both match `^[a-z0-9][a-z0-9_-]{0,63}$`.
 
 ## Routes
 
@@ -10,7 +10,7 @@ Conventions: routes live under `/api/plugins/crew-push/` behind the dashboard lo
 
 Adds `"features": ["payments"]` (`["payments", "card"]` since 0.5.0, with the card routes) and `"gate": true | false | null` (null: not reported yet). Crew asks for payment details only when `payments` is listed.
 
-### `GET /payments?profile=scout`
+### `GET /payments?bot=scout`
 
 Everything the Shops card needs.
 
@@ -42,7 +42,7 @@ The route takes the host, IDNA-encodes a non-ASCII host, lower-cases it, and req
 - `400 invalid_site` with `"reason": "not_https" | "ip_address" | "localhost" | "no_host" | "port"` inside `detail` (`localhost` also covers a single-label name such as `intranet`)
 - `409 duplicate_shop`, `409 no_card`, `409 several_cards`, `404 unknown_profile`
 
-### `DELETE /payments/shops/{id}?profile=scout`
+### `DELETE /payments/shops/{id}?bot=scout`
 
 Removes a `payment` item with an origin (never the master, never another kind). `200 {"removed": true}`, `404 unknown_shop`.
 

@@ -41,7 +41,7 @@ def test_add_card_stores_the_normalised_card_without_origin(client: TestClient, 
     assert card["label"] == "Travel card" and card["origin"] is None
     assert card["secret"] == {"card_number": "4000056655665556", "exp_month": "03", "exp_year": "2031", "cvc": "321",
                               "cardholder_name": "Test Card"}
-    assert client.get(f"{API}/payments", params={"profile": "scout"}).json()["card"] == response.json()["card"]
+    assert client.get(f"{API}/payments", params={"bot": "scout"}).json()["card"] == response.json()["card"]
 
 
 def test_card_set_fixture(client: TestClient, vaults: Vaults) -> None:
@@ -67,7 +67,7 @@ def test_replace_adds_the_new_card_then_removes_the_old(client: TestClient, mast
     assert response.status_code == 200 and order == ["add", "remove"]
     [card] = masters(vaults, hermes_root)
     assert card["secret"]["card_number"] == "4000056655665556"
-    [shop] = client.get(f"{API}/payments", params={"profile": "scout"}).json()["shops"]
+    [shop] = client.get(f"{API}/payments", params={"bot": "scout"}).json()["shops"]
     assert shop["stale"] is True
 
 
@@ -145,7 +145,7 @@ def test_every_vault_write_holds_the_lock(client: TestClient, master: Path, vaul
     assert put_card(client).status_code == 200
     assert client.post(f"{API}/payments/shops/update", json={"profile": "scout"}).status_code == 200
     add_shop(client, "www.apotea.se")
-    client.delete(f"{API}/payments/shops/{shop_id}", params={"profile": "scout"})
+    client.delete(f"{API}/payments/shops/{shop_id}", params={"bot": "scout"})
     assert len(held) >= 6 and all(held)
 
 
@@ -226,7 +226,7 @@ def test_the_card_never_reaches_logs_responses_or_files(client: TestClient, app:
     texts.append(client.put(f"{API}/payments/card", content=b'["4000056655665556", "321"]',
                             headers={"Content-Type": "application/json"}).text)
     texts.append(client.post(f"{API}/payments/shops/update", json={"profile": "scout"}).text)
-    texts.append(client.get(f"{API}/payments", params={"profile": "scout"}).text)
+    texts.append(client.get(f"{API}/payments", params={"bot": "scout"}).text)
     vault_type = type(payments.master_vault())
 
     def leaky(self: Any, **kw: Any) -> Any:
@@ -266,7 +266,7 @@ def test_update_shops_recopies_only_stale_shops(client: TestClient, master: Path
     vaults.add(hermes_root / "profiles" / "ada" / "vault", "payment", "Ada copy", CARD, "https://www.zalando.se")
     vaults.next_ids.append("vault_5e6f7a8b9c0d")
     vaults.now = 1760620000.0
-    stale_before = [s for s in client.get(f"{API}/payments", params={"profile": "scout"}).json()["shops"] if s["stale"]]
+    stale_before = [s for s in client.get(f"{API}/payments", params={"bot": "scout"}).json()["shops"] if s["stale"]]
     assert len(stale_before) == 2
 
     response = client.post(f"{API}/payments/shops/update", json={"profile": "scout"})
@@ -319,10 +319,10 @@ def test_a_new_label_makes_shops_stale(client: TestClient, master: Path, vaults:
     put_card(client, card_number="4242 4242 4242 4242", exp_month="12", exp_year="30", cvc="123",
              cardholder_name="Gustaf Eriksson", label="Shopping card")
     add_shop(client)
-    assert not client.get(f"{API}/payments", params={"profile": "scout"}).json()["shops"][0]["stale"]
+    assert not client.get(f"{API}/payments", params={"bot": "scout"}).json()["shops"][0]["stale"]
     put_card(client, card_number="4242 4242 4242 4242", exp_month="12", exp_year="30", cvc="123",
              cardholder_name="Gustaf Eriksson", label="Travel card")
-    assert client.get(f"{API}/payments", params={"profile": "scout"}).json()["shops"][0]["stale"]
+    assert client.get(f"{API}/payments", params={"bot": "scout"}).json()["shops"][0]["stale"]
     client.post(f"{API}/payments/shops/update", json={"profile": "scout"})
     [copy] = vaults.records[scout_vault(hermes_root)]
     assert copy["label"] == "Travel card •••• 4242 · www.zalando.se"

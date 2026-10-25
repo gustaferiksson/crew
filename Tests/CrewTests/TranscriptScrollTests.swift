@@ -178,6 +178,39 @@ private let rows = (0..<300).map { String(repeating: "Row \($0) has a few words 
         model.rows = rows
         model.position.scrollTo(id: 40, anchor: .center)
         settle(1)
-        #expect(model.watchedFrame.minY >= 0 && model.watchedFrame.maxY <= 640, "row 40 at \(model.watchedFrame)")
+        #expect(model.watchedFrame.height > 0 && model.watchedFrame.minY >= 0 && model.watchedFrame.maxY <= 640, "row 40 at \(model.watchedFrame)")
+        let landed = model.watchedFrame.minY
+        model.rows[model.rows.count - 1] += String(repeating: " streaming after the search", count: 30)
+        settle()
+        model.rows.append("A turn after the search.")
+        settle()
+        #expect(abs(model.watchedFrame.minY - landed) < 1, "row 40 moved by \(model.watchedFrame.minY - landed)")
+
+        model.position.scrollTo(edge: .bottom)
+        for _ in 0..<20 where abs(model.distance) >= 1 || model.position.edge != nil { settle(0.25) }
+        #expect(abs(model.distance) < 1, "after Jump to Latest \(model.distance)")
+        model.rows[model.rows.count - 1] += String(repeating: " streaming after the hand-back", count: 30)
+        settle()
+        model.rows.append("A turn after the hand-back.")
+        settle()
+        #expect(abs(model.distance) < 1, "follows the end again \(model.distance)")
+    }
+
+    @Test func aSearchJumpToARowAtTheEndKeepsFollowing() {
+        let model = ScrollModel()
+        let window = host(model)
+        defer { window.orderOut(nil) }
+        model.rows = rows
+        settle(1)
+        model.position.scrollTo(id: 298, anchor: .center)
+        settle()
+        #expect(abs(model.distance) < 1, "landed at \(model.distance)")
+        model.rows[model.rows.count - 1] += String(repeating: " streaming after the search", count: 30)
+        settle()
+        model.rows.append("A turn after the search.")
+        settle()
+        withKnownIssue("a jump into the last screenful stops following the end (docs/flows/chat-search.md, known limit)") {
+            #expect(abs(model.distance) < 1, "a reply after a jump to the last screenful \(model.distance)")
+        }
     }
 }

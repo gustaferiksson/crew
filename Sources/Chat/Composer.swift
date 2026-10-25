@@ -277,6 +277,7 @@ struct Composer: View {
             if !canSend || dictation.phase != .idle {
                 Image(systemName: hold?.cancels == true ? "xmark.circle.fill" : "waveform.mid")
                     .font(.title3)
+                    .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
                     .foregroundStyle(dictation.phase == .listening ? AnyShapeStyle(.red) : AnyShapeStyle(.tertiary))
                     .frame(width: 24, height: fieldHeight, alignment: .trailing)
                     .contentShape(.rect)

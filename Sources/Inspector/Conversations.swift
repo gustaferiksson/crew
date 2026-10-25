@@ -104,6 +104,7 @@ struct ConversationTranscript: View {
                 transcript: session?.transcript.visible ?? Transcript(),
                 emptyState: emptyState,
                 mentionable: bots.bots.filter { $0.id != bot.id },
+                slashCommands: session?.slashCommands ?? [],
                 draft: $draft,
                 tray: tray,
                 request: session?.request,

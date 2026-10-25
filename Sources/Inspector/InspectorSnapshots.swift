@@ -101,7 +101,7 @@ struct InspectorFixtureScreen: View {
 
     private var inspector: some View {
         BotInspector(
-            bot: ada, tab: tab, routines: RoutineStore(fixture: routines), draft: Snapshot.profileDraft, conversations: conversations, shops: shops, vault: vault, models: Snapshot.profileModels,
+            bot: ada, tab: tab, routines: RoutineStore(fixture: snapshot == .inspectorRoutinesEmpty ? [] : routines), draft: Snapshot.profileDraft, conversations: conversations, shops: shops, vault: vault, models: Snapshot.profileModels,
             isPresented: .constant(true)
         )
             .environment(ChatSessions(fixture: [ada.id: ChatSession(fixture: ada, transcript: Transcript(), todos: adaTodos)]))

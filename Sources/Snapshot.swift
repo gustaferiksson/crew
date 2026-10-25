@@ -54,6 +54,7 @@ enum Snapshot: String {
     case inspectorInfo = "inspector-info"
     case inspectorTasks = "inspector-tasks"
     case inspectorRoutines = "inspector-routines"
+    case inspectorRoutinesEmpty = "inspector-routines-empty"
     case inspectorLook = "inspector-look"
     case profileSkills = "profile-skills"
     case botPage = "bot-page"
@@ -128,7 +129,7 @@ enum Snapshot: String {
 
     var inspectorTab: InspectorTab? {
         if isPasswords { return .passwords }
-        return [.inspectorInfo: .info, .inspectorTasks: .tasks, .inspectorRoutines: .routines][self]
+        return [.inspectorInfo: .info, .inspectorTasks: .tasks, .inspectorRoutines: .routines, .inspectorRoutinesEmpty: .routines][self]
     }
 
     var isPasswords: Bool {

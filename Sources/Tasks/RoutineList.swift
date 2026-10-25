@@ -26,9 +26,6 @@ struct RoutineList: View {
                         Label("No Routines", systemImage: "calendar.badge.clock")
                     } description: {
                         Text("Schedule \(bot.title) to run a prompt on its own.")
-                    } actions: {
-                        Button("New Routine", systemImage: "plus", action: onCreate)
-                            .buttonStyle(.bordered)
                     }
                     .listRowBackground(Color.clear)
                 }

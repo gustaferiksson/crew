@@ -212,10 +212,14 @@ nonisolated struct NewProfile: Encodable, Sendable {
     let description: String?
     let soul: String?
     let cloneFrom: String?
+    var mirrorCredentials: Bool? = nil
+    var noSkills: Bool? = nil
 
     private enum CodingKeys: String, CodingKey {
         case name, description, soul
         case cloneFrom = "clone_from"
+        case mirrorCredentials = "mirror_credentials"
+        case noSkills = "no_skills"
     }
 }
 

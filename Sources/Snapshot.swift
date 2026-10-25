@@ -64,6 +64,7 @@ enum Snapshot: String {
     case chatOptions = "chat-options"
     case notifications
     case newBot = "new-bot"
+    case newBotAdvanced = "new-bot-advanced"
     case newGroup = "new-group"
     case settingsAccount = "settings-account"
     case settingsAccountSignedOut = "settings-account-signed-out"
@@ -155,7 +156,7 @@ enum Snapshot: String {
         if isShops || chatFixture?.isPayment == true {
             return Connection(fixture: .connected, server: self == .addCardHTTP ? URL(string: "http://hermes.local:9119")! : server, crewPush: PluginStatus(pluginVersion: "0.5.0", installId: "fixture", apnsConfigured: true, http2: true, devices: 2, features: ["payments", "card"], gate: true))
         }
-        if [.sidebar, .sidebarHidden, .sidebarFlat, .sidebarCompact, .sidebarDraft, .sidebarSearch, .searchResult, .otherConversation, .layout, .layoutInspector, .chatWindow, .chatWindowInspector, .chatWindowMissing, .inspectorLook, .profileSkills, .botPage, .chatOptions, .notifications, .newBot, .newGroup, .settingsAccount, .settingsNotifications, .settingsNotificationsAsk, .groupChat, .groupWelcome, .groupInspector].contains(self) || chatFixture != nil || inspectorTab != nil { return Connection(fixture: .connected, server: server) }
+        if [.sidebar, .sidebarHidden, .sidebarFlat, .sidebarCompact, .sidebarDraft, .sidebarSearch, .searchResult, .otherConversation, .layout, .layoutInspector, .chatWindow, .chatWindowInspector, .chatWindowMissing, .inspectorLook, .profileSkills, .botPage, .chatOptions, .notifications, .newBot, .newBotAdvanced, .newGroup, .settingsAccount, .settingsNotifications, .settingsNotificationsAsk, .groupChat, .groupWelcome, .groupInspector].contains(self) || chatFixture != nil || inspectorTab != nil { return Connection(fixture: .connected, server: server) }
         if self == .unreachable { return Connection(fixture: .unreachable, server: server) }
         return Connection(fixture: .signedOut, server: server)
     }

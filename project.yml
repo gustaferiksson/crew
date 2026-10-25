@@ -130,6 +130,7 @@ targets:
       - Sources/Scenes.swift
       - Sources/Inspector/Vault.swift
       - Sources/Inspector/MCP.swift
+      - Sources/NewBotAdvanced.swift
       - Tests/CrewTests
     settings:
       base:

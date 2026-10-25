@@ -26,6 +26,8 @@ struct RootView: View {
                 LookFixture()
             } else if Snapshot.requested == .newBot {
                 NewBotFixture()
+            } else if Snapshot.requested == .newBotAdvanced {
+                NewBotAdvancedFixture()
             } else if Snapshot.requested == .newGroup {
                 NewGroupSheet { _ in }
             } else if [.groupChat, .groupWelcome].contains(Snapshot.requested) {

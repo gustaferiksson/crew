@@ -1,6 +1,7 @@
 import Accelerate
 import AVFoundation
 import Observation
+import os
 import Speech
 
 nonisolated private struct DictationError: LocalizedError {
@@ -20,12 +21,25 @@ final class Dictation {
 
     private(set) var phase = Phase.idle
     private(set) var text = ""
+    private(set) var settledText = ""
     private(set) var levels: [Double] = []
     private(set) var startedAt: Date?
     var failure: String?
 
     static let levelCount = 40
 
+    #if os(iOS)
+    @ObservationIgnored var audioCategory: (category: AVAudioSession.Category, options: AVAudioSession.CategoryOptions) = (.record, [])
+    #endif
+
+    var isOnDevice: Bool { analyzer != nil }
+
+    var isPaused: Bool {
+        get { paused.withLock { $0 } }
+        set { paused.withLock { $0 = newValue } }
+    }
+
+    @ObservationIgnored private let paused = OSAllocatedUnfairLock(initialState: false)
     private let engine = AVAudioEngine()
     private var analyzer: SpeechAnalyzer?
     private var inputs: AsyncStream<AnalyzerInput>.Continuation?
@@ -45,13 +59,14 @@ final class Dictation {
         guard phase == .idle else { return }
         phase = .starting
         text = ""
+        settledText = ""
         failure = nil
         do {
             guard await AVAudioApplication.requestRecordPermission() else {
                 throw DictationError(errorDescription: String(localized: "Allow Crew to use the microphone in Settings to dictate."))
             }
             #if os(iOS)
-            try AVAudioSession.sharedInstance().setCategory(.record, mode: .default)
+            try AVAudioSession.sharedInstance().setCategory(audioCategory.category, mode: .default, options: audioCategory.options)
             try AVAudioSession.sharedInstance().setActive(true)
             #endif
             let format = engine.inputNode.outputFormat(forBus: 0)
@@ -60,7 +75,7 @@ final class Dictation {
             }
             let sink = try await makeSink(for: format, fallback: transcribe)
             let (levelStream, levelContinuation) = AsyncStream.makeStream(of: Double.self, bufferingPolicy: .bufferingNewest(1))
-            try engine.inputNode.installAudioTap(onBus: 0, bufferSize: 4096, format: format, tapProvider: audioTap(into: sink, levels: levelContinuation))
+            try engine.inputNode.installAudioTap(onBus: 0, bufferSize: 4096, format: format, tapProvider: audioTap(into: sink, levels: levelContinuation, paused: paused))
             engine.prepare()
             try engine.start()
             levels = []
@@ -99,6 +114,10 @@ final class Dictation {
             try? FileManager.default.removeItem(at: url)
         }
         reset()
+    }
+
+    func finalize() async {
+        try? await analyzer?.finalize(through: nil)
     }
 
     func cancel() async {
@@ -154,6 +173,7 @@ final class Dictation {
             for try await result in transcriber.results {
                 let segment = String(result.text.characters)
                 if result.isFinal { committed += segment }
+                settledText = committed
                 text = result.isFinal ? committed : committed + segment
             }
         } catch {
@@ -171,19 +191,21 @@ final class Dictation {
         results = nil
         recording = nil
         phase = .idle
+        isPaused = false
         #if os(iOS)
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         #endif
     }
 }
 
-nonisolated private func audioTap(into sink: AudioSink, levels: AsyncStream<Double>.Continuation) -> @Sendable (AVReadOnlyAudioPCMBuffer, AVAudioTime) -> Void {
+nonisolated private func audioTap(into sink: AudioSink, levels: AsyncStream<Double>.Continuation, paused: OSAllocatedUnfairLock<Bool>) -> @Sendable (AVReadOnlyAudioPCMBuffer, AVAudioTime) -> Void {
     { readOnly, _ in
         let buffer = AVAudioPCMBuffer(copying: readOnly)
         if let samples = buffer.floatChannelData?[0], buffer.frameLength > 0 {
             let rms = vDSP.rootMeanSquare(UnsafeBufferPointer(start: samples, count: Int(buffer.frameLength)))
             levels.yield(Double(min(1, max(0, (20 * log10(max(rms, 0.000_001)) + 50) / 50))))
         }
+        guard !paused.withLock({ $0 }) else { return }
         if case .file(let file) = sink {
             try? file.write(from: readOnly)
         }

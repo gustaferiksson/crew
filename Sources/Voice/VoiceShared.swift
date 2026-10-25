@@ -29,7 +29,7 @@ nonisolated struct BotEntityQuery: EntityQuery {
 nonisolated struct VoiceAttributes: ActivityAttributes {
     nonisolated struct ContentState: Codable, Hashable, Sendable {
         enum Phase: String, Codable, Sendable {
-            case listening, sending, sent, failed
+            case connecting, listening, thinking, speaking, failed
         }
 
         let phase: Phase
@@ -42,7 +42,7 @@ nonisolated struct VoiceAttributes: ActivityAttributes {
 
 struct TalkToBotIntent: AudioRecordingIntent, LiveActivityIntent {
     static let title: LocalizedStringResource = "Talk to Bot"
-    static let description = IntentDescription("Records a voice message and sends it to a bot's Bot Chat.")
+    static let description = IntentDescription("Starts a voice call with a bot, or ends the call in progress.")
     static let supportedModes: IntentModes = [.background, .foreground(.dynamic)]
 
     @Parameter(title: "Bot")
@@ -57,12 +57,12 @@ struct TalkToBotIntent: AudioRecordingIntent, LiveActivityIntent {
     @MainActor
     func perform() async throws -> some IntentResult {
         #if !WIDGET_EXTENSION
-        switch await VoiceMessage.shared.start(bot?.id) {
+        switch await VoiceCall.shared.toggle(bot?.id) {
         case .started:
             break
         case .needsPermission:
-            try await continueInForeground("Crew needs the microphone to record.")
-            _ = await VoiceMessage.shared.start(bot?.id)
+            try await continueInForeground("Crew needs the microphone for calls.")
+            _ = await VoiceCall.shared.toggle(bot?.id)
         case .needsCrew(let reason):
             throw needsToContinueInForegroundError(IntentDialog(stringLiteral: reason))
         case .failed(let reason):
@@ -73,31 +73,14 @@ struct TalkToBotIntent: AudioRecordingIntent, LiveActivityIntent {
     }
 }
 
-nonisolated struct VoiceFailure: LocalizedError {
-    let errorDescription: String?
-}
-
-nonisolated struct SendVoiceMessageIntent: LiveActivityIntent {
-    static let title: LocalizedStringResource = "Send Voice Message"
+nonisolated struct EndVoiceCallIntent: LiveActivityIntent {
+    static let title: LocalizedStringResource = "End Voice Call"
     static let isDiscoverable = false
 
     @MainActor
     func perform() async throws -> some IntentResult {
         #if !WIDGET_EXTENSION
-        await VoiceMessage.shared.send()
-        #endif
-        return .result()
-    }
-}
-
-nonisolated struct CancelVoiceMessageIntent: LiveActivityIntent {
-    static let title: LocalizedStringResource = "Cancel Voice Message"
-    static let isDiscoverable = false
-
-    @MainActor
-    func perform() async throws -> some IntentResult {
-        #if !WIDGET_EXTENSION
-        await VoiceMessage.shared.cancel()
+        await VoiceCall.shared.end()
         #endif
         return .result()
     }
@@ -127,45 +110,70 @@ struct VoiceAvatar: View {
     }
 }
 
-struct VoiceStatus: View {
+struct VoiceTimer: View {
     let attributes: VoiceAttributes
+
+    var body: some View {
+        Text(timerInterval: attributes.startedAt...Date.distantFuture, countsDown: false)
+            .monospacedDigit()
+    }
+}
+
+struct VoiceStatus: View {
     let state: VoiceAttributes.ContentState
 
     var body: some View {
         switch state.phase {
+        case .connecting:
+            Text("Connecting…")
         case .listening:
-            Text(timerInterval: attributes.startedAt...Date.distantFuture, countsDown: false)
-                .monospacedDigit()
-        case .sending:
-            Text("Sending…")
-        case .sent:
-            Text("Sent to \(attributes.bot.title)")
+            Text("Listening")
+        case .thinking:
+            Text("Thinking…")
+        case .speaking:
+            Text("Speaking")
         case .failed:
-            Text(state.failure ?? String(localized: "Couldn't send"))
+            Text(state.failure ?? String(localized: "The call ended."))
+                .foregroundStyle(.red)
         }
     }
 }
 
-struct VoiceControls: View {
-    let phase: VoiceAttributes.ContentState.Phase
+struct VoiceEndButton: View {
+    var body: some View {
+        Button(intent: EndVoiceCallIntent()) {
+            Label("End", systemImage: "xmark")
+                .labelStyle(.iconOnly)
+                .font(.title3.weight(.semibold))
+                .frame(width: 32, height: 32)
+        }
+        .buttonStyle(.borderedProminent)
+        .buttonBorderShape(.circle)
+        .tint(.red)
+    }
+}
+
+struct VoiceCallSummary: View {
+    let attributes: VoiceAttributes
+    let state: VoiceAttributes.ContentState
 
     var body: some View {
-        if phase == .listening {
-            HStack {
-                Button(intent: CancelVoiceMessageIntent()) {
-                    Label("Cancel", systemImage: "xmark")
-                        .frame(maxWidth: .infinity)
+        VStack(alignment: .leading, spacing: 2) {
+            Text(attributes.bot.title)
+                .font(.headline)
+                .lineLimit(1)
+            HStack(spacing: 4) {
+                if state.phase != .failed {
+                    VoiceTimer(attributes: attributes)
+                    Text(verbatim: "·")
                 }
-                .buttonStyle(.bordered)
-                Button(intent: SendVoiceMessageIntent()) {
-                    Label("Send", systemImage: "arrow.up")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
+                VoiceStatus(state: state)
+                    .lineLimit(2)
             }
-            .buttonBorderShape(.capsule)
-            .labelStyle(.titleAndIcon)
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -174,44 +182,27 @@ struct VoiceActivityView: View {
     let state: VoiceAttributes.ContentState
 
     var body: some View {
-        VStack(spacing: 12) {
-            HStack(spacing: 12) {
-                VoiceAvatar(bot: attributes.bot, size: 44)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(attributes.bot.title)
-                        .font(.headline)
-                    VoiceStatus(attributes: attributes, state: state)
-                        .font(.subheadline)
-                        .foregroundStyle(state.phase == .failed ? .red : .secondary)
-                }
-                Spacer(minLength: 0)
-                VoicePhaseSymbol(phase: state.phase)
-                    .font(.title2)
-            }
-            VoiceControls(phase: state.phase)
+        HStack(spacing: 12) {
+            VoiceAvatar(bot: attributes.bot, size: 44)
+            VoiceCallSummary(attributes: attributes, state: state)
+            VoiceEndButton()
         }
         .padding()
     }
 }
 
-struct VoicePhaseSymbol: View {
-    let phase: VoiceAttributes.ContentState.Phase
+struct VoiceCompactTrailing: View {
+    let attributes: VoiceAttributes
+    let state: VoiceAttributes.ContentState
 
     var body: some View {
-        switch phase {
-        case .listening:
-            Image(systemName: "waveform")
-                .foregroundStyle(.red)
-                .symbolEffect(.variableColor.iterative)
-        case .sending:
-            Image(systemName: "arrow.up.circle")
-                .foregroundStyle(.secondary)
-        case .sent:
-            Image(systemName: "checkmark.circle.fill")
-                .foregroundStyle(.green)
-        case .failed:
+        if state.phase == .failed {
             Image(systemName: "exclamationmark.circle.fill")
                 .foregroundStyle(.red)
+        } else {
+            VoiceTimer(attributes: attributes)
+                .frame(width: 40)
+                .foregroundStyle(.green)
         }
     }
 }

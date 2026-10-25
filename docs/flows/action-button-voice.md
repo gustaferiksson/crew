@@ -1,22 +1,24 @@
-# Action button voice (#185)
+# Action button voice call (#185)
 
-Press the iPhone Action button (or the Control in Control Center or on the Lock Screen, or the "Talk to Bot" shortcut), speak, and the message goes to a bot's Bot Chat without opening Crew. The reply arrives as the usual crew-push notification. Model: Voice Memos' Lock Screen recording plus Messages' send.
+Press the iPhone Action button (or the Control in Control Center or on the Lock Screen, or the "Talk to Bot" shortcut) and you are on a call with a bot: you talk, it answers out loud, you talk again, until you press the button again or tap the red End button in the Dynamic Island. Model: a phone call's Live Activity (avatar, name, running time, red End) with Grok's Action button voice mode as the reference.
 
 ## Pieces (Apple's documented APIs only)
 
-- `TalkToBotIntent`: `AudioRecordingIntent` and `LiveActivityIntent`, so it runs in the app's process (the Live Activity can only start there). Bot parameter is an `AppEntity` read from the App Group cache; no choice means the most recent listed bot.
-- `TalkControl`: a `ControlWidget` (`AppIntentControlConfiguration`, configurable bot) in the `CrewWidgets` extension. It shows in Settings > Action Button > Controls, Control Center and the Lock Screen.
-- Live Activity (`VoiceAttributes`, same extension): Lock Screen banner, expanded, compact and minimal Dynamic Island. Cancel and Send are `LiveActivityIntent` buttons. Pressing the Action button again while recording also sends.
-- Recording and transcription reuse `Dictation` (on-device `SpeechAnalyzer`, else Hermes `api/audio/transcribe`). The send reuses `openBotChat` (Bot Chat resolve/create, as the chat screen does) and `prompt.submit` on a short-lived gateway built from the Keychain session, like the Deny push action. The gateway disconnects right after the submit. Hermes detaches the session and the turn finishes and pushes (probed on `crew-test`: `Tests/chat_probe/run.sh voice`).
-- App Group `group.dev.gustaf.crew` (iOS only): `voice-bots.json` (name, title, look, Bot Chat id, last active, hidden), written whenever the roster is saved, and the avatar photo cache, so the Control's picker and the Live Activity avatar work without the app.
+- `TalkToBotIntent`: `AudioRecordingIntent` and `LiveActivityIntent`. Apple documents that an intent conforming to `LiveActivityIntent` is performed in the app's process, so the copy compiled into the widget extension has a stub `perform()` and the app's copy does the work. The intent toggles: no call starts one, a call in progress ends.
+- `TalkControl`: a `ControlWidget` (`AppIntentControlConfiguration`, configurable bot) in the `CrewWidgets` extension. It shows in Settings > Action Button > Controls, Control Center and the Lock Screen, with the `phone.fill` glyph.
+- `VoiceCall` (app): starts the Live Activity, then one `Dictation` for the whole call with `.playAndRecord`, `.defaultToSpeaker` and Bluetooth HFP, so the app keeps running in the background. Calls need the on-device `SpeechAnalyzer`; the server transcription fallback can't hear turn ends.
+- Turn taking (`VoiceTurn`, unit tested): once the input level has stayed under about -32 dB for about 1 s after new words, the turn ends. If the transcriber still holds volatile words then, Crew asks it to finalize them (`SpeechAnalyzer.finalize(through:)`) and sends once they settle. The new words are sent with `prompt.submit` on one gateway connected for the whole call (Bot Chat via `openBotChat`). The reply is the `message.complete` text for that session.
+- Speaking: Hermes `POST api/audio/speak` (MP3 from the server's TTS provider, probed on `crew-test`), played through an `AVAudioPlayerNode`; if that fails, `AVSpeechSynthesizer` with the best installed system voice for the language. Markdown is stripped first. Input is paused while the bot thinks and speaks (half duplex), so the bot never hears itself.
+- App Group `group.dev.gustaf.crew` (iOS only): `voice-bots.json` and the avatar cache, so the Control's picker and the Live Activity avatar work without the app.
 
 ## Surfaces
 
-- **Action button / Control:** the Control's label is the chosen bot's title or "Talk to Bot", with the `waveform` glyph.
-- **Live Activity, recording:** avatar (photo or shape), bot title, elapsed time (`Text(timerInterval:)`, no per-second updates), pulsing red waveform; Cancel (bordered) and Send (prominent).
-- **Sending:** "Sending…", no buttons. **Sent:** "Sent to <bot>" with a green check, then it ends after 4 s.
-- **Compact island:** avatar leading, phase glyph trailing. **Minimal:** avatar.
-- **Bot list and chat:** unchanged. The prompt and reply appear in the Bot Chat like any other turn (time, preview, unread and Working come from the server as usual). The reply notification is the normal crew-push one.
+- **Action button / Control:** label is the chosen bot's title or "Talk to Bot". First press: call starts. Second press: call ends.
+- **Expanded island:** avatar leading; bot name over "0:12 · Listening" (elapsed time from `Text(timerInterval:)`, then the phase); red round End button trailing. No mute.
+- **Compact island:** avatar leading, running time trailing in green like a call. On failure the trailing side is a red exclamation mark. **Minimal:** avatar.
+- **Lock Screen banner:** the same row as the expanded island.
+- **Phases:** Connecting… (gateway and speech model starting), Listening, Thinking… (turn sent, waiting for the reply), Speaking, then Listening again.
+- **Bot list and chat:** each turn is a normal prompt and reply in the bot's Bot Chat, so preview, time, unread and Working behave as for typed messages. crew-push may also notify the reply, as for any turn.
 - **Mac:** no Action button, so no Control or Live Activity there. The macOS build is unchanged.
 - **Light/dark:** system materials and colours; see the `voice-activity` renders.
 
@@ -24,18 +26,24 @@ Press the iPhone Action button (or the Control in Control Center or on the Lock 
 
 - Signed out: the intent asks to continue in Crew ("Sign in to Crew first.").
 - No bots cached yet: continue in Crew ("Open Crew to load your bots.").
-- Microphone permission not asked yet: continue in the foreground, where `Dictation` asks, then recording starts. Denied: the intent fails with `Dictation`'s "Allow Crew to use the microphone in Settings" message.
-- Nothing heard: "Crew didn't hear anything.", ends after 4 s.
-- Transcription failed: the error shows in the Live Activity, which stays until dismissed.
-- Offline or the server unreachable: "Couldn't send. It's saved as a draft." The text is added to that bot's composer draft, so opening the chat shows it ready to send.
-- Cancelled: the recording is discarded and the Live Activity ends at once.
-- Long dictation: no cap. The elapsed time keeps counting. Server transcription of long audio is bounded by its 60 s timeout and then shows the failure state.
+- Microphone permission not asked yet: continue in the foreground, where `Dictation` asks, then the call starts. Denied: the island shows `Dictation`'s "Allow Crew to use the microphone in Settings" message.
+- No on-device speech model for the language: "Calls need on-device speech recognition for your language."
+- Offline or server unreachable at the start: "Couldn't reach the server."
+- A turn that can't be sent: "Couldn't send. It's saved as a draft." The words are added to that bot's composer draft.
+- The bot's turn fails or is interrupted: its error shows in the island.
+- Every failure keeps the Live Activity in the island with the message and the End button until ended, instead of vanishing.
+- Silence: the call keeps listening; nothing is sent until there are words.
+- Long replies: spoken in full; End stops the voice at once.
+- Ended (End or second press): audio stops, the gateway disconnects, the Live Activity ends immediately. A turn already sent still finishes on the server and lands in the Bot Chat.
 - Hidden bot chosen on the Control: still used (it was an explicit choice); the default skips hidden bots.
+
+## Not possible: hold to talk
+
+Holding the Action button to talk and releasing to send would need the button's release. A control's intent runs once per press ("When someone interacts with a control, it performs its action using an app intent", WidgetKit, Creating controls to perform actions across the system), and no public API reports the Action button's release or hold time to a third-party app. `AVCaptureEventInteraction` reports press phases but "you can only use this API for capture use cases. The system sends capture events only to apps that actively use the camera" (AVKit). Push to Talk's transmit sources are the system UI button, the app, and a hands-free device's button (`PTChannelTransmitRequestSource`), not the Action button, and it is a walkie-talkie channel service with its own entitlement. So the button is tap to start and tap again to end.
 
 ## Verification
 
-- Unit: `VoiceBotTests` (bot choice: explicit, hidden, deleted, empty).
-- Real server: `Tests/chat_probe/run.sh voice` submits on `crew-test`, disconnects at once, and finds the reply in history.
-- Renders: `./snapshot.sh ios voice-activity` hosts the Live Activity's content views and a stand-in compact island in the app. The real Dynamic Island chrome, the Control in Control Center and the Action button can't be rendered or driven off-device.
-- Release signing: `./package.sh ios` archives and exports with `Crew Ad Hoc` and `Crew Widgets Ad Hoc`; both bundles carry the App Group.
-- Not verified: the Action button and background recording on a device (never installed on the user's devices). Ships for checking through a tagged release.
+- Unit: `VoiceBotTests` (bot choice), `VoiceTurnTests` (turn end: settled text, quiet span, only new words).
+- Real server: `Tests/chat_probe/run.sh voice` runs two turns on `crew-test` over one connected gateway, checks each `message.complete` reply, and fetches the spoken MP3 from `api/audio/speak`.
+- Renders: `./snapshot.sh ios voice-activity` hosts the Lock Screen row for every phase plus stand-ins for the expanded and compact island. The real island chrome, the Control and the Action button can't be rendered or driven off-device.
+- Not verified off-device: starting from the Action button in the background, background audio across turns, how fast the transcriber settles, the turn-end threshold in real rooms, Bluetooth routing, and the voices on a phone. A turn sent while an earlier one is still running (`prompt.submit` queued) would hear the earlier reply first.

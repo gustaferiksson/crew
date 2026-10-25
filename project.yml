@@ -65,7 +65,7 @@ targets:
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
         INFOPLIST_KEY_NSLocalNetworkUsageDescription: Crew connects to your Hermes server on the local network or over VPN.
-        INFOPLIST_KEY_NSMicrophoneUsageDescription: Crew listens while you dictate a message.
+        INFOPLIST_KEY_NSMicrophoneUsageDescription: Crew listens while you dictate a message or talk to a bot.
         INFOPLIST_KEY_NSSpeechRecognitionUsageDescription: Crew turns your dictation into text on this device.
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.productivity
         INFOPLIST_FILE[sdk=iphoneos*]: Info-iOS.plist
@@ -165,6 +165,7 @@ targets:
       - Sources/Inspector/MCP.swift
       - Sources/NewBotAdvanced.swift
       - Sources/Voice/VoiceBot.swift
+      - Sources/Voice/VoiceTurn.swift
       - Tests/CrewTests
     settings:
       base:

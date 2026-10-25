@@ -39,7 +39,7 @@ def test_plugin_loads_in_hermes(tmp_path: Path) -> None:
     assert all(result["has_hook"].values())
     assert any("CrewPush.on_session_end" in name for name in result["own_callbacks"])
     assert result["mounted"] is True
-    assert result["status"]["plugin_version"] == "0.6.8"
+    assert result["status"]["plugin_version"] == "0.6.9"
     assert result["status"]["apns_configured"] is True
     assert result["status"]["http2"] is True
     assert result["register"] == 200

@@ -261,6 +261,12 @@ struct BotsView: View {
                             HStack {
                                 Text("Hidden")
                                 Spacer()
+                                if !showsHidden && store.hasUnreadHidden {
+                                    Circle()
+                                        .fill(.tint)
+                                        .frame(width: 8, height: 8)
+                                        .accessibilityLabel("Unread")
+                                }
                                 Text(store.hiddenBots.count, format: .number)
                                 Image(systemName: "chevron.right")
                                     .rotationEffect(.degrees(showsHidden ? 90 : 0))

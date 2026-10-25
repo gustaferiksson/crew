@@ -176,7 +176,7 @@ enum Snapshot: String {
                 bot("scout", 90, "Found three flights under 2 000 kr for the weekend.", BotMeta(title: "Scout", color: "#38bdf8")),
                 bot("quill", 60 * 30, "Draft two is ready for review.", BotMeta(title: "Quill", color: "#ec4899")),
                 bot("ghost", 1, "Hidden until someone unhides it.", BotMeta(title: "Ghost", color: "#8e8e93", hidden: true)),
-            ], statuses: ["scout": .unread])
+            ], statuses: ["scout": .unread, "ghost": .unread])
         }
         if self == .sidebarHidden {
             return BotStore(fixture: [

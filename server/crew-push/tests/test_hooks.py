@@ -139,6 +139,18 @@ def test_routine(device, enqueued: list, hermes_helpers: None) -> None:
     assert headers["apns-priority"] == "5"
 
 
+def test_routine_names_its_job_from_the_running_cron_execution(device, enqueued: list, hermes_helpers: None,
+                                                              monkeypatch: pytest.MonkeyPatch) -> None:
+    execution = types.SimpleNamespace(job_id="e708", job_name="Evening digest")
+    monkeypatch.setitem(sys.modules, "cron.execution_identity",
+                        types.SimpleNamespace(current_cron_execution=lambda: execution))
+    device(routines=True)
+    push = CrewPush(profile="atlas")
+    turn(push, reply="Nothing new.", platform="cron", session_id="local-0e554aa9d4245add6891ddb6edc5ce1a")
+    [(_, _, payload)] = enqueued
+    assert payload["aps"]["alert"] == {"title": "Atlas", "subtitle": "Evening digest", "body": "Nothing new."}
+
+
 def test_previews_off_sends_generic_text(device, enqueued: list) -> None:
     device(previews=False)
     push = CrewPush(profile="atlas")

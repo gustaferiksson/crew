@@ -1,6 +1,6 @@
 # Push notifications
 
-Design for layer 7: APNs on iOS and macOS for finished bot turns, approvals, questions and (opt-in) routine runs, delivered when Crew is not connected. Research date 2026-10-13, against Hermes **v0.21.7** (`git show v0.21.7:<path>` in `~/.hermes/hermes-agent`) and `uzairansaruzi/hermex-push` at `master` (plugin 0.4.0). Nothing here was sent to the test server.
+Design for layer 7: APNs on iOS and macOS for finished bot turns, approvals, questions and (opt-in) routine runs, delivered when Crew is not connected. Research date 2026-10-13, against Hermes **v0.21.7** (`git show v0.21.7:<path>` in `~/.hermes/hermes-agent`) and `uzairansaruzi/hermex-push` at `master` (plugin 0.4.0). Nothing here was sent to the test server. The server now runs Hermes **0.22.5**; where it differs, the 0.22.5 note says so.
 
 ## TL;DR
 
@@ -51,6 +51,8 @@ Sources: `hermex-push/plugin/**`, `hermex-push/relay/**`, `hermex/docs/agents/pu
 `session_id` in every hook is `agent.session_id`, and tui_gateway builds the agent with `session_id=session["session_key"]` (`tui_gateway/methods_session.py:82`, `agent_callbacks.py:612`), which is exactly the `stored_session_id` Crew uses for REST history. Compression rotates it (`session_compression.py:331`), so a tapped notification for an old id must still land on the bot.
 
 There is **no dedicated cron hook**. Cron runs build an `AIAgent(platform="cron", session_id="cron_<job_id>_<YYYYmmdd_HHMMSS>")` (`cron/scheduler.py:2496, 2553`) in the gateway's ticker (or a detached cron worker), so `on_session_end` with `platform == "cron"` is the routine-finished signal, and `cron.jobs.get_job(job_id)` (`cron/jobs.py:1946`) gives the job name.
+
+**Hermes 0.22.5.** Cron runs execute in `local-…` sessions (still `platform="cron"`, `cron/scheduler.py:2531`), so the job id is no longer in the session id. The scheduler binds the running job in a ContextVar (`cron/execution_identity.py`, `current_cron_execution()`, also `ctx.current_cron_execution()` on the plugin context) that follows the agent onto its threads, so `on_session_end` reads `job_name` from it; crew-push 0.6.9 does that and keeps the `cron_<job>_<ts>` parse for older servers. A run whose reply is `[SILENT]` is suppressed by Hermes itself (`_is_cron_silence_response`), so crew-push adds no special case. `deliver: "bot-chat"` hands the output to the profile's Bot Chat as an `internal_notification` turn (`cron/scheduler_delivery.py` `bot_chat_message`), and the Bot Chat reply pushes as a normal reply. A Bot Chat Crew already opened refuses that hand-off with `not_found` (`gateway/platforms/api_server_bot_chat.py` `_refusal`, reported as `bot_chat_unbound` or `bot_chat_not_local`); a Bot Chat the delivery creates itself (a fresh bot) works. App side: [flows/routine-delivery.md](flows/routine-delivery.md).
 
 **Profiles are isolated.** `get_plugin_manager()` keeps one manager per resolved home (`plugins.py:1701`), the user plugin dir is `get_hermes_home()/plugins`, and enablement is per profile config. A profile created by cloning copies `plugins/` (`profiles.py:1322`), a fresh one does not. Every Crew bot is a profile, and Crew creates bots, so per-profile installs would silently miss new bots.
 
@@ -487,7 +489,7 @@ Body (well under the 4 KB limit with the 120/400 character clips):
 - Approvals: all surfaces except `smart` (an auxiliary model decided, nobody waits) and `vault-payment`.
 - Payments (crew-push 0.4.0): a `vault-payment` approval that crew-push bound to its own checked fill sends kind `payment` (category `CREW_PAYMENT`, time-sensitive, expiring with the request, collapse id per `request_id`); when it ends, a silent `payment_resolved` goes to every device. Spec: [flows/payments-contract.md](flows/payments-contract.md).
 - Questions: the `clarify` tool. `sudo`/`secret` prompts are out of v1; `on_human_input_request` (`kind == "sudo"`) is the hook if wanted later.
-- Routines: `platform == "cron"`, off by default per device (`prefs.routines`), passive interruption level.
+- Routines: `platform == "cron"`, off by default per device (`prefs.routines`), passive interruption level, subtitle the job name (0.22.5: from the running cron execution, crew-push 0.6.9). A bot-chat routine's delivery pushes through the Bot Chat reply instead.
 
 ## 5. Client side
 

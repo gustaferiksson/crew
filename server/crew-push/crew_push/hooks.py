@@ -149,6 +149,14 @@ def bot_name(profile: str) -> str:
 
 def job_name(session_id: str) -> str:
     try:
+        from cron.execution_identity import current_cron_execution
+
+        execution = current_cron_execution()
+    except Exception:
+        execution = None
+    if execution is not None:
+        return str(execution.job_name or "")
+    try:
         from cron.jobs import get_job
 
         job = get_job(session_id.rsplit("_", 2)[0].removeprefix("cron_"))

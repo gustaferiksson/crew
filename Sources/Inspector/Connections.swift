@@ -46,7 +46,7 @@ struct ConnectionsSection: View {
             AddConnectionSheet(bot: bot, store: store)
         }
         .confirmationDialog(
-            confirmingRemoval.map { String(localized: "Remove \(connectionTitle($0.name)) from \(bot.title)?") } ?? "",
+            confirmingRemoval.map { String(localized: "Remove \($0.name) from \(bot.title)?") } ?? "",
             isPresented: Binding(get: { confirmingRemoval != nil }, set: { if !$0 { confirmingRemoval = nil } }),
             titleVisibility: .visible,
             presenting: confirmingRemoval
@@ -61,6 +61,7 @@ struct ConnectionsSection: View {
     private func row(_ server: MCPServer) -> some View {
         let status = store.status(of: server)
         let isEditable = server.source != "plugin"
+        let error: String? = if let failure = store.failures[server.id] { failure } else if case .failed(let message) = status { message } else { nil }
         return ConnectionRow(
             server: server,
             status: status,
@@ -71,16 +72,21 @@ struct ConnectionsSection: View {
             signIn: { signIn(server) },
             cancelSignIn: { run { url, urlSession in await store.cancelSignIn(server.name, on: url, with: urlSession) } }
         )
+        .help(error ?? "")
         .contextMenu {
-            Button("Test", systemImage: "checkmark.circle") { test(server) }
-                .disabled(!isOnline || !server.enabled)
-            if server.auth == "oauth", isEditable {
-                Button("Sign In…", systemImage: "person.badge.key") { signIn(server) }
-                    .disabled(!isOnline || status == .signingIn)
-            }
-            if isEditable {
-                Button("Remove…", systemImage: "trash", role: .destructive) { confirmingRemoval = server }
-                    .disabled(!isOnline)
+            Section {
+                Button("Test", systemImage: "checkmark.circle") { test(server) }
+                    .disabled(!isOnline || !server.enabled)
+                if server.auth == "oauth", isEditable {
+                    Button("Sign In…", systemImage: "person.badge.key") { signIn(server) }
+                        .disabled(!isOnline || status == .signingIn)
+                }
+                if isEditable {
+                    Button("Remove…", systemImage: "trash", role: .destructive) { confirmingRemoval = server }
+                        .disabled(!isOnline)
+                }
+            } header: {
+                if let error { Text(error) }
             }
         }
         #if os(iOS)
@@ -129,7 +135,7 @@ private struct ConnectionRow: View {
         HStack(alignment: .top, spacing: 12) {
             ConnectionIcon(name: server.name)
             VStack(alignment: .leading, spacing: 2) {
-                Text(connectionTitle(server.name))
+                Text(server.name)
                     .lineLimit(1)
                     .truncationMode(.middle)
                 statusLine
@@ -150,7 +156,7 @@ private struct ConnectionRow: View {
                     Text(failure)
                         .font(.footnote)
                         .foregroundStyle(.red)
-                        .lineLimit(4)
+                        .lineLimit(2)
                 }
             }
             .accessibilityElement(children: .combine)
@@ -188,7 +194,7 @@ private struct ConnectionRow: View {
         } else if case .failed(let message) = status {
             Text(message)
                 .foregroundStyle(.red)
-                .lineLimit(4)
+                .lineLimit(2)
         }
     }
 }
@@ -199,7 +205,7 @@ struct ConnectionIcon: View {
     private static let colors: [Color] = [.blue, .indigo, .purple, .pink, .orange, .teal, .green, .cyan]
 
     var body: some View {
-        Text(String(connectionTitle(name).prefix(1)))
+        Text(name.prefix(1).uppercased())
             .font(.subheadline.weight(.semibold))
             .foregroundStyle(.white)
             .frame(width: 28, height: 28)
@@ -224,7 +230,15 @@ struct AddConnectionSheet: View {
 
     var body: some View {
         NavigationStack {
-            List {
+            Form {
+                #if os(macOS)
+                Section {
+                    TextField(text: $query, prompt: Text("Search")) {
+                        Image(systemName: "magnifyingglass")
+                    }
+                    .multilineTextAlignment(.leading)
+                }
+                #endif
                 Section {
                     NavigationLink {
                         CustomConnectionForm(store: store) { dismiss() }
@@ -259,7 +273,10 @@ struct AddConnectionSheet: View {
                     }
                 }
             }
+            .formStyle(.grouped)
+            #if os(iOS)
             .searchable(text: $query, prompt: Text("Search"))
+            #endif
             .navigationTitle("Add Connection")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -290,7 +307,7 @@ private struct CatalogRow: View {
         HStack(spacing: 12) {
             ConnectionIcon(name: entry.name)
             VStack(alignment: .leading, spacing: 2) {
-                Text(connectionTitle(entry.name))
+                Text(entry.name)
                     .lineLimit(1)
                 Text(entry.description)
                     .font(.subheadline)
@@ -326,7 +343,7 @@ private struct CatalogEntryForm: View {
             Section {
                 HStack(spacing: 12) {
                     ConnectionIcon(name: entry.name)
-                    Text(connectionTitle(entry.name))
+                    Text(entry.name)
                         .font(.headline)
                 }
                 Text(entry.description)
@@ -384,7 +401,7 @@ private struct CatalogEntryForm: View {
         .formStyle(.grouped)
         .privacySensitive()
         .disabled(isSaving)
-        .navigationTitle(connectionTitle(entry.name))
+        .navigationTitle(entry.name)
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif

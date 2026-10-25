@@ -91,7 +91,7 @@ struct NewBotAdvanced: View {
                                 if isOn { options.connections.insert(server.name) } else { options.connections.remove(server.name) }
                             }
                         )) {
-                            Text(connectionTitle(server.name))
+                            Text(server.name)
                             Text(server.address)
                                 .lineLimit(1)
                                 .truncationMode(.middle)

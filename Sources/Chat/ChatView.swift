@@ -297,7 +297,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #else
-        .toolbar(removing: .title)
+        .toolbar(removing: title == nil ? .title : nil)
         #endif
         .onChange(of: [focus?.id.uuidString, "\(transcript.turns.count)"], initial: true) {
             guard let focus, focus.id != handledFocus, let target = transcript.turn(matching: focus.snippet) else { return }

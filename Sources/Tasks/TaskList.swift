@@ -6,9 +6,8 @@ struct TaskList: View {
 
     var body: some View {
         if todos.isEmpty {
-            Section {
+            Section {} header: {
                 ContentUnavailableView("No Tasks", systemImage: "checklist", description: Text("When \(bot.title) plans a run, its steps show up here."))
-                    .listRowBackground(Color.clear)
             }
         } else {
             Section {

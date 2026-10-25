@@ -9,25 +9,22 @@ struct RoutineList: View {
     var body: some View {
         Group {
             if !store.isLoaded, let error = store.loadError {
-                Section {
+                Section {} header: {
                     ContentUnavailableView("Couldn't Load Routines", systemImage: "exclamationmark.triangle", description: Text(error))
-                        .listRowBackground(Color.clear)
                 }
             } else if !store.isLoaded {
-                Section {
+                Section {} header: {
                     ProgressView()
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 32)
-                        .listRowBackground(Color.clear)
                 }
             } else if store.jobs.isEmpty {
-                Section {
+                Section {} header: {
                     ContentUnavailableView {
                         Label("No Routines", systemImage: "calendar.badge.clock")
                     } description: {
                         Text("Schedule \(bot.title) to run a prompt on its own.")
                     }
-                    .listRowBackground(Color.clear)
                 }
             } else {
                 Section {

@@ -190,6 +190,7 @@ References: `docs/hermes-api.md`, `docs/hermex-features.md`, `docs/swiftui-guide
   - Jump arrow: `Jump to Latest` glass circle (`.controlSize(.large)` on macOS) 12 pt above the top of the composer bar, including any approval or question card in it (`Sources/Chat/TranscriptScroll.swift`); change only on a user request.
   - Timestamp swipe: reveal is `-min(max(0, -(dragTravel + trackpadTravel)) / 3, timestampWidth)`, linear 1/3 of leftward travel clamped to the width of a "22:58" caption, rightward travel ignored (`Sources/Chat/ChatView.swift`); change only on a user request.
   - Map pins: on macOS `pinPoint` flips the `MKMapSnapshotter` projection to `height - y` (AppKit's bottom-left origin), iOS uses it unchanged (`Sources/Chat/A2UI/MapPinPoint.swift`, covered by `CrewTests`); change only on a user request.
+- Connection names show exactly as configured in Hermes (no capitalization; the catalog has no display names). Mac sheets with search put the search field in the sheet's Form, not a `.searchable` toolbar strip. Empty states inside a grouped Form go in an empty Section's header, which renders without the row box on Mac.
 
 ## Navigation
 

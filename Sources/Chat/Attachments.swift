@@ -110,6 +110,13 @@ nonisolated enum AttachmentError: LocalizedError {
 
 extension Prompt {
     nonisolated init(raw: String, sentAt: Date) {
+        if let skill = raw.prefixMatch(of: /\[IMPORTANT: The user has invoked the "\/?([^"]+)"/)?.1 {
+            let marker = "The user has provided the following instruction alongside the skill invocation: "
+            let instruction = raw.ranges(of: marker).last.map { String(raw[$0.upperBound...]).components(separatedBy: "\n\n[Runtime note:")[0] } ?? ""
+            let typed = instruction.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+            self.init(text: typed.isEmpty ? "/\(skill)" : "/\(skill) \(typed)", sentAt: sentAt)
+            return
+        }
         var lines = raw.components(separatedBy: "\n")
         var attachments: [Attachment] = []
         while let last = lines.last, last.trimmingCharacters(in: .whitespaces).isEmpty || last == "[image]" || last == "[screenshot]" {

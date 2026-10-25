@@ -109,6 +109,7 @@ final class ChatSession {
                 }
                 guard transcript == shown else { continue }
                 var reloaded = Transcript(history: rows)
+                reloaded.keepCommands(from: shown)
                 reloaded.adoptIDs(from: shown)
                 reloaded.keepFailures(from: shown)
                 reloaded.waiting = shown.waiting
@@ -122,7 +123,7 @@ final class ChatSession {
         let prompt = Prompt(text: text.trimmingCharacters(in: .whitespacesAndNewlines), sentAt: .now, attachments: attachments, mentionNote: mentionNote(for: bots))
         guard !prompt.text.isEmpty || !attachments.isEmpty, let runtime else { return }
         guard isRunning else { return submit(prompt) }
-        if mode == .queue || !attachments.isEmpty || transcript.turns.last.map({ $0.agentMessage != nil || $0.delivery != nil }) == true { return transcript.wait(prompt, as: .queued) }
+        if mode == .queue || attachments.isEmpty && slashInvocation(prompt.text, in: slashCommands) != nil || !attachments.isEmpty || transcript.turns.last.map({ $0.agentMessage != nil || $0.delivery != nil }) == true { return transcript.wait(prompt, as: .queued) }
         let id = UUID().uuidString
         transcript.wait(prompt, as: .steer, id: id)
         Task {
@@ -169,9 +170,10 @@ final class ChatSession {
 
     func compact() async throws -> String? {
         guard let runtime, let stored, !isRunning else { return nil }
-        let reply = try await gateway.call("session.compress", ["session_id": runtime.rawValue], as: CompressReply.self)
+        let reply = try await gateway.call("session.compress", ["session_id": runtime.rawValue], as: CompressReply.self, timeout: .seconds(300))
         let shown = transcript
         var reloaded = Transcript(history: try await history(of: stored, profile: profile, on: gateway.server, with: urlSession))
+        reloaded.keepCommands(from: shown)
         reloaded.adoptIDs(from: shown)
         transcript = reloaded
         return reply.summary?.headline
@@ -303,6 +305,9 @@ final class ChatSession {
 
     private func submit(_ prompt: Prompt) {
         guard let runtime else { return }
+        if prompt.attachments.isEmpty, prompt.payload == nil, let (command, arg) = slashInvocation(prompt.text, in: slashCommands) {
+            return run(command, arg: arg, line: prompt.text, on: runtime)
+        }
         transcript.begin(prompt: prompt.text, attachments: prompt.attachments)
         Task {
             var staged: [String] = []
@@ -318,7 +323,7 @@ final class ChatSession {
                         references.append(try await gateway.call("file.attach", params, as: AttachResult.self).refText ?? "")
                     }
                 }
-                let message = [references.joined(separator: "\n"), prompt.text + prompt.mentionNote].filter { !$0.isEmpty }.joined(separator: "\n\n")
+                let message = [references.joined(separator: "\n"), prompt.payload ?? prompt.text + prompt.mentionNote].filter { !$0.isEmpty }.joined(separator: "\n\n")
                 _ = try await gateway.call("prompt.submit", ["session_id": runtime.rawValue, "text": message.isEmpty ? imageOnlyPrompt : message], as: JSONValue.self)
             } catch {
                 for path in staged {
@@ -327,6 +332,60 @@ final class ChatSession {
                 transcript.apply(.messageComplete(text: "", status: .error, error: error.localizedDescription))
             }
         }
+    }
+
+    private func run(_ command: SlashCommand, arg: String, line: String, on runtime: RuntimeSessionID) {
+        let id = UUID().uuidString
+        if !command.isSkill { transcript.beginCommand(line, id: id) }
+        Task {
+            do {
+                if command.isSkill {
+                    let reply = try await gateway.call("command.dispatch", ["session_id": runtime.rawValue, "name": String(command.name.dropFirst()), "arg": arg], as: SlashReply.self)
+                    return try await perform(reply, command: id)
+                }
+                if command.name == "/compress" {
+                    transcript.finishCommand(id, output: nil, notice: try await compact())
+                    return submitQueued()
+                }
+                if command.name == "/new" { return try await startNewChat() }
+                let reply = try await gateway.call("slash.exec", ["session_id": runtime.rawValue, "command": line], as: SlashReply.self)
+                try await reload()
+                try await perform(reply, command: id)
+            } catch {
+                let message = if case GatewayError.rpc(_, let message) = error { message } else { error.localizedDescription }
+                if !transcript.turns.contains(where: { $0.id == id }) { transcript.beginCommand(line, id: id) }
+                transcript.finishCommand(id, output: nil, failure: message)
+                submitQueued()
+            }
+        }
+    }
+
+    private func perform(_ reply: SlashReply, command id: String) async throws {
+        if reply.type == "alias", let target = reply.target, let runtime {
+            let aliased = try await gateway.call("slash.exec", ["session_id": runtime.rawValue, "command": "/\(target)"], as: SlashReply.self)
+            return try await perform(aliased, command: id)
+        }
+        let sends = reply.type == "send" || reply.type == "skill"
+        if sends || reply.type == "prefill" {
+            transcript.finishCommand(id, output: nil, notice: reply.notice)
+        } else {
+            transcript.finishCommand(id, output: [reply.warning, reply.output].compactMap(\.self).joined(separator: "\n"))
+        }
+        if reply.type == "prefill", let message = reply.message { returned.append(Prompt(raw: message, sentAt: .now).text) }
+        guard sends, let message = reply.message, !message.isEmpty else { return submitQueued() }
+        let prompt = Prompt(text: reply.display ?? Prompt(raw: message, sentAt: .now).text, sentAt: .now, payload: message)
+        guard isRunning else { return submit(prompt) }
+        transcript.wait(prompt, as: .queued)
+    }
+
+    private func submitQueued() {
+        guard !isRunning, let next = transcript.dequeue() else { return }
+        submit(next)
+    }
+
+    private func reload() async throws {
+        guard let stored else { return }
+        try await load(gateway.call("session.resume", ResumeParams(sessionID: stored, profile: profile), as: LiveSnapshot.self))
     }
 
     private func attach() async {
@@ -363,6 +422,7 @@ final class ChatSession {
         }
         let replay = try await gateway.eventsSince(snapshot.sessionID, after: 0)
         var transcript = Transcript(history: rows)
+        transcript.keepCommands(from: self.transcript)
         if snapshot.running == true {
             let startedAt = snapshot.turnStartedAt.map(Date.init(timeIntervalSince1970:)) ?? .now
             let user = snapshot.inflight?.user ?? ""

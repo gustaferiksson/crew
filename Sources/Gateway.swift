@@ -44,12 +44,12 @@ actor Gateway {
         publish(.idle)
     }
 
-    func call<Params: Encodable & Sendable, Result: Decodable & Sendable>(_ method: String, _ params: Params, as type: Result.Type = Result.self) async throws -> Result {
+    func call<Params: Encodable & Sendable, Result: Decodable & Sendable>(_ method: String, _ params: Params, as type: Result.Type = Result.self, timeout: Duration = .seconds(30)) async throws -> Result {
         guard let socket else { throw GatewayError.notConnected }
         let id = nextID
         nextID += 1
         let frame = try JSONEncoder().encode(RPCRequest(id: id, method: method, params: params))
-        Task { await send(frame, on: socket, awaitingReplyTo: id) }
+        Task { await send(frame, on: socket, awaitingReplyTo: id, timeout: timeout) }
         let reply = try await withCheckedThrowingContinuation { pending[id] = $0 }
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .secondsSince1970
@@ -188,10 +188,10 @@ actor Gateway {
         continuation.resume(throwing: GatewayError.rpc(code: error.code, message: error.message))
     }
 
-    private func send(_ frame: Data, on task: URLSessionWebSocketTask, awaitingReplyTo id: Int) async {
+    private func send(_ frame: Data, on task: URLSessionWebSocketTask, awaitingReplyTo id: Int, timeout: Duration) async {
         do {
             try await task.send(.string(String(decoding: frame, as: UTF8.self)))
-            try await Task.sleep(for: .seconds(30))
+            try await Task.sleep(for: timeout)
             pending.removeValue(forKey: id)?.resume(throwing: GatewayError.timedOut)
         } catch {
             pending.removeValue(forKey: id)?.resume(throwing: error)

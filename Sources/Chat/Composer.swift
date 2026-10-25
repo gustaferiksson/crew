@@ -44,6 +44,7 @@ struct Composer: View {
     @Binding var draft: String
     let tray: AttachmentTray
     let mentionable: [Bot]
+    let slashCommands: [SlashCommand]
     let features: ComposerFeatures
     let completePath: (String) async -> [PathCompletion]
     let transcribe: (Data) async throws -> String
@@ -62,13 +63,14 @@ struct Composer: View {
     @GestureState private var hold: Hold?
     let isFocused: FocusState<Bool>.Binding
 
-    init(botName: String, phase: Phase, draft: Binding<String>, isFocused: FocusState<Bool>.Binding, tray: AttachmentTray, mentionable: [Bot], features: ComposerFeatures = .all, completePath: @escaping (String) async -> [PathCompletion], dictation: Dictation? = nil, transcribe: @escaping (Data) async throws -> String, send: @escaping (SendMode) -> Void, stop: @escaping () -> Void) {
+    init(botName: String, phase: Phase, draft: Binding<String>, isFocused: FocusState<Bool>.Binding, tray: AttachmentTray, mentionable: [Bot], slashCommands: [SlashCommand] = [], features: ComposerFeatures = .all, completePath: @escaping (String) async -> [PathCompletion], dictation: Dictation? = nil, transcribe: @escaping (Data) async throws -> String, send: @escaping (SendMode) -> Void, stop: @escaping () -> Void) {
         self.botName = botName
         self.phase = phase
         _draft = draft
         self.isFocused = isFocused
         self.tray = tray
         self.mentionable = mentionable
+        self.slashCommands = slashCommands
         self.features = features
         self.completePath = completePath
         self.transcribe = transcribe
@@ -80,6 +82,7 @@ struct Composer: View {
     private var canSend: Bool { !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !tray.items.isEmpty }
     private var isOffline: Bool { if case .offline = phase { true } else { false } }
     private var mentionQuery: String? { draft.firstMatch(of: /(?:^|\s)@([^\s@]*)$/).map { String($0.1) } }
+    private var slashQuery: String? { draft.wholeMatch(of: /\/(\S*)/).map { String($0.1) } }
 
     var body: some View {
         VStack(spacing: 8) {
@@ -100,6 +103,12 @@ struct Composer: View {
             if let mentionQuery {
                 MentionPicker(query: mentionQuery, bots: mentionable, completePath: completePath) { tag in
                     draft = String(draft.dropLast(mentionQuery.count + 1)) + tag + " "
+                    isFocused.wrappedValue = true
+                }
+            }
+            if let slashQuery {
+                SlashPicker(query: slashQuery, commands: slashCommands) { command in
+                    draft = command + " "
                     isFocused.wrappedValue = true
                 }
             }
@@ -134,6 +143,7 @@ struct Composer: View {
         .animation(.smooth, value: dictation.phase)
         .animation(.smooth, value: tray.items)
         .animation(.smooth, value: mentionQuery == nil)
+        .animation(.smooth, value: slashQuery == nil)
         .animation(.smooth, value: showsHoldHint)
         .animation(.smooth, value: hold?.cancels)
         .sensoryFeedback(.start, trigger: dictation.phase) { _, phase in phase == .listening }

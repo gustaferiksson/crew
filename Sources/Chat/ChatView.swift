@@ -47,6 +47,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
     let transcript: Transcript
     let emptyState: EmptyState
     let mentionable: [Bot]
+    let slashCommands: [SlashCommand]
     var features: ComposerFeatures
     var request: PendingRequest?
     var payment: PaymentCardState?
@@ -75,12 +76,13 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
     @FocusState private var isComposerFocused: Bool
     private let presentation: ChatPresentation
 
-    init(botName: String, avatar: Avatar, transcript: Transcript, emptyState: EmptyState, mentionable: [Bot], draft: Binding<String>, tray: AttachmentTray, features: ComposerFeatures = .all, request: PendingRequest? = nil, payment: PaymentCardState? = nil, paymentNotice: String? = nil, shopOffer: String? = nil, offlineReason: String? = nil, activity: String? = nil, models: ModelSwitcher? = nil, focus: SearchFocus? = nil, presentation: ChatPresentation = ChatPresentation(), actions: ChatActions = ChatActions()) {
+    init(botName: String, avatar: Avatar, transcript: Transcript, emptyState: EmptyState, mentionable: [Bot], slashCommands: [SlashCommand] = [], draft: Binding<String>, tray: AttachmentTray, features: ComposerFeatures = .all, request: PendingRequest? = nil, payment: PaymentCardState? = nil, paymentNotice: String? = nil, shopOffer: String? = nil, offlineReason: String? = nil, activity: String? = nil, models: ModelSwitcher? = nil, focus: SearchFocus? = nil, presentation: ChatPresentation = ChatPresentation(), actions: ChatActions = ChatActions()) {
         self.botName = botName
         self.avatar = avatar
         self.transcript = transcript
         self.emptyState = emptyState
         self.mentionable = mentionable
+        self.slashCommands = slashCommands
         self.features = features
         self.request = request
         self.payment = payment
@@ -230,7 +232,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
                             .frame(maxWidth: 560)
                             .padding(.horizontal, 16)
                     }
-                    Composer(botName: botName, phase: composerPhase, draft: $draft, isFocused: $isComposerFocused, tray: tray, mentionable: mentionable, features: features, completePath: actions.completePath, dictation: presentation.dictation, transcribe: actions.transcribe) { mode in
+                    Composer(botName: botName, phase: composerPhase, draft: $draft, isFocused: $isComposerFocused, tray: tray, mentionable: mentionable, slashCommands: slashCommands, features: features, completePath: actions.completePath, dictation: presentation.dictation, transcribe: actions.transcribe) { mode in
                         position.scrollTo(id: transcriptEnd)
                         actions.send(draft, tray.take(), mentionedBots(in: draft, among: mentionable), mode)
                         draft = ""

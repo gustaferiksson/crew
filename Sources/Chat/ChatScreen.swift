@@ -13,6 +13,8 @@ struct ChatScreen: View {
     @Environment(ChatDrafts.self) private var drafts
     @State private var showsOffline = false
     @State private var addingShop: String?
+    @State private var confirming: ChatManagement?
+    @State private var outcome: ChatManagementOutcome?
 
     private var session: ChatSession? {
         chats.sessions[bot.id]
@@ -115,7 +117,44 @@ struct ChatScreen: View {
         .onChange(of: live.canonicalSession?.position, initial: true) {
             bots.markSeen(live)
         }
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Menu("Chat Options", systemImage: "ellipsis") {
+                    Button("Compact Chat…", systemImage: "arrow.down.right.and.arrow.up.left") { confirming = .compact }
+                    Button("Start New Chat…", systemImage: "square.and.pencil") { confirming = .newChat }
+                }
+                .disabled(connection.state != .connected || session?.canManage != true)
+            }
+        }
+        .confirmationDialog(confirming?.title ?? "", isPresented: Binding(get: { confirming != nil }, set: { if !$0 { confirming = nil } }), titleVisibility: .visible, presenting: confirming) { action in
+            Button(action.confirm) { manage(action) }
+            Button("Cancel", role: .cancel) {}
+        } message: { action in
+            Text(action.message(botName: live.title))
+        }
+        .alert(outcome?.title ?? "", isPresented: Binding(get: { outcome != nil }, set: { if !$0 { outcome = nil } }), presenting: outcome) { _ in
+            Button("OK", role: .cancel) {}
+        } message: { outcome in
+            Text(outcome.message)
+        }
         .id(bot.id)
+    }
+
+    private func manage(_ action: ChatManagement) {
+        guard let session else { return }
+        Task {
+            do {
+                if action == .compact {
+                    let headline = try await session.compact()
+                    outcome = ChatManagementOutcome(title: String(localized: "Chat Compacted"), message: headline ?? "")
+                    return
+                }
+                try await session.startNewChat()
+                if let gateway = connection.gateway { await bots.reload(gateway) }
+            } catch {
+                outcome = ChatManagementOutcome(title: action == .compact ? String(localized: "Couldn't Compact Chat") : String(localized: "Couldn't Start New Chat"), message: error.localizedDescription)
+            }
+        }
     }
 
     private func transcribe(_ audio: Data) async throws -> String {
@@ -133,6 +172,30 @@ struct ChatScreen: View {
             await bots.reload(gateway)
         }
     }
+}
+
+private enum ChatManagement {
+    case compact
+    case newChat
+
+    var title: LocalizedStringKey {
+        self == .compact ? "Compact This Chat?" : "Start a New Chat?"
+    }
+
+    var confirm: LocalizedStringKey {
+        self == .compact ? "Compact" : "Start New Chat"
+    }
+
+    func message(botName: String) -> String {
+        self == .compact
+            ? String(localized: "\(botName) replaces older messages in its context with a summary, so long chats stay fast and focused.")
+            : String(localized: "This chat moves to Other Conversations in \(botName)'s info, and \(botName) starts fresh. Its memory and skills stay.")
+    }
+}
+
+private struct ChatManagementOutcome {
+    let title: String
+    let message: String
 }
 
 private struct ShopSite: Identifiable {

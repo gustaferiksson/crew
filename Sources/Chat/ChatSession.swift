@@ -163,6 +163,33 @@ final class ChatSession {
         }
     }
 
+    var canManage: Bool {
+        runtime != nil && !isRunning && !transcript.turns.isEmpty
+    }
+
+    func compact() async throws -> String? {
+        guard let runtime, let stored, !isRunning else { return nil }
+        let reply = try await gateway.call("session.compress", ["session_id": runtime.rawValue], as: CompressReply.self)
+        let shown = transcript
+        var reloaded = Transcript(history: try await history(of: stored, profile: profile, on: gateway.server, with: urlSession))
+        reloaded.adoptIDs(from: shown)
+        transcript = reloaded
+        return reply.summary?.headline
+    }
+
+    func startNewChat() async throws {
+        guard let stored, !isRunning else { return }
+        try await retireBotChat(stored, profile: profile, on: gateway.server, with: urlSession)
+        self.stored = nil
+        runtime = nil
+        transcript = Transcript()
+        openRequests = []
+        todos = []
+        failure = nil
+        await attach()
+        if let failure { throw GatewayError.rpc(code: 0, message: failure) }
+    }
+
     func respond(to id: ApprovalRequest.ID, with choice: ApprovalChoice) {
         guard let request = openRequests.first(where: { $0.id == id }), case .approval(let approval) = PendingRequest(request), approval.isPayment else {
             return reply(to: id, with: ["choice": choice.rawValue])
@@ -631,6 +658,46 @@ nonisolated private struct HistoryPage: Decodable, Sendable {
 
 nonisolated func history(of stored: StoredSessionID, profile: String, on server: URL, with urlSession: URLSession, limit: Int = 500) async throws -> [HistoryRow] {
     try await fetch(historyRequest(of: stored, profile: profile, on: server, limit: limit), with: urlSession, as: HistoryPage.self).messages
+}
+
+nonisolated func retireBotChat(_ stored: StoredSessionID, profile: String, on server: URL, with urlSession: URLSession, at date: Date = .now) async throws {
+    var lookup = hermesRequest("api/sessions/\(stored.rawValue)", on: server)
+    lookup.url?.append(queryItems: [URLQueryItem(name: "profile", value: profile)])
+    let revision = try await fetch(lookup, with: urlSession, as: SessionRevision.self).runtimeRevision
+    var request = hermesRequest("api/sessions/\(stored.rawValue)", on: server)
+    request.httpMethod = "PATCH"
+    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+    // Hermes delivers to the exact title "Bot Chat" even when archived, and falls back to "Bot Chat #N" rows.
+    let title = String(localized: "Bot Chat until \(date.formatted(date: .abbreviated, time: .omitted))")
+    request.httpBody = try JSONEncoder().encode(RetiredBotChat(profile: profile, title: title, expectedRevision: revision))
+    _ = try await fetch(request, with: urlSession, as: JSONValue.self)
+}
+
+nonisolated private struct SessionRevision: Decodable, Sendable {
+    let runtimeRevision: Int
+}
+
+nonisolated private struct RetiredBotChat: Encodable, Sendable {
+    let profile: String
+    let title: String
+    let archived = true
+    let hidden = false
+    let requestID = UUID().uuidString
+    let expectedRevision: Int
+
+    private enum CodingKeys: String, CodingKey {
+        case profile, title, archived, hidden
+        case requestID = "request_id"
+        case expectedRevision = "expected_revision"
+    }
+}
+
+nonisolated private struct CompressReply: Decodable, Sendable {
+    struct Summary: Decodable, Sendable {
+        let headline: String?
+    }
+
+    let summary: Summary?
 }
 
 nonisolated func historyRequest(of stored: StoredSessionID, profile: String, on server: URL, limit: Int) -> URLRequest {

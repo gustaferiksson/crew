@@ -207,7 +207,7 @@ private struct ConnectionsFixtureSheets: ViewModifier {
 }
 
 struct BotPageFixtureScreen: View {
-    @State private var showsBot = true
+    @State private var showsBot = Snapshot.requested == .botPage
     @State private var models = Snapshot.profileModels
     @State private var chats = ChatSessions(fixture: [ada.id: ChatSession(fixture: ada, transcript: ChatFixture.history.transcript, todos: adaTodos)])
 

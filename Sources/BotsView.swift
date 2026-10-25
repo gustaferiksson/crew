@@ -26,7 +26,7 @@ struct BotsView: View {
     @State private var search = MessageSearch(fixture: Snapshot.requested?.searchHits)
     @State private var searchAttempt = 0
     @State private var focus = Snapshot.requested?.searchFocus
-    @State private var reading: MessageHit?
+    @State private var reading = Snapshot.requested?.openedConversation
     @State private var isCreating = Snapshot.requested == .newBot
     @State private var isCreatingGroup = false
     @State private var deleting: Bot?

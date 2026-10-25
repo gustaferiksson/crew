@@ -73,72 +73,60 @@ struct ConversationList: View {
 struct ConversationTranscript: View {
     let bot: Bot
     let conversation: Conversation
-    var focus: String?
 
     @Environment(Connection.self) private var connection
     @Environment(BotStore.self) private var bots
     @Environment(\.dismiss) private var dismiss
-    @State private var transcript: Transcript?
-    @State private var failure: String?
-    @State private var surfaces = SurfaceStore()
-    @State private var expandedTurns: Set<Turn.ID> = []
-    @State private var expandedWork: Set<WorkItem.ID> = []
-    @State private var expandedRuns: Set<String> = []
-    @State private var highlighted: Turn.ID?
+    @State private var session: ChatSession?
+    @State private var focus: SearchFocus?
+    @State private var draft = ""
+    @State private var showsOffline = false
+    @State private var tray = AttachmentTray()
+
+    init(bot: Bot, conversation: Conversation, focus: String? = nil) {
+        self.bot = bot
+        self.conversation = conversation
+        _focus = State(initialValue: focus.map { SearchFocus(bot: bot.id, snippet: $0) })
+    }
+
+    private var offlineReason: String? {
+        if connection.state == .connected || !showsOffline { return nil }
+        if connection.state == .connecting { return String(localized: "Connecting…") }
+        return String(localized: "Can't reach \(connection.session?.server.host() ?? String(localized: "the server"))")
+    }
 
     var body: some View {
         NavigationStack {
-            Group {
-                if let transcript {
-                    ScrollViewReader { proxy in
-                        ScrollView {
-                            LazyVStack(alignment: .leading, spacing: 28) {
-                                ForEach(transcript.turns) { turn in
-                                    TurnView(
-                                        turn: turn,
-                                        surfaces: surfaces,
-                                        activity: nil,
-                                        reveal: 0,
-                                        timestampWidth: 40,
-                                        mentionable: bots.bots.filter { $0.id != bot.id },
-                                        expandedTurns: $expandedTurns,
-                                        expandedWork: $expandedWork,
-                                        expandedRuns: $expandedRuns
-                                    )
-                                    .background {
-                                        if highlighted == turn.id {
-                                            RoundedRectangle(cornerRadius: 12)
-                                                .fill(.tint.opacity(0.12))
-                                                .padding(-8)
-                                        }
-                                    }
-                                    .id(turn.id)
-                                }
-                            }
-                            .padding(16)
-                        }
-                        .defaultScrollAnchor(.bottom)
-                        .task {
-                            guard let focus, let target = transcript.turn(matching: focus) else { return }
-                            try? await Task.sleep(for: .milliseconds(400))
-                            guard !Task.isCancelled else { return }
-                            proxy.scrollTo(target.id, anchor: .center)
-                            highlighted = target.id
-                            try? await Task.sleep(for: .seconds(2))
-                            guard !Task.isCancelled else { return }
-                            withAnimation(.easeOut(duration: 0.6)) { highlighted = nil }
-                        }
-                    }
-                } else if let failure {
-                    ContentUnavailableView("Couldn't Load Conversation", systemImage: "exclamationmark.triangle", description: Text(failure))
-                } else {
-                    ProgressView()
-                }
-            }
-            .navigationTitle(conversation.title ?? String(localized: "Untitled"))
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            ChatView(
+                botName: bot.title,
+                title: conversation.title ?? String(localized: "Untitled"),
+                avatar: BotAvatar(bot: bot, status: .idle, photo: bots.photos[bot.id], size: 28),
+                transcript: session?.transcript.visible ?? Transcript(),
+                emptyState: emptyState,
+                mentionable: bots.bots.filter { $0.id != bot.id },
+                slashCommands: session?.slashCommands ?? [],
+                draft: $draft,
+                tray: tray,
+                request: session?.request,
+                payment: session?.request.flatMap { session?.payments[$0.id] },
+                paymentNotice: session?.endedPayment,
+                offlineReason: offlineReason,
+                activity: session?.statusLine ?? session?.generatingTool.map { String(localized: "Preparing \($0.replacing("_", with: " "))") },
+                focus: focus,
+                actions: ChatActions(
+                    send: { session?.send($0, attachments: $1, mentioning: $2, mode: $3) },
+                    sendHidden: { session?.sendHidden($0) },
+                    completePath: { await session?.completePath($0) ?? [] },
+                    stop: { session?.stop() },
+                    respond: { session?.respond(to: $0, with: $1) },
+                    unqueue: { session?.unqueue($0) },
+                    answer: { session?.answer($0, with: $1) },
+                    retryPayment: { session?.retryPayment($0) },
+                    expirePayment: { session?.expirePayment($0) },
+                    dismissPaymentNotice: { session?.dismissEndedPayment() }
+                )
+            )
+            .environment(\.chatSession, session)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done", role: .confirm) { dismiss() }
@@ -148,19 +136,34 @@ struct ConversationTranscript: View {
         #if os(macOS)
         .frame(minWidth: 560, minHeight: 640)
         #endif
-        .task {
+        .task(id: connection.gateway.map(ObjectIdentifier.init)) {
             if Snapshot.requested != nil {
-                transcript = ChatFixture.history.transcript
+                session = ChatSession(fixture: bot, transcript: ChatFixture.history.transcript, todos: [])
                 return
             }
-            guard let server = connection.session?.server else { return }
-            do {
-                let loaded = Transcript(history: try await history(of: conversation.id, profile: bot.name, on: server, with: connection.urlSession))
-                surfaces.sync(loaded)
-                transcript = loaded
-            } catch {
-                failure = error.localizedDescription
-            }
+            guard let gateway = connection.gateway else { return }
+            let session = ChatSession(bot: bot, resuming: conversation.id, gateway: gateway, urlSession: connection.urlSession)
+            self.session = session
+            await session.run()
+        }
+        .task(id: connection.state == .connected) {
+            showsOffline = false
+            guard connection.state != .connected else { return }
+            try? await Task.sleep(for: .seconds(2))
+            showsOffline = !Task.isCancelled
+        }
+        .onChange(of: session?.returned ?? [], initial: true) {
+            guard let returned = session?.returned, !returned.isEmpty else { return }
+            session?.returned = []
+            draft = ([draft] + returned).filter { !$0.isEmpty }.joined(separator: "\n")
+        }
+    }
+
+    @ViewBuilder private var emptyState: some View {
+        if let failure = session?.failure {
+            ContentUnavailableView("Couldn't Load Conversation", systemImage: "exclamationmark.triangle", description: Text(failure))
+        } else {
+            ProgressView()
         }
     }
 }

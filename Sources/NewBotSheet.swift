@@ -24,6 +24,16 @@ struct NewBotSheet: View {
     @State private var isCustom = false
     @State private var isCreating = false
     @State private var failure: String?
+    @State private var options = NewBotOptions()
+    @State private var providers: [ModelProvider] = []
+    @State private var connections: [MCPServer]?
+    @State private var created: Created?
+
+    private struct Created {
+        let name: String
+        var expensiveModel: (choice: ModelChoice, message: String)?
+        var unapplied: [String]
+    }
 
     private var slug: String {
         let folded = name.folding(options: [.diacriticInsensitive, .caseInsensitive, .widthInsensitive], locale: nil).lowercased()
@@ -159,6 +169,19 @@ struct NewBotSheet: View {
                 } footer: {
                     Text(source == nil ? "Optional. Becomes the bot's SOUL.md." : "Optional. Replaces the copied instructions.")
                 }
+                Section {
+                    NavigationLink("Advanced") {
+                        NewBotAdvanced(
+                            options: $options,
+                            providers: providers,
+                            connections: connections,
+                            source: store.bots.first { $0.id == source },
+                            defaultTitle: store.bots.first(where: \.isDefault)?.title ?? "default"
+                        )
+                    }
+                } footer: {
+                    Text("Model, API keys, skills, toolsets and connections.")
+                }
             }
             .formStyle(.grouped)
             .disabled(isCreating)
@@ -181,7 +204,23 @@ struct NewBotSheet: View {
                 }
             }
         }
-        .interactiveDismissDisabled(isCreating)
+        .interactiveDismissDisabled(isCreating || created != nil)
+        .task(id: source) { await loadOptions() }
+        .alert(
+            created?.expensiveModel == nil ? "Bot Created" : "Use This Model?",
+            isPresented: Binding(get: { created != nil }, set: { _ in }),
+            presenting: created
+        ) { created in
+            if let expensive = created.expensiveModel {
+                Button("Use Anyway") { Task { await confirm(expensive.choice, for: created.name) } }
+                Button("Keep Default", role: .cancel) { finish(created.name) }
+            } else {
+                Button("OK") { finish(created.name) }
+            }
+        } message: { created in
+            let unapplied = created.unapplied.isEmpty ? nil : String(localized: "These options weren't applied: \(created.unapplied.formatted(.list(type: .and))). Change them in the bot's inspector.")
+            Text([created.expensiveModel?.message, unapplied].compactMap { $0 }.joined(separator: "\n\n"))
+        }
         #if os(macOS)
         .frame(minWidth: 440, idealHeight: 600)
         #endif
@@ -193,7 +232,7 @@ struct NewBotSheet: View {
         defer { isCreating = false }
         failure = nil
         let trimmedDescription = description.trimmingCharacters(in: .whitespacesAndNewlines)
-        let profile = NewProfile(
+        let profile = options.profile(
             name: slug,
             description: trimmedDescription.isEmpty ? nil : trimmedDescription,
             soul: instructions.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : instructions,
@@ -202,11 +241,71 @@ struct NewBotSheet: View {
         let look = look
         do {
             try await store.create(profile, via: gateway) { $0 = look }
-            onCreated(profile.name)
-            dismiss()
         } catch {
             failure = if case GatewayError.rpc(_, let message) = error { message } else { error.localizedDescription }
+            return
         }
+        let result = await apply(options, to: profile.name, via: gateway)
+        if result.expensiveModel == nil && result.unapplied.isEmpty {
+            finish(result.name)
+        } else {
+            created = result
+        }
+    }
+
+    private func apply(_ options: NewBotOptions, to name: String, via gateway: Gateway) async -> Created {
+        var result = Created(name: name, unapplied: [])
+        do {
+            for toolset in options.changedToolsets {
+                try await saveToolset(toolset.name, enabled: toolset.enabled, of: name, on: gateway.server, with: connection.urlSession)
+            }
+        } catch {
+            result.unapplied.append(String(localized: "toolsets"))
+        }
+        if source == nil && !options.connections.isEmpty {
+            do {
+                try await copyConnections(options.connections, from: "default", to: name, on: gateway.server, with: connection.urlSession)
+            } catch {
+                result.unapplied.append(String(localized: "connections"))
+            }
+        }
+        guard let model = options.model else { return result }
+        do {
+            if case .needsConfirmation(let message) = try await changeModel(of: name, to: model, confirmation: .ask, via: gateway) {
+                result.expensiveModel = (model, message)
+            }
+        } catch {
+            result.unapplied.append(String(localized: "model"))
+        }
+        return result
+    }
+
+    private func confirm(_ model: ModelChoice, for name: String) async {
+        if let gateway = connection.gateway {
+            _ = try? await changeModel(of: name, to: model, confirmation: .confirmed, via: gateway)
+        }
+        finish(name)
+    }
+
+    private func finish(_ name: String) {
+        created = nil
+        onCreated(name)
+        dismiss()
+    }
+
+    private func loadOptions() async {
+        guard let gateway = connection.gateway else { return }
+        let base = source ?? "default"
+        let urlSession = connection.urlSession
+        async let models = try? gateway.call("model.options", ["profile": base], as: ModelOptions.self).providers
+        async let loadedToolsets = try? toolsets(of: base, on: gateway.server, with: urlSession)
+        async let servers = try? fetch(mcpRequest("servers", profile: "default", on: gateway.server), with: urlSession, as: MCPServerList.self).servers
+        let (loadedModels, toolsetList, serverList) = await (models, loadedToolsets, servers)
+        providers = loadedModels ?? []
+        options.model = nil
+        options.toolsets = toolsetList ?? []
+        options.loadedToolsets = toolsetList ?? []
+        connections = serverList?.filter { $0.source == "config" }
     }
 }
 

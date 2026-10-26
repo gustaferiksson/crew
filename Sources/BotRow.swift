@@ -12,7 +12,7 @@ let dotGutter: CGFloat = 12
 private let badgeSize: CGFloat = 14
 #endif
 nonisolated let stripWidth: CGFloat = 98
-nonisolated let stripThreshold: CGFloat = 280
+nonisolated let stripThreshold: CGFloat = 240
 nonisolated let stripTileSize = CGSize(width: 78, height: 86)
 
 struct BotRow: View {

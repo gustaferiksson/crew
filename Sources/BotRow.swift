@@ -125,6 +125,7 @@ struct StripTile<Avatar: View>: View {
         .padding(.top, 15)
         .padding(.horizontal, 4)
         .frame(width: stripTileSize.width, height: stripTileSize.height, alignment: .top)
+        .frame(minWidth: 0, maxWidth: .infinity)
     }
 }
 

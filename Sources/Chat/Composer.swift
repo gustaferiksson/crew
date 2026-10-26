@@ -435,9 +435,9 @@ struct VoiceComposer: View {
     @ViewBuilder private var status: some View {
         if let attributes = voice.attributes, voice.state.phase == .recording {
             LevelMeter(levels: voice.dictation.levels)
-            VoiceStatus(attributes: attributes, state: voice.state)
+            VoiceTimer(attributes: attributes)
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.red)
         } else if voice.state.phase == .sending {
             ProgressView()
                 .controlSize(.small)

@@ -166,6 +166,7 @@ struct VoiceStatus: View {
                 VoiceWaveform()
                 VoiceTimer(attributes: attributes)
             }
+            .foregroundStyle(.red)
         case .sending:
             Text("Sending…")
         case .sent:

@@ -22,7 +22,7 @@ struct VoiceIndicator: View {
             .padding(.leading, 4)
             .glassEffect(.regular, in: .capsule)
             .frame(maxWidth: 560)
-            .padding(.horizontal, 16)
+            .padding(.horizontal, 28)
             .animation(.smooth, value: voice.state)
         }
     }

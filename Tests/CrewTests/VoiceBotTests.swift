@@ -5,6 +5,15 @@ private func bot(_ name: String, active: TimeInterval?, hidden: Bool = false) ->
     VoiceBot(name: name, title: name.capitalized, session: nil, lastActive: active.map(Date.init(timeIntervalSince1970:)), shape: "blob", color: "#8b5cf6", expression: nil, hidden: hidden)
 }
 
+@Test func theLiveActivityLinkOpensThatBotsChat() throws {
+    let route = try #require(PushRoute(url: bot("crew-test", active: nil).chatURL))
+    #expect(route.profile == "crew-test")
+    #expect(route.kind == nil)
+    #expect(PushRoute(url: URL(string: "crew://settings/crew-test")!) == nil)
+    #expect(PushRoute(url: URL(string: "https://chat/crew-test")!) == nil)
+    #expect(PushRoute(url: URL(string: "crew://chat")!) == nil)
+}
+
 @Test func theControlsBotWinsEvenWhenHidden() {
     let bots = [bot("vera", active: 300), bot("scout", active: 100, hidden: true)]
     #expect(VoiceBot.choose("scout", from: bots)?.name == "scout")

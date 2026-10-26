@@ -21,24 +21,37 @@ struct VoiceActivityFixture: View {
                         .background(.regularMaterial, in: .rect(cornerRadius: 24))
                 }
                 ForEach([states[0], states[3]], id: \.self) { state in
-                    HStack(spacing: 12) {
-                        VoiceAvatar(bot: attributes.bot, size: 44)
-                        VoiceSummary(attributes: attributes, state: state)
-                        VoiceButtons(phase: state.phase)
+                    VStack(spacing: 8) {
+                        HStack(alignment: .top) {
+                            VoiceAvatar(bot: attributes.bot, size: 44)
+                            Spacer()
+                            Capsule()
+                                .fill(.gray.opacity(0.3))
+                                .frame(width: 126, height: 37)
+                            Spacer()
+                            VoiceExpandedTrailing(attributes: attributes, state: state)
+                        }
+                        VoiceExpandedBottom(attributes: attributes, state: state)
                     }
                     .padding(16)
-                    .background(.black, in: .rect(cornerRadius: 40))
+                    .frame(width: 371)
+                    .background(.black, in: .rect(cornerRadius: 44))
                     .environment(\.colorScheme, .dark)
                 }
                 ForEach(states, id: \.self) { state in
-                    HStack {
-                        VoiceAvatar(bot: attributes.bot, size: 24)
-                        Spacer()
-                        VoiceCompactTrailing(attributes: attributes, state: state)
+                    HStack(spacing: 8) {
+                        HStack {
+                            VoiceAvatar(bot: attributes.bot, size: 24)
+                            Spacer()
+                            VoiceCompactTrailing(attributes: attributes, state: state)
+                        }
+                        .padding(.horizontal, 12)
+                        .frame(width: 230, height: 37)
+                        .background(.black, in: .capsule)
+                        VoiceMinimal(attributes: attributes, state: state)
+                            .frame(width: 37, height: 37)
+                            .background(.black, in: .circle)
                     }
-                    .padding(.horizontal, 12)
-                    .frame(width: 250, height: 37)
-                    .background(.black, in: .capsule)
                     .environment(\.colorScheme, .dark)
                 }
             }

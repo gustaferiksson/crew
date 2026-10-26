@@ -414,6 +414,7 @@ struct ChatFixtureScreen: View {
     private var chat: some View {
         ChatView(
             botName: "Hermes",
+            profile: "default",
             avatar: BotAvatar(
                 bot: Self.hermes,
                 status: fixture == .conversation ? .waiting(.approval) : .idle,

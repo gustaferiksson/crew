@@ -43,6 +43,7 @@ struct ChatScreen: View {
     var body: some View {
         ChatView(
             botName: live.title,
+            profile: bot.name,
             avatar: BotAvatar(bot: live, status: status, photo: bots.photos[bot.id], size: 28),
             transcript: session?.transcript.visible ?? Transcript(),
             emptyState: EmptyView(),

@@ -157,6 +157,9 @@ struct BotsView: View {
             if route.kind == "payment", let requestID = route.requestID { chats.expectPayment(requestID, for: route.profile) }
         }
         #if os(iOS)
+        .onOpenURL { url in
+            if let route = PushRoute(url: url) { push.pendingRoute = route }
+        }
         .sheet(isPresented: $showsNotifications) {
             NotificationSettings()
         }
@@ -318,6 +321,7 @@ struct BotsView: View {
         .sensoryFeedback(.impact(weight: .light), trigger: toggles)
         #if os(iOS)
         .listStyle(.plain)
+        .scrollEdgeEffectStyle(VoiceMessage.shared.attributes == nil ? nil : .hard, for: .bottom)
         #else
         .contextMenu(forSelectionType: String.self) { ids in
             if ids.count == 1, let bot = ids.first.flatMap({ id in store.bots.first { $0.id == id } }) { menu(for: bot) }
@@ -334,6 +338,7 @@ struct BotsView: View {
                     }
                     .buttonStyle(.glassProminent)
                 }
+                VoiceIndicator(voice: .shared)
                 #endif
                 if showsConnectionPill && isStrip {
                     ConnectionBadge()

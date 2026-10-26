@@ -27,24 +27,26 @@ struct VoiceActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: VoiceAttributes.self) { context in
             VoiceActivityView(attributes: context.attributes, state: context.state)
+                .widgetURL(context.attributes.bot.chatURL)
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
                     VoiceAvatar(bot: context.attributes.bot, size: 44)
                 }
-                DynamicIslandExpandedRegion(.center) {
-                    VoiceSummary(attributes: context.attributes, state: context.state)
-                }
                 DynamicIslandExpandedRegion(.trailing) {
-                    VoiceButtons(phase: context.state.phase)
+                    VoiceExpandedTrailing(attributes: context.attributes, state: context.state)
+                }
+                DynamicIslandExpandedRegion(.bottom) {
+                    VoiceExpandedBottom(attributes: context.attributes, state: context.state)
                 }
             } compactLeading: {
                 VoiceAvatar(bot: context.attributes.bot, size: 24)
             } compactTrailing: {
                 VoiceCompactTrailing(attributes: context.attributes, state: context.state)
             } minimal: {
-                VoiceAvatar(bot: context.attributes.bot, size: 24)
+                VoiceMinimal(attributes: context.attributes, state: context.state)
             }
+            .widgetURL(context.attributes.bot.chatURL)
         }
     }
 }

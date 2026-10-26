@@ -162,20 +162,15 @@ struct VoiceStatus: View {
     var body: some View {
         switch state.phase {
         case .recording:
-            HStack(spacing: 4) {
+            HStack(spacing: 6) {
+                VoiceWaveform()
                 VoiceTimer(attributes: attributes)
-                Image(systemName: "waveform")
-                    .foregroundStyle(.red)
-                    .symbolEffect(.variableColor.iterative)
             }
         case .sending:
             Text("Sending…")
         case .sent:
-            HStack(spacing: 4) {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
-                Text("Sent to \(attributes.bot.title)")
-            }
+            Label("Sent", systemImage: "checkmark.circle.fill")
+                .foregroundStyle(.green)
         case .failed:
             Text(state.failure ?? String(localized: "Couldn't send."))
                 .foregroundStyle(.red)
@@ -183,29 +178,42 @@ struct VoiceStatus: View {
     }
 }
 
+struct VoiceWaveform: View {
+    var body: some View {
+        Image(systemName: "waveform")
+            .foregroundStyle(.red)
+            .symbolEffect(.variableColor.iterative)
+            .accessibilityLabel("Recording")
+    }
+}
+
 struct VoiceButtons: View {
     let phase: VoiceAttributes.ContentState.Phase
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 12) {
             if phase == .recording || phase == .failed {
                 Button(intent: CancelVoiceMessageIntent()) {
                     Label("Cancel", systemImage: "xmark")
-                        .frame(width: 32, height: 32)
+                        .frame(width: 44, height: 44)
+                        .contentShape(.circle)
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.plain)
+                .background(.fill.secondary, in: .circle)
             }
             if phase == .recording {
                 Button(intent: SendVoiceMessageIntent()) {
                     Label("Send", systemImage: "arrow.up")
-                        .frame(width: 32, height: 32)
+                        .frame(width: 44, height: 44)
+                        .contentShape(.circle)
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.plain)
+                .foregroundStyle(.white)
+                .background(.tint, in: .circle)
             }
         }
         .labelStyle(.iconOnly)
         .font(.title3.weight(.semibold))
-        .buttonBorderShape(.circle)
     }
 }
 
@@ -237,7 +245,50 @@ struct VoiceActivityView: View {
             VoiceSummary(attributes: attributes, state: state)
             VoiceButtons(phase: state.phase)
         }
-        .padding()
+        .padding(14)
+    }
+}
+
+struct VoiceExpandedTrailing: View {
+    let attributes: VoiceAttributes
+    let state: VoiceAttributes.ContentState
+
+    var body: some View {
+        Group {
+            if state.phase == .recording {
+                VoiceStatus(attributes: attributes, state: state)
+                    .foregroundStyle(.red)
+                    .frame(width: 84, alignment: .trailing)
+            } else {
+                VoiceCompactTrailing(attributes: attributes, state: state)
+            }
+        }
+        .font(.title3.weight(.semibold))
+        .frame(height: 44)
+    }
+}
+
+struct VoiceExpandedBottom: View {
+    let attributes: VoiceAttributes
+    let state: VoiceAttributes.ContentState
+
+    var body: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(attributes.bot.title)
+                    .font(.headline)
+                    .lineLimit(1)
+                if state.phase != .recording {
+                    VoiceStatus(attributes: attributes, state: state)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            VoiceButtons(phase: state.phase)
+        }
+        .frame(minHeight: 44)
     }
 }
 
@@ -260,6 +311,19 @@ struct VoiceCompactTrailing: View {
         case .failed:
             Image(systemName: "exclamationmark.circle.fill")
                 .foregroundStyle(.red)
+        }
+    }
+}
+
+struct VoiceMinimal: View {
+    let attributes: VoiceAttributes
+    let state: VoiceAttributes.ContentState
+
+    var body: some View {
+        if state.phase == .recording {
+            VoiceWaveform()
+        } else {
+            VoiceCompactTrailing(attributes: attributes, state: state)
         }
     }
 }

@@ -23,6 +23,7 @@ private func peer(_ store: BotStore) throws -> Bot {
 
 @MainActor private final class Frames {
     var sizes: [CGSize] = []
+    var centres: [CGFloat] = []
 }
 
 @MainActor private func rowSize(in listWidth: CGFloat, insets: EdgeInsets, @ViewBuilder row: () -> some View) -> CGSize? {
@@ -60,15 +61,35 @@ private func peer(_ store: BotStore) throws -> Bot {
     #expect(stripThreshold < 320)
 }
 
-@Test @MainActor func theThresholdIsWhereARegularRowStopsHoldingANameBesideTheWidestStatus() throws {
-    let needed = width(Text(verbatim: "Ada Lovelace").font(.headline)) + 4 + width(Text(verbatim: BotStatus.waiting(.approval).label ?? "").font(.subheadline))
+@Test @MainActor func atTheThresholdARegularRowHoldsAFullNameButTruncatesItBesideTheWidestStatus() throws {
+    let name = width(Text(verbatim: "Ada Lovelace").font(.headline))
+    let needed = name + 4 + width(Text(verbatim: BotStatus.waiting(.approval).label ?? "").font(.subheadline))
     let atThreshold = try textColumn(in: stripThreshold)
-    let below = try textColumn(in: stripThreshold - 8)
-    #expect(atThreshold >= needed, "\(atThreshold) \(needed)")
-    #expect(below < needed, "\(below) \(needed)")
+    #expect(atThreshold >= name, "\(atThreshold) \(name)")
+    #expect(atThreshold < needed, "\(atThreshold) \(needed)")
 }
 
 @Test @MainActor func aStripTileHasMessagesProportions() throws {
     let unread = try store("after")
     #expect(fitting(try peer(unread), unread) == CGSize(width: 78, height: 86))
+}
+
+@Test @MainActor func aStripTileIsCentredUnderItsSelection() throws {
+    let frames = Frames()
+    let list = List {
+        StripTile(name: "Ada Lovelace") {
+            Color.clear
+                .frame(width: rowAvatarSize, height: rowAvatarSize)
+                .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).midX } action: { frames.centres.append($0) }
+        }
+        .listRowInsets(EdgeInsets())
+    }
+    .listStyle(.sidebar)
+    .frame(width: stripWidth, height: 600)
+    let window = NSWindow(contentRect: CGRect(x: -4000, y: 0, width: stripWidth, height: 600), styleMask: [.borderless], backing: .buffered, defer: false)
+    window.contentView = NSHostingView(rootView: list)
+    window.contentView?.layoutSubtreeIfNeeded()
+    RunLoop.main.run(until: .now.addingTimeInterval(0.3))
+    let centre = try #require(frames.centres.last)
+    #expect(centre == stripWidth / 2, "\(centre)")
 }

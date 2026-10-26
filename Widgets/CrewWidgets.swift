@@ -19,7 +19,7 @@ struct TalkControl: ControlWidget {
             }
         }
         .displayName("Talk to Bot")
-        .description("Start a voice call with a bot. Press again to end it.")
+        .description("Record a voice message for a bot. Press again to send it.")
     }
 }
 
@@ -33,10 +33,10 @@ struct VoiceActivity: Widget {
                     VoiceAvatar(bot: context.attributes.bot, size: 44)
                 }
                 DynamicIslandExpandedRegion(.center) {
-                    VoiceCallSummary(attributes: context.attributes, state: context.state)
+                    VoiceSummary(attributes: context.attributes, state: context.state)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    VoiceEndButton()
+                    VoiceButtons(phase: context.state.phase)
                 }
             } compactLeading: {
                 VoiceAvatar(bot: context.attributes.bot, size: 24)

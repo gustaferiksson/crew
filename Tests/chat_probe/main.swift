@@ -422,15 +422,21 @@ if phases.contains("routine") {
 
 if phases.contains("voice") {
     let bot = try await crewTest()
+    let word = "voice-\(UUID().uuidString.prefix(4).lowercased())"
     let (_, snapshot) = try await openBotChat(bot.canonicalSession?.id, profile: bot.name, via: gateway)
-    for turn in 1...2 {
-        let word = "voice-\(UUID().uuidString.prefix(4).lowercased())"
-        let reply = try await VoiceTurn.reply(to: "Reply with just the word \(word).", in: snapshot.sessionID, via: gateway)
-        print(reply.contains(word) ? "VOICE TURN \(turn) OK: \(reply.prefix(60))" : "VOICE TURN \(turn) MISMATCH: \(reply.prefix(60))")
-        let audio = try await VoiceTurn.audio(speaking: reply, profile: bot.name, on: server, with: urlSession)
-        print("VOICE SPEAK \(turn): \(audio.count) bytes, mp3 frame \(audio.prefix(2).map { String(format: "%02x", $0) }.joined())")
+    _ = try await gateway.call("prompt.submit", ["session_id": snapshot.sessionID.rawValue, "text": "Reply with just the word \(word)."], as: JSONValue.self)
+    await gateway.disconnect()
+    print("submitted and disconnected at once, polling history")
+    for _ in 0..<60 {
+        try await Task.sleep(for: .seconds(3))
+        guard let stored = snapshot.storedSessionID ?? bot.canonicalSession?.resolvedID else { break }
+        let turn = Transcript(history: try await history(of: stored, profile: "crew-test", on: server, with: urlSession, limit: 20)).turns.last
+        guard turn?.prompt?.text.contains(word) == true, turn?.status != .streaming, let reply = turn?.reply, !reply.isEmpty else { continue }
+        print(reply.contains(word) ? "VOICE OK reply after disconnect: \(reply.prefix(60))" : "VOICE REPLY MISMATCH: \(reply.prefix(60))")
+        exit(0)
     }
-    exit(0)
+    print("VOICE TIMEOUT: no reply in history")
+    exit(1)
 }
 
 if phases.contains("slash") {

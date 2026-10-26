@@ -1,6 +1,7 @@
 #if os(iOS)
 import ActivityKit
 import AppIntents
+import AVFoundation
 import ImageIO
 import SwiftUI
 
@@ -57,21 +58,38 @@ struct TalkToBotIntent: AudioRecordingIntent, LiveActivityIntent {
     @MainActor
     func perform() async throws -> some IntentResult {
         #if !WIDGET_EXTENSION
-        voiceLog.notice("TalkToBotIntent perform")
+        voiceLog.notice("TalkToBotIntent perform, mode: \(systemContext.currentMode.debugDescription, privacy: .public)")
         switch await VoiceCall.shared.toggle(bot?.id) {
         case .started:
             break
         case .needsPermission:
-            try await continueInForeground("Crew needs the microphone for calls.")
-            _ = await VoiceCall.shared.toggle(bot?.id)
+            try await openCrew(String(localized: "Crew needs the microphone for calls."))
+            voiceLog.notice("in foreground, asking for the microphone")
+            _ = await AVAudioApplication.requestRecordPermission()
+            if case .failed(let reason) = await VoiceCall.shared.toggle(bot?.id) {
+                throw VoiceFailure(errorDescription: reason)
+            }
         case .needsCrew(let reason):
-            throw needsToContinueInForegroundError(IntentDialog(stringLiteral: reason))
+            try await openCrew(reason)
         case .failed(let reason):
             throw VoiceFailure(errorDescription: reason)
         }
         #endif
         return .result()
     }
+
+    #if !WIDGET_EXTENSION
+    @MainActor
+    private func openCrew(_ reason: String) async throws {
+        do {
+            try await continueInForeground(IntentDialog(stringLiteral: reason), alwaysConfirm: false)
+        } catch {
+            voiceLog.error("continue in foreground failed: \(error, privacy: .public)")
+            VoiceCall.shared.showFailure(reason, for: bot?.id)
+            throw error
+        }
+    }
+    #endif
 }
 
 nonisolated struct EndVoiceCallIntent: LiveActivityIntent {

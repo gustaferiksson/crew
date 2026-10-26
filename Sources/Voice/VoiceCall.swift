@@ -28,7 +28,7 @@ final class VoiceCall: NSObject, AVSpeechSynthesizerDelegate {
 
     override init() {
         super.init()
-        dictation.audioCategory = (.playAndRecord, [.defaultToSpeaker, .allowBluetoothHFP])
+        dictation.audioCategory = (.playAndRecord, [.defaultToSpeaker, .allowBluetoothHFP, .duckOthers])
         output.attach(player)
         synthesizer.delegate = self
     }

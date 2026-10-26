@@ -77,6 +77,15 @@ final class VoiceCall: NSObject, AVSpeechSynthesizerDelegate {
         return .started
     }
 
+    func showFailure(_ message: String, for name: String?) {
+        guard activity == nil, let bot = VoiceBot.choose(name, from: VoiceBot.cached()) else { return }
+        do {
+            activity = try Activity.request(attributes: VoiceAttributes(bot: bot, startedAt: .now), content: ActivityContent(state: .init(phase: .failed, failure: message), staleDate: nil)).id
+        } catch {
+            voiceLog.error("Live Activity request failed: \(error, privacy: .public)")
+        }
+    }
+
     func end() async {
         guard let id = activity else { return }
         activity = nil

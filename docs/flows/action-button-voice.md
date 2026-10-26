@@ -24,9 +24,10 @@ Press the iPhone Action button (or the Control in Control Center or on the Lock 
 
 ## States
 
-- Signed out: the intent asks to continue in Crew ("Sign in to Crew first.").
-- No bots cached yet: continue in Crew ("Open Crew to load your bots.").
-- Microphone permission not asked yet: continue in the foreground, where `Dictation` asks, then the call starts. Denied: the island shows `Dictation`'s "Allow Crew to use the microphone in Settings" message.
+- Signed out: Crew opens ("Sign in to Crew first.").
+- No bots cached yet: Crew opens ("Open Crew to load your bots.").
+- Microphone permission not asked yet: Crew comes to the foreground without a confirmation (`continueInForeground(_:alwaysConfirm: false)`; the press runs in a sceneless runner that can't show one), asks for the microphone, then the call starts. Denied: the island shows `Dictation`'s "Allow Crew to use the microphone in Settings" message.
+- Crew can't come to the foreground: the island shows the reason with End (when a bot is cached), and the intent's error goes to the system.
 - No on-device speech model for the language: "Calls need on-device speech recognition for your language."
 - Offline or server unreachable at the start: "Couldn't reach the server."
 - A turn that can't be sent: "Couldn't send. It's saved as a draft." The words are added to that bot's composer draft.
@@ -47,5 +48,6 @@ Holding the Action button to talk and releasing to send would need the button's 
 - Real server: `Tests/chat_probe/run.sh voice` runs two turns on `crew-test` over one connected gateway, checks each `message.complete` reply, and fetches the spoken MP3 from `api/audio/speak`.
 - Renders: `./snapshot.sh ios voice-activity` hosts the Lock Screen row for every phase plus stand-ins for the expanded and compact island. The real island chrome, the Control and the Action button can't be rendered or driven off-device.
 - Simulator: a press of the Control or of the Action button (`XCUIDevice.press(.action)`, after picking the Control in Settings > Action Button) runs `TalkToBotIntent` in Crew only in a signed build (ad hoc `CODE_SIGN_IDENTITY=-`). With `CODE_SIGNING_ALLOWED=NO`, siriactionsd rejects the unsigned extension, the Control's template fails with `missingLNAction` and a press does nothing.
+- First run on the simulator (mic reset with `xcrun simctl privacy <udid> reset microphone dev.gustaf.crew`, Control on the Action button, `XCUIDevice.press(.action)` from a throwaway XCUITest): Crew comes to the foreground and shows the microphone prompt; Don't Allow leaves the island with the failure and End; the next press ends it. Before the fix the runner logged `confirmContinueInApp` then `response-not-possible`, and Crew logged the phone's "no scene captured" and "Couldn't communicate with a helper application".
 - Each start step logs to subsystem `dev.gustaf.crew`, category `voice` (notice level, so a sysdiagnose keeps it): perform, toggle, early returns, Live Activity request, audio start, gateway, Bot Chat open.
 - Not verified off-device: starting from the Action button in the background, background audio across turns, how fast the transcriber settles, the turn-end threshold in real rooms, Bluetooth routing, and the voices on a phone. A turn sent while an earlier one is still running (`prompt.submit` queued) would hear the earlier reply first.

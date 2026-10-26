@@ -7,10 +7,9 @@ struct VoiceActivityFixture: View {
         startedAt: .now.addingTimeInterval(-14)
     )
     private let states: [VoiceAttributes.ContentState] = [
-        .init(phase: .connecting),
-        .init(phase: .listening),
-        .init(phase: .thinking),
-        .init(phase: .speaking),
+        .init(phase: .recording),
+        .init(phase: .sending),
+        .init(phase: .sent),
         .init(phase: .failed, failure: String(localized: "Couldn't send. It's saved as a draft.")),
     ]
 
@@ -21,15 +20,17 @@ struct VoiceActivityFixture: View {
                     VoiceActivityView(attributes: attributes, state: state)
                         .background(.regularMaterial, in: .rect(cornerRadius: 24))
                 }
-                ForEach([states[1], states[4]], id: \.self) { state in
+                ForEach([states[0], states[3]], id: \.self) { state in
                     HStack(spacing: 12) {
                         VoiceAvatar(bot: attributes.bot, size: 44)
-                        VoiceCallSummary(attributes: attributes, state: state)
-                        VoiceEndButton()
+                        VoiceSummary(attributes: attributes, state: state)
+                        VoiceButtons(phase: state.phase)
                     }
                     .padding(16)
                     .background(.black, in: .rect(cornerRadius: 40))
                     .environment(\.colorScheme, .dark)
+                }
+                ForEach(states, id: \.self) { state in
                     HStack {
                         VoiceAvatar(bot: attributes.bot, size: 24)
                         Spacer()

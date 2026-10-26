@@ -18,6 +18,16 @@ nonisolated struct PushRoute: Equatable, Sendable {
         self.expiresAt = (crew["expires_at"] as? Double).map(Date.init(timeIntervalSince1970:))
     }
 
+    init?(url: URL) {
+        guard url.scheme == "crew", url.host() == "chat", let profile = url.pathComponents.dropFirst().first else { return nil }
+        self.profile = profile
+        sessionID = ""
+        installID = nil
+        kind = nil
+        requestID = nil
+        expiresAt = nil
+    }
+
     func isStalePayment(at date: Date) -> Bool {
         kind == "payment" && (expiresAt ?? .distantPast) <= date
     }

@@ -3,6 +3,7 @@ import ActivityKit
 import AppIntents
 import AVFoundation
 import Foundation
+import Observation
 import os
 
 let voiceLog = Logger(subsystem: "dev.gustaf.crew", category: "voice")
@@ -15,15 +16,27 @@ enum VoiceStart {
 }
 
 @MainActor
+@Observable
 final class VoiceMessage {
-    static let shared = VoiceMessage()
+    static let shared = Snapshot.requested?.voiceFixture.map { VoiceMessage(fixture: $0) } ?? VoiceMessage()
 
-    private let dictation = Dictation()
-    private var recording: (bot: VoiceBot, server: URL, urlSession: URLSession)?
-    private var activity: Activity<VoiceAttributes>.ID?
+    let dictation: Dictation
+    private(set) var attributes: VoiceAttributes?
+    private(set) var state = VoiceAttributes.ContentState(phase: .recording)
+    @ObservationIgnored private var recording: (bot: VoiceBot, server: URL, urlSession: URLSession)?
+    @ObservationIgnored private var activity: Activity<VoiceAttributes>.ID?
 
     init() {
+        dictation = Dictation()
         dictation.audioCategory = (.playAndRecord, [.allowBluetoothHFP, .duckOthers])
+    }
+
+    init(fixture state: VoiceAttributes.ContentState) {
+        let levels = (0..<Dictation.levelCount).map { 0.25 + 0.6 * abs(sin(Double($0) * 0.7)) * Double($0 % 5 + 1) / 5 }
+        let startedAt = Date.now.addingTimeInterval(-7)
+        dictation = Dictation(fixture: levels, startedAt: startedAt)
+        attributes = VoiceAttributes(bot: VoiceBot(name: "default", title: "Hermes", session: nil, lastActive: nil, shape: "blob", color: "#8b5cf6", expression: "happy", hidden: false), startedAt: startedAt)
+        self.state = state
     }
 
     func toggle(_ name: String?) async -> VoiceStart {
@@ -51,13 +64,16 @@ final class VoiceMessage {
         }
         voiceLog.notice("requesting Live Activity, enabled: \(ActivityAuthorizationInfo().areActivitiesEnabled, privacy: .public)")
         let id: Activity<VoiceAttributes>.ID
+        let started = VoiceAttributes(bot: bot, startedAt: .now)
         do {
-            id = try Activity.request(attributes: VoiceAttributes(bot: bot, startedAt: .now), content: ActivityContent(state: .init(phase: .recording), staleDate: nil)).id
+            id = try Activity.request(attributes: started, content: ActivityContent(state: .init(phase: .recording), staleDate: nil)).id
         } catch {
             voiceLog.error("Live Activity request failed: \(error, privacy: .public)")
             return .failed(error.localizedDescription)
         }
         activity = id
+        attributes = started
+        state = .init(phase: .recording)
         voiceLog.notice("Live Activity started, starting audio")
         await dictation.start { audio in
             voiceLog.notice("transcribing \(audio.count, privacy: .public) bytes on the server")
@@ -77,8 +93,11 @@ final class VoiceMessage {
 
     func showFailure(_ message: String, for name: String?) {
         guard activity == nil, let bot = VoiceBot.choose(name, from: VoiceBot.cached()) else { return }
+        let failed = VoiceAttributes(bot: bot, startedAt: .now)
         do {
-            activity = try Activity.request(attributes: VoiceAttributes(bot: bot, startedAt: .now), content: ActivityContent(state: .init(phase: .failed, failure: message), staleDate: nil)).id
+            activity = try Activity.request(attributes: failed, content: ActivityContent(state: .init(phase: .failed, failure: message), staleDate: nil)).id
+            attributes = failed
+            state = .init(phase: .failed, failure: message)
         } catch {
             voiceLog.error("Live Activity request failed: \(error, privacy: .public)")
         }
@@ -144,10 +163,12 @@ final class VoiceMessage {
     }
 
     nonisolated private func show(_ state: VoiceAttributes.ContentState, on id: Activity<VoiceAttributes>.ID) async {
+        await MainActor.run { self.state = state }
         await Activity<VoiceAttributes>.activities.first { $0.id == id }?.update(ActivityContent(state: state, staleDate: nil))
     }
 
     nonisolated private func end(_ id: Activity<VoiceAttributes>.ID, showing state: VoiceAttributes.ContentState, dismissal: ActivityUIDismissalPolicy) async {
+        await MainActor.run { attributes = nil }
         await Activity<VoiceAttributes>.activities.first { $0.id == id }?.end(ActivityContent(state: state, staleDate: nil), dismissalPolicy: dismissal)
     }
 }

@@ -227,16 +227,7 @@ struct Composer: View {
         HStack(alignment: .bottom, spacing: 8) {
             if dictation.phase == .listening {
                 HStack(spacing: 12) {
-                    HStack(spacing: 2) {
-                        ForEach(Array(dictation.levels.enumerated()), id: \.offset) { _, level in
-                            Capsule()
-                                .frame(width: 3, height: max(3, level * (fieldHeight - 16)))
-                        }
-                    }
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-                    .clipped()
-                    .animation(.smooth(duration: 0.1), value: dictation.levels)
+                    LevelMeter(levels: dictation.levels)
                     if hold?.cancels == true {
                         Text("Release to Cancel")
                             .font(.subheadline)
@@ -387,6 +378,81 @@ struct Composer: View {
         }
     }
 }
+
+private struct LevelMeter: View {
+    let levels: [Double]
+
+    var body: some View {
+        HStack(spacing: 2) {
+            ForEach(Array(levels.enumerated()), id: \.offset) { _, level in
+                Capsule()
+                    .frame(width: 3, height: max(3, level * (fieldHeight - 16)))
+            }
+        }
+        .foregroundStyle(.secondary)
+        .frame(maxWidth: .infinity, alignment: .trailing)
+        .clipped()
+        .animation(.smooth(duration: 0.1), value: levels)
+    }
+}
+
+#if os(iOS)
+struct VoiceComposer: View {
+    let voice: VoiceMessage
+
+    var body: some View {
+        GlassEffectContainer(spacing: rowSpacing) {
+            HStack(alignment: .bottom, spacing: rowSpacing) {
+                if voice.state.phase == .recording || voice.state.phase == .failed {
+                    Button("Cancel", systemImage: "xmark") {
+                        Task { await voice.cancel() }
+                    }
+                    .composerCircle(.regular.interactive())
+                }
+                HStack(spacing: 12) {
+                    status
+                    if voice.state.phase == .recording {
+                        Button("Send", systemImage: "arrow.up") {
+                            Task { await voice.send() }
+                        }
+                        .actionCircle(.tint)
+                        .foregroundStyle(.white)
+                    }
+                }
+                .padding(.leading, 16)
+                .padding(.trailing, voice.state.phase == .recording ? 0 : 16)
+                .frame(maxWidth: .infinity, minHeight: fieldHeight)
+                .glassEffect(.regular.interactive(), in: .rect(cornerRadius: fieldHeight / 2))
+            }
+            .labelStyle(.iconOnly)
+            .buttonStyle(.plain)
+        }
+        .animation(.smooth, value: voice.state)
+        .padding(.horizontal, sideMargin)
+        .padding(.bottom, 28)
+    }
+
+    @ViewBuilder private var status: some View {
+        if let attributes = voice.attributes, voice.state.phase == .recording {
+            LevelMeter(levels: voice.dictation.levels)
+            VoiceTimer(attributes: attributes)
+                .font(.subheadline)
+                .foregroundStyle(.red)
+        } else if voice.state.phase == .sending {
+            ProgressView()
+                .controlSize(.small)
+            Text("Sending…")
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        } else if let attributes = voice.attributes {
+            VoiceStatus(attributes: attributes, state: voice.state)
+                .font(.subheadline)
+                .lineLimit(2)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+}
+#endif
 
 extension String {
     mutating func insertNewLine(at selection: TextSelection?) -> TextSelection {

@@ -43,6 +43,7 @@ private let separatorFormatter = {
 
 struct ChatView<Avatar: View, EmptyState: View>: View {
     let botName: String
+    var profile: String?
     var title: String?
     let avatar: Avatar
     let transcript: Transcript
@@ -78,8 +79,9 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
     @FocusState private var isComposerFocused: Bool
     private let presentation: ChatPresentation
 
-    init(botName: String, title: String? = nil, avatar: Avatar, transcript: Transcript, emptyState: EmptyState, mentionable: [Bot], slashCommands: [SlashCommand] = [], draft: Binding<String>, tray: AttachmentTray, features: ComposerFeatures = .all, request: PendingRequest? = nil, payment: PaymentCardState? = nil, paymentNotice: String? = nil, shopOffer: String? = nil, offlineReason: String? = nil, activity: String? = nil, models: ModelSwitcher? = nil, focus: SearchFocus? = nil, presentation: ChatPresentation = ChatPresentation(), actions: ChatActions = ChatActions()) {
+    init(botName: String, profile: String? = nil, title: String? = nil, avatar: Avatar, transcript: Transcript, emptyState: EmptyState, mentionable: [Bot], slashCommands: [SlashCommand] = [], draft: Binding<String>, tray: AttachmentTray, features: ComposerFeatures = .all, request: PendingRequest? = nil, payment: PaymentCardState? = nil, paymentNotice: String? = nil, shopOffer: String? = nil, offlineReason: String? = nil, activity: String? = nil, models: ModelSwitcher? = nil, focus: SearchFocus? = nil, presentation: ChatPresentation = ChatPresentation(), actions: ChatActions = ChatActions()) {
         self.botName = botName
+        self.profile = profile
         self.title = title
         self.avatar = avatar
         self.transcript = transcript
@@ -101,6 +103,16 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
         _expandedWork = State(initialValue: presentation.expandedWork)
         _draft = draft
         self.tray = tray
+    }
+
+    private var composer: some View {
+        Composer(botName: botName, phase: composerPhase, draft: $draft, isFocused: $isComposerFocused, tray: tray, mentionable: mentionable, slashCommands: slashCommands, features: features, completePath: actions.completePath, dictation: presentation.dictation, transcribe: actions.transcribe) { mode in
+            position.scrollTo(id: transcriptEnd, anchor: .bottom)
+            actions.send(draft, tray.take(), mentionedBots(in: draft, among: mentionable), mode)
+            draft = ""
+        } stop: {
+            actions.stop()
+        }
     }
 
     private var reveal: CGFloat {
@@ -241,13 +253,18 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
                             .frame(maxWidth: 560)
                             .padding(.horizontal, 16)
                     }
-                    Composer(botName: botName, phase: composerPhase, draft: $draft, isFocused: $isComposerFocused, tray: tray, mentionable: mentionable, slashCommands: slashCommands, features: features, completePath: actions.completePath, dictation: presentation.dictation, transcribe: actions.transcribe) { mode in
-                        position.scrollTo(id: transcriptEnd, anchor: .bottom)
-                        actions.send(draft, tray.take(), mentionedBots(in: draft, among: mentionable), mode)
-                        draft = ""
-                    } stop: {
-                        actions.stop()
+                    #if os(iOS)
+                    if let voice = VoiceMessage.shared.attributes, voice.bot.name == profile {
+                        VoiceComposer(voice: .shared)
+                    } else {
+                        if VoiceMessage.shared.attributes != nil {
+                            VoiceIndicator(voice: .shared)
+                        }
+                        composer
                     }
+                    #else
+                    composer
+                    #endif
                 }
             }
             .animation(.smooth, value: request?.id)

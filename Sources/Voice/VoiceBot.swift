@@ -14,6 +14,10 @@ nonisolated struct VoiceBot: Codable, Hashable, Sendable {
     static let cacheURL = container?.appending(path: "Library/Caches/voice-bots.json")
     static let photoDirectory = container?.appending(path: "Library/Caches/avatars")
 
+    var chatURL: URL {
+        URL(string: "crew://chat")!.appending(path: name)
+    }
+
     static func cached() -> [VoiceBot] {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .secondsSince1970

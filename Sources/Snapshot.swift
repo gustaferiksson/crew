@@ -112,13 +112,21 @@ enum Snapshot: String {
     case addConnection = "add-connection"
     case customConnection = "custom-connection"
     case voiceActivity = "voice-activity"
+    case chatVoice = "chat-voice"
+    case sidebarVoice = "sidebar-voice"
 
     static let requested = UserDefaults.standard.string(forKey: "snapshot").flatMap(Snapshot.init(rawValue:))
     static let isInteractive = UserDefaults.standard.bool(forKey: "uiTest")
 
     var chatFixture: ChatFixture? {
-        [.chat: .conversation, .chatHistory: .history, .chatSelection: .history, .chatTimestamps: .timestamps, .chatWorkLog: .workLog, .chatQuestion: .question, .chatQuestions: .questions, .chatQuestionsSnacks: .questionsSnacks, .chatQuestionLong: .questionLong, .chatOffline: .offline, .chatAttachments: .attachments, .chatDictation: .dictation, .chatMentions: .mentions, .chatSlash: .slash, .chatSlashOutput: .slashOutput, .composerLine: .composerLine, .composerLines: .composerLines, .composerRunning: .composerRunning, .composerRunningText: .composerRunningText, .chatSteer: .steer, .chatSteerTaken: .steerTaken, .chatWaiting: .waiting, .chatMentionPeek: .mentions, .chatMentionChat: .mentions, .chatAgentMessage: .agentMessage, .chatRoutine: .routine, .chatDeliveryFailure: .deliveryFailure, .chatA2UI: .a2ui, .chatA2UICards: .a2uiCards, .chatA2UIForm: .a2uiForm, .chatA2UITable: .a2uiTable, .chatA2UIChart: .a2uiChart, .chatA2UIMap: .a2uiMap, .chatA2UICarousel: .a2uiCarousel, .chatA2UICarouselStates: .a2uiCarouselStates, .chatA2UIProducts: .a2uiProducts, .chatPayment: .payment, .chatPaymentHolding: .paymentHolding, .chatPaymentApproved: .paymentApproved, .chatPaymentLoading: .paymentLoading, .chatPaymentFailed: .paymentFailed, .chatPaymentUnverified: .paymentUnverified, .chatPaymentPunycode: .paymentPunycode, .chatPaymentCountdown: .paymentCountdown, .chatPaymentNotice: .paymentNotice, .chatPaymentOffer: .paymentOffer, .chatPaymentOfferHistory: .paymentOfferHistory, .chatPaymentReceipts: .paymentReceipts][self]
+        [.chat: .conversation, .chatHistory: .history, .chatSelection: .history, .chatTimestamps: .timestamps, .chatWorkLog: .workLog, .chatQuestion: .question, .chatQuestions: .questions, .chatQuestionsSnacks: .questionsSnacks, .chatQuestionLong: .questionLong, .chatOffline: .offline, .chatAttachments: .attachments, .chatDictation: .dictation, .chatVoice: .conversation, .chatMentions: .mentions, .chatSlash: .slash, .chatSlashOutput: .slashOutput, .composerLine: .composerLine, .composerLines: .composerLines, .composerRunning: .composerRunning, .composerRunningText: .composerRunningText, .chatSteer: .steer, .chatSteerTaken: .steerTaken, .chatWaiting: .waiting, .chatMentionPeek: .mentions, .chatMentionChat: .mentions, .chatAgentMessage: .agentMessage, .chatRoutine: .routine, .chatDeliveryFailure: .deliveryFailure, .chatA2UI: .a2ui, .chatA2UICards: .a2uiCards, .chatA2UIForm: .a2uiForm, .chatA2UITable: .a2uiTable, .chatA2UIChart: .a2uiChart, .chatA2UIMap: .a2uiMap, .chatA2UICarousel: .a2uiCarousel, .chatA2UICarouselStates: .a2uiCarouselStates, .chatA2UIProducts: .a2uiProducts, .chatPayment: .payment, .chatPaymentHolding: .paymentHolding, .chatPaymentApproved: .paymentApproved, .chatPaymentLoading: .paymentLoading, .chatPaymentFailed: .paymentFailed, .chatPaymentUnverified: .paymentUnverified, .chatPaymentPunycode: .paymentPunycode, .chatPaymentCountdown: .paymentCountdown, .chatPaymentNotice: .paymentNotice, .chatPaymentOffer: .paymentOffer, .chatPaymentOfferHistory: .paymentOfferHistory, .chatPaymentReceipts: .paymentReceipts][self]
     }
+
+    #if os(iOS)
+    var voiceFixture: VoiceAttributes.ContentState? {
+        [.chatVoice, .sidebarVoice].contains(self) ? .init(phase: .recording) : nil
+    }
+    #endif
 
     var isSettings: Bool {
         [.settingsAccount, .settingsAccountSignedOut, .settingsNotifications, .settingsNotificationsAsk].contains(self)
@@ -158,7 +166,7 @@ enum Snapshot: String {
         if isShops || chatFixture?.isPayment == true {
             return Connection(fixture: .connected, server: self == .addCardHTTP ? URL(string: "http://hermes.local:9119")! : server, crewPush: PluginStatus(pluginVersion: "0.5.0", installId: "fixture", apnsConfigured: true, http2: true, devices: 2, features: ["payments", "card"], gate: true))
         }
-        if [.sidebar, .sidebarHidden, .sidebarFlat, .sidebarCompact, .sidebarDraft, .sidebarSearch, .searchResult, .otherConversation, .layout, .layoutInspector, .chatWindow, .chatWindowInspector, .chatWindowMissing, .inspectorLook, .profileSkills, .botPage, .chatOptions, .notifications, .newBot, .newBotAdvanced, .newGroup, .settingsAccount, .settingsNotifications, .settingsNotificationsAsk, .groupChat, .groupWelcome, .groupInspector].contains(self) || chatFixture != nil || inspectorTab != nil { return Connection(fixture: .connected, server: server) }
+        if [.sidebar, .sidebarVoice, .sidebarHidden, .sidebarFlat, .sidebarCompact, .sidebarDraft, .sidebarSearch, .searchResult, .otherConversation, .layout, .layoutInspector, .chatWindow, .chatWindowInspector, .chatWindowMissing, .inspectorLook, .profileSkills, .botPage, .chatOptions, .notifications, .newBot, .newBotAdvanced, .newGroup, .settingsAccount, .settingsNotifications, .settingsNotificationsAsk, .groupChat, .groupWelcome, .groupInspector].contains(self) || chatFixture != nil || inspectorTab != nil { return Connection(fixture: .connected, server: server) }
         if self == .unreachable { return Connection(fixture: .unreachable, server: server) }
         return Connection(fixture: .signedOut, server: server)
     }

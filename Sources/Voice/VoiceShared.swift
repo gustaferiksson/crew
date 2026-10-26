@@ -57,6 +57,7 @@ struct TalkToBotIntent: AudioRecordingIntent, LiveActivityIntent {
     @MainActor
     func perform() async throws -> some IntentResult {
         #if !WIDGET_EXTENSION
+        voiceLog.notice("TalkToBotIntent perform")
         switch await VoiceCall.shared.toggle(bot?.id) {
         case .started:
             break

@@ -15,7 +15,7 @@ struct TalkControl: ControlWidget {
     var body: some ControlWidgetConfiguration {
         AppIntentControlConfiguration(kind: "dev.gustaf.crew.talk", intent: TalkControlConfiguration.self) { configuration in
             ControlWidgetButton(action: TalkToBotIntent(bot: configuration.bot)) {
-                Label(configuration.bot?.title ?? String(localized: "Talk to Bot"), systemImage: "phone.fill")
+                Label(configuration.bot?.title ?? String(localized: "Talk to Bot"), systemImage: "waveform")
             }
         }
         .displayName("Talk to Bot")

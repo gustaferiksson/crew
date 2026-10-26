@@ -3,6 +3,9 @@ import ActivityKit
 import AppIntents
 import AVFoundation
 import Foundation
+import os
+
+let voiceLog = Logger(subsystem: "dev.gustaf.crew", category: "voice")
 
 enum VoiceStart {
     case started
@@ -31,21 +34,35 @@ final class VoiceCall: NSObject, AVSpeechSynthesizerDelegate {
     }
 
     func toggle(_ name: String?) async -> VoiceStart {
+        voiceLog.notice("toggle, call in progress: \(self.activity != nil, privacy: .public)")
         guard activity == nil else {
             await end()
             return .started
         }
-        guard let (stored, urlSession) = restoredURLSession() else { return .needsCrew(String(localized: "Sign in to Crew first.")) }
-        guard let bot = VoiceBot.choose(name, from: VoiceBot.cached()) else { return .needsCrew(String(localized: "Open Crew to load your bots.")) }
-        guard AVAudioApplication.shared.recordPermission != .undetermined else { return .needsPermission }
+        guard let (stored, urlSession) = restoredURLSession() else {
+            voiceLog.notice("no stored session")
+            return .needsCrew(String(localized: "Sign in to Crew first."))
+        }
+        guard let bot = VoiceBot.choose(name, from: VoiceBot.cached()) else {
+            voiceLog.notice("no cached bots")
+            return .needsCrew(String(localized: "Open Crew to load your bots."))
+        }
+        guard AVAudioApplication.shared.recordPermission != .undetermined else {
+            voiceLog.notice("microphone permission not asked yet")
+            return .needsPermission
+        }
+        voiceLog.notice("requesting Live Activity, enabled: \(ActivityAuthorizationInfo().areActivitiesEnabled, privacy: .public)")
         let id: Activity<VoiceAttributes>.ID
         do {
             id = try Activity.request(attributes: VoiceAttributes(bot: bot, startedAt: .now), content: ActivityContent(state: .init(phase: .connecting), staleDate: nil)).id
         } catch {
+            voiceLog.error("Live Activity request failed: \(error, privacy: .public)")
             return .failed(error.localizedDescription)
         }
         activity = id
+        voiceLog.notice("Live Activity started, starting audio")
         await dictation.start { _ in throw VoiceFailure(errorDescription: nil) }
+        voiceLog.notice("audio started, on device: \(self.dictation.isOnDevice, privacy: .public), failure: \(self.dictation.failure ?? "none", privacy: .public)")
         if let failure = dictation.failure {
             await fail(failure)
             return .started
@@ -72,11 +89,13 @@ final class VoiceCall: NSObject, AVSpeechSynthesizerDelegate {
 
     private func converse(with bot: VoiceBot, on server: URL, using urlSession: URLSession) async {
         guard let gateway = await connectedGateway(to: server, with: urlSession) else {
+            voiceLog.error("gateway did not connect")
             return await fail(String(localized: "Couldn't reach the server."))
         }
         var said = ""
         do {
             let (_, snapshot) = try await openBotChat(bot.session.map(StoredSessionID.init(rawValue:)), profile: bot.name, via: gateway)
+            voiceLog.notice("Bot Chat open, listening")
             var heard = dictation.settledText.count
             while !Task.isCancelled {
                 dictation.isPaused = false
@@ -185,7 +204,7 @@ final class VoiceCall: NSObject, AVSpeechSynthesizerDelegate {
 
 struct CrewShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
-        AppShortcut(intent: TalkToBotIntent(), phrases: ["Talk to a bot in \(.applicationName)"], shortTitle: "Talk to Bot", systemImageName: "phone.fill")
+        AppShortcut(intent: TalkToBotIntent(), phrases: ["Talk to a bot in \(.applicationName)"], shortTitle: "Talk to Bot", systemImageName: "waveform")
     }
 }
 #endif

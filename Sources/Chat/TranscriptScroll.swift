@@ -2,6 +2,10 @@ import SwiftUI
 
 let transcriptEnd = "transcript-end"
 
+extension Transaction {
+    @Entry fileprivate var jumpsToLatest = false
+}
+
 private struct BottomEdge: Equatable {
     let distance: CGFloat
     let height: CGFloat
@@ -31,6 +35,8 @@ struct TranscriptScroll<Revision: Equatable, Content: View>: View {
                     .frame(height: 0)
                     .id(transcriptEnd)
             }
+            // An animated jump otherwise fades and slides the rows it leaves over the rows it lands on.
+            .transaction { if $0.jumpsToLatest { $0.animation = nil } }
         }
         #if os(iOS)
         // iOS 27 applies the size-change anchor to LazyVStack height estimates and parks the viewport past the drawn rows (#153).
@@ -59,7 +65,9 @@ struct TranscriptScroll<Revision: Equatable, Content: View>: View {
             ZStack {
                 if !isAtBottom {
                     Button("Jump to Latest", systemImage: "arrow.down") {
-                        withAnimation(reduceMotion ? nil : .smooth) { position.scrollTo(edge: .bottom) }
+                        var jump = Transaction(animation: reduceMotion ? nil : .smooth)
+                        jump.jumpsToLatest = true
+                        withTransaction(jump) { position.scrollTo(edge: .bottom) }
                     }
                     .labelStyle(.iconOnly)
                     .buttonStyle(.glass)

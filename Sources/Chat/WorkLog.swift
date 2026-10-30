@@ -110,6 +110,12 @@ struct WorkLog: View {
                 }
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
+            if isLive, turn.agentMessage == nil, let activity {
+                Text(verbatim: activity)
+                    .font(.footnote)
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(1)
+            }
         }
         .clipped()
     }
@@ -139,12 +145,6 @@ struct WorkLog: View {
                     if turn.reply.isEmpty {
                         WaitingDots()
                             .padding(.horizontal, 4)
-                    }
-                    if let activity {
-                        Text(verbatim: "· \(activity)")
-                            .fontWeight(.regular)
-                            .foregroundStyle(.tertiary)
-                            .lineLimit(1)
                     }
                 } else {
                     Text("Worked for \(Duration.seconds(Int((turn.finishedAt ?? turn.startedAt).timeIntervalSince(turn.startedAt))).formatted(elapsedStyle))")

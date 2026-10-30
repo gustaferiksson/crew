@@ -10,6 +10,7 @@ import Testing
     var distance: CGFloat = 0
     var watched: Int?
     var watchedFrame = CGRect.zero
+    var animatedRows = Set<Int>()
 }
 
 private struct Column: View {
@@ -21,6 +22,7 @@ private struct Column: View {
                 ForEach(Array(model.rows.enumerated()), id: \.offset) { index, text in
                     Text(text)
                         .id(index)
+                        .transaction { if $0.animation != nil { model.animatedRows.insert(index) } }
                         .onGeometryChange(for: CGRect.self) { $0.frame(in: .scrollView) } action: { if index == model.watched { model.watchedFrame = $0 } }
                 }
             }
@@ -63,6 +65,14 @@ private let rows = (0..<300).map { String(repeating: "Row \($0) has a few words 
         RunLoop.main.run(until: .now + 0.016)
     }
     settle()
+}
+
+@MainActor func click(_ window: NSWindow, at point: NSPoint) {
+    for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
+        guard let event = NSEvent.mouseEvent(with: type, location: point, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1) else { return }
+        window.sendEvent(event)
+        RunLoop.main.run(until: .now + 0.05)
+    }
 }
 
 @MainActor struct TranscriptScrollTests {
@@ -151,6 +161,24 @@ private let rows = (0..<300).map { String(repeating: "Row \($0) has a few words 
         model.rows.append("A turn after the jump.")
         settle()
         #expect(abs(model.distance) < 1, "row appended after the jump \(model.distance)")
+    }
+
+    @Test func jumpToLatestMovesTheRowsWithoutAnimatingThem() throws {
+        let model = ScrollModel()
+        let window = host(model)
+        defer { window.orderOut(nil) }
+        model.rows = rows
+        settle(1)
+        let content = try #require(window.contentView)
+        let scroll = try #require(scrollView(in: content))
+        userScroll(scroll, by: 20_000)
+        #expect(model.distance > 19_000)
+        model.animatedRows = []
+        click(window, at: NSPoint(x: 300, y: model.barHeight + 12 + 18))
+        #expect(model.distance < 19_000, "the click missed Jump to Latest")
+        for _ in 0..<20 where abs(model.distance) >= 1 || model.position.edge != nil { settle(0.25) }
+        #expect(abs(model.distance) < 1, "after Jump to Latest \(model.distance)")
+        #expect(model.animatedRows.isEmpty, "rows drawn in an animated transaction during the jump, so both scroll positions show at once: \(model.animatedRows.sorted().prefix(10))")
     }
 
     @Test func aSearchJumpFromTheEndStaysWhereItLanded() {

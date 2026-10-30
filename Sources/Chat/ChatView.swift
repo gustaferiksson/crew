@@ -192,7 +192,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
             TrackpadSwipe { trackpadTravel = $0 }
         }
         #endif
-        .onChange(of: transcript, initial: true) {
+        .onChange(of: transcript.turns.map(\.status), initial: true) {
             surfaces.send = actions.sendHidden
             surfaces.sync(transcript)
         }

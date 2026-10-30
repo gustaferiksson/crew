@@ -42,7 +42,30 @@ nonisolated final class ParseCache<Value>: @unchecked Sendable {
 nonisolated private let parsedMarkdown = ParseCache<[MarkdownBlock]>(costLimit: 4 * 1024 * 1024)
 
 nonisolated func markdownBlocks(from source: String) -> [MarkdownBlock] {
-    parsedMarkdown.value(for: source, parse: parseMarkdownBlocks)
+    markdownSections(of: source)
+        .flatMap { parsedMarkdown.value(for: $0, parse: parseMarkdownBlocks) }
+        .enumerated()
+        .map { MarkdownBlock(id: $0.offset, kind: $0.element.kind, content: $0.element.content) }
+}
+
+nonisolated private func markdownSections(of source: String) -> [String] {
+    var sections: [[Substring]] = [[]]
+    var fence: Character?
+    for line in source.split(separator: "\n", omittingEmptySubsequences: false) {
+        let trimmed = line.drop { $0 == " " }
+        if trimmed.hasPrefix("["), trimmed.contains("]:") { return [source] }
+        let followsBlank = sections[sections.count - 1].last?.utf8.allSatisfy { $0 == 32 || $0 == 9 } == true
+        if fence == nil, followsBlank, let first = line.first, !first.isWhitespace, !"-*+0123456789".contains(first) {
+            sections.append([])
+        }
+        sections[sections.count - 1].append(line)
+        if let open = fence {
+            if trimmed.hasPrefix(String(repeating: open, count: 3)), trimmed.allSatisfy({ $0 == open || $0.isWhitespace }) { fence = nil }
+        } else if trimmed.hasPrefix("```") || trimmed.hasPrefix("~~~") {
+            fence = trimmed.first
+        }
+    }
+    return sections.map { $0.joined(separator: "\n") }
 }
 
 nonisolated func parseMarkdownBlocks(from source: String) -> [MarkdownBlock] {

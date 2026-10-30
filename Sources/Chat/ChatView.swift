@@ -285,6 +285,8 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
         }
         #if os(macOS)
         .scrollEdgeEffectStyle(.soft, for: .vertical)
+        #else
+        .scrollEdgeEffectHidden(true, for: .bottom)
         #endif
         .toolbar {
             ToolbarItem(placement: .principal) {

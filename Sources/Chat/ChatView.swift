@@ -283,7 +283,9 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
             #endif
             .onGeometryChange(for: CGFloat.self, of: \.size.height) { barHeight = $0 }
         }
+        #if os(macOS)
         .scrollEdgeEffectStyle(.soft, for: .vertical)
+        #endif
         .toolbar {
             ToolbarItem(placement: .principal) {
                 if let title {

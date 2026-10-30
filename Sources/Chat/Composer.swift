@@ -4,11 +4,12 @@ import SwiftUI
 #if os(macOS)
 private let fieldHeight: CGFloat = 36
 private let rowSpacing: CGFloat = 8
+private let sideMargin: CGFloat = 16
 #else
 private let fieldHeight: CGFloat = 40
 private let rowSpacing: CGFloat = 12
+private let sideMargin: CGFloat = 28
 #endif
-private let sideMargin: CGFloat = 16
 private let holdThreshold = Duration.milliseconds(250)
 
 nonisolated enum SendMode: Sendable {
@@ -187,10 +188,11 @@ struct Composer: View {
         } message: {
             Text(dictation.failure ?? "")
         }
-        .padding(.horizontal, sideMargin)
         #if os(macOS)
+        .padding(.horizontal, sideMargin)
         .padding(.bottom, 8)
         #else
+        .padding(.horizontal, isFocused.wrappedValue ? 16 : sideMargin)
         .padding(.bottom, isFocused.wrappedValue ? 8 : 28)
         #endif
     }

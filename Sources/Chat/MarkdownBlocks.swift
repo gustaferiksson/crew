@@ -48,7 +48,7 @@ nonisolated func markdownBlocks(from source: String) -> [MarkdownBlock] {
         .map { MarkdownBlock(id: $0.offset, kind: $0.element.kind, content: $0.element.content) }
 }
 
-nonisolated func markdownSections(of source: String) -> [String] {
+nonisolated private func markdownSections(of source: String) -> [String] {
     var sections: [[Substring]] = [[]]
     var fence: Character?
     for line in source.split(separator: "\n", omittingEmptySubsequences: false) {

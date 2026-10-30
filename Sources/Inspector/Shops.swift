@@ -528,7 +528,7 @@ struct CardSheet: View {
                 if expiry.count >= 5, entry.problem(.expiry) == nil, focus == .expiry { focus = .cvc }
             }
             .onChange(of: focus) { previous, _ in
-                if let previous { visited.insert(previous) }
+                if let previous, !isSaving { visited.insert(previous) }
             }
             .onChange(of: [number, expiry, cvc, name, label]) { failure = nil }
             .navigationTitle(currentLabel == nil ? "Add Card" : "Replace Card")

@@ -431,7 +431,7 @@ struct LoginSheet: View {
             .disabled(isSaving)
             .privacySensitive()
             .onChange(of: focus) { previous, _ in
-                if let previous { visited.insert(previous) }
+                if let previous, !isSaving { visited.insert(previous) }
             }
             .onChange(of: [website, username, password]) { failure = nil }
             .navigationTitle(editing == nil ? "Add Login" : "Edit Login")
@@ -585,7 +585,7 @@ struct ConnectOnePasswordSheet: View {
             .formStyle(.grouped)
             .disabled(isSaving)
             .privacySensitive()
-            .onChange(of: isFocused) { if !isFocused { visited = true } }
+            .onChange(of: isFocused) { if !isFocused, !isSaving { visited = true } }
             .onChange(of: token) { failure = nil }
             .navigationTitle("Connect 1Password")
             #if os(iOS)

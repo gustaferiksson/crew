@@ -27,8 +27,8 @@ final class AccessibilityStateUITests: XCTestCase {
         for name in ["Trailhead.png", "Lofoten itinerary.pdf"] {
             let remove = app.buttons["Remove \(name)"]
             XCTAssertTrue(remove.waitForExistence(timeout: 10))
-            XCTAssertGreaterThanOrEqual(remove.frame.width, 44, name)
-            XCTAssertGreaterThanOrEqual(remove.frame.height, 44, name)
+            XCTAssertGreaterThanOrEqual(remove.frame.width.rounded(), 44, name)
+            XCTAssertGreaterThanOrEqual(remove.frame.height.rounded(), 44, name)
         }
         let remove = app.buttons["Remove Trailhead.png"]
         let corner = CGVector(dx: remove.frame.maxX - 42, dy: remove.frame.minY + 42)

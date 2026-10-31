@@ -29,6 +29,9 @@ struct BotInspector: View {
     @State private var conversations: [Conversation]?
     @State private var conversationFailure: String?
     @State private var openedConversation: Conversation?
+    @State private var editingLogin: LoginTarget?
+    @State private var highlightedLogins: Set<Login.ID> = []
+    @State private var isConnectingOnePassword = false
     private let shopsFixture: ShopList?
     @State private var vault: BotVault
     @State private var connections: BotConnections
@@ -74,7 +77,7 @@ struct BotInspector: View {
             } else if tab == .tasks {
                 TaskList(bot: bot, todos: chats.sessions[bot.id]?.todos ?? [])
             } else if tab == .passwords {
-                PasswordsTab(bot: bot, vault: vault, isBrowserOff: isBrowserOff, shops: shopsFixture)
+                PasswordsTab(bot: bot, vault: vault, isBrowserOff: isBrowserOff, shops: shopsFixture, highlighted: highlightedLogins, editing: $editingLogin, isConnecting: $isConnectingOnePassword)
             } else {
                 RoutineList(bot: bot, store: routines) { isCreatingRoutine = true }
             }
@@ -101,6 +104,12 @@ struct BotInspector: View {
         }
         .sheet(item: $openedConversation) { conversation in
             ConversationTranscript(bot: bot, conversation: conversation)
+        }
+        .sheet(item: $editingLogin) { target in
+            LoginSheet(bot: bot, vault: vault, editing: target.item, saved: highlightLogin)
+        }
+        .sheet(isPresented: $isConnectingOnePassword) {
+            ConnectOnePasswordSheet(bot: bot, vault: vault)
         }
         .modifier(BotDeletion(bot: $deleting) { _ in isPresented = false })
         .task(id: "\(tab == .passwords) \(connection.gateway.map { "\(ObjectIdentifier($0))" } ?? "") \(connection.state == .connected)") {
@@ -428,6 +437,14 @@ struct BotInspector: View {
         Task {
             await models.change(to: choice, profile: bot.name, via: gateway)
             await store.reload(gateway)
+        }
+    }
+
+    private func highlightLogin(_ id: Login.ID) {
+        withAnimation(.smooth) { highlightedLogins = [id] }
+        Task {
+            try? await Task.sleep(for: .seconds(1.5))
+            withAnimation(.smooth) { highlightedLogins = [] }
         }
     }
 }

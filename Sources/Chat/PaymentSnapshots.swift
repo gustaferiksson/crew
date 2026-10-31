@@ -141,29 +141,15 @@ struct ShopsFixtureScreen: View {
         return ShopList(card: MasterCard(label: "Shopping card", last4: "4242", problem: nil), shops: shops, terminalBackend: "local", gate: true)
     }
 
-    @State private var requests: [String] = []
-
     var body: some View {
         NavigationStack {
             Form {
                 ShopsCard(
-                    bot: scout, isBrowserOff: snapshot == .inspectorShopsEmpty, fixture: list,
-                    updateFailure: snapshot == .inspectorShopsUpdateError ? String(localized: "Couldn't update shops. Try again.") : nil,
-                    sendCard: { body in
-                        requests.append("card \(body["label"] ?? "") \(body["exp_month"] ?? "")/\(body["exp_year"] ?? "")")
-                        return MasterCard(label: body["label"], last4: body["card_number"].map { String($0.suffix(4)) }, problem: nil)
-                    }
+                    bot: scout, isBrowserOff: snapshot == .inspectorShopsEmpty, shops: BotShops(profile: "scout", fixture: list), isAdding: .constant(false), isEditingCard: .constant(false),
+                    updateFailure: snapshot == .inspectorShopsUpdateError ? String(localized: "Couldn't update shops. Try again.") : nil
                 )
             }
             .formStyle(.grouped)
-            .overlay(alignment: .topLeading) {
-                Color.clear
-                    .frame(width: 1, height: 1)
-                    .accessibilityElement()
-                    .accessibilityIdentifier("request-log")
-                    .accessibilityLabel("Request log")
-                    .accessibilityValue(requests.isEmpty ? "none" : requests.joined(separator: ","))
-            }
             .navigationTitle("Scout")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)

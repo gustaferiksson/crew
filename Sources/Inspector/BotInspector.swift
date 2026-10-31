@@ -32,7 +32,9 @@ struct BotInspector: View {
     @State private var editingLogin: LoginTarget?
     @State private var highlightedLogins: Set<Login.ID> = []
     @State private var isConnectingOnePassword = false
-    private let shopsFixture: ShopList?
+    @State private var shops: BotShops
+    @State private var isAddingShop = false
+    @State private var isEditingCard = false
     @State private var vault: BotVault
     @State private var connections: BotConnections
     @FocusState private var focusedField: FocusedField?
@@ -43,7 +45,6 @@ struct BotInspector: View {
 
     init(bot: Bot, tab: InspectorTab = .info, routines: RoutineStore = RoutineStore(), draft: ProfileDraft? = nil, conversations: [Conversation]? = nil, shops: ShopList? = nil, vault: BotVault? = nil, connections: BotConnections? = nil, models: ModelSwitcher, isPresented: Binding<Bool>) {
         self.bot = bot
-        self.shopsFixture = shops
         self.models = models
         _isPresented = isPresented
         _tab = State(initialValue: tab)
@@ -52,6 +53,7 @@ struct BotInspector: View {
         _conversations = State(initialValue: conversations)
         _vault = State(initialValue: vault ?? BotVault(profile: bot.name))
         _connections = State(initialValue: connections ?? BotConnections(profile: bot.name))
+        _shops = State(initialValue: BotShops(profile: bot.name, fixture: shops))
     }
 
     private var isEditable: Bool {
@@ -77,7 +79,7 @@ struct BotInspector: View {
             } else if tab == .tasks {
                 TaskList(bot: bot, todos: chats.sessions[bot.id]?.todos ?? [])
             } else if tab == .passwords {
-                PasswordsTab(bot: bot, vault: vault, isBrowserOff: isBrowserOff, shops: shopsFixture, highlighted: highlightedLogins, editing: $editingLogin, isConnecting: $isConnectingOnePassword)
+                PasswordsTab(bot: bot, vault: vault, isBrowserOff: isBrowserOff, shops: shops, highlighted: highlightedLogins, editing: $editingLogin, isConnecting: $isConnectingOnePassword, isAddingShop: $isAddingShop, isEditingCard: $isEditingCard)
             } else {
                 RoutineList(bot: bot, store: routines) { isCreatingRoutine = true }
             }
@@ -110,6 +112,16 @@ struct BotInspector: View {
         }
         .sheet(isPresented: $isConnectingOnePassword) {
             ConnectOnePasswordSheet(bot: bot, vault: vault)
+        }
+        .sheet(isPresented: $isAddingShop) {
+            AddShopSheet(profile: bot.name, added: shops.add)
+        }
+        .sheet(isPresented: $isEditingCard) {
+            CardSheet(currentLabel: shops.list.flatMap { $0.card.problem == nil ? $0.card.label : nil }) { card in
+                shops.list?.card = card
+                guard Snapshot.requested == nil, let server = connection.session?.server else { return }
+                Task { await shops.load(on: server, with: connection.urlSession) }
+            }
         }
         .modifier(BotDeletion(bot: $deleting) { _ in isPresented = false })
         .task(id: "\(tab == .passwords) \(connection.gateway.map { "\(ObjectIdentifier($0))" } ?? "") \(connection.state == .connected)") {

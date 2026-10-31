@@ -4,10 +4,12 @@ struct PasswordsTab: View {
     let bot: Bot
     let vault: BotVault
     let isBrowserOff: Bool
-    let shops: ShopList?
+    let shops: BotShops
     let highlighted: Set<Login.ID>
     @Binding var editing: LoginTarget?
     @Binding var isConnecting: Bool
+    @Binding var isAddingShop: Bool
+    @Binding var isEditingCard: Bool
 
     @Environment(Connection.self) private var connection
 
@@ -15,7 +17,7 @@ struct PasswordsTab: View {
         LoginsCard(bot: bot, vault: vault, isBrowserOff: isBrowserOff, highlighted: highlighted, editing: $editing)
         OnePasswordCard(bot: bot, vault: vault, isConnecting: $isConnecting)
         if connection.supportsPayments {
-            ShopsCard(bot: bot, isBrowserOff: isBrowserOff, fixture: shops)
+            ShopsCard(bot: bot, isBrowserOff: isBrowserOff, shops: shops, isAdding: $isAddingShop, isEditingCard: $isEditingCard)
         }
     }
 }

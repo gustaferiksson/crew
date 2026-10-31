@@ -69,6 +69,6 @@ struct GroupInspectorFixtureScreen: View {
     }
 
     private var inspector: some View {
-        GroupInspector(room: Snapshot.fixtureRoom, isPresented: .constant(true)) { _ in }
+        GroupInspector(room: Snapshot.fixtureRoom, isPresented: .constant(true), histories: ["ada": RoomHistory(sessionID: "s-ada", messages: 1284), "forge": RoomHistory(sessionID: "s-forge", messages: 96), "scout": RoomHistory?.none]) { _ in }
     }
 }

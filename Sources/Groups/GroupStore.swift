@@ -4,13 +4,20 @@ import Observation
 private let requiredMethods: Set = ["groups.list", "groups.create", "groups.state", "groups.log", "groups.send", "groups.stop", "groups.approve"]
 
 nonisolated struct RoomMember: Codable, Hashable, Sendable {
+    struct Target: Codable, Hashable, Sendable {
+        let kind: String
+    }
+
     let memberID: String
     let profile: String
     let handle: String
     let displayName: String?
+    var target: Target?
+
+    var isPeer: Bool { target?.kind == "peer" }
 
     private enum CodingKeys: String, CodingKey {
-        case profile, handle
+        case profile, handle, target
         case memberID = "member_id"
         case displayName = "display_name"
     }

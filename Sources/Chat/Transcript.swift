@@ -27,6 +27,7 @@ nonisolated struct Turn: Identifiable, Codable, Sendable, Equatable {
     var deliveryFailure: DeliveryFailure?
     var hiddenText: String?
     var work: [WorkItem] = []
+    var warnings: [String] = []
     var reply = ""
     var status: Status
     var startedAt: Date
@@ -362,9 +363,11 @@ extension Transcript {
 
     mutating func keepFailures(from old: Transcript) {
         for index in turns.indices {
-            guard let failed = old.turns.first(where: { $0.id == turns[index].id && $0.status != .complete }) else { continue }
-            turns[index].status = failed.status
-            turns[index].failure = failed.failure
+            guard let shown = old.turns.first(where: { $0.id == turns[index].id }) else { continue }
+            turns[index].warnings = shown.warnings
+            guard shown.status != .complete else { continue }
+            turns[index].status = shown.status
+            turns[index].failure = shown.failure
         }
         guard let last = old.turns.last, last.status == .error, !turns.contains(where: { $0.id == last.id }) else { return }
         turns.append(last)
@@ -375,6 +378,13 @@ extension Transcript {
             let shownAt = turn.finishedAt ?? .distantFuture
             turns.insert(turn, at: turns.firstIndex { $0.startedAt > shownAt } ?? turns.endIndex)
         }
+    }
+
+    mutating func warn(_ text: String) {
+        guard let index = turns.indices.last, turns[index].status == .streaming else { return }
+        let line = String((text.split(whereSeparator: \.isNewline).first ?? "").drop { $0.isWhitespace || $0.unicodeScalars.allSatisfy { $0 == "\u{26A0}" || $0 == "\u{FE0F}" } })
+        guard !line.isEmpty, !turns[index].warnings.contains(line) else { return }
+        turns[index].warnings.append(line)
     }
 
     mutating func beginCommand(_ line: String, id: String, at date: Date = .now) {

@@ -347,6 +347,7 @@ enum ChatFixture {
                 WorkItem(id: "t5-w1", kind: .tool(ToolCall(name: "read_file", subject: "deploy/staging/crew-api.yaml", arguments: #"{"path": "deploy/staging/crew-api.yaml"}"#, result: "apiVersion: apps/v1\nkind: Deployment", status: .success)), startedAt: start.addingTimeInterval(5), duration: 1),
                 WorkItem(id: "t5-w2", kind: .tool(ToolCall(name: "terminal", subject: "kubectl --context staging apply -f deploy/staging/crew-api.yaml", arguments: #"{"command": "kubectl --context staging apply -f deploy/staging/crew-api.yaml"}"#, status: .running)), startedAt: start.addingTimeInterval(8)),
             ],
+            warnings: self == .conversation ? ["Session compressed 2 times — accuracy may degrade. Consider /new to start fresh."] : [],
             status: .streaming,
             startedAt: start
         )

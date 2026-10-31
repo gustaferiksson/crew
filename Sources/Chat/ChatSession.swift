@@ -486,6 +486,7 @@ final class ChatSession {
         let snapshot = try? await gateway.call("session.activate", ActivateParams(sessionID: runtime), as: LiveSnapshot.self)
         guard !isRunning, runtime == self.runtime, seq > appliedSeq else { return apply(event) }
         appliedSeq = seq
+        statusLine = nil
         let startedAt = snapshot?.turnStartedAt.map(Date.init(timeIntervalSince1970:)) ?? .now
         transcript.begin(remote: snapshot?.inflight?.user ?? "", displayKind: snapshot?.inflight?.displayKind, at: startedAt)
     }
@@ -501,15 +502,21 @@ final class ChatSession {
             todoRevision = payload.revision ?? todoRevision
         }
         let type = event.type
-        if type == "message.start" { return transcript.apply(.messageStart) }
+        if type == "message.start" {
+            statusLine = nil
+            return transcript.apply(.messageStart)
+        }
         if type == "thinking.delta" { return transcript.takeSteers() }
         if type == "message.delta" { return transcript.apply(.messageDelta(payload.text ?? "")) }
         if type == "reasoning.delta" { return transcript.apply(.reasoningDelta(payload.text ?? "")) }
         if type == "reasoning.available" { return transcript.apply(.reasoningAvailable(payload.text ?? "")) }
         if type == "message.interim" { return transcript.apply(.interim(payload.text ?? "")) }
         if type == "status.update" {
-            // Hermes prefixes its informational diagnostics with ℹ (U+2139).
-            guard payload.text?.unicodeScalars.first != "\u{2139}" else { return }
+            let first = payload.text?.unicodeScalars.first
+            // Hermes prefixes its informational diagnostics with ℹ (U+2139) and its warnings with ⚠ (U+26A0).
+            guard first != "\u{2139}" else { return }
+            let kind = if case .object(let object) = event.payload { object["kind"] } else { JSONValue?.none }
+            guard kind != .string("warn"), first != "\u{26A0}" else { return transcript.warn(payload.text ?? "") }
             statusLine = payload.text
             return
         }

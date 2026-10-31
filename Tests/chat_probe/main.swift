@@ -583,6 +583,24 @@ if phases.contains("tool") {
     print("turn counts", chat.transcript.turns.count, reloaded.transcript.turns.count)
 }
 
+if phases.contains("compressed") {
+    record("compressed-turn")
+    for round in 1...2 {
+        chat.send("Reply with one short sentence about the number \(round).", mode: .send)
+        try await waitIdle(chat)
+        print("COMPACT", round, (try? await chat.compact()) ?? "nil")
+    }
+    chat.send("Reply with just: hi", mode: .send)
+    var seen: [String] = []
+    while chat.isRunning || seen.isEmpty {
+        if let line = chat.statusLine, seen.last != line { seen.append(line); print("COMPRESSED statusLine:", line) }
+        if !chat.isRunning, chat.transcript.turns.last?.reply == "hi" { break }
+        try await Task.sleep(for: .milliseconds(100))
+    }
+    try await waitIdle(chat)
+    show("compressed live", chat)
+}
+
 if phases.contains("think") {
     record("think-turn")
     chat.send("Think it through, then use your terminal tool to count the files in your current directory, and answer in one sentence.", mode: .send)

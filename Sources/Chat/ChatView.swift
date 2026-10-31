@@ -419,6 +419,18 @@ struct TurnView: View {
                 ForEach(Array(turn.paymentReceipts.enumerated()), id: \.offset) { _, receipt in
                     PaymentReceiptRow(receipt: receipt)
                 }
+                ForEach(turn.warnings, id: \.self) { warning in
+                    Label {
+                        Text(warning)
+                            .foregroundStyle(.secondary)
+                            .textSelection(.enabled)
+                    } icon: {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.orange)
+                            .accessibilityLabel("Warning")
+                    }
+                    .font(.footnote)
+                }
                 if !turn.reply.isEmpty {
                     ReplyText(source: a2uiFenced(turn.reply))
                         .environment(\.surfaces, surfaces)

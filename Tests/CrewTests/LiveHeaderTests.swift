@@ -60,3 +60,65 @@ private struct Offset: Decodable {
 
     #expect(session.statusLine == "🗜️ Compacting context — summarizing earlier conversation so I can continue...")
 }
+
+@MainActor @Test func aReplayedCompressionWarningStaysOnItsTurnInsteadOfFlashingAsWorkingText() throws {
+    let session = ChatSession(fixture: crewTest, transcript: Transcript(), todos: [])
+    let lines = try String(contentsOf: fixtures.appending(path: "chat.compressed-turn.v0.22.5.jsonl"), encoding: .utf8).split(separator: "\n")
+
+    var shownWhileWorking: [String] = []
+    for line in lines {
+        session.apply(try JSONDecoder().decode(GatewayEvent.self, from: Data(line.utf8)))
+        guard session.transcript.turns.last?.status == .streaming, let status = session.statusLine, shownWhileWorking.last != status else { continue }
+        shownWhileWorking.append(status)
+    }
+
+    #expect(shownWhileWorking == [])
+    #expect(session.transcript.turns.map(\.warnings) == [[], [], ["Session compressed 2 times — accuracy may degrade. Consider /new to start fresh."]])
+    #expect(session.transcript.turns.last?.reply == "hi")
+}
+
+@MainActor @Test func aWarnStatusIsKeptOnceOnTheTurnWhileCompactionProgressStaysTheWorkingText() throws {
+    var transcript = Transcript()
+    transcript.begin(prompt: "Keep going")
+    let session = ChatSession(fixture: crewTest, transcript: transcript, todos: [])
+    let events = [
+        #"{"payload": {"kind": "compacting", "text": "🗜️ Compacting context — summarizing earlier conversation so I can continue..."}, "seq": 3, "session_id": "rt-1", "type": "status.update"}"#,
+        #"{"payload": {"kind": "warn", "text": "⚠️ This turn stopped making progress (90s without activity); attempting recovery so the session can continue."}, "seq": 4, "session_id": "rt-1", "type": "status.update"}"#,
+        #"{"payload": {"kind": "warn", "text": "ℹ️ Estimated cost of these empty attempts: ~$0.02"}, "seq": 5, "session_id": "rt-1", "type": "status.update"}"#,
+        #"{"payload": {"kind": "lifecycle", "text": "⚠ Compression model gpt-mini (openrouter) context is 128,000 tokens. Auto-lowered this session's threshold to 100,000 tokens so compression can run.\n  To make this permanent, edit config.yaml"}, "seq": 6, "session_id": "rt-1", "type": "status.update"}"#,
+        #"{"payload": {"kind": "warn", "text": "⚠️ This turn stopped making progress (90s without activity); attempting recovery so the session can continue."}, "seq": 7, "session_id": "rt-1", "type": "status.update"}"#,
+    ]
+
+    for event in events {
+        session.apply(try JSONDecoder().decode(GatewayEvent.self, from: Data(event.utf8)))
+    }
+
+    #expect(session.statusLine == "🗜️ Compacting context — summarizing earlier conversation so I can continue...")
+    #expect(session.transcript.turns.last?.warnings == [
+        "This turn stopped making progress (90s without activity); attempting recovery so the session can continue.",
+        "Compression model gpt-mini (openrouter) context is 128,000 tokens. Auto-lowered this session's threshold to 100,000 tokens so compression can run.",
+    ])
+}
+
+@Test func aWarningWithNoRunningTurnIsDropped() {
+    var transcript = Transcript()
+    transcript.begin(prompt: "Hi")
+    transcript.apply(.messageComplete(text: "Hello", status: .complete, error: nil))
+
+    transcript.warn("⚠ Auxiliary title_generation failed: timeout")
+
+    #expect(transcript.turns.last?.warnings == [])
+}
+
+@Test func aCompletedTurnKeepsItsWarningAcrossTheHistorySync() {
+    var shown = Transcript()
+    shown.begin(prompt: "Hi")
+    shown.warn("⚠️  Session compressed 2 times — accuracy may degrade. Consider /new to start fresh.")
+    shown.apply(.messageComplete(text: "Hello", status: .complete, error: nil))
+    var reloaded = shown
+    reloaded.turns[0].warnings = []
+
+    reloaded.keepFailures(from: shown)
+
+    #expect(reloaded.turns[0].warnings == ["Session compressed 2 times — accuracy may degrade. Consider /new to start fresh."])
+}

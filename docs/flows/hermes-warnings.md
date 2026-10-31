@@ -29,7 +29,7 @@ Hermes Desktop drops both from its status text. Dropping them in Crew would hide
 - A steer splits the turn: the warning stays on the turn that was running when it arrived.
 - Turns from another bot ("Message from"): same line, same rule.
 - Long content: the first line wraps over as many lines as it needs at every Dynamic Type size; the text is selectable.
-- VoiceOver: "Warning, <text>".
+- VoiceOver: the triangle carries the label "Warning", read with the text (not yet checked with VoiceOver on a device).
 - Offline: nothing new; the line stays until the chat reloads.
 - Bot list (preview, time, status, unread), push and mention peek: unchanged. The peek's live status keeps showing progress only, since it reads the same footnote value.
 - Group rooms: unchanged; rooms read `groups.log`, which has no `status.update`.

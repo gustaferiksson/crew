@@ -37,6 +37,7 @@ struct BotInspector: View {
     @State private var isEditingCard = false
     @State private var vault: BotVault
     @State private var connections: BotConnections
+    @State private var isAddingConnection = false
     @FocusState private var focusedField: FocusedField?
 
     private enum FocusedField {
@@ -115,6 +116,9 @@ struct BotInspector: View {
         }
         .sheet(isPresented: $isAddingShop) {
             AddShopSheet(profile: bot.name, added: shops.add)
+        }
+        .sheet(isPresented: $isAddingConnection) {
+            AddConnectionSheet(bot: bot, store: connections)
         }
         .sheet(isPresented: $isEditingCard) {
             CardSheet(currentLabel: shops.list.flatMap { $0.card.problem == nil ? $0.card.label : nil }) { card in
@@ -407,7 +411,7 @@ struct BotInspector: View {
                 .disabled(!isEditable)
             }
         }
-        ConnectionsSection(bot: bot, store: connections)
+        ConnectionsSection(bot: bot, store: connections, isAdding: $isAddingConnection)
         Section {
             ConversationList(conversations: conversations, failure: conversationFailure) { openedConversation = $0 }
         } header: {

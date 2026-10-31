@@ -32,4 +32,23 @@ final class ComposerUITests: XCTestCase {
         XCTAssertEqual(stops.count, 0)
         XCTAssertTrue(app.buttons["Send"].exists)
     }
+
+    @MainActor func testSideMarginsAre28WithTheKeyboardHiddenAnd16WhileFocused() {
+        let app = launch("composer-running")
+        let field = app.textFields.firstMatch
+        XCTAssertTrue(field.waitForExistence(timeout: 10))
+        let width = app.windows.firstMatch.frame.width
+        let attach = app.buttons["Attach"]
+        let stop = app.buttons.matching(identifier: "Stop").allElementsBoundByIndex.first { $0.frame.height == 32 }
+        XCTAssertEqual(attach.frame.minX.rounded(), 28)
+        XCTAssertEqual((width - (stop?.frame.maxX ?? 0) - 4).rounded(), 28)
+
+        field.tap()
+        if app.buttons["Continue"].waitForExistence(timeout: 1) { app.buttons["Continue"].tap() }
+        let settled = NSPredicate { element, _ in (element as? XCUIElement)?.frame.minX.rounded() == 16 }
+        _ = XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: settled, object: attach)], timeout: 5)
+        let focusedStop = app.buttons.matching(identifier: "Stop").allElementsBoundByIndex.first { $0.frame.height == 32 }
+        XCTAssertEqual(attach.frame.minX.rounded(), 16)
+        XCTAssertEqual((width - (focusedStop?.frame.maxX ?? 0) - 4).rounded(), 16)
+    }
 }

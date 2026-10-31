@@ -4,10 +4,10 @@ import SwiftUI
 struct ConnectionsSection: View {
     let bot: Bot
     let store: BotConnections
+    @Binding var isAdding: Bool
 
     @Environment(Connection.self) private var connection
     @Environment(\.webAuthenticationSession) private var webAuthenticationSession
-    @State private var isAdding = false
     @State private var confirmingRemoval: MCPServer?
 
     private var isOnline: Bool {
@@ -41,9 +41,6 @@ struct ConnectionsSection: View {
             Text("Connections")
         } footer: {
             Text("Tools from other apps and services that \(bot.title) can use. Changes apply to new chats.")
-        }
-        .sheet(isPresented: $isAdding) {
-            AddConnectionSheet(bot: bot, store: store)
         }
         .confirmationDialog(
             confirmingRemoval.map { String(localized: "Remove \($0.name) from \(bot.title)?") } ?? "",

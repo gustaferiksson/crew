@@ -143,7 +143,7 @@ struct InspectorFixtureScreen: View {
     @ViewBuilder
     private var inspector: some View {
         if [.inspectorConnections, .addConnection, .customConnection].contains(snapshot) {
-            Form { ConnectionsSection(bot: ada, store: connections) }
+            Form { ConnectionsSection(bot: ada, store: connections, isAdding: .constant(false)) }
                 .formStyle(.grouped)
         } else {
             botInspector

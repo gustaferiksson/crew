@@ -53,7 +53,7 @@ nonisolated struct RoomAction: Decodable, Sendable {
     }
 }
 
-nonisolated private struct RoomState: Decodable, Sendable {
+nonisolated struct RoomState: Decodable, Sendable {
     struct Driver: Decodable, Sendable {
         let working: Bool
         let pendingActions: [RoomAction]

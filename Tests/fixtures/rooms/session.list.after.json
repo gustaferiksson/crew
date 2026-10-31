@@ -1,0 +1,15 @@
+{
+  "sessions" : [
+    {
+      "_lineage_root_id" : null,
+      "id" : "20261031_093355_b80a81",
+      "live_message_count" : 16,
+      "message_count" : 16,
+      "preview" : "",
+      "resolved_id" : "20261031_093355_b80a81",
+      "source" : "bot_room",
+      "started_at" : 1793439235.1645076,
+      "title" : "Group: room-9c2995b3-de53-4282-90e1-3e0d31d0b514"
+    }
+  ]
+}

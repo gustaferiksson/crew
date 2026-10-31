@@ -158,6 +158,7 @@ targets:
       - Sources/Chat/A2UI/SystemSymbol.swift
       - Sources/Groups/GroupStore.swift
       - Sources/Groups/GroupSession.swift
+      - Sources/Groups/RoomHistory.swift
       - Sources/Search/MessageSearch.swift
       - Sources/Links.swift
       - Sources/Scenes.swift

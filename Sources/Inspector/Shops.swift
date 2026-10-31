@@ -1,28 +1,60 @@
 import SwiftUI
 
-typealias CardSender = @MainActor ([String: String]) async throws -> MasterCard
+@Observable
+final class BotShops {
+    let profile: String
+    var list: ShopList?
+    private(set) var loadFailed = false
+    private(set) var highlighted: Set<Shop.ID> = []
+
+    init(profile: String, fixture: ShopList? = nil) {
+        self.profile = profile
+        list = fixture
+    }
+
+    func load(on server: URL, with urlSession: URLSession) async {
+        do {
+            list = try await paymentsCall("payments", query: [URLQueryItem(name: "bot", value: profile)], on: server, with: urlSession, as: ShopList.self)
+            loadFailed = false
+        } catch {
+            loadFailed = list == nil
+        }
+    }
+
+    func add(_ shop: Shop) {
+        list?.shops.removeAll { $0.id == shop.id }
+        list?.shops.append(shop)
+        highlight([shop.id])
+    }
+
+    func highlight(_ ids: Set<Shop.ID>) {
+        withAnimation(.smooth) { highlighted = ids }
+        Task {
+            try? await Task.sleep(for: .seconds(1.5))
+            withAnimation(.smooth) { highlighted = [] }
+        }
+    }
+}
 
 struct ShopsCard: View {
     let bot: Bot
     let isBrowserOff: Bool
+    let shops: BotShops
+    @Binding var isAdding: Bool
+    @Binding var isEditingCard: Bool
 
     @Environment(Connection.self) private var connection
-    @State private var list: ShopList?
-    @State private var loadFailed = false
     @State private var removing: Set<Shop.ID> = []
     @State private var removeFailures: [Shop.ID: String] = [:]
-    @State private var isAdding = false
-    @State private var isEditingCard = false
     @State private var isUpdating = false
     @State private var updateFailure: String?
-    @State private var highlighted: Set<Shop.ID> = []
-    private let sendCard: CardSender?
 
-    init(bot: Bot, isBrowserOff: Bool, fixture: ShopList? = nil, updateFailure: String? = nil, sendCard: CardSender? = nil) {
+    init(bot: Bot, isBrowserOff: Bool, shops: BotShops, isAdding: Binding<Bool>, isEditingCard: Binding<Bool>, updateFailure: String? = nil) {
         self.bot = bot
         self.isBrowserOff = isBrowserOff
-        self.sendCard = sendCard
-        _list = State(initialValue: fixture)
+        self.shops = shops
+        _isAdding = isAdding
+        _isEditingCard = isEditingCard
         _updateFailure = State(initialValue: updateFailure)
     }
 
@@ -36,7 +68,7 @@ struct ShopsCard: View {
 
     var body: some View {
         Section {
-            if let list {
+            if let list = shops.list {
                 cardRow(list.card, controls: controls(list))
                 shopRows(list.shops)
                 if controls(list).showsUpdateShops {
@@ -44,7 +76,7 @@ struct ShopsCard: View {
                 }
                 Button("Add Shop…", systemImage: "plus.circle") { isAdding = true }
                     .disabled(!controls(list).canAddShop)
-            } else if loadFailed {
+            } else if shops.loadFailed {
                 HStack(spacing: 8) {
                     Text("Couldn't load shops.")
                         .foregroundStyle(.secondary)
@@ -72,20 +104,6 @@ struct ShopsCard: View {
         .task(id: isOnline) {
             guard isOnline, Snapshot.requested == nil else { return }
             await load()
-        }
-        .sheet(isPresented: $isAdding) {
-            AddShopSheet(profile: bot.name) { shop in
-                list?.shops.removeAll { $0.id == shop.id }
-                list?.shops.append(shop)
-                highlight([shop.id])
-            }
-        }
-        .sheet(isPresented: $isEditingCard) {
-            CardSheet(currentLabel: list.flatMap { controls($0).hasCard ? $0.card.label : nil }, send: sendCard) { card in
-                list?.card = card
-                guard Snapshot.requested == nil else { return }
-                Task { await load() }
-            }
         }
     }
 
@@ -163,13 +181,13 @@ struct ShopsCard: View {
     }
 
     @ViewBuilder
-    private func shopRows(_ shops: [Shop]) -> some View {
-        if shops.isEmpty {
+    private func shopRows(_ rows: [Shop]) -> some View {
+        if rows.isEmpty {
             Text("\(bot.title) can't pay anywhere yet.")
                 .foregroundStyle(.secondary)
         } else {
-            ForEach(shops) { shop in
-                ShopRow(shop: shop, isRemoving: removing.contains(shop.id), failure: removeFailures[shop.id], isHighlighted: highlighted.contains(shop.id))
+            ForEach(rows) { shop in
+                ShopRow(shop: shop, isRemoving: removing.contains(shop.id), failure: removeFailures[shop.id], isHighlighted: shops.highlighted.contains(shop.id))
                     .contextMenu {
                         Button("Remove Shop", systemImage: "trash", role: .destructive) { remove(shop) }
                             .disabled(!isOnline)
@@ -187,7 +205,7 @@ struct ShopsCard: View {
     }
 
     private var footers: [(text: String, isAlert: Bool)] {
-        guard let list else { return [] }
+        guard let list = shops.list else { return [] }
         var footers: [(text: String, isAlert: Bool)] = []
         if !list.shops.isEmpty { footers.append((String(localized: "\(bot.title) pays only on these sites, and asks you every time."), false)) }
         if isBrowserOff { footers.append((String(localized: "Turn on Browser in Capabilities so \(bot.title) can shop."), false)) }
@@ -203,12 +221,7 @@ struct ShopsCard: View {
 
     private func load() async {
         guard let server = connection.session?.server else { return }
-        do {
-            list = try await paymentsCall("payments", query: [URLQueryItem(name: "bot", value: bot.name)], on: server, with: connection.urlSession, as: ShopList.self)
-            loadFailed = false
-        } catch {
-            loadFailed = list == nil
-        }
+        await shops.load(on: server, with: connection.urlSession)
     }
 
     private func remove(_ shop: Shop) {
@@ -224,33 +237,25 @@ struct ShopsCard: View {
                 removeFailures[shop.id] = String(localized: "Couldn't remove this shop. Try again.")
                 return
             }
-            withAnimation(.smooth) { list?.shops.removeAll { $0.id == shop.id } }
+            withAnimation(.smooth) { shops.list?.shops.removeAll { $0.id == shop.id } }
         }
     }
 
     private func updateShops() {
         guard let server = connection.session?.server, !isUpdating else { return }
-        let before = Set(list?.shops.map(\.id) ?? [])
+        let before = Set(shops.list?.shops.map(\.id) ?? [])
         isUpdating = true
         updateFailure = nil
         Task {
             defer { isUpdating = false }
             do {
                 let updated = try await paymentsCall("payments/shops/update", body: ["profile": bot.name], on: server, with: connection.urlSession, as: ShopsUpdated.self)
-                list?.shops = updated.shops
-                highlight(Set(updated.shops.map(\.id)).subtracting(before))
+                shops.list?.shops = updated.shops
+                shops.highlight(Set(updated.shops.map(\.id)).subtracting(before))
             } catch {
                 updateFailure = (error as? PaymentsError)?.code == "payment_pending" ? String(localized: "Finish or deny the waiting payment first.") : String(localized: "Couldn't update shops. Try again.")
                 await load()
             }
-        }
-    }
-
-    private func highlight(_ ids: Set<Shop.ID>) {
-        withAnimation(.smooth) { highlighted = ids }
-        Task {
-            try? await Task.sleep(for: .seconds(1.5))
-            withAnimation(.smooth) { highlighted = [] }
         }
     }
 }
@@ -418,7 +423,6 @@ struct AddShopSheet: View {
 
 struct CardSheet: View {
     let currentLabel: String?
-    let send: CardSender?
     let saved: (MasterCard) -> Void
 
     @Environment(Connection.self) private var connection
@@ -434,9 +438,8 @@ struct CardSheet: View {
     @State private var isCovered: Bool
     @FocusState private var focus: CardField?
 
-    init(currentLabel: String?, send: CardSender? = nil, fixture: CardEntry? = nil, failure: String? = nil, isCovered: Bool = false, saved: @escaping (MasterCard) -> Void) {
+    init(currentLabel: String?, fixture: CardEntry? = nil, failure: String? = nil, isCovered: Bool = false, saved: @escaping (MasterCard) -> Void) {
         self.currentLabel = currentLabel
-        self.send = send
         self.saved = saved
         _number = State(initialValue: fixture?.number ?? "")
         _expiry = State(initialValue: fixture?.expiry ?? "")
@@ -606,9 +609,7 @@ struct CardSheet: View {
         Task {
             defer { isSaving = false }
             do {
-                let card = if let send { try await send(body) } else {
-                    try await paymentsCall("payments/card", method: "PUT", body: body, on: server, with: connection.urlSession, as: CardSet.self).card
-                }
+                let card = try await paymentsCall("payments/card", method: "PUT", body: body, on: server, with: connection.urlSession, as: CardSet.self).card
                 saved(card)
                 dismiss()
             } catch let error as PaymentsError {

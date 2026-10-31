@@ -4,15 +4,20 @@ struct PasswordsTab: View {
     let bot: Bot
     let vault: BotVault
     let isBrowserOff: Bool
-    let shops: ShopList?
+    let shops: BotShops
+    let highlighted: Set<Login.ID>
+    @Binding var editing: LoginTarget?
+    @Binding var isConnecting: Bool
+    @Binding var isAddingShop: Bool
+    @Binding var isEditingCard: Bool
 
     @Environment(Connection.self) private var connection
 
     var body: some View {
-        LoginsCard(bot: bot, vault: vault, isBrowserOff: isBrowserOff)
-        OnePasswordCard(bot: bot, vault: vault)
+        LoginsCard(bot: bot, vault: vault, isBrowserOff: isBrowserOff, highlighted: highlighted, editing: $editing)
+        OnePasswordCard(bot: bot, vault: vault, isConnecting: $isConnecting)
         if connection.supportsPayments {
-            ShopsCard(bot: bot, isBrowserOff: isBrowserOff, fixture: shops)
+            ShopsCard(bot: bot, isBrowserOff: isBrowserOff, shops: shops, isAdding: $isAddingShop, isEditingCard: $isEditingCard)
         }
     }
 }
@@ -28,13 +33,13 @@ private struct LoginsCard: View {
     let bot: Bot
     let vault: BotVault
     let isBrowserOff: Bool
+    let highlighted: Set<Login.ID>
+    @Binding var editing: LoginTarget?
 
     @Environment(Connection.self) private var connection
-    @State private var editing: LoginTarget?
     @State private var confirmingRemoval: Login?
     @State private var removing: Set<Login.ID> = []
     @State private var removeFailures: [Login.ID: String] = [:]
-    @State private var highlighted: Set<Login.ID> = []
 
     private var isOnline: Bool {
         connection.state == .connected
@@ -68,9 +73,6 @@ private struct LoginsCard: View {
                     ForEach(footers, id: \.self) { Text($0) }
                 }
             }
-        }
-        .sheet(item: $editing) { target in
-            LoginSheet(bot: bot, vault: vault, editing: target.item) { id in highlight(id) }
         }
         .confirmationDialog(
             confirmingRemoval.map { String(localized: "Remove the login for \($0.title)?") } ?? "",
@@ -163,17 +165,9 @@ private struct LoginsCard: View {
             }
         }
     }
-
-    private func highlight(_ id: Login.ID) {
-        withAnimation(.smooth) { highlighted = [id] }
-        Task {
-            try? await Task.sleep(for: .seconds(1.5))
-            withAnimation(.smooth) { highlighted = [] }
-        }
-    }
 }
 
-private struct LoginTarget: Identifiable {
+struct LoginTarget: Identifiable {
     let item: VaultItem?
     var id: String { item?.id ?? "new" }
 }
@@ -231,9 +225,9 @@ private struct LoginRow: View {
 private struct OnePasswordCard: View {
     let bot: Bot
     let vault: BotVault
+    @Binding var isConnecting: Bool
 
     @Environment(Connection.self) private var connection
-    @State private var isConnecting = false
     @State private var confirmingDisconnect = false
     @State private var isDisconnecting = false
     @State private var failure: String?
@@ -275,9 +269,6 @@ private struct OnePasswordCard: View {
                     ForEach(footnotes, id: \.self) { Text($0) }
                 }
             }
-        }
-        .sheet(isPresented: $isConnecting) {
-            ConnectOnePasswordSheet(bot: bot, vault: vault)
         }
         .confirmationDialog("Disconnect 1Password from \(bot.title)?", isPresented: $confirmingDisconnect, titleVisibility: .visible) {
             Button("Disconnect", role: .destructive, action: disconnect)

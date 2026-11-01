@@ -23,6 +23,46 @@ extension ChatFixture {
         ]
     }
 
+    static func a2uiUpdateTurns(_ now: Date) -> [Turn] {
+        let turn = { (id: String, prompt: String, reply: String, minutesAgo: Double) in
+            let start = now.addingTimeInterval(-minutesAgo * 60)
+            return Turn(id: id, prompt: Prompt(text: prompt, sentAt: start), reply: reply, status: .complete, startedAt: start, finishedAt: start.addingTimeInterval(6))
+        }
+        let recipe = { (servings: Int, items: [String]) in
+            """
+            ```a2ui
+            [
+              {"version":"v0.9","createSurface":{"surfaceId":"kottbullar-recipe","catalogId":"https://crew.gustaf.dev/catalogs/crew/v1.json"}},
+              {"version":"v0.9","updateComponents":{"surfaceId":"kottbullar-recipe","components":[
+                {"id":"root","component":"Card","child":"body"},
+                {"id":"body","component":"Column","children":["header","list"]},
+                {"id":"header","component":"Header","title":"Köttbullar with cream gravy","subtitle":"\(servings) servings · 45 min","symbol":"fork.knife","tone":"warning"},
+                {"id":"list","component":"Column","children":{"componentId":"item","path":"/items"}},
+                {"id":"item","component":"CheckBox","label":{"path":"name"},"value":{"path":"done"}}
+              ]}},
+              {"version":"v0.9","updateDataModel":{"surfaceId":"kottbullar-recipe","value":{"items":[\(items.map { #"{"name":"\#($0)","done":false}"# }.joined(separator: ","))]}}}
+            ]
+            ```
+            """
+        }
+        let tick = """
+            ```a2ui
+            [{"version":"v0.9","updateDataModel":{"surfaceId":"kottbullar-recipe","path":"/items/2/done","value":true}}]
+            ```
+            """
+        let gone = """
+            ```a2ui
+            [{"version":"v0.9","updateDataModel":{"surfaceId":"pancake-recipe","path":"/items/0/done","value":true}}]
+            ```
+            """
+        return [
+            turn("u1", "Give me a recipe for köttbullar for 4", "Classic köttbullar for 4, about 45 minutes.\n\n\(recipe(4, ["500 g mixed mince", "1 onion", "1 dl breadcrumbs"]))", 6),
+            turn("u2", "Make it for 6", "Scaled to 6 servings.\n\n\(recipe(6, ["750 g mixed mince", "1½ onions", "1½ dl breadcrumbs"]))", 4),
+            turn("u3", "Tick off the breadcrumbs, I have them", "Ticked off the breadcrumbs.\n\n\(tick)", 2),
+            turn("u4", "And the pancakes from yesterday?", "Ticked the milk on the pancake card too.\n\n\(gone)", 1),
+        ]
+    }
+
     private static let carouselStatesBlock = #"""
         [
           {"version":"v0.9","createSurface":{"surfaceId":"carousel-states","catalogId":"https://crew.gustaf.dev/catalogs/crew/v1.json"}},

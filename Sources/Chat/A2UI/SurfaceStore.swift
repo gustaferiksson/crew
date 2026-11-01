@@ -13,7 +13,8 @@ extension EnvironmentValues {
 @Observable
 final class SurfaceStore {
     enum Block: Equatable {
-        case surfaces([String])
+        case surfaces(created: [String], revised: [String], updated: [String])
+        case lost
         case failed(String)
     }
 
@@ -42,7 +43,7 @@ final class SurfaceStore {
             }
             guard turn.status != .streaming, turn.reply.contains("a2ui") else { continue }
             for source in replyBlocks[turn.reply] ?? read(turn.reply) {
-                guard case .surfaces(let ids) = blocks[source] else { continue }
+                guard case .surfaces(let ids, _, _) = blocks[source] else { continue }
                 cards += ids.map { ChatPins.Card(surface: $0, source: source, finishedAt: turn.finishedAt ?? turn.startedAt) }
             }
         }
@@ -70,9 +71,15 @@ final class SurfaceStore {
         guard let payload = try? JSONDecoder().decode(OrderedJSON.JSONValue.self, from: Data(source.utf8)) else {
             return .failed(String(localized: "It isn't valid JSON."))
         }
-        let created = (payload.arrayValue ?? [payload]).compactMap { $0["createSurface"]?["surfaceId"]?.stringValue }
+        let messages = payload.arrayValue ?? [payload]
+        let created = messages.compactMap { $0["createSurface"]?["surfaceId"]?.stringValue }
+        let updated = messages.compactMap { ($0["updateComponents"] ?? $0["updateDataModel"])?["surfaceId"]?.stringValue }
+            .filter { !created.contains($0) }
+            .reduce(into: [String]()) { if !$0.contains($1) { $0.append($1) } }
+        if created.isEmpty, !updated.isEmpty, updated.allSatisfy({ processor.surfaceGroupModel[$0] == nil }) { return .lost }
+        let revised = created.filter { processor.surfaceGroupModel[$0] != nil }
         do {
-            for id in created where processor.surfaceGroupModel[id] != nil {
+            for id in revised {
                 try processor.processMessages(["version": "v0.9", "deleteSurface": ["surfaceId": .string(id)]])
             }
             try processor.processMessages(payload)
@@ -80,7 +87,7 @@ final class SurfaceStore {
             return .failed(String(describing: error))
         }
         for id in created { owners[id] = source }
-        return .surfaces(created)
+        return .surfaces(created: created, revised: revised, updated: updated)
     }
 
     private func forward(_ message: RendererToAgentMessage) {

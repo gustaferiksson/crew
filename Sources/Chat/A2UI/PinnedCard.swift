@@ -6,7 +6,7 @@ extension EnvironmentValues {
     @Entry var pinKey: String?
 }
 
-private struct CardSummary {
+struct CardSummary {
     let title: String?
     let symbol: String
     let tint: Color

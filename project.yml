@@ -125,6 +125,9 @@ targets:
   CrewTests:
     type: bundle.unit-test
     platform: macOS
+    dependencies:
+      - package: A2UI
+        products: [A2UISwiftCore, A2UISwiftUI, BasicCatalog, BasicCatalogSwiftUI]
     sources:
       - Sources/Gateway.swift
       - Sources/GatewayTypes.swift
@@ -158,6 +161,14 @@ targets:
       - Sources/Chat/A2UI/MapPinPoint.swift
       - Sources/Chat/A2UI/CachedImage.swift
       - Sources/Chat/A2UI/SystemSymbol.swift
+      - Sources/Chat/A2UI/SurfaceStore.swift
+      - Sources/Chat/A2UI/SurfaceBlock.swift
+      - Sources/Chat/A2UI/PinnedCard.swift
+      - Sources/Chat/A2UI/CrewCatalog.swift
+      - Sources/Chat/A2UI/CrewComponents.swift
+      - Sources/Chat/A2UI/CrewBlocks.swift
+      - Sources/Chat/A2UI/CrewChartMap.swift
+      - Sources/Chat/A2UI/CrewCarousel.swift
       - Sources/Groups/GroupStore.swift
       - Sources/Groups/GroupSession.swift
       - Sources/Groups/RoomHistory.swift

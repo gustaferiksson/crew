@@ -165,6 +165,7 @@ targets:
       - Sources/Chat/A2UI/SurfaceStore.swift
       - Sources/Chat/A2UI/SurfaceBlock.swift
       - Sources/Chat/A2UI/PinnedCard.swift
+      - Sources/Chat/A2UI/CardPreview.swift
       - Sources/Chat/A2UI/CrewCatalog.swift
       - Sources/Chat/A2UI/CrewComponents.swift
       - Sources/Chat/A2UI/CrewBlocks.swift

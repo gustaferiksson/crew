@@ -3,7 +3,7 @@ import XCTest
 private let title = "Brown sheepskin slippers"
 
 final class PinnedCardUITests: XCTestCase {
-    @MainActor func testTheNewestCardPinsAboveTheComposerOpensInASheetAndUnpinsOnlyFromTheX() {
+    @MainActor func testTheNewestCardPinsAboveTheComposerAndItsPreviewAndTheBarOpenOneSheet() {
         let app = XCUIApplication()
         app.launchArguments = ["-snapshot", "chat-a2ui-pinned", "-server", "hermes.example.com", "-username", "gustaf"]
         app.launch()
@@ -29,11 +29,23 @@ final class PinnedCardUITests: XCTestCase {
         app.buttons["Unpin"].firstMatch.tap()
         XCTAssertTrue(bar.waitForNonExistence(timeout: 5), "the X unpins")
 
-        let header = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", title)).firstMatch
-        XCTAssertTrue(header.exists)
-        header.press(forDuration: 1.2)
+        let preview = app.buttons.matching(NSPredicate(format: "label == %@ AND value != %@", title, "Pinned card")).firstMatch
+        XCTAssertTrue(preview.exists, "the transcript shows the card as a compact preview:\n\(app.debugDescription)")
+        preview.tap()
+        XCTAssertTrue(sheet.waitForExistence(timeout: 5), "the preview opens the same card sheet")
+        Thread.sleep(forTimeInterval: 3)
+        XCTAssertTrue(sheet.exists, "the card sheet opened from the transcript should stay open")
+        app.buttons["Pin"].firstMatch.tap()
+        XCTAssertTrue(bar.waitForExistence(timeout: 5), "Pin in the sheet brings the bar back")
+        XCTAssertTrue(sheet.exists, "pinning keeps the sheet open")
+        app.buttons["Close"].firstMatch.tap()
+        XCTAssertTrue(sheet.waitForNonExistence(timeout: 5))
+
+        app.buttons["Unpin"].firstMatch.tap()
+        XCTAssertTrue(bar.waitForNonExistence(timeout: 5))
+        preview.press(forDuration: 1.2)
         let pin = app.buttons["Pin Card"]
-        XCTAssertTrue(pin.waitForExistence(timeout: 5), "the card's context menu should offer Pin Card")
+        XCTAssertTrue(pin.waitForExistence(timeout: 5), "the preview's context menu should offer Pin Card")
         pin.tap()
         XCTAssertTrue(bar.waitForExistence(timeout: 5), "Pin Card brings the bar back")
     }

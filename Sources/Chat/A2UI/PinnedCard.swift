@@ -4,10 +4,20 @@ import SwiftUI
 
 extension EnvironmentValues {
     @Entry var pinKey: String?
+    @Entry var openedCard: Binding<OpenedCard?>?
+}
+
+nonisolated let chatSpace = "chat"
+
+struct OpenedCard: Equatable {
+    let id: String
+    let anchor: CGRect
 }
 
 struct CardSummary {
     let title: String?
+    let subtitle: String?
+    let image: URL?
     let symbol: String
     let tint: Color
 
@@ -23,6 +33,8 @@ struct CardSummary {
         }
         let line = text?.string(for: "text")?.split(whereSeparator: \.isNewline).first.map { String(cardMarkdown(String($0)).characters) }
         title = [header?.string(for: "title"), line].compactMap { $0?.trimmingCharacters(in: .whitespaces) }.first { !$0.isEmpty }
+        subtitle = header?.string(for: "subtitle")?.trimmingCharacters(in: .whitespaces).split(whereSeparator: \.isNewline).first.map(String.init)
+        image = header?.string(for: "image").flatMap(URL.init(string:)).flatMap { $0.scheme == "https" ? $0 : nil }
         symbol = systemSymbol(header?.string(for: "symbol")) ?? "rectangle.on.rectangle"
         tint = crewTones[header?.string(for: "tone") ?? ""] ?? .accentColor
     }
@@ -83,7 +95,8 @@ struct PinnedCardContent: View {
     let surfaces: SurfaceStore
     let id: String
     let fallbackTitle: String
-    let unpin: () -> Void
+    let isPinned: Bool?
+    let togglePin: () -> Void
 
     @Environment(\.dismiss) private var dismiss
 
@@ -98,8 +111,10 @@ struct PinnedCardContent: View {
                         ToolbarItem(placement: .cancellationAction) {
                             Button(role: .close) { dismiss() }
                         }
-                        ToolbarItem(placement: .primaryAction) {
-                            Button("Unpin", systemImage: "pin.slash", action: unpin)
+                        if let isPinned {
+                            ToolbarItem(placement: .primaryAction) {
+                                pinButton(isPinned)
+                            }
                         }
                     }
             }
@@ -109,18 +124,24 @@ struct PinnedCardContent: View {
             .presentationBackgroundInteraction(.enabled(upThrough: .medium))
             #else
             VStack(alignment: .leading, spacing: 0) {
-                HStack {
-                    Spacer()
-                    Button("Unpin", systemImage: "pin.slash", action: unpin)
-                        .buttonStyle(.borderless)
+                if let isPinned {
+                    HStack {
+                        Spacer()
+                        pinButton(isPinned)
+                            .buttonStyle(.borderless)
+                    }
+                    .padding([.horizontal, .top], 12)
                 }
-                .padding([.horizontal, .top], 12)
                 card(model)
             }
             .frame(width: 440)
             .frame(maxHeight: 560)
             #endif
         }
+    }
+
+    private func pinButton(_ isPinned: Bool) -> some View {
+        Button(isPinned ? "Unpin" : "Pin", systemImage: isPinned ? "pin.slash" : "pin", action: togglePin)
     }
 
     private func card(_ model: SurfaceViewModel) -> some View {

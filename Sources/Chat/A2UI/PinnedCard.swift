@@ -4,7 +4,14 @@ import SwiftUI
 
 extension EnvironmentValues {
     @Entry var pinKey: String?
-    @Entry var openedCard: Binding<String?>?
+    @Entry var openedCard: Binding<OpenedCard?>?
+}
+
+nonisolated let chatSpace = "chat"
+
+struct OpenedCard: Equatable {
+    let id: String
+    let anchor: CGRect
 }
 
 struct CardSummary {
@@ -95,33 +102,46 @@ struct PinnedCardContent: View {
 
     var body: some View {
         if let model = surfaces.processor.surfaceGroupModel[id] {
+            #if os(iOS)
             NavigationStack {
                 card(model)
                     .navigationTitle(Text(CardSummary(model.rootNode).title ?? fallbackTitle))
-                    #if os(iOS)
                     .navigationBarTitleDisplayMode(.inline)
-                    #endif
                     .toolbar {
                         ToolbarItem(placement: .cancellationAction) {
                             Button(role: .close) { dismiss() }
                         }
                         if let isPinned {
                             ToolbarItem(placement: .primaryAction) {
-                                Button(isPinned ? "Unpin" : "Pin", systemImage: isPinned ? "pin.slash" : "pin", action: togglePin)
+                                pinButton(isPinned)
                             }
                         }
                     }
             }
-            #if os(iOS)
             .frame(idealWidth: 440, idealHeight: 560)
-            .presentationSizing(.form)
+            .presentationCompactAdaptation(.sheet)
             .presentationDetents([.medium, .large])
             .presentationBackgroundInteraction(.enabled(upThrough: .medium))
             #else
+            VStack(alignment: .leading, spacing: 0) {
+                if let isPinned {
+                    HStack {
+                        Spacer()
+                        pinButton(isPinned)
+                            .buttonStyle(.borderless)
+                    }
+                    .padding([.horizontal, .top], 12)
+                }
+                card(model)
+            }
             .frame(width: 440)
-            .frame(minHeight: 200, maxHeight: 560)
+            .frame(maxHeight: 560)
             #endif
         }
+    }
+
+    private func pinButton(_ isPinned: Bool) -> some View {
+        Button(isPinned ? "Unpin" : "Pin", systemImage: isPinned ? "pin.slash" : "pin", action: togglePin)
     }
 
     private func card(_ model: SurfaceViewModel) -> some View {

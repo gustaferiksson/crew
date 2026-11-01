@@ -1,4 +1,4 @@
-# Compact cards: the transcript shows a preview, the card opens in a sheet
+# Compact cards: the transcript shows a preview, the card opens in a sheet or popover
 
 User decision (2026-11-01): A2UI cards in the transcript render like iMessage app messages, a compact preview that opens the full interactive card. Until now each card drew in full inline (a recipe is 600 pt or more), the newest one also opened from the pinned bar, and the same card could sit in two places with its controls (ticks, sliders, form fields) visible in both. Now the full card lives in one place, the card sheet, and the transcript and the bar are two ways to open it.
 
@@ -16,7 +16,7 @@ Apple's pattern: Messages draws an app message (Apple Pay, Fitness, a game, a po
 - **Context menu:** Pin Card / Unpin Card, as before.
 - **While a turn runs:** the preview stays tappable; the card inside the sheet is disabled while a turn runs, as before.
 - **Card updates (`docs/flows/card-updates.md`):** unchanged rules. The "Updated" caption sits under the newest preview; older turns keep their one-line "updated below" pointer; update-only replies keep "Updated <title>". The preview reflects the live surface, so an update-only change of title or subtitle shows in it.
-- **Streaming:** "Preparing card…" until the reply finishes, as before. (If progressive cards, #240, lands first, its streaming preview becomes this compact preview in a follow-up, titled from the partial surface.)
+- **Streaming (progressive cards, #240):** the half-written card shows as this compact preview, titled from the partial surface (`CardSummary` of the preview model), dimmed and not tappable until the reply finishes, when the finished card's preview takes its place.
 - **Small choice cards** (two or three buttons): also a preview, per the user's decision; answering takes one more tap. The tapped button's mark shows inside the sheet.
 - **Search:** a hit inside a card's text highlights the turn; the card itself stays closed.
 - **Thumbnail:** the Header hero image is cropped to fill the 44 pt square (`scaledToFill`), like Messages' link thumbnails.
@@ -24,11 +24,11 @@ Apple's pattern: Messages draws an app message (Apple Pay, Fitness, a game, a po
 
 ## The card sheet
 
-- **One presentation per chat**, owned by `ChatView` (the screen container, per PLAN's presentation rule): `openedCard` is set by the pinned bar and by any transcript preview. `.sheet` on every platform:
+- **One presentation per chat**, owned by `ChatView` (the screen container, per PLAN's presentation rule): `openedCard` (id plus anchor frame) is set by the pinned bar and by any transcript preview. One `.popover` with `.presentationCompactAdaptation(.sheet)`:
   - iPhone: medium and large detents, background interaction up to medium, as the pinned-card sheet today.
-  - iPad: `.presentationSizing(.form)`.
-  - Mac: a window-modal sheet 440 pt wide and up to 560 pt tall. The Mac pinned bar's popover becomes this sheet, so the bar and the transcript open the same thing everywhere. Trade-off: unlike the popover, the sheet blocks the composer and sidebar and covers the streaming reply until closed (Escape or close). Accepted for one presentation everywhere; revisit if it bothers on Mac.
-- **Toolbar:** close (`Button(role: .close)`, Escape on Mac) and Pin/Unpin for that card when the chat can pin (Bot Chat and rooms). Unpin keeps the sheet open now that the sheet is not tied to the bar; Pin likewise.
+  - iPad and Mac: a popover anchored on the tapped preview or the bar (440 pt wide, at most 560 pt tall, the card scrolling inside), the pinned bar's existing popover (user, 2026-11-01: the pinned behaviour is "perfect", and a modal sheet would block asking follow-ups). Clicking into the composer or elsewhere closes it; Escape closes it.
+  - The popover is presented by `ChatView` (the container) with `attachmentAnchor: .rect(...)` at the frame the preview or bar reports in the chat's coordinate space, so no row presents anything and a recycled row cannot dismiss it.
+- **Toolbar (iPhone sheet):** close (`Button(role: .close)`) and Pin/Unpin; on iPad and Mac the popover has the Pin/Unpin button in a small row at its top and no close button (popovers close by clicking outside or Escape), for that card when the chat can pin (Bot Chat and rooms). Unpin keeps the sheet open now that the sheet is not tied to the bar; Pin likewise.
 - **Opening:** dismisses the keyboard first, like the bar. Tapping another preview while the iPhone sheet sits at medium swaps the sheet to that card.
 - **A request card arrives** (approval, question): the sheet closes so the request gets the attention, as pinned-card.md does for the popover today.
 - **Content:** the live surface, scrolling, with the card's title as navigation title (iPhone, iPad) and the existing button-choice marks; disabled while a turn runs. Taps send the hidden action row as before and the reply streams behind the sheet.
@@ -55,13 +55,9 @@ Apple's pattern: Messages draws an app message (Apple Pay, Fitness, a game, a po
 
 The "Pinned card" line's popover and the "Generative UI design pass" line's inline card are replaced by a "Compact cards" Decisions line.
 
-## Known issue found while rendering
-
-On iOS the transcript of `chat-a2ui-pinned` opens a few rows short of the bottom with compact previews (Mac lands correctly). Making the previews 600 pt tall again lands it at the bottom, so it is the iOS `LazyVStack` height-estimate landing (#153) that tall cards hid, not the preview itself. Not fixed here; it needs its own look at `TranscriptScroll`'s iOS initial offset before this ships.
-
 ## Tests
 
 - `PinnedCardUITests` (iOS): the bar and the transcript preview open the same sheet, which stays open 3 s; Pin in the sheet pins and keeps it open. A real-server probe is not needed: no server traffic changes.
 - `CardSummary` reads title, subtitle, symbol and image from the recorded köttbullar card (`Tests/fixtures/chat.a2ui-update.history.json`) and falls back for a Header-less v0.21.7 recipe card; the subtitle assertion fails on `main`.
-- Renders: `chat-a2ui` and `chat-a2ui-updates` (previews), `chat-a2ui-pinned` with the sheet open, iPhone and Mac, light and dark.
+- Renders: `chat-a2ui` and `chat-a2ui-updates` (previews), `chat-a2ui-pinned` and `chat-a2ui-streaming`, iPhone and Mac (the Mac popover is a separate window the offscreen renderer does not capture; `CarouselMacUITests` attaches screenshots of it in CI), light and dark.
 - UI tests that drove inline cards (`CarouselUITests`, `CarouselMacUITests`, `PinnedCardUITests`) open the card first; the iOS ones run locally on a private simulator.

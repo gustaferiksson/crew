@@ -77,7 +77,8 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
     @State private var highlighted: Turn.ID?
     @State private var handledFocus: UUID?
     @State private var responses: [SensoryFeedback] = []
-    @State private var openedCard: String?
+    @State private var openedCard: OpenedCard?
+    @State private var barFrame = CGRect.zero
     @State private var unpins = 0
     @Environment(ChatPins.self) private var pins
     @FocusState private var isComposerFocused: Bool
@@ -131,11 +132,11 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
     }
 
     @ViewBuilder private var cardSheet: some View {
-        if let openedCard {
-            PinnedCardContent(surfaces: surfaces, id: openedCard, fallbackTitle: cardFallbackTitle, isPinned: pinKey.map { pins.pinned(in: $0) == openedCard }) {
+        if let id = openedCard?.id {
+            PinnedCardContent(surfaces: surfaces, id: id, fallbackTitle: cardFallbackTitle, isPinned: pinKey.map { pins.pinned(in: $0) == id }) {
                 guard let pinKey else { return }
                 unpins += 1
-                pins.pin(pins.pinned(in: pinKey) == openedCard ? nil : openedCard, in: pinKey)
+                pins.pin(pins.pinned(in: pinKey) == id ? nil : id, in: pinKey)
             }
         }
     }
@@ -152,7 +153,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
     var body: some View {
         chat
         .onChange(of: surfaces.present) {
-            if let openedCard, !surfaces.present.contains(openedCard) { self.openedCard = nil }
+            if let openedCard, !surfaces.present.contains(openedCard.id) { self.openedCard = nil }
         }
         .onChange(of: openedCard) {
             if openedCard != nil { isComposerFocused = false }
@@ -160,9 +161,10 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
         .onChange(of: request?.id) {
             if request != nil { openedCard = nil }
         }
-        .sheet(isPresented: Binding(get: { openedCard != nil }, set: { if !$0 { openedCard = nil } })) {
+        .popover(isPresented: Binding(get: { openedCard != nil }, set: { if !$0 { openedCard = nil } }), attachmentAnchor: .rect(.rect(openedCard?.anchor ?? .zero))) {
             cardSheet
         }
+        .coordinateSpace(.named(chatSpace))
     }
 
     private var chat: some View {
@@ -360,11 +362,12 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
                 if let pinKey, let pinnedCard, let model = surfaces.processor.surfaceGroupModel[pinnedCard] {
                     PinnedCardBar(model: model, fallbackTitle: cardFallbackTitle) {
                         isComposerFocused = false
-                        openedCard = pinnedCard
+                        openedCard = OpenedCard(id: pinnedCard, anchor: barFrame)
                     } unpin: {
                         unpins += 1
                         pins.pin(nil, in: pinKey)
                     }
+                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(chatSpace)) } action: { barFrame = $0 }
                     #if os(iOS)
                     .padding(.horizontal, isComposerFocused ? 16 : 28)
                     #else

@@ -5,9 +5,10 @@ import SwiftUI
 struct CardPreview: View {
     @ObservedObject var model: SurfaceViewModel
     let fallbackTitle: String
-    let open: () -> Void
+    let open: (CGRect) -> Void
 
     @ScaledMetric private var tile: CGFloat = 44
+    @State private var frame = CGRect.zero
 
     var body: some View {
         if model.rootNode != nil {
@@ -16,7 +17,7 @@ struct CardPreview: View {
     }
 
     private func preview(_ summary: CardSummary) -> some View {
-        Button(action: open) {
+        Button { open(frame) } label: {
             HStack(spacing: 12) {
                 Image(systemName: summary.symbol)
                     .font(.title3.weight(.medium))
@@ -56,6 +57,7 @@ struct CardPreview: View {
         .buttonStyle(.plain)
         .background { Color.clear.glassEffect(.regular, in: .rect(cornerRadius: 28)) }
         .frame(maxWidth: 560, alignment: .leading)
+        .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(chatSpace)) } action: { frame = $0 }
         .accessibilityLabel(summary.title ?? fallbackTitle)
         .accessibilityValue(summary.subtitle ?? String(localized: "Card"))
         .accessibilityHint("Shows the card")

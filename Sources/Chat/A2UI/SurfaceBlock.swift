@@ -42,7 +42,7 @@ struct SurfaceBlock: View {
         } else if let store, case .failed(let reason) = store.blocks[source] {
             FailedSurface(reason: reason, source: source)
         } else if let preview {
-            SurfaceCard(model: preview)
+            CardPreview(model: preview, fallbackTitle: String(localized: "Card")) { _ in }
                 .disabled(true)
                 .task(id: previewStep(forLength: source.utf8.count)) { refreshPreview() }
         } else {
@@ -60,7 +60,7 @@ struct SurfaceBlock: View {
 
     private func card(_ model: SurfaceViewModel, id: String, in store: SurfaceStore, revised: Bool) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            CardPreview(model: model, fallbackTitle: String(localized: "Card")) { openedCard?.wrappedValue = id }
+            CardPreview(model: model, fallbackTitle: String(localized: "Card")) { openedCard?.wrappedValue = OpenedCard(id: id, anchor: $0) }
             .contextMenu {
                 if let pinKey {
                     let isPinned = pins.pinned(in: pinKey) == id

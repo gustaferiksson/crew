@@ -12,6 +12,7 @@ struct UserBubble: View {
     @Environment(\.openWindow) private var openWindow
     #endif
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
     @Environment(\.displayScale) private var displayScale
     @ScaledMetric(relativeTo: .body) private var avatarSize: CGFloat = 16
     @State private var card: MentionPick?
@@ -21,14 +22,9 @@ struct UserBubble: View {
         style: .circular
     )
 
-    private static let fill = LinearGradient(
-        colors: [
-            Color(.displayP3, red: 0x57 / 255, green: 0xA4 / 255, blue: 0xF6 / 255),
-            Color(.displayP3, red: 0x52 / 255, green: 0x9F / 255, blue: 0xF5 / 255),
-        ],
-        startPoint: .top,
-        endPoint: .bottom
-    )
+    private var fill: Color {
+        colorSchemeContrast == .increased ? Color(red: 0, green: 0x40 / 255, blue: 0xDD / 255) : .blue
+    }
 
     private func content(_ segments: [MentionSegment]) -> Text {
         segments.enumerated().reduce(Text(verbatim: "")) { result, item in
@@ -57,7 +53,7 @@ struct UserBubble: View {
                 card = MentionPick(index: index, bot: bot.id)
                 return .handled
             })
-            .foregroundStyle(pending == nil ? AnyShapeStyle(.white) : AnyShapeStyle(Self.fill))
+            .foregroundStyle(pending == nil ? Color.white : fill)
             #if os(macOS)
             .textSelection(.enabled)
             #endif
@@ -65,9 +61,9 @@ struct UserBubble: View {
             .padding(.vertical, 10)
             .background {
                 if pending == nil {
-                    shape.fill(Self.fill)
+                    shape.fill(fill)
                 } else {
-                    shape.strokeBorder(Self.fill, lineWidth: 1)
+                    shape.strokeBorder(fill, lineWidth: 1)
                 }
             }
             .modifier(MessageMenu(text: text, shape: shape, remove: pending == .queued ? unqueue : nil))

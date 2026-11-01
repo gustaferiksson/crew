@@ -63,6 +63,28 @@ extension ChatFixture {
         ]
     }
 
+    static func a2uiStreamingTurns(_ now: Date) -> [Turn] {
+        let partial = """
+            Classic köttbullar for 4, about 45 minutes.
+
+            ```a2ui
+            [
+              {"version":"v0.9","createSurface":{"surfaceId":"kottbullar-recipe","catalogId":"https://crew.gustaf.dev/catalogs/crew/v1.json"}},
+              {"version":"v0.9","updateComponents":{"surfaceId":"kottbullar-recipe","components":[
+                {"id":"root","component":"Card","child":"body"},
+                {"id":"body","component":"Column","children":["header","ingredients-title","list","method-title","method"]},
+                {"id":"header","component":"Header","title":"Köttbullar with cream gravy","subtitle":"4 servings · 45 min","symbol":"fork.knife","tone":"warning"},
+                {"id":"ingredients-title","component":"Text","text":"Ingredients","variant":"h4"},
+                {"id":"list","component":"Column","children":{"componentId":"item","path":"/items"}},
+                {"id":"item","component":"CheckBox","label":{"path":"name"},"value":{"path":"done"}},
+                {"id":"method-title","component":"Text","text":"Method","variant":"h4"},
+                {"id":"method","component":"Steps","items":["Soak the breadcrumbs in the milk for 5 minutes.","Mix in the mince, onion, egg and spices
+            """
+        return [
+            Turn(id: "s1", prompt: Prompt(text: "Give me a recipe for köttbullar for 4", sentAt: now.addingTimeInterval(-12)), reply: partial, status: .streaming, startedAt: now.addingTimeInterval(-12)),
+        ]
+    }
+
     private static let carouselStatesBlock = #"""
         [
           {"version":"v0.9","createSurface":{"surfaceId":"carousel-states","catalogId":"https://crew.gustaf.dev/catalogs/crew/v1.json"}},

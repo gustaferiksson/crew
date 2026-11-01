@@ -1,3 +1,5 @@
+import Foundation
+
 nonisolated func healedA2UIPrefix(_ partial: String) -> String? {
     var open: [UInt8] = []
     var inString = false
@@ -26,4 +28,8 @@ nonisolated func healedA2UIPrefix(_ partial: String) -> String? {
     guard let cut else { return nil }
     let closers = cut.open.reversed().map { $0 == UInt8(ascii: "{") ? "}" : "]" }.joined()
     return String(decoding: partial.utf8.prefix(cut.end), as: UTF8.self) + closers
+}
+
+nonisolated func previewStep(forLength length: Int) -> Int {
+    Int(log2(Double(length + 1024)) * 24)
 }

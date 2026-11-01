@@ -31,24 +31,38 @@ private func streamedPrefixes(of block: String, every stride: Int) -> [String] {
     #expect(healedA2UIPrefix(#"[{"a":1},{"b":[{"c":"x"},{"d":"#) == #"[{"a":1},{"b":[{"c":"x"}]}]"#)
 }
 
+private func longRecipeBlock() throws -> String {
+    let lines = try recordedRecipeBlock().components(separatedBy: "\n")
+    let body = lines.dropFirst(2).dropLast().joined(separator: "\n")
+    return (lines.prefix(2) + [Array(repeating: body, count: 8).joined(separator: ",\n"), "]"]).joined(separator: "\n")
+}
+
+private func refreshedPrefixes(of block: String) -> [String] {
+    var step = -1
+    return (1...block.utf8.count).compactMap { length in
+        guard previewStep(forLength: length) != step else { return nil }
+        step = previewStep(forLength: length)
+        return String(decoding: block.utf8.prefix(length), as: UTF8.self)
+    }
+}
+
 @MainActor @Test func aStreamingCardShowsItsHeaderLongBeforeTheFenceCloses() throws {
     let block = try recordedRecipeBlock()
     let store = SurfaceStore()
-    let header = streamedPrefixes(of: block, every: 64).firstIndex { prefix in
-        CardSummary(store.preview(prefix)?.rootNode).title != nil
-    }
-    let shownAt = try #require(header, "no preview before the fence closed").advanced(by: 1) * 64
+    let shownAt = try #require(refreshedPrefixes(of: block).first { CardSummary(store.preview($0)?.rootNode).title != nil }, "no preview before the fence closed").utf8.count
     #expect(shownAt < block.utf8.count / 4, "header shown after \(shownAt) of \(block.utf8.count) bytes")
+    let final = try #require(store.preview(String(block.dropLast())))
+    #expect(store.preview(String(block.dropLast())) === final, "an unchanged prefix gives back the same preview, so a recycled row keeps its card")
 }
 
-@MainActor @Test func previewingAStreamingCardStaysUnderAMillisecondPerToken() throws {
-    let block = try recordedRecipeBlock()
+@MainActor @Test(arguments: [false, true]) func previewingAStreamingCardStaysUnderAMillisecondPerToken(long: Bool) throws {
+    let block = long ? try longRecipeBlock() : try recordedRecipeBlock()
     let store = SurfaceStore()
-    let prefixes = streamedPrefixes(of: block, every: 64)
+    let prefixes = refreshedPrefixes(of: block)
     let tokens = Double(block.utf8.count) / 3.8
     let elapsed = ContinuousClock().measure {
         for prefix in prefixes { _ = store.preview(prefix) }
     }
     let perToken = elapsed / tokens
-    #expect(perToken < .milliseconds(1), "\(prefixes.count) previews took \(elapsed), \(perToken) per token over \(Int(tokens)) tokens")
+    #expect(perToken < .milliseconds(1), "\(block.utf8.count) bytes: \(prefixes.count) previews took \(elapsed), \(perToken) per token over \(Int(tokens)) tokens")
 }

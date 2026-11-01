@@ -61,7 +61,7 @@ Use the official package (root `Package.swift` of a2ui-project/a2ui, tools 6.1, 
 
 Crew writes:
 
-1. **Extractor** (~40 lines): find ` ```a2ui ` fences (and `<a2ui-json>`) in assistant text, both live and from REST history; render the surface when the fence closes or on `message.complete` (no partial JSON healing needed). Replace the fence in the bubble with the surface; keep the prose around it.
+1. **Extractor** (~40 lines): find ` ```a2ui ` fences (and `<a2ui-json>`) in assistant text, both live and from REST history; render the surface progressively while it streams (healed partial JSON, see PLAN.md "Progressive cards") and whole on `message.complete`. Replace the fence in the bubble with the surface; keep the prose around it.
 2. **Surface store**: one `MessageProcessor` per chat, fed every block of the transcript in order so later `updateComponents`/`updateDataModel` patch earlier surfaces; a surface is drawn at the position of its `createSurface`. Cap payload size (e.g. 64 KB) and show a small "couldn't display" chip plus the raw block on parse or validation failure.
 3. **Action bridge** (~30 lines): A2UI action → hidden `prompt.submit` as above; disable the surface's buttons while that turn runs; show a tiny "Sent: <label>" note so the user sees what they did.
 4. **Glass shell + theme**: wrap `Surface` in Crew's card look (glass, 4 pt grid, light/dark) and override the few basic components whose default look clashes (Card, Button, CheckBox) through `ComponentImplementation` registration and the `a2uiTheme` environment.

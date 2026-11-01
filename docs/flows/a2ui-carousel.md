@@ -63,7 +63,7 @@ Items are data, not child component ids, so every item has the same layout and t
 - **Long title:** 2 lines, tail truncation. **Long subtitle:** 1 line, truncated, price never truncated. **Long text:** 3 lines, tail truncation. VoiceOver reads the full strings.
 - **Missing url:** no Open label, no context menu; the tile is not a button. Non-https url: treated as missing.
 - **Large Dynamic Type:** tiles grow taller (equal height, the tallest wins); widths stay; dots stay one row. At accessibility sizes the title may use 4 lines and the meta line stacks (subtitle above price).
-- **Streaming:** "Preparing card…" until the reply finishes, as today.
+- **Streaming:** "Preparing card…", then the carousel draws progressively once its Header and items are complete (`docs/flows/progressive-cards.md`).
 
 ## VoiceOver and keyboard
 

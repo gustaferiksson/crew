@@ -58,7 +58,7 @@ The logic (newest card in, pinned card out) lives in `ChatPins` so `CrewTests` c
 - **Long title:** one line, tail truncation; VoiceOver reads it whole.
 - **Card updates while pinned:** the bar's title and the open sheet follow the live surface; pin state unchanged.
 - **Card whose turn failed or was stopped:** if the block parsed and rendered a card, it is a card and may pin; a block that failed ("Couldn't display this card") or a reply that never finished its fence never pins and never shows a bar.
-- **Streaming:** nothing happens until the reply finishes (the existing sync point); "Preparing card…" stays in the transcript only.
+- **Streaming:** nothing happens until the reply finishes (the existing sync point); the streaming preview (`docs/flows/progressive-cards.md`) stays in the transcript only.
 - **Busy:** while a turn runs the card is disabled in the sheet like in the transcript; the bar itself stays tappable.
 - **Offline:** the bar and sheet still open (the card is local); the card behaves like the transcript copy.
 - **Empty chat, no cards, Rich UI off:** no card, no bar.

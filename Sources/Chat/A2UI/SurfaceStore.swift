@@ -27,7 +27,7 @@ final class SurfaceStore {
     @ObservationIgnored var send: (String) -> Void = { _ in }
     @ObservationIgnored let processor = MessageProcessor(catalogs: crewCatalogs)
     @ObservationIgnored private var replyBlocks: [String: [String]] = [:]
-    @ObservationIgnored private var previewed: (healed: String, processor: MessageProcessor)?
+    @ObservationIgnored private var previews: [String: (healed: String, processor: MessageProcessor)] = [:]
 
     init() {
         processor.outboundListener = { [weak self] message in
@@ -54,16 +54,18 @@ final class SurfaceStore {
         if present != self.present { self.present = present }
         let isBusy = transcript.turns.last?.status == .streaming
         if isBusy != self.isBusy { self.isBusy = isBusy }
+        if !isBusy { previews.removeAll() }
     }
 
     func preview(_ partial: String) -> SurfaceViewModel? {
-        guard let healed = healedA2UIPrefix(partial), healed != previewed?.healed,
-              let payload = try? JSONDecoder().decode(OrderedJSON.JSONValue.self, from: Data(healed.utf8)),
-              let id = (payload.arrayValue ?? [payload]).lazy.compactMap({ $0["createSurface"]?["surfaceId"]?.stringValue }).first
+        guard partial.utf8.count <= blockLimit, let healed = healedA2UIPrefix(partial),
+              let id = healed.firstMatch(of: /"createSurface"\s*:\s*\{\s*"surfaceId"\s*:\s*"([^"]+)"/).map({ String($0.1) })
         else { return nil }
+        if let previewed = previews[id], previewed.healed == healed { return previewed.processor.surfaceGroupModel[id] }
+        guard let payload = try? JSONDecoder().decode(OrderedJSON.JSONValue.self, from: Data(healed.utf8)) else { return nil }
         let processor = MessageProcessor(catalogs: crewCatalogs)
         guard (try? processor.processMessages(payload)) != nil, let model = processor.surfaceGroupModel[id] else { return nil }
-        previewed = (healed, processor)
+        previews[id] = (healed, processor)
         return model
     }
 

@@ -22,7 +22,7 @@ What Apple does: Speak Selection and Speak Screen read text on request with the 
 
 ## Speech text
 
-`SpeechText` turns the reply's markdown into what a person would read out, using `markdownBlocks` (the same parse the transcript draws):
+`BotAnswer.speech` (shared with Siri's Ask a Bot, #252) turns the reply's markdown into what a person would read out, using `markdownBlocks` (the same parse the transcript draws):
 
 - Paragraphs, headings and quotes: their plain text, each ending in a sentence break so the voice pauses.
 - List items: their text, one sentence each, without bullets; ordered items keep their number ("1. Test purchase ..."); nested items read the same.
@@ -65,7 +65,7 @@ Auto-read replies, Now Playing and remote commands (layer 2; that needs a non-mi
 
 ## Verification
 
-- `SpeechTextTests` on recorded replies from `Tests/fixtures` (long replies with headings, lists, tables, a code reply, an A2UI recipe), shown failing without the change.
+- `SpeechTextTests` (and `BotAnswerTests`) on recorded replies from `Tests/fixtures` (long replies with headings, lists, tables, a code reply, an A2UI recipe), shown failing without the change.
 - `BotVoiceTests`: voice ordering and resolution (stored, uninstalled, other language, automatic) on synthetic voice lists, the store on a test suite domain (never `dev.gustaf.crew`), and `Speaker` on a silent synthesizer subclass: Speak on a second reply replaces the first, the first utterance's late callback does not clear the second, Stop clears, an empty speech text speaks nothing. The Dictation, send, Start New Chat and leave-the-chat hooks are one `Speaker.shared.stop()` call each, checked by review (Dictation needs the microphone, which the unhosted test bundle has not got).
 - No real-server probe: the feature is local only and sends nothing to Hermes.
 - Renders: the inspector Voice section on iOS and Mac, light and dark. The context menu is system UI that snapshots can't open; its wording is covered by this spec and review.

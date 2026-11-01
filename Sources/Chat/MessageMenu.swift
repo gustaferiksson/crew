@@ -27,7 +27,7 @@ struct MessageMenu<PreviewShape: Shape>: ViewModifier {
                 #endif
                 ShareLink(item: text)
                 if let speech, !Speaker.shared.isRecording {
-                    let spoken = speechText(from: text)
+                    let spoken = BotAnswer.speech(from: text)
                     if Speaker.shared.speakingID == speech.id {
                         Button("Stop Speaking", systemImage: "stop.fill") { Speaker.shared.stop() }
                     } else if !spoken.isEmpty {

@@ -43,10 +43,14 @@ nonisolated enum BotAnswer: Equatable, Sendable {
     }
 
     static func speech(from reply: String) -> String {
-        markdownBlocks(from: a2uiFenced(reply))
-            .filter { if case .code = $0.kind { false } else { true } }
-            .map { String($0.content.characters).trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
-            .joined(separator: "\n")
+        markdownBlocks(from: a2uiFenced(reply)).compactMap { block -> String? in
+            let text = String(block.content.characters).trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !text.isEmpty, block.kind != .rule else { return nil }
+            if case .code = block.kind { return nil }
+            let sentence = text.last.map { ".!?:;".contains($0) } == true ? text : text + "."
+            guard case .listItem(let marker, _) = block.kind, marker != "•" else { return sentence }
+            return "\(marker) \(sentence)"
+        }
+        .joined(separator: "\n")
     }
 }

@@ -73,7 +73,7 @@ private let installed = [
 @Test func emptySpeechSpeaksNothing() throws {
     let synthesizer = SilentSynthesizer()
     let speaker = Speaker(voices: BotVoices(defaults: try #require(UserDefaults(suiteName: "crew-tests-speaker"))), synthesizer: synthesizer)
-    speaker.speak(speechText(from: "```swift\nlet a = 1\n```"), id: "t1", profile: "ada")
+    speaker.speak(BotAnswer.speech(from: "```swift\nlet a = 1\n```"), id: "t1", profile: "ada")
     #expect(speaker.speakingID == nil)
     #expect(synthesizer.spoken.isEmpty)
 }

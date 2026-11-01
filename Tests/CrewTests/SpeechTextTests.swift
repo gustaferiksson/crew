@@ -15,7 +15,7 @@ private func replies(in name: String) throws -> [String] {
 }
 
 @Test func longRepliesReadWithoutMarkdownOrCode() throws {
-    let spoken = try replies(in: "chat.long-replies.history.json").map(speechText)
+    let spoken = try replies(in: "chat.long-replies.history.json").map(BotAnswer.speech)
     #expect(spoken.count == 6)
     for text in spoken {
         #expect(!text.isEmpty)
@@ -37,14 +37,14 @@ private func replies(in name: String) throws -> [String] {
 
 @Test func cardRepliesReadOnlyTheirProse() throws {
     let recipe = try String(contentsOf: fixtures.appending(path: "chat.a2ui-recipe.v0.21.7.md"), encoding: .utf8)
-    #expect(speechText(from: recipe) == "Pancakes: Whisk flour, baking powder, sugar and salt with milk, an egg and melted butter, then cook small portions in a lightly buttered pan over medium heat until golden on both sides.")
-    let updates = try replies(in: "chat.a2ui-update.history.json").map(speechText)
+    #expect(BotAnswer.speech(from: recipe) == "Pancakes: Whisk flour, baking powder, sugar and salt with milk, an egg and melted butter, then cook small portions in a lightly buttered pan over medium heat until golden on both sides.")
+    let updates = try replies(in: "chat.a2ui-update.history.json").map(BotAnswer.speech)
     #expect(updates.contains("Ticked off the onion and breadcrumbs."))
     #expect(updates.allSatisfy { !$0.contains("{") && !$0.contains("a2ui") })
 }
 
 @Test func codeOrCardOnlyRepliesHaveNothingToSay() {
-    #expect(speechText(from: "```swift\nlet a = 1\n```") == "")
-    #expect(speechText(from: "<a2ui-json>\n[{\"version\":\"v0.9\"}]\n</a2ui-json>") == "")
-    #expect(speechText(from: "---") == "")
+    #expect(BotAnswer.speech(from: "```swift\nlet a = 1\n```") == "")
+    #expect(BotAnswer.speech(from: "<a2ui-json>\n[{\"version\":\"v0.9\"}]\n</a2ui-json>") == "")
+    #expect(BotAnswer.speech(from: "---") == "")
 }

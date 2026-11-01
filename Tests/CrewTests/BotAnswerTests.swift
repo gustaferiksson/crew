@@ -83,7 +83,7 @@ private func recorded(_ name: String, finished: Bool = true, dropping type: Stri
     print("hi")
     ```
     """
-    #expect(BotAnswer.speech(from: reply) == "Today\nYou have two meetings and a doc to read:\nStandup at 9\nReview at 14")
+    #expect(BotAnswer.speech(from: reply) == "Today.\nYou have two meetings and a doc to read:\nStandup at 9.\nReview at 14.")
 }
 
 @Test func aCardOnlyReplyHasNothingToSay() {

@@ -23,7 +23,7 @@ private func imageMemoryRows(caption: String = imageOnlyPrompt) throws -> [Histo
     #expect(prompt.attachments.map(\.kind) == [.image])
     #expect(prompt.attachments.map(\.path) == [imagePath])
     #expect(prompt.attachments.map(\.name) == ["upload_hbv1ik2k.png"])
-    #expect(transcript.preview?.text == "I see a chat app with an approval dialog waiting for an answer.")
+    #expect(transcript.visible.lastMessage?.text == "I see a chat app with an approval dialog waiting for an answer.")
 }
 
 @Test func nativeVisionCaptionKeepsOnlyWhatTheUserTyped() throws {
@@ -36,7 +36,7 @@ private func imageMemoryRows(caption: String = imageOnlyPrompt) throws -> [Histo
     let rows = try imageMemoryRows(caption: typed)
     let stored = try #require(rows.first?.content)
     var transcript = Transcript(history: rows.filter { $0.role == "user" })
-    #expect(transcript.preview?.text == typed)
+    #expect(transcript.visible.lastMessage?.text == typed)
     transcript.begin(remote: stored, displayKind: nil, at: .now)
     #expect(transcript.turns.last?.prompt?.text == typed)
     #expect(transcript.turns.last?.prompt?.attachments.map(\.path) == [imagePath])

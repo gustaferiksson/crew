@@ -150,8 +150,9 @@ nonisolated struct PaymentReceipt: Equatable, Sendable {
     let tone: Tone
 
     init?(_ call: ToolCall) {
+        guard call.name == "browser_vault" else { return nil }
         let arguments = (try? JSONSerialization.jsonObject(with: Data(call.arguments.utf8))) as? [String: Any] ?? [:]
-        guard call.name == "browser_vault", arguments["action"] as? String == "fill", let text = call.result, let result = VaultResult(text) else { return nil }
+        guard arguments["action"] as? String == "fill", let text = call.result, let result = VaultResult(text) else { return nil }
         let isPayment = result.kind == "payment" || result.crewPayment != nil || result.errorType == "payment_declined" || arguments["amount"] != nil
         guard isPayment, result.errorType?.hasPrefix("crew_") != true else { return nil }
         let amount = (arguments["amount"] as? String).flatMap { $0.isEmpty ? nil : $0 }

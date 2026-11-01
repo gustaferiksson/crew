@@ -81,7 +81,7 @@ struct TranscriptScroll<Revision: Equatable, Content: View>: View {
                     #if os(macOS)
                     .controlSize(.large)
                     #endif
-                    .transition(.scale.combined(with: .opacity))
+                    .transition(reduceMotion ? .opacity : .scale.combined(with: .opacity))
                 }
             }
             .animation(.smooth, value: isAtBottom)

@@ -68,7 +68,7 @@ private func summary(roster: String, window: String?) throws -> BotSummary {
     var transcript = Transcript()
     transcript.begin(remote: "", displayKind: "auto_continue", at: .now)
     #expect(transcript.turns.last?.notice != nil)
-    #expect(transcript.preview == nil)
+    #expect(transcript.visible.lastMessage == nil)
 }
 
 @Test func botMessagedWhileHandlingARoutineRepliesAsARelay() {

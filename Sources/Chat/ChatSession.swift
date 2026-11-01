@@ -29,7 +29,10 @@ nonisolated extension TodoItem: Decodable {
 
 @Observable
 final class ChatSession {
-    private(set) var transcript = Transcript()
+    private(set) var transcript = Transcript() {
+        didSet { visible = transcript.visible }
+    }
+    private(set) var visible = Transcript()
     private(set) var openRequests: [ServerRequest] = [] {
         didSet { payments = payments.filter { payment in openRequests.contains { $0.id == payment.key } } }
     }

@@ -4,6 +4,7 @@ on:
   push:
     tags: [ 'v*' ]
     branches: [ main ]
+    paths-ignore: [ 'docs/**' ]
 
 permissions:
   contents: write
@@ -52,7 +53,7 @@ jobs:
           brew install xcodegen
           xcodegen generate --quiet
           xcodebuild -project Crew.xcodeproj -scheme Crew -configuration Release -derivedDataPath .build -quiet -skipPackagePluginValidation -skipMacroValidation \
-            -destination 'generic/platform=macOS' CODE_SIGNING_ALLOWED=NO build
+            -destination 'generic/platform=macOS' MARKETING_VERSION=0.0.0 CURRENT_PROJECT_VERSION=${{ github.run_number }} CODE_SIGNING_ALLOWED=NO build
 
       - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:

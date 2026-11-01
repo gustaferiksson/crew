@@ -6,7 +6,7 @@ import CoreSpotlight
 import ImageIO
 import SwiftUI
 
-nonisolated struct BotEntity: IndexedEntity {
+nonisolated struct BotEntity: IndexedEntity, Equatable {
     static let typeDisplayRepresentation: TypeDisplayRepresentation = "Bot"
     static let defaultQuery = BotEntityQuery()
 

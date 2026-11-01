@@ -290,6 +290,9 @@ final class BotStore {
     private var clearingUnread: Set<Bot.ID> = []
     private(set) var clearedUnread: [Bot] = []
     private var gateway: Gateway?
+    #if os(iOS)
+    @ObservationIgnored private var siriBots: [BotEntity]?
+    #endif
     private var urlSession: URLSession?
     private var reloadTask: Task<Void, Never>?
     private var isRosterSaved = false
@@ -613,6 +616,8 @@ final class BotStore {
 
     #if os(iOS)
     private func publishToSiri(_ entities: [BotEntity]) {
+        guard entities != siriBots else { return }
+        siriBots = entities
         Task {
             try? await CSSearchableIndex.default().deleteAppEntities(ofType: BotEntity.self)
             try? await CSSearchableIndex.default().indexAppEntities(entities)

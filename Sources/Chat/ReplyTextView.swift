@@ -456,7 +456,7 @@ final class SelectableTextView: UITextView, UIEditMenuInteractionDelegate {
         super.didMoveToWindow()
         guard window != nil, startsSelected, !hasStarted else { return }
         hasStarted = true
-        guard becomeFirstResponder() else { return }
+        guard becomeFirstResponder() else { return didResign() }
         selectAll(nil)
         UIAccessibility.post(notification: .layoutChanged, argument: self)
         showsMenu = true
@@ -510,6 +510,7 @@ struct SelectableText: UIViewRepresentable {
         var openURL: OpenURLAction
         var text: NSAttributedString?
         var hasSelection = false
+        var isReplacingText = false
         var measured: (width: CGFloat?, size: CGSize)?
 
         init(isSelecting: Binding<Bool>, openURL: OpenURLAction) {
@@ -520,7 +521,7 @@ struct SelectableText: UIViewRepresentable {
         func textViewDidChangeSelection(_ textView: UITextView) {
             if textView.selectedRange.length > 0 {
                 hasSelection = true
-            } else if hasSelection {
+            } else if hasSelection, !isReplacingText {
                 isSelecting.wrappedValue = false
             }
         }
@@ -566,9 +567,11 @@ struct SelectableText: UIViewRepresentable {
         view.tintColor = tint
         guard coordinator.text?.isEqual(to: text) != true else { return }
         let selection = view.selectedRange
+        coordinator.isReplacingText = true
         view.textStorage.setAttributedString(text)
         let location = min(selection.location, text.length)
         view.selectedRange = NSRange(location: location, length: min(selection.length, text.length - location))
+        coordinator.isReplacingText = false
         coordinator.text = text
         coordinator.measured = nil
     }

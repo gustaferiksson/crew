@@ -223,118 +223,13 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
         .overlay {
             if transcript.turns.isEmpty { emptyState }
         }
-        .safeAreaBar(edge: .bottom) {
-            HeightCap(cap: barRoom) {
-                VStack(spacing: 8) {
-                    if let paymentNotice {
-                        PaymentNoticeCard(text: paymentNotice, dismiss: actions.dismissPaymentNotice)
-                            .frame(maxWidth: 560)
-                            .padding(.horizontal, 16)
-                    } else if case .approval(let approval) = request, approval.isPayment {
-                        PaymentCard(
-                            request: approval,
-                            state: payment ?? PaymentCardState(lookup: .unverified(featureMissing: false)),
-                            botName: botName,
-                            avatar: avatar.scaleEffect(20 / 28).frame(width: 20, height: 20),
-                            holdProgress: presentation.holdProgress,
-                            respond: { actions.respond(approval.id, $0) },
-                            retry: { actions.retryPayment(approval.id) },
-                            expire: { actions.expirePayment(approval.id) }
-                        )
-                        .disabled(offlineReason != nil)
-                        .id(approval.id)
-                        .frame(maxWidth: 560)
-                        .padding(.horizontal, 16)
-                        .transition(.blurReplace)
-                        #if os(iOS)
-                        .onAppear { isComposerFocused = false }
-                        .simultaneousGesture(TapGesture().onEnded { isComposerFocused = false })
-                        .simultaneousGesture(DragGesture(minimumDistance: 10).onEnded { if $0.translation.height > 0 { isComposerFocused = false } })
-                        #endif
-                    } else if case .approval(let approval) = request {
-                        ApprovalCard(request: approval, botName: botName) { choice in
-                            responses.append(choice == .deny ? .impact(flexibility: .rigid) : .success)
-                            actions.respond(approval.id, choice)
-                        }
-                            .frame(maxWidth: 560)
-                            .padding(.horizontal, 16)
-                    } else if request == nil, let shopOffer {
-                        ShopOfferCard(botName: botName, host: shopOffer, notNow: actions.dismissShopOffer) { actions.addShop(shopOffer) }
-                            .frame(maxWidth: 560)
-                            .padding(.horizontal, 16)
-                    }
-                    if case .question(let question) = request {
-                        QuestionCard(request: question, botName: botName, progress: presentation.questionProgress) { answers in
-                            responses.append(.success)
-                            actions.answer(question.id, answers)
-                        }
-                            .id(question.id)
-                            .frame(maxWidth: 560)
-                            .padding(.horizontal, 16)
-                    }
-                    if let pinKey, let pinnedCard, let model = surfaces.processor.surfaceGroupModel[pinnedCard] {
-                        PinnedCardBar(model: model, fallbackTitle: cardFallbackTitle) {
-                            isComposerFocused = false
-                            openedCard = pinnedCard
-                        } unpin: {
-                            unpins += 1
-                            pins.pin(nil, in: pinKey)
-                        }
-                        .onDisappear { openedCard = nil }
-                        .onChange(of: surfaces.present) {
-                            if let openedCard, !surfaces.present.contains(openedCard) { self.openedCard = nil }
-                        }
-                        .popover(isPresented: Binding(get: { openedCard != nil }, set: { if !$0 { openedCard = nil } }), arrowEdge: .top) {
-                            if let openedCard {
-                                PinnedCardContent(surfaces: surfaces, id: openedCard, fallbackTitle: cardFallbackTitle) {
-                                    self.openedCard = nil
-                                    unpins += 1
-                                    pins.pin(nil, in: pinKey)
-                                }
-                            }
-                        }
-                        #if os(iOS)
-                        .padding(.horizontal, isComposerFocused ? 16 : 28)
-                        #else
-                        .padding(.horizontal, 16)
-                        #endif
-                    }
-                    #if os(iOS)
-                    if let voice = VoiceMessage.shared.attributes, voice.bot.name == profile {
-                        VoiceComposer(voice: .shared)
-                    } else {
-                        if VoiceMessage.shared.attributes != nil {
-                            VoiceIndicator(voice: .shared)
-                        }
-                        composer
-                    }
-                    #else
-                    composer
-                    #endif
-                }
-            }
-            .animation(.smooth, value: request?.id)
-            .animation(.smooth, value: pinnedCard)
-            .sensoryFeedback(.impact(weight: .light), trigger: unpins)
-            .sensoryFeedback(.warning, trigger: request?.id) { _, id in id != nil }
-            .sensoryFeedback(.selection, trigger: models?.current) { previous, _ in previous != nil }
-            .sensoryFeedback(trigger: responses) { _, responses in responses.last }
-            .sensoryFeedback(trigger: transcript.turns.last { $0.pending == nil && $0.prompt != nil }?.status) { old, new in
-                guard old == .streaming else { return nil }
-                return new == .error ? .error : nil
-            }
-            #if os(iOS)
-            .ignoresSafeArea(.container, edges: .bottom)
-            #endif
-            #if os(macOS)
-            .padding(.trailing, NSScroller.preferredScrollerStyle == .legacy ? NSScroller.scrollerWidth(for: .regular, scrollerStyle: .legacy) : 0)
-            #endif
-            .onGeometryChange(for: CGFloat.self, of: \.size.height) { barHeight = $0 }
-        }
         #if os(macOS)
-        .scrollEdgeEffectStyle(.soft, for: .vertical)
+        .safeAreaInset(edge: .bottom, spacing: 0) { bottomBar }
         #else
+        .safeAreaBar(edge: .bottom) { bottomBar }
+        #endif
         .scrollEdgeEffectStyle(.soft, for: .top)
+        #if os(iOS)
         .scrollEdgeEffectHidden(true, for: .bottom)
         #endif
         .toolbar {
@@ -384,6 +279,115 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
             guard let target = presentation.scrollTarget else { return }
             position.scrollTo(id: target, anchor: .top)
         }
+    }
+
+    private var bottomBar: some View {
+        HeightCap(cap: barRoom) {
+            VStack(spacing: 8) {
+                if let paymentNotice {
+                    PaymentNoticeCard(text: paymentNotice, dismiss: actions.dismissPaymentNotice)
+                        .frame(maxWidth: 560)
+                        .padding(.horizontal, 16)
+                } else if case .approval(let approval) = request, approval.isPayment {
+                    PaymentCard(
+                        request: approval,
+                        state: payment ?? PaymentCardState(lookup: .unverified(featureMissing: false)),
+                        botName: botName,
+                        avatar: avatar.scaleEffect(20 / 28).frame(width: 20, height: 20),
+                        holdProgress: presentation.holdProgress,
+                        respond: { actions.respond(approval.id, $0) },
+                        retry: { actions.retryPayment(approval.id) },
+                        expire: { actions.expirePayment(approval.id) }
+                    )
+                    .disabled(offlineReason != nil)
+                    .id(approval.id)
+                    .frame(maxWidth: 560)
+                    .padding(.horizontal, 16)
+                    .transition(.blurReplace)
+                    #if os(iOS)
+                    .onAppear { isComposerFocused = false }
+                    .simultaneousGesture(TapGesture().onEnded { isComposerFocused = false })
+                    .simultaneousGesture(DragGesture(minimumDistance: 10).onEnded { if $0.translation.height > 0 { isComposerFocused = false } })
+                    #endif
+                } else if case .approval(let approval) = request {
+                    ApprovalCard(request: approval, botName: botName) { choice in
+                        responses.append(choice == .deny ? .impact(flexibility: .rigid) : .success)
+                        actions.respond(approval.id, choice)
+                    }
+                        .frame(maxWidth: 560)
+                        .padding(.horizontal, 16)
+                } else if request == nil, let shopOffer {
+                    ShopOfferCard(botName: botName, host: shopOffer, notNow: actions.dismissShopOffer) { actions.addShop(shopOffer) }
+                        .frame(maxWidth: 560)
+                        .padding(.horizontal, 16)
+                }
+                if case .question(let question) = request {
+                    QuestionCard(request: question, botName: botName, progress: presentation.questionProgress) { answers in
+                        responses.append(.success)
+                        actions.answer(question.id, answers)
+                    }
+                        .id(question.id)
+                        .frame(maxWidth: 560)
+                        .padding(.horizontal, 16)
+                }
+                if let pinKey, let pinnedCard, let model = surfaces.processor.surfaceGroupModel[pinnedCard] {
+                    PinnedCardBar(model: model, fallbackTitle: cardFallbackTitle) {
+                        isComposerFocused = false
+                        openedCard = pinnedCard
+                    } unpin: {
+                        unpins += 1
+                        pins.pin(nil, in: pinKey)
+                    }
+                    .onDisappear { openedCard = nil }
+                    .onChange(of: surfaces.present) {
+                        if let openedCard, !surfaces.present.contains(openedCard) { self.openedCard = nil }
+                    }
+                    .popover(isPresented: Binding(get: { openedCard != nil }, set: { if !$0 { openedCard = nil } }), arrowEdge: .top) {
+                        if let openedCard {
+                            PinnedCardContent(surfaces: surfaces, id: openedCard, fallbackTitle: cardFallbackTitle) {
+                                self.openedCard = nil
+                                unpins += 1
+                                pins.pin(nil, in: pinKey)
+                            }
+                        }
+                    }
+                    #if os(iOS)
+                    .padding(.horizontal, isComposerFocused ? 16 : 28)
+                    #else
+                    .padding(.horizontal, 16)
+                    #endif
+                }
+                #if os(iOS)
+                if let voice = VoiceMessage.shared.attributes, voice.bot.name == profile {
+                    VoiceComposer(voice: .shared)
+                } else {
+                    if VoiceMessage.shared.attributes != nil {
+                        VoiceIndicator(voice: .shared)
+                    }
+                    composer
+                }
+                #else
+                composer
+                #endif
+            }
+        }
+        .animation(.smooth, value: request?.id)
+        .animation(.smooth, value: pinnedCard)
+        .sensoryFeedback(.impact(weight: .light), trigger: unpins)
+        .sensoryFeedback(.warning, trigger: request?.id) { _, id in id != nil }
+        .sensoryFeedback(.selection, trigger: models?.current) { previous, _ in previous != nil }
+        .sensoryFeedback(trigger: responses) { _, responses in responses.last }
+        .sensoryFeedback(trigger: transcript.turns.last { $0.pending == nil && $0.prompt != nil }?.status) { old, new in
+            guard old == .streaming else { return nil }
+            return new == .error ? .error : nil
+        }
+        #if os(iOS)
+        .ignoresSafeArea(.container, edges: .bottom)
+        #endif
+        #if os(macOS)
+        .padding(.trailing, NSScroller.preferredScrollerStyle == .legacy ? NSScroller.scrollerWidth(for: .regular, scrollerStyle: .legacy) : 0)
+        #endif
+        .onGeometryChange(for: CGFloat.self, of: \.size.height) { barHeight = $0 }
     }
 }
 

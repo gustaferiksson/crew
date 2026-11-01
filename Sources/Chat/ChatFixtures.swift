@@ -116,7 +116,10 @@ enum ChatFixture {
             var transcript = Transcript(turns: turns + [deploy(now.addingTimeInterval(-48))])
             transcript.wait(Prompt(text: "Use the staging context, not prod", sentAt: now.addingTimeInterval(-20)), as: .steer, id: "s1")
             transcript.apply(.toolComplete(id: "t5-w2", duration: 4, summary: nil, result: #"{"exit_code": 0}"#), at: now.addingTimeInterval(-16))
-            transcript.apply(.messageDelta("Good call. I was already on the staging context, so nothing touched prod. Checking the rollout now."), at: now.addingTimeInterval(-14))
+            transcript.takeSteers(at: now.addingTimeInterval(-16))
+            transcript.apply(.toolStart(id: "t5-w3", name: "terminal", context: "kubectl config current-context", arguments: "{}"), at: now.addingTimeInterval(-15))
+            transcript.apply(.toolComplete(id: "t5-w3", duration: 1, summary: nil, result: #"{"output": "staging", "exit_code": 0}"#), at: now.addingTimeInterval(-14))
+            transcript.apply(.messageDelta("Good call. The current context is staging, so nothing touched prod. Checking the rollout now."), at: now.addingTimeInterval(-13))
             transcript.apply(.toolStart(id: "t6", name: "terminal", context: "kubectl --context staging rollout status deploy/crew-api", arguments: "{}"), at: now.addingTimeInterval(-12))
             return transcript
         }

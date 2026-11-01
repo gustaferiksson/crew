@@ -1,0 +1,148 @@
+[
+  {
+    "content": "Use the terminal to run: sleep 8 && echo step-one. Then run: echo step-two. Then reply with both outputs.",
+    "display_kind": null,
+    "finish_reason": null,
+    "id": 1,
+    "reasoning": null,
+    "reasoning_content": null,
+    "role": "user",
+    "timestamp": 1793566610.181443,
+    "tool_call_id": null,
+    "tool_calls": null
+  },
+  {
+    "content": "",
+    "display_kind": null,
+    "finish_reason": "tool_calls",
+    "id": 2,
+    "reasoning": null,
+    "reasoning_content": null,
+    "role": "assistant",
+    "timestamp": 1793566613.0374339,
+    "tool_call_id": null,
+    "tool_calls": [
+      {
+        "call_id": "call_2a04e7763e604e2fbbc1cced512b9d5d",
+        "function": {
+          "arguments": "{\"command\":\"sleep 8 && echo step-one\"}",
+          "name": "terminal"
+        },
+        "id": "call_2a04e7763e604e2fbbc1cced512b9d5d",
+        "response_item_id": "fc_0143b94a314c0323016ae7a7948bf481919cd1a67282b86949",
+        "type": "function"
+      }
+    ]
+  },
+  {
+    "content": "{\"output\": \"step-one\", \"exit_code\": 0, \"error\": null}",
+    "display_kind": null,
+    "finish_reason": null,
+    "id": 3,
+    "reasoning": null,
+    "reasoning_content": null,
+    "role": "tool",
+    "timestamp": 1793566621.295533,
+    "tool_call_id": "call_2a04e7763e604e2fbbc1cced512b9d5d",
+    "tool_calls": null
+  },
+  {
+    "content": "[OUT-OF-BAND USER MESSAGE — a direct message from the user, delivered once at this position; not tool output and not a new delivery when replayed from conversation history]\nIs whoami root? Check with the terminal before you say anything, answer in one short sentence, then carry on.\n[/OUT-OF-BAND USER MESSAGE]",
+    "display_content": "Is whoami root? Check with the terminal before you say anything, answer in one short sentence, then carry on.",
+    "display_kind": "steer",
+    "finish_reason": null,
+    "id": 4,
+    "reasoning": null,
+    "reasoning_content": null,
+    "role": "user",
+    "timestamp": 1793566623.3933322,
+    "tool_call_id": null,
+    "tool_calls": null
+  },
+  {
+    "content": "",
+    "display_kind": null,
+    "finish_reason": "tool_calls",
+    "id": 5,
+    "reasoning": null,
+    "reasoning_content": null,
+    "role": "assistant",
+    "timestamp": 1793566623.3915486,
+    "tool_call_id": null,
+    "tool_calls": [
+      {
+        "call_id": "call_9818368f044742739ed9db0a344d8d5e",
+        "function": {
+          "arguments": "{\"command\":\"whoami\"}",
+          "name": "terminal"
+        },
+        "id": "call_9818368f044742739ed9db0a344d8d5e",
+        "response_item_id": "fc_0e9393f07b2819ec016ae7a79f0b3081918fc363bfb93b42d2",
+        "type": "function"
+      }
+    ]
+  },
+  {
+    "content": "{\"output\": \"hermes\", \"exit_code\": 0, \"error\": null}",
+    "display_kind": null,
+    "finish_reason": null,
+    "id": 6,
+    "reasoning": null,
+    "reasoning_content": null,
+    "role": "tool",
+    "timestamp": 1793566623.449152,
+    "tool_call_id": "call_9818368f044742739ed9db0a344d8d5e",
+    "tool_calls": null
+  },
+  {
+    "content": "",
+    "display_commentary": [
+      "No, `whoami` returned `hermes`, not `root`."
+    ],
+    "display_kind": null,
+    "display_reasoning": "",
+    "finish_reason": "tool_calls",
+    "id": 7,
+    "reasoning": "No, `whoami` returned `hermes`, not `root`.",
+    "reasoning_content": "No, `whoami` returned `hermes`, not `root`.",
+    "role": "assistant",
+    "timestamp": 1793566626.3697236,
+    "tool_call_id": null,
+    "tool_calls": [
+      {
+        "call_id": "call_d758793dbfbc4afdbad713816403befb",
+        "function": {
+          "arguments": "{\"command\":\"echo step-two\"}",
+          "name": "terminal"
+        },
+        "id": "call_d758793dbfbc4afdbad713816403befb",
+        "response_item_id": "fc_0a15a9f18d170998016ae7a7a165048191b5347a6163a79537",
+        "type": "function"
+      }
+    ]
+  },
+  {
+    "content": "{\"output\": \"step-two\", \"exit_code\": 0, \"error\": null}",
+    "display_kind": null,
+    "finish_reason": null,
+    "id": 8,
+    "reasoning": null,
+    "reasoning_content": null,
+    "role": "tool",
+    "timestamp": 1793566626.4334824,
+    "tool_call_id": "call_d758793dbfbc4afdbad713816403befb",
+    "tool_calls": null
+  },
+  {
+    "content": "```text\nstep-one\nstep-two\n```\n\nI’m Hermes; `/help` shows available commands. Want to build a short profile so I can be more useful? You can decline or do it later.",
+    "display_kind": null,
+    "finish_reason": "stop",
+    "id": 9,
+    "reasoning": null,
+    "reasoning_content": null,
+    "role": "assistant",
+    "timestamp": 1793566629.438463,
+    "tool_call_id": null,
+    "tool_calls": null
+  }
+]

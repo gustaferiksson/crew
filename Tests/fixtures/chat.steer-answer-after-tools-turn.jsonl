@@ -1,0 +1,61 @@
+{"payload": null, "seq": 2, "session_id": "rt-steer-tools", "type": "message.start"}
+{"payload": {"text": "(◔_◔) brainstorming..."}, "seq": 4, "session_id": "rt-steer-tools", "type": "thinking.delta"}
+{"payload": {"text": ""}, "seq": 5, "session_id": "rt-steer-tools", "type": "thinking.delta"}
+{"payload": {"args": {"command": "sleep 8 && echo step-one"}, "context": "sleep 8 + 1 command", "name": "terminal", "tool_id": "call_2a04e7763e604e2fbbc1cced512b9d5d"}, "seq": 6, "session_id": "rt-steer-tools", "type": "tool.start"}
+{"payload": {"args": {"command": "sleep 8 && echo step-one"}, "duration_s": 8.261457443237305, "name": "terminal", "result": {"error": null, "exit_code": 0, "output": "step-one"}, "tool_id": "call_2a04e7763e604e2fbbc1cced512b9d5d"}, "seq": 8, "session_id": "rt-steer-tools", "type": "tool.complete"}
+{"payload": {"text": "( ͡° ͜ʖ ͡°) computing..."}, "seq": 9, "session_id": "rt-steer-tools", "type": "thinking.delta"}
+{"payload": {"text": ""}, "seq": 10, "session_id": "rt-steer-tools", "type": "thinking.delta"}
+{"payload": {"args": {"command": "whoami"}, "context": "whoami", "name": "terminal", "tool_id": "call_9818368f044742739ed9db0a344d8d5e"}, "seq": 11, "session_id": "rt-steer-tools", "type": "tool.start"}
+{"payload": {"args": {"command": "whoami"}, "duration_s": 0.05421161651611328, "name": "terminal", "result": {"error": null, "exit_code": 0, "output": "hermes"}, "tool_id": "call_9818368f044742739ed9db0a344d8d5e"}, "seq": 12, "session_id": "rt-steer-tools", "type": "tool.complete"}
+{"payload": {"text": "(¬‿¬) musing..."}, "seq": 13, "session_id": "rt-steer-tools", "type": "thinking.delta"}
+{"payload": {"already_streamed": false, "text": "No, `whoami` returned `hermes`, not `root`."}, "seq": 15, "session_id": "rt-steer-tools", "type": "message.interim"}
+{"payload": {"text": ""}, "seq": 16, "session_id": "rt-steer-tools", "type": "thinking.delta"}
+{"payload": {"args": {"command": "echo step-two"}, "context": "echo step-two", "name": "terminal", "tool_id": "call_d758793dbfbc4afdbad713816403befb"}, "seq": 17, "session_id": "rt-steer-tools", "type": "tool.start"}
+{"payload": {"args": {"command": "echo step-two"}, "duration_s": 0.058916568756103516, "name": "terminal", "result": {"error": null, "exit_code": 0, "output": "step-two"}, "tool_id": "call_d758793dbfbc4afdbad713816403befb"}, "seq": 18, "session_id": "rt-steer-tools", "type": "tool.complete"}
+{"payload": {"text": "( ͡° ͜ʖ ͡°) brainstorming..."}, "seq": 19, "session_id": "rt-steer-tools", "type": "thinking.delta"}
+{"payload": {"text": ""}, "seq": 21, "session_id": "rt-steer-tools", "type": "thinking.delta"}
+{"payload": {"text": "\n\n```"}, "seq": 22, "session_id": "rt-steer-tools", "type": "message.delta"}
+{"payload": {"text": "text"}, "seq": 23, "session_id": "rt-steer-tools", "type": "message.delta"}
+{"payload": {"text": "\n"}, "seq": 24, "session_id": "rt-steer-tools", "type": "message.delta"}
+{"payload": {"text": "step"}, "seq": 25, "session_id": "rt-steer-tools", "type": "message.delta"}
+{"payload": {"text": "-one"}, "seq": 26, "session_id": "rt-steer-tools", "type": "message.delta"}
+{"payload": {"text": "\n"}, "seq": 27, "session_id": "rt-steer-tools", "type": "message.delta"}
+{"payload": {"text": "step"}, "seq": 28, "session_id": "rt-steer-tools", "type": "message.delta"}
+{"payload": {"text": "-two"}, "seq": 29, "session_id": "rt-steer-tools", "type": "message.delta"}
+{"payload": {"text": "\n"}, "seq": 30, "session_id": "rt-steer-tools", "type": "message.delta"}
+{"payload": {"text": "``"}, "seq": 31, "session_id": "rt-steer-tools", "type": "message.delta"}
+{"payload": {"text": "`\n\n"}, "seq": 32, "session_id": "rt-steer-tools", "type": "message.delta"}
+{"payload": {"text": "I"}, "seq": 33, "session_id": "rt-steer-tools", "type": "message.delta"}
+{"payload": {"text": "’m"}, "seq": 34, "session_id": "rt-steer-tools", "type": "message.delta"}
+{"payload": {"text": " Hermes"}, "seq": 35, "session_id": "rt-steer-tools", "type": "message.delta"}
+{"payload": {"text": ";"}, "seq": 36, "session_id": "rt-steer-tools", "type": "message.delta"}
+{"payload": {"text": " `/"}, "seq": 37, "session_id": "rt-steer-tools", "type": "message.delta"}
+{"payload": {"text": "help"}, "seq": 38, "session_id": "rt-steer-tools", "type": "message.delta"}
+{"payload": {"text": "`"}, "seq": 39, "session_id": "rt-steer-tools", "type": "message.delta"}
+{"payload": {"text": " shows"}, "seq": 40, "session_id": "rt-steer-tools", "type": "message.delta"}
+{"payload": {"text": " available"}, "seq": 41, "session_id": "rt-steer-tools", "type": "message.delta"}
+{"payload": {"text": " commands"}, "seq": 42, "session_id": "rt-steer-tools", "type": "message.delta"}
+{"payload": {"text": "."}, "seq": 43, "session_id": "rt-steer-tools", "type": "message.delta"}
+{"payload": {"text": " Want"}, "seq": 44, "session_id": "rt-steer-tools", "type": "message.delta"}
+{"payload": {"text": " to"}, "seq": 45, "session_id": "rt-steer-tools", "type": "message.delta"}
+{"payload": {"text": " build"}, "seq": 46, "session_id": "rt-steer-tools", "type": "message.delta"}
+{"payload": {"text": " a"}, "seq": 47, "session_id": "rt-steer-tools", "type": "message.delta"}
+{"payload": {"text": " short"}, "seq": 48, "session_id": "rt-steer-tools", "type": "message.delta"}
+{"payload": {"text": " profile"}, "seq": 49, "session_id": "rt-steer-tools", "type": "message.delta"}
+{"payload": {"text": " so"}, "seq": 50, "session_id": "rt-steer-tools", "type": "message.delta"}
+{"payload": {"text": " I"}, "seq": 51, "session_id": "rt-steer-tools", "type": "message.delta"}
+{"payload": {"text": " can"}, "seq": 52, "session_id": "rt-steer-tools", "type": "message.delta"}
+{"payload": {"text": " be"}, "seq": 53, "session_id": "rt-steer-tools", "type": "message.delta"}
+{"payload": {"text": " more"}, "seq": 54, "session_id": "rt-steer-tools", "type": "message.delta"}
+{"payload": {"text": " useful"}, "seq": 55, "session_id": "rt-steer-tools", "type": "message.delta"}
+{"payload": {"text": "?"}, "seq": 56, "session_id": "rt-steer-tools", "type": "message.delta"}
+{"payload": {"text": " You"}, "seq": 57, "session_id": "rt-steer-tools", "type": "message.delta"}
+{"payload": {"text": " can"}, "seq": 58, "session_id": "rt-steer-tools", "type": "message.delta"}
+{"payload": {"text": " decline"}, "seq": 59, "session_id": "rt-steer-tools", "type": "message.delta"}
+{"payload": {"text": " or"}, "seq": 60, "session_id": "rt-steer-tools", "type": "message.delta"}
+{"payload": {"text": " do"}, "seq": 61, "session_id": "rt-steer-tools", "type": "message.delta"}
+{"payload": {"text": " it"}, "seq": 62, "session_id": "rt-steer-tools", "type": "message.delta"}
+{"payload": {"text": " later"}, "seq": 63, "session_id": "rt-steer-tools", "type": "message.delta"}
+{"payload": {"text": "."}, "seq": 64, "session_id": "rt-steer-tools", "type": "message.delta"}
+{"payload": {"text": ""}, "seq": 65, "session_id": "rt-steer-tools", "type": "thinking.delta"}
+{"payload": {"persisted_turn": {"complete": false, "final_assistant_row_id": 9, "row_ids": [1, 2, 3, 4, 5, 6, 7, 8, 9], "user_row_id": 1, "user_row_ids": [1, 4]}, "reasoning": "No, `whoami` returned `hermes`, not `root`.", "status": "complete", "text": "```text\nstep-one\nstep-two\n```\n\nI’m Hermes; `/help` shows available commands. Want to build a short profile so I can be more useful? You can decline or do it later.", "usage": {"active_subagents": 0, "avg_latency_s": 2.7, "avg_tps": 12.4, "cache_hit_pct": 74, "calls": 4, "completion": 132, "compressions": 0, "context_estimated": false, "context_max": 500000, "context_percent": 3, "context_source": "provider_usage", "context_used": 13317, "input": 13658, "model": "gpt-6.1-sol", "output": 132, "prompt": 52826, "reasoning": 0, "total": 52958}}, "seq": 66, "session_id": "rt-steer-tools", "type": "message.complete"}

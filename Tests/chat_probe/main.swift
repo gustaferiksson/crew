@@ -324,6 +324,44 @@ if phases.contains("first") {
     exit(0)
 }
 
+if phases.contains("steer-answer-after-tools") {
+    let name = "crew-test-\(UUID().uuidString.prefix(6).lowercased())"
+    let store = BotStore(fixture: [], statuses: [:])
+    Task { await store.run(gateway, urlSession: urlSession) }
+    try await Task.sleep(for: .seconds(3))
+    do {
+        try await store.create(NewProfile(name: name, description: "Crew scenario bot", soul: nil, cloneFrom: nil), via: gateway) { $0.title = "Crew Steer" }
+        await store.reload(gateway)
+        guard let fresh = store.bots.first(where: { $0.name == name }) else { throw HermesError.invalidResponse }
+        let chat = try await attached(fresh)
+        record("steer-answer-after-tools-turn")
+        chat.send("Use the terminal to run: sleep 8 && echo step-one. Then run: echo step-two. Then reply with both outputs.", mode: .send)
+        try await waitIdle(chat, timeout: 60) { chat in
+            chat.transcript.turns.last?.work.contains { if case .tool = $0.kind { true } else { false } } ?? false
+        }
+        chat.send("Is whoami root? Check with the terminal before you say anything, answer in one short sentence, then carry on.", mode: .steer)
+        try await waitIdle(chat)
+        show("steer-answer-after-tools live", chat)
+        await store.reload(gateway)
+        guard let ran = store.bots.first(where: { $0.name == name }), let session = ran.canonicalSession else { throw HermesError.invalidResponse }
+        show("steer-answer-after-tools history", try await attached(ran))
+        let (data, _) = try await urlSession.data(for: historyRequest(of: session.resolvedID, profile: name, on: server, limit: 30))
+        guard case .object(let page) = try JSONDecoder().decode(JSONValue.self, from: data), case .array(let messages) = page["messages"] else { throw HermesError.invalidResponse }
+        let keys: Set = ["id", "role", "content", "tool_call_id", "tool_calls", "timestamp", "reasoning", "reasoning_content", "display_kind", "display_content", "display_commentary", "display_reasoning", "finish_reason"]
+        let kept = messages.map { row in if case .object(let object) = row { JSONValue.object(object.filter { keys.contains($0.key) }) } else { row } }
+        let pretty = JSONEncoder()
+        pretty.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+        try pretty.encode(JSONValue.array(kept)).write(to: outDir.appending(path: "steer-answer-after-tools.history.json"))
+        print("history rows written to", outDir.appending(path: "steer-answer-after-tools.history.json").path)
+    } catch {
+        print("STEER FAILED", error)
+    }
+    await store.reload(gateway)
+    if let bot = store.bots.first(where: { $0.name == name }) { try await store.delete(bot, via: gateway, urlSession: urlSession) }
+    print(store.bots.contains { $0.name == name } ? "THROWAWAY NOT DELETED: \(name)" : "throwaway deleted")
+    exit(0)
+}
+
 if phases.contains("routine") {
     let name = "crew-test-\(UUID().uuidString.prefix(6).lowercased())"
     let folder = URL(fileURLWithPath: #filePath).appending(path: "../../fixtures/scenarios/routine-delivery").standardized

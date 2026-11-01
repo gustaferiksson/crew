@@ -176,3 +176,65 @@ private func shape(_ transcript: Transcript) -> [String] {
     ])
     #expect(!session.transcript.turns[1].work.contains { if case .thinking = $0.kind { true } else { false } })
 }
+
+@MainActor @Test func aRecordedSteerAnsweredAfterAToolReadsTheSameLiveAndAfterAReload() throws {
+    let lines = try String(contentsOf: fixtures.appending(path: "chat.steer-answer-after-tools-turn.jsonl"), encoding: .utf8).split(separator: "\n")
+    let events = try lines.map { try JSONDecoder().decode(GatewayEvent.self, from: Data($0.utf8)) }
+    let decoder = JSONDecoder()
+    decoder.keyDecodingStrategy = .convertFromSnakeCase
+    let history = Transcript(history: try decoder.decode([HistoryRow].self, from: Data(contentsOf: fixtures.appending(path: "chat.steer-answer-after-tools.history.json"))))
+
+    var start = Transcript()
+    start.begin(prompt: "Use the terminal to run: sleep 8 && echo step-one. Then run: echo step-two. Then reply with both outputs.", id: "1")
+    let steer = "Is whoami root? Check with the terminal before you say anything, answer in one short sentence, then carry on."
+    start.wait(Prompt(text: steer, sentAt: .now), as: .steer)
+    let session = ChatSession(fixture: crewTest, transcript: start, todos: [])
+    for event in events { session.apply(event) }
+
+    #expect(shape(session.transcript) == shape(history))
+    #expect(history.turns.map(\.prompt?.text) == [start.turns[0].prompt?.text, steer])
+    #expect(history.turns[1].answer == "No, `whoami` returned `hermes`, not `root`.")
+    #expect(history.turns[1].reply.hasPrefix("```text\nstep-one\nstep-two\n```"))
+    #expect(!history.turns[1].work.contains { $0.kind == .note("No, `whoami` returned `hermes`, not `root`.") })
+}
+
+@Test func theFirstTextAfterASteerIsItsAnswerEvenWhenToolsRanFirst() throws {
+    var live = Transcript()
+    live.begin(prompt: "Rename the bots")
+    live.apply(.toolStart(id: "a", name: "terminal", context: nil, arguments: "{}"))
+    live.wait(Prompt(text: "Are the others capitalized too?", sentAt: .now), as: .steer)
+    live.apply(.toolComplete(id: "a", duration: 1, summary: nil, result: "{}"))
+    live.takeSteers()
+    live.apply(.toolStart(id: "b", name: "terminal", context: nil, arguments: "{}"))
+    live.apply(.toolComplete(id: "b", duration: 1, summary: nil, result: "{}"))
+    live.apply(.toolStart(id: "c", name: "read_file", context: nil, arguments: "{}"))
+    live.apply(.toolComplete(id: "c", duration: 1, summary: nil, result: "{}"))
+    live.apply(.interim("Yes, they all have capitalized display names."))
+    live.apply(.toolStart(id: "d", name: "terminal", context: nil, arguments: "{}"))
+    live.apply(.toolComplete(id: "d", duration: 1, summary: nil, result: "{}"))
+    live.apply(.messageComplete(text: "Renamed.", status: .complete, error: nil))
+
+    let decoder = JSONDecoder()
+    decoder.keyDecodingStrategy = .convertFromSnakeCase
+    let rows = try decoder.decode([HistoryRow].self, from: Data(#"""
+    [
+     {"id": 1, "role": "user", "content": "Rename the bots", "timestamp": 100},
+     {"id": 2, "role": "assistant", "content": "", "timestamp": 101, "tool_calls": [{"id": "a", "function": {"name": "terminal", "arguments": "{}"}}]},
+     {"id": 3, "role": "tool", "content": "{}", "timestamp": 102, "tool_call_id": "a"},
+     {"id": 4, "role": "user", "content": "[OUT-OF-BAND USER MESSAGE]\nAre the others capitalized too?\n[/OUT-OF-BAND USER MESSAGE]", "display_kind": "steer", "display_content": "Are the others capitalized too?", "timestamp": 103},
+     {"id": 5, "role": "assistant", "content": "", "timestamp": 104, "tool_calls": [{"id": "b", "function": {"name": "terminal", "arguments": "{}"}}]},
+     {"id": 6, "role": "tool", "content": "{}", "timestamp": 105, "tool_call_id": "b"},
+     {"id": 7, "role": "assistant", "content": "", "timestamp": 106, "tool_calls": [{"id": "c", "function": {"name": "read_file", "arguments": "{}"}}]},
+     {"id": 8, "role": "tool", "content": "{}", "timestamp": 107, "tool_call_id": "c"},
+     {"id": 9, "role": "assistant", "content": "", "timestamp": 108, "display_commentary": ["Yes, they all have capitalized display names."], "tool_calls": [{"id": "d", "function": {"name": "terminal", "arguments": "{}"}}]},
+     {"id": 10, "role": "tool", "content": "{}", "timestamp": 109, "tool_call_id": "d"},
+     {"id": 11, "role": "assistant", "content": "Renamed.", "timestamp": 110}
+    ]
+    """#.utf8))
+    let expected = [
+        "prompt Rename the bots | tool terminal | answer - | reply ",
+        "steer Are the others capitalized too? | tool terminal, tool read_file, tool terminal | answer Yes, they all have capitalized display names. | reply Renamed.",
+    ]
+    #expect(shape(live) == expected)
+    #expect(shape(Transcript(history: rows)) == expected)
+}

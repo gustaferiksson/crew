@@ -16,6 +16,18 @@ final class ChatTranscriptUITests: TranscriptUITestCase {
         assertTheArrowHangsAboveTheComposer(in: app, "keyboard down")
     }
 
+    @MainActor func testChatsWithCardsOpenAtTheEnd() {
+        for snapshot in ["chat-a2ui-pinned", "chat"] {
+            let app = XCUIApplication()
+            app.launchArguments = ["-snapshot", snapshot, "-server", "hermes.example.com", "-username", "gustaf"]
+            app.launch()
+            XCTAssertTrue(app.buttons["Attach"].waitForExistence(timeout: 10))
+            wait(2)
+            shoot("\(snapshot) opened", in: app)
+            XCTAssertFalse(app.buttons["Jump to Latest"].exists, "\(snapshot) opened short of the end")
+        }
+    }
+
     @MainActor func testAReplyArrivingWhileScrolledUpLeavesTheReaderAlone() {
         let app = launch()
         focusComposer(app)

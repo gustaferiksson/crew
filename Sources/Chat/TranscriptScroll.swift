@@ -52,7 +52,13 @@ struct TranscriptScroll<Revision: Equatable, Content: View>: View {
             isAtBottom = new.distance < 40
             if position.edge == .bottom, new.distance < 1 { position.scrollTo(id: transcriptEnd, anchor: .bottom) }
             if followsEnd, old.height == 0, new.height > 0 { position.scrollTo(id: transcriptEnd, anchor: .bottom) }
-            if followsEnd, old.distance < 40, new.distance >= 1, phase == .idle, new.height <= old.height { position.scrollTo(id: transcriptEnd, anchor: .bottom) }
+            if followsEnd, old.distance < 40, new.distance >= 1, phase == .idle, new.height <= old.height {
+                #if os(iOS)
+                position.scrollTo(edge: .bottom)
+                #else
+                position.scrollTo(id: transcriptEnd, anchor: .bottom)
+                #endif
+            }
         }
         .onScrollPhaseChange { old, new in
             phase = new

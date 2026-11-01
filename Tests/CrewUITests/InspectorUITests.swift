@@ -26,14 +26,15 @@ final class InspectorUITests: XCTestCase {
         XCTAssertEqual(XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: removed, object: log)], timeout: 10), .completed)
     }
 
-    @MainActor func testShopSheetsStayOpen() {
-        for (button, title) in [("Replace Card…", "Replace Card"), ("Add Shop…", "Add Shop")] {
-            let app = XCUIApplication()
-            app.launchArguments = ["-snapshot", "inspector-passwords", "-server", "hermes.example.com", "-username", "gustaf"]
-            app.launch()
+    @MainActor func testTappingALoginAndTheShopButtonsOpenSheetsThatStayOpen() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-snapshot", "inspector-passwords", "-server", "hermes.example.com", "-username", "gustaf"]
+        app.launch()
+        XCTAssertTrue(app.segmentedControls.firstMatch.waitForExistence(timeout: 10))
 
-            let opener = app.buttons[button]
-            XCTAssertTrue(app.segmentedControls.firstMatch.waitForExistence(timeout: 10))
+        let login = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "github.com")).firstMatch
+        XCTAssertTrue(login.waitForExistence(timeout: 5))
+        for (opener, title) in [(login, "Edit Login"), (app.buttons["Replace Card…"], "Replace Card"), (app.buttons["Add Shop…"], "Add Shop")] {
             for _ in 0..<8 where !(opener.exists && opener.isHittable) { app.swipeUp(velocity: .slow) }
             opener.tap()
 
@@ -41,7 +42,8 @@ final class InspectorUITests: XCTestCase {
             XCTAssertTrue(sheet.waitForExistence(timeout: 5), title)
             let dismissed = NSPredicate(format: "exists == false")
             XCTAssertEqual(XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: dismissed, object: sheet)], timeout: 3), .timedOut, title)
-            app.terminate()
+            sheet.buttons["Cancel"].tap()
+            XCTAssertTrue(sheet.waitForNonExistence(timeout: 5), title)
         }
     }
 

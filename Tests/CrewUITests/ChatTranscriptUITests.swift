@@ -21,6 +21,12 @@ final class ChatTranscriptUITests: XCTestCase {
         RunLoop.current.run(until: .now.addingTimeInterval(seconds))
     }
 
+    @MainActor private func streamAReply(_ app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line) {
+        app.textFields.firstMatch.typeText("!")
+        let idle = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", "idle"), object: app.descendants(matching: .any)["stream-state"])
+        XCTAssertEqual(XCTWaiter().wait(for: [idle], timeout: 10), .completed, "the reply never finished streaming", file: file, line: line)
+    }
+
     @MainActor private func shoot(_ name: String, in app: XCUIApplication) {
         let shot = XCTAttachment(screenshot: app.screenshot())
         shot.name = name
@@ -50,7 +56,6 @@ final class ChatTranscriptUITests: XCTestCase {
     @MainActor private func scrollUp(_ app: XCUIApplication) {
         for _ in 0..<8 where lowest(lastBlock, in: app) != nil || lowest(streamedReply, in: app) != nil {
             app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.2)).press(forDuration: 0.02, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.55)), withVelocity: .fast, thenHoldForDuration: 0)
-            wait(0.5)
         }
         XCTAssertTrue(app.buttons["Jump to Latest"].waitForExistence(timeout: 5))
         wait(1)
@@ -118,8 +123,7 @@ final class ChatTranscriptUITests: XCTestCase {
             if abs(row.frame.minY - readingTop) < 0.5 { break }
             readingTop = row.frame.minY
         }
-        app.textFields.firstMatch.typeText("!")
-        wait(3.5)
+        streamAReply(app)
         shoot("reply streamed while scrolled up", in: app)
         let moved = app.staticTexts.matching(NSPredicate(format: "label == %@", label)).allElementsBoundByIndex.map { $0.frame.minY - readingTop }.min { abs($0) < abs($1) }
         XCTAssertEqual(moved ?? .infinity, 0, accuracy: 1, "the row being read moved")
@@ -149,11 +153,10 @@ final class ChatTranscriptUITests: XCTestCase {
         scrollUp(app)
         for _ in 0..<12 where app.buttons["Jump to Latest"].exists {
             app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).press(forDuration: 0.02, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.15)), withVelocity: .fast, thenHoldForDuration: 0)
-            wait(1.5)
+            _ = app.buttons["Jump to Latest"].waitForNonExistence(timeout: 1.5)
         }
         XCTAssertFalse(app.buttons["Jump to Latest"].exists, "never got back to the bottom by hand")
-        app.textFields.firstMatch.typeText("!")
-        wait(3)
+        streamAReply(app)
         assertRightAboveTheComposer(streamedReply, in: app, "reply after a manual return")
     }
 
@@ -161,8 +164,7 @@ final class ChatTranscriptUITests: XCTestCase {
         let app = launch()
         focusComposer(app)
         scrollUp(app)
-        app.textFields.firstMatch.typeText("!")
-        wait(3.5)
+        streamAReply(app)
         app.buttons["Jump to Latest"].tap()
         assertRightAboveTheComposer(streamedReply, in: app, "jumped to the reply")
         scrollUp(app)
@@ -181,13 +183,12 @@ final class ChatTranscriptUITests: XCTestCase {
         scrollUp(app)
         for _ in 0..<12 where app.buttons["Jump to Latest"].exists {
             app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).press(forDuration: 0.02, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.1)), withVelocity: .fast, thenHoldForDuration: 0)
-            wait(1.5)
+            _ = app.buttons["Jump to Latest"].waitForNonExistence(timeout: 1.5)
         }
         XCTAssertFalse(app.buttons["Jump to Latest"].exists, "never got back to the bottom by hand")
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.4)).press(forDuration: 0.1, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.33)), withVelocity: .slow, thenHoldForDuration: 0)
         wait(1.5)
-        app.textFields.firstMatch.typeText("!")
-        wait(3)
+        streamAReply(app)
         assertRightAboveTheComposer(streamedReply, in: app, "reply after a bounced return")
     }
 

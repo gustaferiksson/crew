@@ -470,6 +470,14 @@ struct ChatFixtureScreen: View {
                     .accessibilityLabel("Request log")
                     .accessibilityValue(answers.isEmpty ? "none" : answers.joined(separator: ","))
             }
+            if Self.replyAfterDraft != nil {
+                Color.clear
+                    .frame(width: 1, height: 1)
+                    .accessibilityElement()
+                    .accessibilityIdentifier("stream-state")
+                    .accessibilityLabel("Stream state")
+                    .accessibilityValue(transcript.turns.last?.status == .streaming ? "streaming" : "idle")
+            }
         }
     }
 

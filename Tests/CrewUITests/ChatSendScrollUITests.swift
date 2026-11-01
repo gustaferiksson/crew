@@ -30,11 +30,17 @@ final class ChatSendScrollUITests: XCTestCase {
         XCTAssertGreaterThan(elements.last?.frame.maxY ?? 0, composerTop - 120, "the transcript is not pinned to the bottom", file: file, line: line)
     }
 
-    @MainActor func testEverySendSitsRightAboveTheComposer() {
+    @MainActor func testASendWhileScrolledUpJumpsToTheBottomAndEverySendSitsRightAboveTheComposer() {
         let app = launch("composer-line")
+        let reply = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "The local build passes.")).firstMatch
+        XCTAssertTrue(reply.waitForExistence(timeout: 5))
+        reply.swipeDown()
+        XCTAssertTrue(app.buttons["Jump to Latest"].waitForExistence(timeout: 5))
+        app.textFields.firstMatch.tap()
         app.buttons["Send"].tap()
         XCTAssertTrue(app.buttons["Stop"].waitForNonExistence(timeout: 5))
         assertAboveComposer(["Sounds good, book the 07:10", "On it."], in: app)
+        XCTAssertFalse(app.buttons["Jump to Latest"].exists)
 
         let multiLine = "Book the 07:10 and put the confirmation in the trip notes so Chef can plan the meals around the flight"
         type(multiLine, in: app)
@@ -47,19 +53,6 @@ final class ChatSendScrollUITests: XCTestCase {
         XCTAssertTrue(app.keyboards.firstMatch.exists)
         XCTAssertTrue(app.buttons["Stop"].waitForNonExistence(timeout: 5))
         assertAboveComposer(["Short"], in: app)
-    }
-
-    @MainActor func testASendWhileScrolledUpJumpsToTheBottom() {
-        let app = launch("composer-line")
-        let reply = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "The local build passes.")).firstMatch
-        XCTAssertTrue(reply.waitForExistence(timeout: 5))
-        reply.swipeDown()
-        XCTAssertTrue(app.buttons["Jump to Latest"].waitForExistence(timeout: 5))
-        app.textFields.firstMatch.tap()
-        app.buttons["Send"].tap()
-        XCTAssertTrue(app.buttons["Stop"].waitForNonExistence(timeout: 5))
-        assertAboveComposer(["Sounds good, book the 07:10", "On it."], in: app)
-        XCTAssertFalse(app.buttons["Jump to Latest"].exists)
     }
 
     @MainActor func testASteerWaitsThenSplitsTheRunRightAboveTheComposer() {

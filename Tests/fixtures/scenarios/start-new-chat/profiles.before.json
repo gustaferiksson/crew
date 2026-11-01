@@ -1,0 +1,58 @@
+{
+  "profiles" : [
+    {
+      "canonical_session" : {
+        "id" : "20261017_102454_92b952",
+        "last_active" : 1793553900.3008566,
+        "live_message_count" : 195,
+        "message_count" : 62,
+        "preview" : "## Vegan Swedish-style meatballs with cream gravy **Serves 6 · About 50 minutes ...",
+        "resolved_id" : "20261017_102454_92b952",
+        "root_title" : "Bot Chat",
+        "started_at" : 1792232716.335284,
+        "title" : "Bot Chat"
+      },
+      "description" : "Crew test profile",
+      "display_name" : "",
+      "has_avatar" : false,
+      "is_default" : false,
+      "last_session" : {
+        "id" : "local-c1c6529ad7933959544bbd2cfc68ec4068ffb8e06e12c5a38e725dffd9017535",
+        "last_active" : 1792950543.6164887,
+        "live_message_count" : 6,
+        "message_count" : 6,
+        "preview" : "other-ok",
+        "started_at" : 1792931583.434359,
+        "title" : "crew-proactive-probe · Oct 25 12:33"
+      },
+      "model" : "gpt-6.1-sol",
+      "name" : "crew-test",
+      "path" : "/opt/hermes/data",
+      "previous_names" : [
+
+      ],
+      "provider" : "openai-codex",
+      "skill_count" : 60,
+      "ui_meta" : {
+        "crew" : {
+          "messages" : 62,
+          "session" : "20261017_102454_92b952"
+        },
+        "hermes-bots" : {
+          "color" : "#8e8e93",
+          "custom" : true,
+          "imageKind" : "shape",
+          "pinned" : true,
+          "screenAutoOpen" : true,
+          "shape" : "hexagon",
+          "title" : "Crew Test"
+        }
+      },
+      "ui_meta_revisions" : {
+        "crew" : 100,
+        "hermes-bots" : 16
+      },
+      "worker_session" : null
+    }
+  ]
+}

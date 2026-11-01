@@ -607,6 +607,46 @@ print("canonical", bot.canonicalSession?.id.rawValue ?? "nil")
 let chat = try await attached(bot)
 show("attach", chat)
 
+if phases.contains("new-chat") {
+    let folder = URL(fileURLWithPath: #filePath).appending(path: "../../fixtures/scenarios/start-new-chat").standardized
+    try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+    let pretty = JSONEncoder()
+    pretty.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+    let scrubs = [(server.host() ?? "", "hermes.example.com"), (env["HERMES_USER"] ?? "", "user")].filter { $0.0.count > 2 }
+    func save(_ file: String, _ value: JSONValue) throws {
+        let text = scrubs.reduce(String(decoding: try pretty.encode(value), as: UTF8.self)) { $0.replacingOccurrences(of: $1.0, with: $1.1) }.replacing(/\/opt\/data\/[^\s"'\\]*/, with: "/opt/hermes/data")
+        try Data((text + "\n").utf8).write(to: folder.appending(path: "\(file).json"))
+        print("RECORDED \(file).json")
+    }
+    func roster() async throws -> JSONValue {
+        let raw = try await gateway.call("profiles.list", ["include_sessions": true], as: JSONValue.self)
+        guard case .object(let object) = raw, case .array(let profiles) = object["profiles"] else { return .object(["profiles": .array([])]) }
+        return .object(["profiles": .array(profiles.filter { if case .object(let profile) = $0, case .string("crew-test") = profile["name"] { true } else { false } })])
+    }
+    let old = bot.canonicalSession?.id.rawValue ?? ""
+    try save("profiles.before", try await roster())
+    try await chat.startNewChat()
+    show("after new chat", chat)
+    try save("profiles.retired", try await roster())
+    chat.send("Reply with just: fresh-start", mode: .send)
+    try await waitIdle(chat)
+    show("after reply", chat)
+    try await Task.sleep(for: .seconds(2))
+    try save("profiles.after", try await roster())
+    let fresh = try await crewTest()
+    print("canonical after", fresh.canonicalSession?.id.rawValue ?? "nil", "preview", fresh.canonicalSession?.preview ?? "nil")
+    var listing = hermesRequest("api/sessions", on: server)
+    listing.url?.append(queryItems: [URLQueryItem(name: "profile", value: "crew-test"), URLQueryItem(name: "order", value: "recent"), URLQueryItem(name: "limit", value: "50"), URLQueryItem(name: "archived", value: "include")])
+    let ids = [old, fresh.canonicalSession?.id.rawValue ?? ""]
+    guard case .object(let page) = try await fetch(listing, with: urlSession, as: JSONValue.self), case .array(let rows) = page["sessions"] else { exit(1) }
+    let kept = rows.filter { if case .object(let row) = $0, case .string(let id) = row["id"] { ids.contains(id) } else { false } }
+    for case .object(let row) in kept { print("ROW", row["id"] ?? .null, row["title"] ?? .null, "archived", row["archived"] ?? .null, "hidden", row["hidden"] ?? .null) }
+    if let session = fresh.canonicalSession, case .object(let history) = try await fetch(historyRequest(of: session.resolvedID, profile: "crew-test", on: server, limit: 20), with: urlSession, as: JSONValue.self) {
+        try save("crew-test.preview", history["messages"] ?? .array([]))
+    }
+    exit(0)
+}
+
 if phases.contains("slash-run") {
     func local(_ chat: ChatSession) -> String {
         chat.transcript.turns.filter(\.isCommand).map { "\($0.notice ?? "") -> \($0.finishedAt == nil ? "running" : $0.failure.map { "!\($0)" } ?? ($0.output ?? "<no output>").prefix(80).replacingOccurrences(of: "\n", with: " | "))" }.joined(separator: "\n   ")

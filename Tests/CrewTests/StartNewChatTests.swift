@@ -1,61 +1,41 @@
 import Foundation
-import Synchronization
 import Testing
 
-nonisolated private final class SessionsServer: URLProtocol {
-    static let sent = Mutex<[(method: String, url: URL, body: Data)]>([])
+private let scenario = URL(filePath: #filePath).deletingLastPathComponent().deletingLastPathComponent().appending(path: "fixtures/scenarios/start-new-chat")
+private let retired = StoredSessionID(rawValue: "20261017_102454_92b952")
+private let fresh = StoredSessionID(rawValue: "20261101_183133_54935c")
 
-    override class func canInit(with request: URLRequest) -> Bool { true }
-    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
-    override func stopLoading() {}
-
-    override func startLoading() {
-        guard let url = request.url, let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil) else { return }
-        let body = request.httpBodyStream.map { stream in
-            stream.open()
-            defer { stream.close() }
-            var data = Data()
-            var buffer = [UInt8](repeating: 0, count: 4096)
-            while stream.hasBytesAvailable, case let count = stream.read(&buffer, maxLength: buffer.count), count > 0 { data.append(buffer, count: count) }
-            return data
-        }
-        let method = request.httpMethod ?? "GET"
-        Self.sent.withLock { $0.append((method, url, body ?? Data())) }
-        let reply = if method == "GET" {
-            #"{"id":"20261001_090000_aaaaaa","runtime_revision":4,"title":"Bot Chat"}"#
-        } else {
-            #"{"ok":true,"revision":5}"#
-        }
-        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-        client?.urlProtocol(self, didLoad: Data(reply.utf8))
-        client?.urlProtocolDidFinishLoading(self)
-    }
+private func recorded<Value: Decodable>(_ name: String, as type: Value.Type, keys: JSONDecoder.KeyDecodingStrategy = .useDefaultKeys) throws -> Value {
+    let decoder = JSONDecoder()
+    decoder.dateDecodingStrategy = .secondsSince1970
+    decoder.keyDecodingStrategy = keys
+    return try decoder.decode(type, from: Data(contentsOf: scenario.appending(path: "\(name).json")))
 }
 
-private func stubbed() -> URLSession {
-    let configuration = URLSessionConfiguration.ephemeral
-    configuration.protocolClasses = [SessionsServer.self]
-    return URLSession(configuration: configuration)
+@Test func startNewChatUnhidesThenRetitlesThenArchivesTheRuntimeOverTheGateway() throws {
+    let steps = botChatRetirement(of: RuntimeSessionID(rawValue: "a1b2c3"), at: Date(timeIntervalSince1970: 1_793_000_000))
+    #expect(steps.map(\.method) == ["session.set_hidden", "session.title", "session.archive"])
+    #expect(steps.allSatisfy { $0.params["session_id"] == .string("a1b2c3") })
+    #expect(steps[0].params["hidden"] == .bool(false))
+    #expect(steps[2].params["archived"] == .bool(true))
+    guard case .string(let title) = steps[1].params["title"] else { Issue.record("no title"); return }
+    #expect(title.hasPrefix("Bot Chat until "))
+    #expect(!title.contains("#"))
 }
 
-@Suite(.serialized) struct StartNewChatTests {
-    @Test func startNewChatArchivesTheBotChatUnderAnotherTitleAtItsRevision() async throws {
-        SessionsServer.sent.withLock { $0 = [] }
-        let server = try #require(URL(string: "https://hermes.invalid"))
-        try await retireBotChat(StoredSessionID(rawValue: "20261001_090000_aaaaaa"), profile: "crew-test", on: server, with: stubbed(), at: Date(timeIntervalSince1970: 1_793_000_000))
-        let sent = SessionsServer.sent.withLock { $0 }
-        let body = try #require(sent.last?.body)
-        let patch = try #require(try JSONSerialization.jsonObject(with: body) as? [String: Any])
-        #expect(sent.map(\.method) == ["GET", "PATCH"])
-        #expect(sent.allSatisfy { $0.url.path() == "/api/sessions/20261001_090000_aaaaaa" })
-        #expect(sent.first?.url.query()?.contains("profile=crew-test") == true)
-        #expect(patch["profile"] as? String == "crew-test")
-        #expect(patch["archived"] as? Bool == true)
-        #expect(patch["hidden"] as? Bool == false)
-        #expect(patch["expected_revision"] as? Int == 4)
-        #expect((patch["request_id"] as? String)?.isEmpty == false)
-        let title = try #require(patch["title"] as? String)
-        #expect(title.hasPrefix("Bot Chat "))
-        #expect(title != "Bot Chat" && !title.contains("#"))
-    }
+@Test func startNewChatMovesTheBotRowToTheFreshChat() throws {
+    let store = BotStore(fixture: [], statuses: [:])
+    store.apply(roster: try recorded("profiles.before", as: Roster.self).profiles)
+    #expect(store.bots.first { $0.name == "crew-test" }?.canonicalSession?.id == retired)
+
+    store.apply(roster: try recorded("profiles.retired", as: Roster.self).profiles)
+    let empty = try #require(store.bots.first { $0.name == "crew-test" }?.canonicalSession)
+    #expect(empty.id == fresh)
+    #expect(empty.messageCount == 0)
+
+    store.apply(roster: try recorded("profiles.after", as: Roster.self).profiles)
+    store.showPreview(of: "crew-test", from: try recorded("crew-test.preview", as: [HistoryRow].self, keys: .convertFromSnakeCase))
+    let bot = try #require(store.bots.first { $0.name == "crew-test" })
+    #expect(bot.canonicalSession?.id == fresh)
+    #expect(ChatSessions().summary(of: bot, in: store).preview == "fresh-start")
 }

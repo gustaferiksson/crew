@@ -3,20 +3,38 @@ import Observation
 
 @Observable
 final class ChatDrafts {
+    @Observable fileprivate final class Draft {
+        var text: String
+
+        init(_ text: String = "") {
+            self.text = text
+        }
+    }
+
     static let shared = ChatDrafts()
 
-    private(set) var texts: [String: String]
+    @ObservationIgnored private var drafts: [String: Draft]
     @ObservationIgnored private var trays: [String: AttachmentTray] = [:]
     private let fileURL: URL?
 
+    var texts: [String: String] { drafts.mapValues(\.text).filter { !$0.value.isEmpty } }
+
     init(fileURL: URL? = URL.applicationSupportDirectory.appending(path: "drafts.json")) {
         self.fileURL = fileURL
-        texts = fileURL.flatMap { try? Data(contentsOf: $0) }.flatMap { try? JSONDecoder().decode([String: String].self, from: $0) } ?? [:]
+        let stored = fileURL.flatMap { try? Data(contentsOf: $0) }.flatMap { try? JSONDecoder().decode([String: String].self, from: $0) } ?? [:]
+        drafts = stored.mapValues { Draft($0) }
     }
 
     init(fixture texts: [String: String]) {
         fileURL = nil
-        self.texts = texts
+        drafts = texts.mapValues { Draft($0) }
+    }
+
+    private func draft(for chat: String) -> Draft {
+        if let draft = drafts[chat] { return draft }
+        let draft = Draft()
+        drafts[chat] = draft
+        return draft
     }
 
     func tray(for chat: String) -> AttachmentTray {
@@ -26,14 +44,19 @@ final class ChatDrafts {
         return tray
     }
 
+    func text(for chat: String) -> String {
+        draft(for: chat).text
+    }
+
     func update(_ chat: String, to text: String) {
-        guard texts[chat, default: ""] != text else { return }
-        texts[chat] = text.isEmpty ? nil : text
+        let draft = draft(for: chat)
+        guard draft.text != text else { return }
+        draft.text = text
         save()
     }
 
     func preview(for chat: String) -> String? {
-        let text = texts[chat, default: ""].split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        let text = text(for: chat).split(whereSeparator: \.isWhitespace).joined(separator: " ")
         if !text.isEmpty { return text }
         let count = trays[chat]?.items.count ?? 0
         return count > 0 ? String(AttributedString(localized: "^[\(count) Attachment](inflect: true)").characters) : nil
@@ -46,7 +69,7 @@ final class ChatDrafts {
 
     func reset() {
         trays = [:]
-        texts = [:]
+        drafts.values.forEach { $0.text = "" }
         guard let fileURL else { return }
         try? FileManager.default.removeItem(at: fileURL)
     }

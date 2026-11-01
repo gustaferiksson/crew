@@ -84,7 +84,7 @@ View > Show Pinned Card / Hide Pinned Card, after Show/Hide Inspector, no shortc
 - **Offline:** the button and sheet still open (the card is local), while Chat Options next to it is disabled; intended, as the transcript previews stay tappable offline too.
 - **Empty chat, no cards, Rich UI off:** no button.
 - **Keyboard up (iOS):** the button stays in the navigation bar; tapping it closes the keyboard and opens the sheet.
-- **Narrow bars:** on iPad and Mac the system moves toolbar items it cannot fit into its own overflow menu, and the button carries `visibilityPriority(.high)` so it outlasts Chat Options; covered by the Mac offscreen probe at the window minimum and with the inspector open. On iPhone trailing items do not overflow: the principal persona pill gets the remaining width and truncates the bot's name first (its existing behaviour with long names). Rendered on iPhone 18 Pro only.
+- **Narrow bars:** on iPad and Mac the system moves toolbar items it cannot fit into its own overflow menu, and the button carries `visibilityPriority(.high)` so it outlasts Chat Options; covered by the Mac offscreen probe at the window minimum (the fixture has no inspector column). On iPhone trailing items do not overflow: the principal persona pill gets the remaining width and truncates the bot's name first (its existing behaviour with long names). Rendered on iPhone 18 Pro only.
 - **Large Dynamic Type:** a toolbar symbol; the system's Large Content Viewer shows its title on a long press with accessibility sizes.
 
 ## VoiceOver and keyboard
@@ -103,6 +103,6 @@ The surface gets its own `.contextMenu` with Pin Card or Unpin Card, outside the
 - Unit (`CrewTests`, `ChatPinsTests`): unchanged; the pin rule did not change.
 - UI (`CrewUITests`, `PinnedCardUITests`, private simulator, fixture `chat-a2ui-pinned`): the navigation bar button labelled with the newest card's title opens the sheet and it stays open 3 s; swiping it down keeps the button; Unpin in the sheet keeps the sheet open and the button goes once it closes; the transcript preview opens the same sheet; Pin in it brings the button back; the button's long-press menu Unpin removes it; long-press Pin Card on a preview brings it back; with the button's sheet open, tapping another preview swaps the sheet to that card. Fails on `main`: there the pinned element is a bar above the composer, not in the navigation bar.
 - Renders: `chat-a2ui-pinned` on iOS and Mac, light and dark (the fixture gains the Chat Options menu so the bar looks like the real chat), plus the before render and the alternative chip render in the PR.
-- Mac offscreen probe with the pinned fixture at `width:0` and with the inspector open: `PROBE survived`.
+- Mac offscreen probe with the pinned fixture at `width:0`: `PROBE survived` (the fixture has no inspector column, so the inspector-open step is a no-op).
 - Real server: not needed, no server traffic or pin rule changed.
 - PLAN.md: the "Pinned card" Decisions line is rewritten (navigation bar button, Safari Downloads precedent, no bar above the composer), and the "Compact cards" and "Transcript edge effects" lines lose their mentions of the bar; no locked UI value changes.

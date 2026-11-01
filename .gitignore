@@ -9,5 +9,6 @@ icon/previews/
 /dist/
 __pycache__/
 .pytest_cache/
-.claude/
+.claude/*
+!.claude/skills/
 CLAUDE.md

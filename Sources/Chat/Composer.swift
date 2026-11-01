@@ -52,6 +52,7 @@ struct Composer: View {
     @State private var dictation: Dictation
     @State private var isPickingPhotos = false
     @State private var isImportingFiles = false
+    @State private var isTakingPhoto = false
     @State private var photos: [PhotosPickerItem] = []
     @State private var showsHoldHint = false
     #if os(iOS)
@@ -117,7 +118,7 @@ struct Composer: View {
                     }
                     field
                         .frame(maxWidth: .infinity, minHeight: fieldHeight)
-                        .glassEffect(.regular.interactive(), in: .rect(cornerRadius: fieldHeight / 2))
+                        .glassEffect(.regular, in: .rect(cornerRadius: fieldHeight / 2))
                         .glassEffectID("field", in: glass)
                     #if os(macOS)
                     if phase == .running {
@@ -167,6 +168,12 @@ struct Composer: View {
                 tray.failure = error.localizedDescription
             }
         }
+        #if os(iOS)
+        .fullScreenCover(isPresented: $isTakingPhoto) {
+            CameraPicker { tray.add($0) }
+                .ignoresSafeArea()
+        }
+        #endif
         #if os(macOS)
         .onPasteCommand(of: [.fileURL, .png, .tiff]) { _ in
             if features.contains(.attachments) { tray.paste() }
@@ -208,6 +215,11 @@ struct Composer: View {
 
     private var attachMenu: some View {
         Menu {
+            #if os(iOS)
+            if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                Button("Camera", systemImage: "camera") { isTakingPhoto = true }
+            }
+            #endif
             Button("Photos", systemImage: "photo.on.rectangle") { isPickingPhotos = true }
             Button("Files", systemImage: "folder") { isImportingFiles = true }
             #if os(macOS)

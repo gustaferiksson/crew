@@ -31,6 +31,14 @@ final class AttachmentTray {
         }
     }
 
+    #if os(iOS)
+    func add(_ photo: UIImage) {
+        Task {
+            await append { try await loadAttachment(photo) }
+        }
+    }
+    #endif
+
     #if os(macOS)
     func paste() {
         let pasteboard = NSPasteboard.general
@@ -75,6 +83,14 @@ nonisolated private func loadAttachment(contentsOf url: URL) async throws -> Att
 nonisolated private func loadAttachment(_ data: Data, name: String) async throws -> Attachment {
     try Attachment(data: data, name: name)
 }
+
+#if os(iOS)
+@concurrent
+nonisolated private func loadAttachment(_ photo: UIImage) async throws -> Attachment {
+    guard let data = photo.jpegData(compressionQuality: 0.9) else { throw AttachmentError.unreadable(String(localized: "that photo")) }
+    return try Attachment(data: data, name: "Photo.jpg")
+}
+#endif
 
 @concurrent
 nonisolated private func thumbnail(of data: Data, side: CGFloat) async -> CGImage? {

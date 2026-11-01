@@ -156,7 +156,7 @@ private struct MentionAvatarKey: Hashable {
 @MainActor func mentionAvatar(for bot: Bot, photo: Image?, size: CGFloat, scheme: ColorScheme, scale: CGFloat) -> Image? {
     let key = MentionAvatarKey(name: bot.name, meta: bot.meta, hasPhoto: photo != nil, scheme: scheme, size: size, scale: scale)
     if let cached = renderedMentionAvatars[key] { return cached }
-    let renderer = ImageRenderer(content: BotAvatar(bot: bot, status: .idle, photo: photo, size: size).environment(\.colorScheme, scheme))
+    let renderer = ImageRenderer(content: BotAvatar(bot: bot, status: nil, photo: photo, size: size).environment(\.colorScheme, scheme))
     renderer.scale = scale
     guard let image = renderer.cgImage.map({ Image(decorative: $0, scale: scale) }) else { return nil }
     renderedMentionAvatars[key] = image
@@ -194,7 +194,7 @@ struct MentionPicker: View {
                     VStack(spacing: 0) {
                         ForEach(matches) { bot in
                             row(title: bot.title, detail: "@\(bot.handle)") {
-                                BotAvatar(bot: bot, status: .idle, photo: roster.photos[bot.id], size: 24)
+                                BotAvatar(bot: bot, status: nil, photo: roster.photos[bot.id], size: 24)
                             } action: {
                                 pick("@\(bot.handle)")
                             }

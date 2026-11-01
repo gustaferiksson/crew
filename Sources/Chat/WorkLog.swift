@@ -127,7 +127,7 @@ struct WorkLog: View {
             HStack(spacing: 4) {
                 if let message = turn.agentMessage {
                     if let bot = bots.bots.first(where: { $0.name == message.handle }) {
-                        BotAvatar(bot: bot, status: .idle, photo: bots.photos[bot.id], size: 16)
+                        BotAvatar(bot: bot, status: nil, photo: bots.photos[bot.id], size: 16)
                             .padding(.trailing, 4)
                     }
                     Text("Message from \(message.sender)")

@@ -85,7 +85,7 @@ struct NewBotSheet: View {
             Form {
                 Section {
                     VStack(spacing: 8) {
-                        BotAvatar(bot: preview, status: .idle, photo: nil, size: 96)
+                        BotAvatar(bot: preview, status: nil, photo: nil, size: 96)
                         Text(verbatim: resolvedTitle ?? (slug.isEmpty ? " " : slug))
                             .font(.title2.bold())
                             .multilineTextAlignment(.center)
@@ -140,7 +140,7 @@ struct NewBotSheet: View {
                         Label {
                             Text("Avatar")
                         } icon: {
-                            BotAvatar(bot: preview, status: .idle, photo: nil, size: 28)
+                            BotAvatar(bot: preview, status: nil, photo: nil, size: 28)
                         }
                     }
                 }

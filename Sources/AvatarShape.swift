@@ -11,7 +11,7 @@ enum AvatarShape: String, CaseIterable, Identifiable, Sendable {
 }
 
 enum AvatarMood: String, CaseIterable, Identifiable, Sendable {
-    case idle, working, waiting, failed
+    case idle, unread, working, waiting, failed, dormant
 
     var id: String { rawValue }
 }

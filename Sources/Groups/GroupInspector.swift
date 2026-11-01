@@ -159,7 +159,7 @@ struct GroupInspector: View {
         } label: {
             HStack(spacing: 12) {
                 if let bot {
-                    BotAvatar(bot: bot, status: .idle, photo: bots.photos[bot.id], size: 28)
+                    BotAvatar(bot: bot, status: nil, photo: bots.photos[bot.id], size: 28)
                 } else {
                     Image(systemName: "person.crop.circle.fill")
                         .font(.system(size: 28))

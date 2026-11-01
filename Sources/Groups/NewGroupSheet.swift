@@ -56,7 +56,7 @@ struct NewGroupSheet: View {
                             if isPicked { picked.removeAll { $0 == bot.id } } else { picked.append(bot.id) }
                         } label: {
                             HStack(spacing: 12) {
-                                BotAvatar(bot: bot, status: .idle, photo: store.photos[bot.id], size: 28)
+                                BotAvatar(bot: bot, status: nil, photo: store.photos[bot.id], size: 28)
                                 Text(bot.title)
                                     .foregroundStyle(.primary)
                                 Spacer(minLength: 8)

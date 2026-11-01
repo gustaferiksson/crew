@@ -14,6 +14,7 @@ enum Snapshot: String {
     case unreachable
     case avatars
     case avatarPicker = "avatar-picker"
+    case avatarEyes = "avatar-eyes"
     case chat
     case chatHistory = "chat-history"
     case chatSelection = "chat-selection"

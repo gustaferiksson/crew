@@ -16,7 +16,7 @@ struct GroupAvatar: View {
                     .frame(width: size, height: size)
             }
             ForEach(Array(members.prefix(2).enumerated()), id: \.element.id) { index, bot in
-                BotAvatar(bot: bot, status: .idle, photo: bots.photos[bot.id], size: memberSize)
+                BotAvatar(bot: bot, status: nil, photo: bots.photos[bot.id], size: memberSize)
                     .offset(x: CGFloat(index) * (size - memberSize), y: CGFloat(index) * (size - memberSize))
             }
         }
@@ -120,7 +120,7 @@ struct GroupChatScreen: View {
                     let bot = bots.bots.first { $0.name == member.profile }
                     VStack(spacing: 8) {
                         if let bot {
-                            BotAvatar(bot: bot, status: .idle, photo: bots.photos[bot.id], size: 48)
+                            BotAvatar(bot: bot, status: nil, photo: bots.photos[bot.id], size: 48)
                         } else {
                             Image(systemName: "person.crop.circle.fill")
                                 .font(.system(size: 48))

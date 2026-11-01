@@ -518,7 +518,7 @@ struct TurnView: View {
             if let name = turn.speaker {
                 HStack(spacing: 8) {
                     if let speaker {
-                        BotAvatar(bot: speaker, status: .idle, photo: speakerPhoto, size: 24)
+                        BotAvatar(bot: speaker, status: nil, photo: speakerPhoto, size: 24)
                     }
                     Text(speaker?.title ?? name)
                         .font(.subheadline.weight(.semibold))

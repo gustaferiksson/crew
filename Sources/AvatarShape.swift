@@ -162,3 +162,4 @@ nonisolated struct AvatarBody: Shape {
         return path
     }
 }
+

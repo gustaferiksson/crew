@@ -32,11 +32,16 @@ jobs:
           fi
           cat "$GITHUB_OUTPUT"
 
-  app:
-    name: Build macOS and iOS (unsigned)
+  build:
+    name: Build ${{ matrix.platform }}
     needs: changes
     if: ${{ !cancelled() && needs.changes.outputs.app != 'false' }}
     runs-on: xcode-27
+    strategy:
+      matrix:
+        platform: [ mac, ios ]
+    env:
+      MARKETING_VERSION: ci
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
@@ -49,14 +54,20 @@ jobs:
             .build/CompilationCache.noindex
             .build/SDKExplicitPrecompiledModules
             .build/SourcePackages
-          key: xcode-app-${{ github.sha }}
-          restore-keys: xcode-app-
+          key: xcode-app-${{ matrix.platform }}-${{ github.sha }}
+          restore-keys: |
+            xcode-app-${{ matrix.platform }}-
+            xcode-app-
 
       - name: Build (fails on any warning)
-        run: ./build.sh
+        run: ./build.sh ${{ matrix.platform }}
 
+      # The same overrides as build.sh's Mac build, so the tests reuse its products instead of rebuilding them.
       - name: Test
-        run: xcodebuild test -project Crew.xcodeproj -scheme CrewTests -derivedDataPath .build -destination 'platform=macOS,arch=arm64' -skipPackagePluginValidation -skipMacroValidation
+        if: ${{ matrix.platform == 'mac' }}
+        run: |
+          xcodebuild test -project Crew.xcodeproj -scheme CrewTests -derivedDataPath .build -destination 'platform=macOS,arch=arm64' -skipPackagePluginValidation -skipMacroValidation \
+            "MARKETING_VERSION=$MARKETING_VERSION" CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual CODE_SIGN_ENTITLEMENTS=
 
       - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         if: ${{ github.ref == 'refs/heads/main' }}
@@ -65,7 +76,16 @@ jobs:
             .build/CompilationCache.noindex
             .build/SDKExplicitPrecompiledModules
             .build/SourcePackages
-          key: xcode-app-${{ github.sha }}
+          key: xcode-app-${{ matrix.platform }}-${{ github.sha }}
+
+  # Branch protection requires this check name.
+  app:
+    name: Build macOS and iOS (unsigned)
+    needs: build
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "build ${{ needs.build.result }}" && [ "${{ needs.build.result }}" != failure ] && [ "${{ needs.build.result }}" != cancelled ]
 
   plugin:
     name: crew-push tests

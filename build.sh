@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Builds Crew for macOS (team-signed when .env sets DEVELOPMENT_TEAM) and the iOS Simulator.
+# Builds Crew for macOS (team-signed when .env sets DEVELOPMENT_TEAM) and the iOS Simulator; `./build.sh mac` or `./build.sh ios` builds one.
 set -euo pipefail
 cd "$(dirname "$0")"
+PLATFORM="${1:-both}"
 
 if [[ -f .env ]]; then
   set -a
@@ -42,13 +43,17 @@ build() {
   fi
 }
 
-echo "▸ Building macOS…"
-build -destination 'platform=macOS,arch=arm64' "${MAC_SIGNING[@]}"
-# Xcode never bumps the bundle's mtime, so Finder and the Dock keep the generic icon cached before AppIcon existed.
-touch .build/Build/Products/Debug/Crew.app
-/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f .build/Build/Products/Debug/Crew.app
+if [[ "$PLATFORM" != ios ]]; then
+  echo "▸ Building macOS…"
+  build -destination 'platform=macOS,arch=arm64' "${MAC_SIGNING[@]}"
+  # Xcode never bumps the bundle's mtime, so Finder and the Dock keep the generic icon cached before AppIcon existed.
+  touch .build/Build/Products/Debug/Crew.app
+  /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f .build/Build/Products/Debug/Crew.app
+  echo "✅ Built .build/Build/Products/Debug/Crew.app"
+fi
 
-echo "▸ Building iOS Simulator (${IOS_DESTINATION})…"
-build -destination "$IOS_DESTINATION" CODE_SIGNING_ALLOWED=NO
-
-echo "✅ Built .build/Build/Products/Debug/Crew.app and Debug-iphonesimulator/Crew.app"
+if [[ "$PLATFORM" != mac ]]; then
+  echo "▸ Building iOS Simulator (${IOS_DESTINATION})…"
+  build -destination "$IOS_DESTINATION" CODE_SIGNING_ALLOWED=NO
+  echo "✅ Built .build/Build/Products/Debug-iphonesimulator/Crew.app"
+fi

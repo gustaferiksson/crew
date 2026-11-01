@@ -9,8 +9,8 @@ One `v*` tag on `main` produces, in one GitHub Release on the public repo `gusta
 | Asset | Built by | Consumed by |
 | --- | --- | --- |
 | `Crew-<v>.zip` (Developer ID, notarized, stapled) | shared `gustaferiksson/macos-release` workflow, unchanged | Homebrew cask `gustaferiksson/tap/crew`, macOS in-app updater |
-| `Crew-<v>.ipa` (Ad Hoc, registered devices) + `manifest.plist` | Crew's own `ios` job | GitHub Pages OTA install, iOS in-app update check |
-| `crew-push-<plugin v>.tar.gz` | same `ios` job | manual deploy to the Hermes host |
+| `Crew-<v>.ipa` (Ad Hoc, registered devices) + `manifest.plist` | Crew's own `ios` job, uploaded by `publish` | GitHub Pages OTA install, iOS in-app update check |
+| `crew-push-<plugin v>.tar.gz` | `publish` job | manual deploy to the Hermes host |
 
 Versions: tag `v0.1.0` sets `MARKETING_VERSION=0.1.0`, the Actions run number sets `CURRENT_PROJECT_VERSION` (the shared workflow's `$VERSION`/`$BUILD`, same as Rinse). Stay on 0.x. `project.yml` keeps `0.1.0`/`1` only as the fallback.
 
@@ -67,9 +67,11 @@ A full `git log --all -p` audit before publishing found no `.env`, `.env.test`, 
 
 1. [claude] `.github/workflows/ci.yml` (PRs and `main`): job on `xcode-27`: `brew install xcodegen`, `./build.sh` (ad hoc, no `.env`, zero warnings enforced already). Job on `ubuntu-latest`: `pytest server/crew-push/tests` (the Hermes integration test skips without `CREW_PUSH_HERMES_SRC`), plus a check that the four plugin version strings agree.
 2. [claude] `.github/workflows/release.yml` on `v*`, `permissions: contents: write, pages: write, id-token: write`:
-   - `macos`: `uses: gustaferiksson/macos-release/.github/workflows/release.yml@main`, `secrets: inherit`, `name: Crew`, `app: dist/Crew.app`, `cask: crew`, `runner: xcode-27`, `signed_by_build: true`, `build: brew install xcodegen && ./package.sh mac`. It creates the release and bumps the cask.
-   - `ios`: `needs: macos` (the shared workflow's `gh release create` fails if the release already exists), `runs-on: xcode-27`: import `IOS_DIST_P12` into a temp keychain (same snippet as the shared workflow), install `IOS_ADHOC_PROFILE`, `./package.sh ios`, `gh release upload` the IPA (as `Crew-<v>.ipa`), `manifest.plist` and `crew-push-<plugin v>.tar.gz` (`git archive HEAD:server/crew-push`), then `actions/upload-pages-artifact` + `actions/deploy-pages` with `pages/` + `Crew.ipa` + `manifest.plist`.
-   - If `ios` fails after `macos` succeeded: fix and "Re-run failed jobs"; iOS users simply see no update until Pages updates.
+   - `macos`: `uses: gustaferiksson/macos-release/.github/workflows/release.yml@main`, `secrets: inherit`, `name: Crew`, `app: dist/Crew.app`, `cask: crew`, `runner: xcode-27`, `signed_by_build: true`, `build: brew install xcodegen && ./package.sh mac`. Tags only. It creates the release and bumps the cask.
+   - `ios`, in parallel with `macos` on `xcode-27`: import `IOS_DIST_P12` into a temp keychain (same snippet as the shared workflow), install `IOS_ADHOC_PROFILE`, `./package.sh ios`, upload `Crew.ipa` + `manifest.plist` as a workflow artifact.
+   - `publish`: `needs: [macos, ios]` (the shared workflow's `gh release create` fails if the release already exists), on `ubuntu-latest`: `gh release upload` the IPA (as `Crew-<v>.ipa`), `manifest.plist` and `crew-push-<plugin v>.tar.gz` (`git archive HEAD:server/crew-push`), then `actions/upload-pages-artifact` + `actions/deploy-pages` with `pages/` + `Crew.ipa` + `manifest.plist`.
+   - Every push to `main` also runs `release.yml` without publishing: `ios` builds the IPA and `macos-cache` an unsigned Release Mac build, each saving its compilation cache (`xcode-release-ios-<sha>`, `xcode-release-mac-<sha>`). A cache saved on a tag is visible only to that tag, so tags restore main's.
+   - If `ios` or `publish` fails after `macos` succeeded: fix and "Re-run failed jobs"; iOS users simply see no update until Pages updates.
 3. [claude] Tap: add `Casks/crew.rb` to `gustaferiksson/homebrew-tap` (copy `rinse.rb`: placeholder version/sha, `url .../download/v#{version}/Crew-#{version}.zip`, `auto_updates true`, `depends_on macos: :golden_gate`, `zap trash: ["~/Library/Preferences/dev.gustaf.crew.plist", "~/Library/Application Support/Crew", "~/Library/Caches/dev.gustaf.crew"]`). [me] OK the tap push.
 
 ### 6. First release
@@ -84,7 +86,7 @@ A full `git log --all -p` audit before publishing found no `.env`, `.env.test`, 
 From the first push on, `main` only moves through pull requests. How this plays out in practice, with measured pain points, is in `docs/development-process.md`.
 
 - One branch per change (`git switch -c <short-name>`), small and focused; `gh pr create` when it builds locally.
-- CI (`ci.yml`: `./build.sh` plus unit tests on `xcode-27` with the compilation cache restored from `main`, crew-push pytest and the plugin version check on Ubuntu; a new push cancels the PR's older run) must be green; the orchestrating agent then merges (`gh pr merge --squash --delete-branch`).
+- CI (`ci.yml`: `./build.sh mac` plus unit tests and `./build.sh ios` on two parallel `xcode-27` runners, each with its compilation cache restored from `main`, gated by the required "Build macOS and iOS (unsigned)" check, crew-push pytest and the plugin version check on Ubuntu; a new push cancels the PR's older run) must be green; the orchestrating agent then merges (`gh pr merge --squash --delete-branch`). The `ci.yml` run on `main` after the merge only exists to save the cache the next PRs restore (a PR's cache is invisible to other PRs); a tag never waits for it.
 - UI tests (XCUITest) are disabled in CI since 2026-11-01 (user request): `ui.yml` only runs on manual dispatch and `release.yml` no longer waits on it. The iOS job took 24 to 44 min on the free runner (one simulator). iOS UI tests run locally on a private simulator for PRs that can affect the iOS UI (`Tests/ui.sh`, relevant classes only); the macOS UI tests are kept in the repo but not run (they would take over the user's screen locally). Tags need `main`'s PR checks green.
 - Verification stays targeted as in `CLAUDE.md`: zero-warning `./build.sh`, only the affected snapshots, only the probes for the logic touched.
 - Releases are cut by the user: `git tag v0.x.y && git push origin v0.x.y` on a green `main`. Versions stay on 0.x.

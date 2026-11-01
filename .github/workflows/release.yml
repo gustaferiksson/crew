@@ -3,6 +3,8 @@ name: Release
 on:
   push:
     tags: [ 'v*' ]
+    branches: [ main ]
+    paths-ignore: [ 'docs/**' ]
 
 permissions:
   contents: write
@@ -11,10 +13,11 @@ permissions:
 
 concurrency:
   group: release-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: ${{ github.ref_type != 'tag' }}
 
 jobs:
   macos:
+    if: ${{ github.ref_type == 'tag' }}
     uses: gustaferiksson/macos-release/.github/workflows/release.yml@main
     secrets: inherit
     with:
@@ -28,14 +31,41 @@ jobs:
         brew install xcodegen
         ./package.sh mac
 
-  ios:
-    # The shared workflow creates the release, so this job only uploads to it.
-    needs: macos
-    name: iOS, plugin and Pages
+  macos-cache:
+    if: ${{ github.ref_type != 'tag' }}
+    name: macOS build cache
     runs-on: xcode-27
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            .build/CompilationCache.noindex
+            .build/SDKExplicitPrecompiledModules
+            .build/SourcePackages
+          key: xcode-release-mac-${{ github.sha }}
+          restore-keys: xcode-release-mac-
+
+      - name: Build Release for macOS, unsigned
+        run: |
+          set -euo pipefail
+          brew install xcodegen
+          xcodegen generate --quiet
+          xcodebuild -project Crew.xcodeproj -scheme Crew -configuration Release -derivedDataPath .build -quiet -skipPackagePluginValidation -skipMacroValidation \
+            -destination 'generic/platform=macOS' MARKETING_VERSION=0.0.0 CURRENT_PROJECT_VERSION=${{ github.run_number }} CODE_SIGNING_ALLOWED=NO build
+
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            .build/CompilationCache.noindex
+            .build/SDKExplicitPrecompiledModules
+            .build/SourcePackages
+          key: xcode-release-mac-${{ github.sha }}
+
+  ios:
+    name: iOS build
+    runs-on: xcode-27
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
@@ -78,16 +108,59 @@ jobs:
           echo "$IOS_ADHOC_PROFILE" | base64 --decode > "$RUNNER_TEMP/Crew_AdHoc.mobileprovision"
           echo "$IOS_WIDGETS_ADHOC_PROFILE" | base64 --decode > "$RUNNER_TEMP/Crew_Widgets_AdHoc.mobileprovision"
 
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            .build/CompilationCache.noindex
+            .build/SDKExplicitPrecompiledModules
+            .build/SourcePackages
+          key: xcode-release-ios-${{ github.sha }}
+          restore-keys: xcode-release-ios-
+
       - name: Build the IPA
         env:
-          VERSION: ${{ github.ref_name }}
+          VERSION: ${{ github.ref_type == 'tag' && github.ref_name || 'v0.0.0' }}
           BUILD: ${{ github.run_number }}
         run: |
           set -euo pipefail
-          # gnu-tar: upload-pages-artifact runs gtar on macOS runners.
-          brew install xcodegen gnu-tar
+          brew install xcodegen
           VERSION="${VERSION#v}" IOS_ADHOC_PROFILE_PATH="$RUNNER_TEMP/Crew_AdHoc.mobileprovision" \
             IOS_WIDGETS_ADHOC_PROFILE_PATH="$RUNNER_TEMP/Crew_Widgets_AdHoc.mobileprovision" ./package.sh ios
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: ${{ github.ref_type == 'tag' }}
+        with:
+          name: ios
+          path: |
+            dist/Crew.ipa
+            dist/manifest.plist
+          retention-days: 7
+
+      # A cache saved on a tag is visible only to that tag, so main saves the one the next tag restores.
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: ${{ github.ref_type != 'tag' }}
+        with:
+          path: |
+            .build/CompilationCache.noindex
+            .build/SDKExplicitPrecompiledModules
+            .build/SourcePackages
+          key: xcode-release-ios-${{ github.sha }}
+
+  publish:
+    # The shared workflow creates the release, so this job only uploads to it.
+    needs: [ macos, ios ]
+    name: iOS, plugin and Pages
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ios
+          path: dist
 
       - name: Upload the IPA, manifest and crew-push to the release
         env:

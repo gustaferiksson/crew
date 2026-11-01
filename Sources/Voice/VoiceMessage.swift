@@ -117,7 +117,7 @@ final class VoiceMessage {
         guard !text.isEmpty else {
             return await finish(id, showing: .init(phase: .failed, failure: String(localized: "Crew didn't hear anything.")))
         }
-        let draft = ChatDrafts.shared.texts[bot.name, default: ""]
+        let draft = ChatDrafts.shared.text(for: bot.name)
         ChatDrafts.shared.update(bot.name, to: [draft, text].filter { !$0.isEmpty }.joined(separator: "\n"))
         guard await submit(text, to: bot, on: server, with: urlSession) else {
             return await show(.init(phase: .failed, failure: String(localized: "Couldn't send. It's saved as a draft.")), on: id)

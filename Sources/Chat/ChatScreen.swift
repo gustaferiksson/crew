@@ -49,7 +49,7 @@ struct ChatScreen: View {
             emptyState: EmptyView(),
             mentionable: bots.bots.filter { $0.id != bot.id },
             slashCommands: session?.slashCommands ?? [],
-            draft: Binding(get: { drafts.texts[bot.id, default: ""] }, set: { drafts.update(bot.id, to: $0) }),
+            draft: Binding(get: { drafts.text(for: bot.id) }, set: { drafts.update(bot.id, to: $0) }),
             tray: drafts.tray(for: bot.id),
             request: session?.request,
             payment: session?.request.flatMap { session?.payments[$0.id] },
@@ -115,7 +115,7 @@ struct ChatScreen: View {
         .onChange(of: session?.returned ?? [], initial: true) {
             guard let returned = session?.returned, !returned.isEmpty else { return }
             session?.returned = []
-            drafts.update(bot.id, to: ([drafts.texts[bot.id, default: ""]] + returned).filter { !$0.isEmpty }.joined(separator: "\n"))
+            drafts.update(bot.id, to: ([drafts.text(for: bot.id)] + returned).filter { !$0.isEmpty }.joined(separator: "\n"))
         }
         .onChange(of: live.canonicalSession?.position, initial: true) {
             bots.markSeen(live)

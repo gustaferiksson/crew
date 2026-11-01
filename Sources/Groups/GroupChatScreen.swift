@@ -61,7 +61,7 @@ struct GroupChatScreen: View {
             transcript: session?.transcript ?? Transcript(),
             emptyState: welcome,
             mentionable: members,
-            draft: Binding(get: { drafts.texts[room.selectionID, default: ""] }, set: { drafts.update(room.selectionID, to: $0) }),
+            draft: Binding(get: { drafts.text(for: room.selectionID) }, set: { drafts.update(room.selectionID, to: $0) }),
             tray: drafts.tray(for: room.selectionID),
             features: [],
             request: session?.request,

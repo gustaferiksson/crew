@@ -10,7 +10,8 @@ struct SurfaceBlock: View {
     let source: String
 
     @Environment(\.surfaces) private var store
-    @Environment(\.cardPinning) private var pinning
+    @Environment(\.pinKey) private var pinKey
+    @Environment(ChatPins.self) private var pins
     @State private var pinTaps = 0
 
     var body: some View {
@@ -22,11 +23,11 @@ struct SurfaceBlock: View {
                             .environment(\.surfaceChoice, store.choices[id])
                             .disabled(store.isBusy)
                             .contextMenu {
-                                if let pinning {
-                                    let isPinned = pinning.pinned == id
+                                if let pinKey {
+                                    let isPinned = pins.pinned(in: pinKey) == id
                                     Button(isPinned ? "Unpin Card" : "Pin Card", systemImage: isPinned ? "pin.slash" : "pin") {
                                         pinTaps += 1
-                                        pinning.pin(isPinned ? nil : id)
+                                        pins.pin(isPinned ? nil : id, in: pinKey)
                                     }
                                 }
                             }

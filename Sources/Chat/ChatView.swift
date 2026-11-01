@@ -179,7 +179,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
                 }
             }
             .scrollTargetLayout()
-            .environment(\.cardPinning, pinKey.map { key in CardPinning(pinned: pins.pinned(in: key)) { pins.pin($0, in: key) } })
+            .environment(\.pinKey, pinKey)
             .animation(.interactiveSpring, value: reveal)
             .padding(16)
         }
@@ -280,7 +280,11 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
                             unpins += 1
                             pins.pin(nil, in: pinKey)
                         }
-                        .popover(isPresented: Binding(get: { openedCard.map(surfaces.present.contains) ?? false }, set: { if !$0 { openedCard = nil } }), arrowEdge: .top) {
+                        .onDisappear { openedCard = nil }
+                        .onChange(of: surfaces.present) {
+                            if let openedCard, !surfaces.present.contains(openedCard) { self.openedCard = nil }
+                        }
+                        .popover(isPresented: Binding(get: { openedCard != nil }, set: { if !$0 { openedCard = nil } }), arrowEdge: .top) {
                             if let openedCard {
                                 PinnedCardContent(surfaces: surfaces, id: openedCard, fallbackTitle: cardFallbackTitle) {
                                     self.openedCard = nil

@@ -2,13 +2,8 @@ import A2UICore
 import A2UISwiftUI
 import SwiftUI
 
-struct CardPinning {
-    let pinned: String?
-    let pin: (String?) -> Void
-}
-
 extension EnvironmentValues {
-    @Entry var cardPinning: CardPinning?
+    @Entry var pinKey: String?
 }
 
 private struct CardSummary {
@@ -39,6 +34,8 @@ struct PinnedCardBar: View {
     let open: () -> Void
     let unpin: () -> Void
 
+    @ScaledMetric private var tile: CGFloat = 28
+
     var body: some View {
         let summary = CardSummary(model.rootNode)
         HStack(spacing: 4) {
@@ -47,7 +44,7 @@ struct PinnedCardBar: View {
                     Image(systemName: summary.symbol)
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(.white)
-                        .frame(width: 28, height: 28)
+                        .frame(width: tile, height: tile)
                         .background(summary.tint.gradient, in: .rect(cornerRadius: 8))
                         .accessibilityHidden(true)
                     Text(summary.title ?? fallbackTitle)
@@ -106,6 +103,7 @@ struct PinnedCardContent: View {
                         }
                     }
             }
+            .frame(idealWidth: 440, idealHeight: 560)
             .presentationCompactAdaptation(.sheet)
             .presentationDetents([.medium, .large])
             .presentationBackgroundInteraction(.enabled(upThrough: .medium))
@@ -127,6 +125,7 @@ struct PinnedCardContent: View {
 
     private func card(_ model: SurfaceViewModel) -> some View {
         let content = Surface(viewModel: model, catalogs: crewCatalogs)
+            .id(surfaces.owners[id])
             .environment(\.surfaceChoice, surfaces.choices[id])
             .disabled(surfaces.isBusy)
             .padding(20)

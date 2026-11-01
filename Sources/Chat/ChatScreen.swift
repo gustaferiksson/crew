@@ -59,6 +59,7 @@ struct ChatScreen: View {
             activity: session?.statusLine ?? session?.generatingTool.map { String(localized: "Preparing \($0.replacing("_", with: " "))") },
             models: models,
             focus: focus,
+            pinKey: bot.id,
             presentation: Snapshot.requested == .layoutInspector ? ChatPresentation(scrollTarget: "t1") : ChatPresentation(),
             actions: ChatActions(
                 send: { session?.send($0, attachments: $1, mentioning: $2, mode: $3) },

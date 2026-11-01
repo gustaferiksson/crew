@@ -10,6 +10,9 @@ struct SurfaceBlock: View {
     let source: String
 
     @Environment(\.surfaces) private var store
+    @Environment(\.pinKey) private var pinKey
+    @Environment(ChatPins.self) private var pins
+    @State private var pinTaps = 0
 
     var body: some View {
         if let store, case .surfaces(let ids) = store.blocks[source] {
@@ -19,9 +22,19 @@ struct SurfaceBlock: View {
                         SurfaceCard(model: model)
                             .environment(\.surfaceChoice, store.choices[id])
                             .disabled(store.isBusy)
+                            .contextMenu {
+                                if let pinKey {
+                                    let isPinned = pins.pinned(in: pinKey) == id
+                                    Button(isPinned ? "Unpin Card" : "Pin Card", systemImage: isPinned ? "pin.slash" : "pin") {
+                                        pinTaps += 1
+                                        pins.pin(isPinned ? nil : id, in: pinKey)
+                                    }
+                                }
+                            }
                     }
                 }
             }
+            .sensoryFeedback(.impact(weight: .light), trigger: pinTaps)
         } else if let store, case .failed(let reason) = store.blocks[source] {
             FailedSurface(reason: reason, source: source)
         } else {

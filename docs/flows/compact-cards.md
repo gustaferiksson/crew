@@ -6,7 +6,7 @@ Apple's pattern: Messages draws an app message (Apple Pay, Fitness, a game, a po
 
 ## The preview
 
-- **Content**, from the live surface (`CardSummary`, already used by the pinned bar):
+- **Content**, from the live surface (`CardSummary`, also used by the pinned-card button):
   - the 44 pt tinted symbol tile from the Header (`symbol`, `tone`; `rectangle.on.rectangle` and the accent colour when missing);
   - the title (Header `title`, else the first line of the first Text, else "Card from <bot>" / "Card"), `.headline`, up to 2 lines;
   - one summary line: the Header `subtitle`, `.subheadline`, secondary, 1 line; none when the card has no subtitle;
@@ -20,16 +20,16 @@ Apple's pattern: Messages draws an app message (Apple Pay, Fitness, a game, a po
 - **Small choice cards** (two or three buttons): also a preview, per the user's decision; answering takes one more tap. The tapped button's mark shows inside the sheet.
 - **Search:** a hit inside a card's text highlights the turn; the card itself stays closed.
 - **Thumbnail:** the Header hero image is cropped to fill the 44 pt square (`scaledToFill`), like Messages' link thumbnails.
-- **Haptics and keys:** none on open (like the bar). On Mac the preview is a button: Tab focuses it and Space opens it; Escape closes the sheet.
+- **Haptics and keys:** none on open (like the pinned-card button). On Mac the preview is a button: Tab focuses it and Space opens it; Escape closes the sheet.
 
 ## The card sheet
 
-- **One presentation per chat**, owned by `ChatView` (the screen container, per PLAN's presentation rule): `openedCard` (id plus anchor frame) is set by the pinned bar and by any transcript preview. One `.popover` with `.presentationCompactAdaptation(.sheet)`:
+- **One open card per chat**, owned by `ChatView` (the screen container, per PLAN's presentation rule): `openedCard` (id plus anchor frame) is set by any transcript preview. One `.popover` with `.presentationCompactAdaptation(.sheet)`; the pinned-card button in the navigation bar sets `openedCard` without an anchor and presents the same content from its own toolbar popover (`docs/flows/pinned-card.md`), so at most one is open. While a card is open, a tap on another preview or on the button changes only the card id and keeps the current presentation:
   - iPhone: medium and large detents, background interaction up to medium, as the pinned-card sheet today.
-  - iPad and Mac: a popover anchored on the tapped preview or the bar (440 pt wide, at most 560 pt tall, the card scrolling inside), the pinned bar's existing popover (user, 2026-11-01: the pinned behaviour is "perfect", and a modal sheet would block asking follow-ups). Clicking into the composer or elsewhere closes it; Escape closes it.
-  - The popover is presented by `ChatView` (the container) with `attachmentAnchor: .rect(...)` at the frame the preview or bar reports in the chat's coordinate space, so no row presents anything and a recycled row cannot dismiss it.
-- **Toolbar (iPhone sheet):** close (`Button(role: .close)`) and Pin/Unpin; on iPad and Mac the popover has the Pin/Unpin button in a small row at its top and no close button (popovers close by clicking outside or Escape), for that card when the chat can pin (Bot Chat and rooms). Unpin keeps the sheet open now that the sheet is not tied to the bar; Pin likewise.
-- **Opening:** dismisses the keyboard first, like the bar. Tapping another preview while the iPhone sheet sits at medium swaps the sheet to that card.
+  - iPad and Mac: a popover anchored on the tapped preview (440 pt wide, at most 560 pt tall, the card scrolling inside), the pinned card's popover (user, 2026-11-01: the pinned behaviour is "perfect", and a modal sheet would block asking follow-ups). Clicking into the composer or elsewhere closes it; Escape closes it.
+  - The popover is presented by `ChatView` (the container) with `attachmentAnchor: .rect(...)` at the frame the preview reports in the chat's coordinate space, so no row presents anything and a recycled row cannot dismiss it.
+- **Toolbar (iPhone sheet):** close (`Button(role: .close)`) and Pin/Unpin; on iPad and Mac the popover has the Pin/Unpin button in a small row at its top and no close button (popovers close by clicking outside or Escape), for that card when the chat can pin (Bot Chat and rooms). Unpin keeps the sheet open; Pin likewise.
+- **Opening:** dismisses the keyboard first, like the pinned-card button. Tapping another preview while the iPhone sheet sits at medium swaps the sheet to that card.
 - **A request card arrives** (approval, question): the sheet closes so the request gets the attention, as pinned-card.md does for the popover today.
 - **Content:** the live surface, scrolling, with the card's title as navigation title (iPhone, iPad) and the existing button-choice marks; disabled while a turn runs. Taps send the hidden action row as before and the reply streams behind the sheet.
 - **The card changes while open:** follows the surface id (re-created or updated); closes when no surface with that id is left in the transcript, as today.
@@ -39,7 +39,7 @@ Apple's pattern: Messages draws an app message (Apple Pay, Fitness, a game, a po
 - **Bot Chat and rooms, iPhone, iPad and Mac, light and dark:** as above.
 - **Other Conversations sheet:** previews open the card sheet over that sheet (its `ChatView` presents it); no Pin button there (no pin key).
 - **Mac chat windows:** each window's `ChatView` presents its own sheet.
-- **Pinned bar:** unchanged look; tapping it opens the same sheet.
+- **Pinned card:** the navigation bar button (`docs/flows/pinned-card.md`) opens the same sheet.
 - **Bot list preview, time, unread, push, inspector:** unchanged (they never showed cards).
 - **Sender, receiver, replies back:** the bot sends the card; the user opens it, taps; the hidden action goes back and the bot's reply follows the card-update rules.
 
@@ -57,7 +57,7 @@ The "Pinned card" line's popover and the "Generative UI design pass" line's inli
 
 ## Tests
 
-- `PinnedCardUITests` (iOS): the bar and the transcript preview open the same sheet, which stays open 3 s; Pin in the sheet pins and keeps it open. A real-server probe is not needed: no server traffic changes.
+- `PinnedCardUITests` (iOS): the pinned-card button and the transcript preview open the same sheet, which stays open 3 s; Pin in the sheet pins and keeps it open. A real-server probe is not needed: no server traffic changes.
 - `CardSummary` reads title, subtitle, symbol and image from the recorded köttbullar card (`Tests/fixtures/chat.a2ui-update.history.json`) and falls back for a Header-less v0.21.7 recipe card; the subtitle assertion fails on `main`.
 - Renders: `chat-a2ui` and `chat-a2ui-updates` (previews), `chat-a2ui-pinned` and `chat-a2ui-streaming`, iPhone and Mac (the Mac popover is a separate window the offscreen renderer does not capture; `CarouselMacUITests` attaches screenshots of it in CI), light and dark.
 - UI tests that drove inline cards (`CarouselUITests`, `CarouselMacUITests`, `PinnedCardUITests`) open the card first; the iOS ones run locally on a private simulator.

@@ -43,6 +43,7 @@ struct CrewApp: App {
             SidebarCommands()
             CommandGroup(after: .sidebar) {
                 InspectorCommand()
+                PinnedCardCommand()
             }
         }
         WindowGroup("Chat", for: Bot.ID.self) { $id in

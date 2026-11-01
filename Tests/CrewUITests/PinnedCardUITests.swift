@@ -30,7 +30,6 @@ final class PinnedCardUITests: XCTestCase {
         XCTAssertTrue(bar.waitForNonExistence(timeout: 5), "the X unpins")
 
         let preview = app.buttons.matching(NSPredicate(format: "label == %@ AND value != %@", title, "Pinned card")).firstMatch
-        for _ in 0..<6 where !preview.isHittable { app.swipeUp() }
         XCTAssertTrue(preview.exists, "the transcript shows the card as a compact preview:\n\(app.debugDescription)")
         preview.tap()
         XCTAssertTrue(sheet.waitForExistence(timeout: 5), "the preview opens the same card sheet")

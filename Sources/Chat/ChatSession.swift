@@ -180,10 +180,12 @@ final class ChatSession {
     }
 
     func startNewChat() async throws {
-        guard let stored, !isRunning else { return }
-        try await retireBotChat(stored, profile: profile, on: gateway.server, with: urlSession)
-        self.stored = nil
-        runtime = nil
+        guard let runtime, stored != nil, !isRunning else { return }
+        for (method, params) in botChatRetirement(of: runtime) {
+            _ = try await gateway.call(method, params, as: JSONValue.self)
+        }
+        stored = nil
+        self.runtime = nil
         transcript = Transcript()
         openRequests = []
         todos = []
@@ -730,36 +732,15 @@ nonisolated func history(of stored: StoredSessionID, profile: String, on server:
     try await fetch(historyRequest(of: stored, profile: profile, on: server, limit: limit), with: urlSession, as: HistoryPage.self).messages
 }
 
-nonisolated func retireBotChat(_ stored: StoredSessionID, profile: String, on server: URL, with urlSession: URLSession, at date: Date = .now) async throws {
-    var lookup = hermesRequest("api/sessions/\(stored.rawValue)", on: server)
-    lookup.url?.append(queryItems: [URLQueryItem(name: "profile", value: profile)])
-    let revision = try await fetch(lookup, with: urlSession, as: SessionRevision.self).runtimeRevision
-    var request = hermesRequest("api/sessions/\(stored.rawValue)", on: server)
-    request.httpMethod = "PATCH"
-    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-    // Hermes delivers to the exact title "Bot Chat" even when archived, and falls back to "Bot Chat #N" rows.
+nonisolated func botChatRetirement(of runtime: RuntimeSessionID, at date: Date = .now) -> [(method: String, params: [String: JSONValue])] {
+    let session = JSONValue.string(runtime.rawValue)
+    // Hermes refuses to retitle a hidden "Bot Chat", delivers to that exact title even when archived, and falls back to "Bot Chat #N" rows.
     let title = String(localized: "Bot Chat until \(date.formatted(date: .abbreviated, time: .omitted))")
-    request.httpBody = try JSONEncoder().encode(RetiredBotChat(profile: profile, title: title, expectedRevision: revision))
-    _ = try await fetch(request, with: urlSession, as: JSONValue.self)
-}
-
-nonisolated private struct SessionRevision: Decodable, Sendable {
-    let runtimeRevision: Int
-}
-
-nonisolated private struct RetiredBotChat: Encodable, Sendable {
-    let profile: String
-    let title: String
-    let archived = true
-    let hidden = false
-    let requestID = UUID().uuidString
-    let expectedRevision: Int
-
-    private enum CodingKeys: String, CodingKey {
-        case profile, title, archived, hidden
-        case requestID = "request_id"
-        case expectedRevision = "expected_revision"
-    }
+    return [
+        ("session.set_hidden", ["session_id": session, "hidden": .bool(false)]),
+        ("session.title", ["session_id": session, "title": .string(title)]),
+        ("session.archive", ["session_id": session, "archived": .bool(true)]),
+    ]
 }
 
 nonisolated private struct CompressReply: Decodable, Sendable {

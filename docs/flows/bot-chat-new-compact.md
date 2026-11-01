@@ -11,14 +11,14 @@ A long Bot Chat only grows. The chat's toolbar gets a Chat Options menu (ellipsi
 ## Start New Chat…
 
 - Dialog "Start a New Chat?": "This chat moves to Other Conversations in <Bot>'s info, and <Bot> starts fresh. Its memory and skills stay." Buttons Start New Chat, Cancel.
-- Crew reads the Bot Chat's `runtime_revision` (`GET /api/sessions/{id}`) and sends one fenced `PATCH /api/sessions/{id}` with `title: "Bot Chat until <date>"`, `archived: true`, `hidden: false`, `request_id`, `expected_revision`. The retitle is required: Hermes finds the Bot Chat by exact title even when archived, and falls back to `Bot Chat #N` rows, so neither archiving alone nor a numbered title frees it.
+- Crew sends three gateway calls on the Bot Chat's runtime id: `session.set_hidden {hidden: false}`, `session.title "Bot Chat until <date>"`, `session.archive {archived: true}`. Unhide comes first because Hermes refuses to retitle a hidden `Bot Chat`. The retitle is required: Hermes finds the Bot Chat by exact title even when archived, and falls back to `Bot Chat #N` rows, so neither archiving alone nor a numbered title frees it.
 - The chat then empties and re-resolves through the normal open path (`session.create` + `session.title "Bot Chat"`); the roster reloads so the bot row's preview, time and read marker follow the new chat (it is marked read while open).
 - Other Conversations now asks for `archived=include`, so the old chat is listed there under its new title and opens as before.
 
 ## States
 
 - Disabled: offline, chat not attached yet, empty chat, or the bot is working (no compaction or retirement mid-turn).
-- Error: an alert "Couldn't Compact Chat" / "Couldn't Start New Chat" with the server's reason (e.g. a revision conflict); nothing changes on a failed PATCH.
+- Error: an alert "Couldn't Compact Chat" / "Couldn't Start New Chat" with the server's reason; the chat stays as it was until the retitle lands (a failed retitle can leave it unhidden, still the Bot Chat); after a failed archive the old chat keeps its new title and the next open starts the new chat.
 - Long content: titles and messages are system dialogs and wrap; light and dark are system styles.
 - Push: unchanged; replies in the new chat push as Bot Chat replies.
 

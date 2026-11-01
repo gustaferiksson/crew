@@ -42,7 +42,7 @@ struct UserBubble: View {
         let segments = mentionSegments(in: text, among: mentionable)
         let content = content(segments)
         let picked = card.flatMap { pick in segments.indices.contains(pick.index) && segments[pick.index].bot?.id == pick.bot ? segments[pick.index].bot : nil }
-        content
+        let bubbleText = content
             .textRenderer(MentionTagRenderer())
             .overlayPreferenceValue(Text.LayoutKey.self) { tagButtons(for: $0, in: segments, picked: picked) }
             .tint(.white)
@@ -54,9 +54,7 @@ struct UserBubble: View {
                 return .handled
             })
             .foregroundStyle(pending == nil ? Color.white : fill)
-            #if os(macOS)
-            .textSelection(.enabled)
-            #endif
+        SelectingBubbleText(segments: segments, color: pending == nil ? .white : fill, isFilled: pending == nil) { bubbleText }
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
             .background {
@@ -122,6 +120,47 @@ struct UserBubble: View {
         #endif
         .position(x: rect.midX, y: rect.midY)
     }
+}
+
+private struct SelectingBubbleText<Content: View>: View {
+    let segments: [MentionSegment]
+    let color: Color
+    let isFilled: Bool
+    @ViewBuilder let content: Content
+
+    @Environment(\.messageSelection) private var selection
+
+    var body: some View {
+        #if os(iOS)
+        if let selection, selection.wrappedValue {
+            SelectableText(text: selectableText, tint: isFilled ? .white : nil, isSelecting: selection)
+        } else {
+            content
+        }
+        #else
+        content
+            .textSelection(.enabled)
+        #endif
+    }
+
+    #if os(iOS)
+    private var selectableText: NSAttributedString {
+        let body = UIFont.preferredFont(forTextStyle: .body)
+        let semibold = UIFont.systemFont(ofSize: body.pointSize, weight: .semibold)
+        let text = NSMutableAttributedString()
+        for segment in segments {
+            guard let bot = segment.bot else {
+                text.append(NSAttributedString(string: segment.text, attributes: [.font: body, .foregroundColor: UIColor(color)]))
+                continue
+            }
+            let tag = NSMutableAttributedString(string: "@\u{202F}\u{00A0}", attributes: [.font: body, .foregroundColor: UIColor(color)])
+            tag.append(NSAttributedString(string: bot.title.replacing(" ", with: "\u{00A0}") + "\u{00A0}", attributes: [.font: semibold, .foregroundColor: UIColor(color)]))
+            tag.addAttribute(.replyPlainText, value: "@ \(bot.title) ", range: NSRange(location: 0, length: tag.length))
+            text.append(tag)
+        }
+        return text
+    }
+    #endif
 }
 
 private struct MentionPick: Equatable {

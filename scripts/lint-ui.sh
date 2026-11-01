@@ -2,7 +2,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-presenters='^Sources/(BotsView|Chat/ChatFixtures|Chat/ChatScreen|Chat/ChatView|Chat/Composer|Chat/MessageMenu|Chat/PaymentSnapshots|Chat/UserBubble|Inspector/BotInspector|Inspector/InspectorSnapshots|Profile/ProfileSnapshots)\.swift:'
+presenters='^Sources/(BotsView|Chat/ChatFixtures|Chat/ChatScreen|Chat/ChatView|Chat/Composer|Chat/PaymentSnapshots|Chat/UserBubble|Inspector/BotInspector|Inspector/InspectorSnapshots|Profile/ProfileSnapshots)\.swift:'
 failed=0
 
 search() {

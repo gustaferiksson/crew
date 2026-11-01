@@ -108,6 +108,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
     @State private var unpins = 0
     @State private var isOnScreen = false
     @State private var liveTurn: Turn.ID?
+    @State private var transcriptTaps = 0
     @Environment(ChatPins.self) private var pins
     @Environment(BotStore.self) private var bots
     @Environment(\.scenePhase) private var scenePhase
@@ -280,11 +281,13 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
             .environment(\.chatActions, latestActions)
             .environment(\.transcriptExpansion, expansion)
             .environment(\.expandedCards, $expandedCards)
+            .environment(\.transcriptTaps, transcriptTaps)
             .animation(.interactiveSpring, value: reveal)
             .padding(16)
         }
         #if os(iOS)
         .scrollDismissesKeyboard(.interactively)
+        .simultaneousGesture(TapGesture().onEnded { transcriptTaps += 1 })
         #endif
         .onGeometryChange(for: CGFloat.self) { $0.size.height + $0.safeAreaInsets.bottom } action: { barRoom = $0 }
         .simultaneousGesture(

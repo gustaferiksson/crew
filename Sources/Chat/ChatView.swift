@@ -23,6 +23,7 @@ struct ChatPresentation {
     var revealsTimestamps = false
     var expandedTurns: Set<Turn.ID> = []
     var expandedWork: Set<WorkItem.ID> = []
+    var expandedCards: Set<String> = []
     var scrollTarget: Turn.ID?
     var attachments: [Attachment] = []
     var draft = ""
@@ -103,6 +104,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
     @State private var handledFocus: UUID?
     @State private var responses: [SensoryFeedback] = []
     @State private var openedCard: OpenedCard?
+    @State private var expandedCards: Set<String>
     @State private var unpins = 0
     @Environment(ChatPins.self) private var pins
     @Environment(BotStore.self) private var bots
@@ -131,6 +133,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
         self.actions = actions
         self.presentation = presentation
         _expansion = State(initialValue: TranscriptExpansion(turns: presentation.expandedTurns, work: presentation.expandedWork))
+        _expandedCards = State(initialValue: presentation.expandedCards)
         _draft = draft
         self.tray = tray
     }
@@ -251,6 +254,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
             .environment(\.openedCard, $openedCard)
             .environment(\.chatActions, latestActions)
             .environment(\.transcriptExpansion, expansion)
+            .environment(\.expandedCards, $expandedCards)
             .animation(.interactiveSpring, value: reveal)
             .padding(16)
         }

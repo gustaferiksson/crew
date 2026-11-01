@@ -12,6 +12,7 @@ struct SurfaceBlock: View {
     @Environment(\.surfaces) private var store
     @Environment(\.pinKey) private var pinKey
     @Environment(\.openedCard) private var openedCard
+    @Environment(\.expandedCards) private var expandedCards
     @Environment(ChatPins.self) private var pins
     @State private var pinTaps = 0
     @State private var preview: SurfaceViewModel?
@@ -44,6 +45,8 @@ struct SurfaceBlock: View {
         } else if let preview {
             CardPreview(model: preview, fallbackTitle: String(localized: "Card")) { _ in }
                 .disabled(true)
+                .background { Color.clear.glassEffect(.regular, in: .rect(cornerRadius: 28)) }
+                .frame(maxWidth: 560, alignment: .leading)
                 .task(id: previewStep(forLength: source.utf8.count)) { refreshPreview() }
         } else {
             Label {
@@ -60,19 +63,42 @@ struct SurfaceBlock: View {
 
     private func card(_ model: SurfaceViewModel, id: String, in store: SurfaceStore, revised: Bool) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            CardPreview(model: model, fallbackTitle: String(localized: "Card")) { frame in
-                guard let openedCard else { return }
-                openedCard.wrappedValue = OpenedCard(id: id, anchor: openedCard.wrappedValue == nil ? frame : openedCard.wrappedValue?.anchor)
+            let expanded = expandedCards.map { cards in
+                Binding { cards.wrappedValue.contains(id) } set: { if $0 { cards.wrappedValue.insert(id) } else { cards.wrappedValue.remove(id) } }
             }
-            .contextMenu {
-                if let pinKey {
-                    let isPinned = pins.pinned(in: pinKey) == id
-                    Button(isPinned ? "Unpin Card" : "Pin Card", systemImage: isPinned ? "pin.slash" : "pin") {
-                        pinTaps += 1
-                        pins.pin(isPinned ? nil : id, in: pinKey)
+            VStack(alignment: .leading, spacing: 0) {
+                CardPreview(model: model, fallbackTitle: String(localized: "Card"), expanded: expanded) { frame in
+                    guard let openedCard else { return }
+                    openedCard.wrappedValue = OpenedCard(id: id, anchor: openedCard.wrappedValue == nil ? frame : openedCard.wrappedValue?.anchor)
+                }
+                .contextMenu {
+                    if let expanded {
+                        Button(expanded.wrappedValue ? "Collapse Card" : "Expand Card", systemImage: expanded.wrappedValue ? "chevron.up" : "chevron.down") {
+                            withAnimation(.smooth) { expanded.wrappedValue.toggle() }
+                        }
+                    }
+                    if let pinKey {
+                        let isPinned = pins.pinned(in: pinKey) == id
+                        Button(isPinned ? "Unpin Card" : "Pin Card", systemImage: isPinned ? "pin.slash" : "pin") {
+                            pinTaps += 1
+                            pins.pin(isPinned ? nil : id, in: pinKey)
+                        }
                     }
                 }
+                if expanded?.wrappedValue == true {
+                    Surface(viewModel: model, catalogs: crewCatalogs)
+                        .id(store.owners[id])
+                        .environment(\.surfaceChoice, store.choices[id])
+                        .environment(\.hiddenHeader, CardSummary(model.rootNode).header)
+                        .disabled(store.isBusy)
+                        .padding([.horizontal, .bottom], 20)
+                        .padding(.top, 8)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .transition(.opacity)
+                }
             }
+            .background { Color.clear.glassEffect(.regular, in: .rect(cornerRadius: 28)) }
+            .frame(maxWidth: 560, alignment: .leading)
             if revised {
                 Text("Updated")
                     .font(.footnote)

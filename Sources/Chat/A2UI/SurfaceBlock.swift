@@ -60,7 +60,10 @@ struct SurfaceBlock: View {
 
     private func card(_ model: SurfaceViewModel, id: String, in store: SurfaceStore, revised: Bool) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            CardPreview(model: model, fallbackTitle: String(localized: "Card")) { openedCard?.wrappedValue = OpenedCard(id: id, anchor: $0) }
+            CardPreview(model: model, fallbackTitle: String(localized: "Card")) { frame in
+                guard let openedCard else { return }
+                openedCard.wrappedValue = OpenedCard(id: id, anchor: openedCard.wrappedValue == nil ? frame : openedCard.wrappedValue?.anchor)
+            }
             .contextMenu {
                 if let pinKey {
                     let isPinned = pins.pinned(in: pinKey) == id

@@ -34,7 +34,17 @@ struct InspectorCommand: View {
     }
 }
 
+struct PinnedCardCommand: View {
+    @FocusedBinding(\.pinnedCard) private var isPresented
+
+    var body: some View {
+        Button(isPresented == true ? "Hide Pinned Card" : "Show Pinned Card") { isPresented?.toggle() }
+            .disabled(isPresented == nil)
+    }
+}
+
 extension FocusedValues {
     @Entry var inspector: Binding<Bool>?
+    @Entry var pinnedCard: Binding<Bool>?
 }
 #endif

@@ -463,6 +463,15 @@ struct ChatFixtureScreen: View {
             )
         )
         .environment(\.chatSession, session)
+        .toolbar {
+            if fixture == .a2uiPinned {
+                ToolbarItem(placement: .primaryAction) {
+                    Menu("Chat Options", systemImage: "ellipsis") {
+                        Button("Compact Chat…", systemImage: "arrow.down.right.and.arrow.up.left") {}
+                    }
+                }
+            }
+        }
         .task {
             guard fixture == .composerLine, let recorded = ChatFixture.recordedHistory() else { return }
             try? await Task.sleep(for: .milliseconds(500))

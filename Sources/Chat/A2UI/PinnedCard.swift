@@ -11,7 +11,7 @@ nonisolated let chatSpace = "chat"
 
 struct OpenedCard: Equatable {
     let id: String
-    let anchor: CGRect
+    let anchor: CGRect?
 }
 
 struct CardSummary {
@@ -40,54 +40,26 @@ struct CardSummary {
     }
 }
 
-struct PinnedCardBar: View {
+struct PinnedCardButton: View {
     @ObservedObject var model: SurfaceViewModel
     let fallbackTitle: String
     let open: () -> Void
     let unpin: () -> Void
 
-    @ScaledMetric private var tile: CGFloat = 28
-
     var body: some View {
         let summary = CardSummary(model.rootNode)
-        HStack(spacing: 4) {
-            Button(action: open) {
-                HStack(spacing: 10) {
-                    Image(systemName: summary.symbol)
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(.white)
-                        .frame(width: tile, height: tile)
-                        .background(summary.tint.gradient, in: .rect(cornerRadius: 8))
-                        .accessibilityHidden(true)
-                    Text(summary.title ?? fallbackTitle)
-                        .font(.subheadline.weight(.semibold))
-                        .lineLimit(1)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .padding(.leading, 8)
-                #if os(iOS)
-                .frame(minHeight: 44)
-                #else
-                .frame(minHeight: 36)
-                #endif
-                .contentShape(.rect)
-            }
-            .buttonStyle(.plain)
-            .accessibilityValue("Pinned card")
-            .accessibilityHint("Shows the card")
-            Button("Unpin", systemImage: "xmark", action: unpin)
-                .labelStyle(.iconOnly)
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .buttonStyle(.borderless)
-                #if os(iOS)
-                .frame(width: 44, height: 44)
-                #else
-                .frame(width: 36, height: 36)
-                #endif
-                .contentShape(.rect)
+        let title = summary.title ?? fallbackTitle
+        Menu {
+            Button("Unpin", systemImage: "pin.slash", action: unpin)
+        } label: {
+            Label(title, systemImage: summary.symbol)
+        } primaryAction: {
+            open()
         }
-        .background { Color.clear.glassEffect(.regular.interactive(), in: .capsule) }
+        .menuIndicator(.hidden)
+        .help(title)
+        .accessibilityHint("Shows the card")
+        .accessibilityAction(named: "Unpin", unpin)
     }
 }
 

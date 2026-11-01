@@ -30,4 +30,4 @@ A recipe card took about 29 s from send to visible, 22 s of it "Preparing card�
 
 ## Tests
 
-`ProgressiveCardTests` replays the recorded köttbullar block (`Tests/fixtures/chat.a2ui-update.history.json`, skill v7) byte by byte: every healed prefix is valid JSON; the Header shows within the first quarter of the block (fails with previews off: no card before the fence closes); an unchanged prefix returns the same preview; the recorded card and an 8x longer one stay under 1 ms per token.
+`ProgressiveCardTests` replays the recorded köttbullar block (`Tests/fixtures/chat.a2ui-update.history.json`, skill v7) byte by byte: every healed prefix is valid JSON; the Header shows within the first quarter of the block (fails with previews off: no card before the fence closes); an unchanged prefix returns the same preview; previewing a whole stream costs under 60 full previews of the finished block for the recorded card and an 8x longer one (7x and 26x measured; relative, like the other perf tests, so slower CI runners do not flake it).

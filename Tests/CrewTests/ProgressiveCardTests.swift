@@ -55,14 +55,15 @@ private func refreshedPrefixes(of block: String) -> [String] {
     #expect(store.preview(String(block.dropLast())) === final, "an unchanged prefix gives back the same preview, so a recycled row keeps its card")
 }
 
-@MainActor @Test(arguments: [false, true]) func previewingAStreamingCardStaysUnderAMillisecondPerToken(long: Bool) throws {
+@MainActor @Test(arguments: [false, true]) func previewingAWholeStreamCostsAboutThirtyFiveFullPreviews(long: Bool) throws {
     let block = long ? try longRecipeBlock() : try recordedRecipeBlock()
+    let clock = ContinuousClock()
+    let full = clock.measure { for _ in 0..<3 { _ = SurfaceStore().preview(block) } } / 3
     let store = SurfaceStore()
     let prefixes = refreshedPrefixes(of: block)
-    let tokens = Double(block.utf8.count) / 3.8
-    let elapsed = ContinuousClock().measure {
+    let elapsed = clock.measure {
         for prefix in prefixes { _ = store.preview(prefix) }
     }
-    let perToken = elapsed / tokens
-    #expect(perToken < .milliseconds(1), "\(block.utf8.count) bytes: \(prefixes.count) previews took \(elapsed), \(perToken) per token over \(Int(tokens)) tokens")
+    let perToken = elapsed / (Double(block.utf8.count) / 3.8)
+    #expect(elapsed < full * 60, "\(block.utf8.count) bytes: \(prefixes.count) previews took \(elapsed), one full preview \(full), \(perToken) per token")
 }

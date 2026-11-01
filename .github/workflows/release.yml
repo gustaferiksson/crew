@@ -30,6 +30,40 @@ jobs:
         brew install xcodegen
         ./package.sh mac
 
+  macos-cache:
+    if: ${{ github.ref_type != 'tag' }}
+    name: macOS build cache
+    runs-on: xcode-27
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            .build/CompilationCache.noindex
+            .build/SDKExplicitPrecompiledModules
+            .build/SourcePackages
+          key: xcode-release-mac-${{ github.sha }}
+          restore-keys: |
+            xcode-release-mac-
+            xcode-app-
+
+      - name: Build Release for macOS, unsigned
+        run: |
+          set -euo pipefail
+          brew install xcodegen
+          xcodegen generate --quiet
+          xcodebuild -project Crew.xcodeproj -scheme Crew -configuration Release -derivedDataPath .build -quiet -skipPackagePluginValidation -skipMacroValidation \
+            -destination 'generic/platform=macOS' CODE_SIGNING_ALLOWED=NO build
+
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            .build/CompilationCache.noindex
+            .build/SDKExplicitPrecompiledModules
+            .build/SourcePackages
+          key: xcode-release-mac-${{ github.sha }}
+
   ios:
     name: iOS build
     runs-on: xcode-27

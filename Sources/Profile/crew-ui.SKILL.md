@@ -1,7 +1,7 @@
 ---
 name: crew-ui
-description: Use for checklists, tables, charts, maps, forms, carousels.
-version: 6
+description: Use for recipes, checklists, tables, charts, maps, forms.
+version: 7
 ---
 
 # Rich UI in Crew
@@ -13,9 +13,10 @@ The Crew app draws A2UI v0.9 blocks as native cards. Use one when a reply offers
 Rules:
 - Write one or two lines of prose first and put the block last. Other apps show the block as code, so the prose must carry the answer on its own.
 - The block is one fenced code block with the language `a2ui`, holding a JSON array of messages. Every message has "version": "v0.9". Valid JSON only: no comments, no trailing commas. Keep it under 64 KB.
-- First message: {"version": "v0.9", "createSurface": {"surfaceId": "<new short id>", "catalogId": "https://crew.gustaf.dev/catalogs/crew/v1.json"}}. Use a fresh surfaceId for every new card.
-- Optional state for inputs: {"version": "v0.9", "updateDataModel": {"surfaceId": "<id>", "value": {...}}}.
-- Then {"version": "v0.9", "updateComponents": {"surfaceId": "<id>", "components": [...]}}: a flat list where exactly one component has "id": "root" and children are referenced by id, never nested inline.
+- First message: {"version": "v0.9", "createSurface": {"surfaceId": "<id>", "catalogId": "https://crew.gustaf.dev/catalogs/crew/v1.json"}}. Name the id after the thing, e.g. "tomato-soup-recipe" or "lofoten-packing-list", not "recipe" or "list".
+- Then {"version": "v0.9", "updateComponents": {"surfaceId": "<id>", "components": [...]}}: a flat list where exactly one component has "id": "root" and children are referenced by id, never nested inline. Order it top to bottom (root, Column, Header, then the sections) and put long Steps last, so Crew can draw the card as it arrives.
+- Last, optional state for inputs: {"version": "v0.9", "updateDataModel": {"surfaceId": "<id>", "value": {...}}}.
+- When the user asks to change a card you made ("for 6 people", "make it vegan", "add a column", "fix step 3"), send the whole card again with the same surfaceId: createSurface, components and data. Crew replaces the old card and marks the new one as updated. Use a new surfaceId for a different thing, a side-by-side comparison, or when the user wants to keep the old card.
 - The root is always a Card whose child is a Column that starts with a Header. Never use a bare Column as the root, and never skip the Header.
 - {"path": "/a/b"} binds a property to the data model. Inside a template ({"componentId": "<id>", "path": "/items"}) paths are relative to the item, like {"path": "name"}.
 
@@ -72,12 +73,6 @@ Example, a recipe with an ingredient checklist and method:
 ```a2ui
 [
   {"version": "v0.9", "createSurface": {"surfaceId": "tomato-soup", "catalogId": "https://crew.gustaf.dev/catalogs/crew/v1.json"}},
-  {"version": "v0.9", "updateDataModel": {"surfaceId": "tomato-soup", "value": {"ingredients": [
-    {"name": "1 kg ripe tomatoes", "done": false},
-    {"name": "1 onion", "done": false},
-    {"name": "2 cloves garlic", "done": false},
-    {"name": "5 dl vegetable stock", "done": false}
-  ]}}},
   {"version": "v0.9", "updateComponents": {"surfaceId": "tomato-soup", "components": [
     {"id": "root", "component": "Card", "child": "body"},
     {"id": "body", "component": "Column", "children": ["header", "ingredients-title", "list", "method-title", "method"]},
@@ -87,7 +82,13 @@ Example, a recipe with an ingredient checklist and method:
     {"id": "ingredient", "component": "CheckBox", "label": {"path": "name"}, "value": {"path": "done"}},
     {"id": "method-title", "component": "Text", "text": "Method", "variant": "h4"},
     {"id": "method", "component": "Steps", "items": ["Soften the onion and garlic in olive oil, 5 min.", "Add the tomatoes and stock, simmer 25 min.", "Blend smooth and season."]}
-  ]}}
+  ]}},
+  {"version": "v0.9", "updateDataModel": {"surfaceId": "tomato-soup", "value": {"ingredients": [
+    {"name": "1 kg ripe tomatoes", "done": false},
+    {"name": "1 onion", "done": false},
+    {"name": "2 cloves garlic", "done": false},
+    {"name": "5 dl vegetable stock", "done": false}
+  ]}}}
 ]
 ```
 
@@ -95,7 +96,6 @@ Example, a form:
 ```a2ui
 [
   {"version": "v0.9", "createSurface": {"surfaceId": "booking", "catalogId": "https://crew.gustaf.dev/catalogs/crew/v1.json"}},
-  {"version": "v0.9", "updateDataModel": {"surfaceId": "booking", "value": {"name": "", "date": "", "guests": ["2"], "notes": ""}}},
   {"version": "v0.9", "updateComponents": {"surfaceId": "booking", "components": [
     {"id": "root", "component": "Card", "child": "form"},
     {"id": "form", "component": "Column", "children": ["header", "name", "date", "guests", "notes", "actions"]},
@@ -109,7 +109,8 @@ Example, a form:
     {"id": "submit-label", "component": "Text", "text": "Request Booking"},
     {"id": "submit", "component": "Button", "child": "submit-label", "variant": "primary", "action": {"event": {"name": "book",
       "context": {"name": {"path": "/name"}, "date": {"path": "/date"}, "guests": {"path": "/guests"}, "notes": {"path": "/notes"}}}}}
-  ]}}
+  ]}},
+  {"version": "v0.9", "updateDataModel": {"surfaceId": "booking", "value": {"name": "", "date": "", "guests": ["2"], "notes": ""}}}
 ]
 ```
 

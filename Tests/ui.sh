@@ -34,5 +34,4 @@ echo "▸ First launch rendered in ${SECONDS}s"
 xcrun simctl terminate "$device" dev.gustaf.crew
 
 xcodebuild test-without-building -xctestrun .build/Build/Products/CrewUITests_*.xctestrun \
-  -destination "id=$device" -collect-test-diagnostics never -test-timeouts-enabled YES -default-test-execution-time-allowance 300 \
-  -parallel-testing-enabled YES -parallel-testing-worker-count "${UI_WORKERS:-2}" "$@"
+  -destination "id=$device" -collect-test-diagnostics never -test-timeouts-enabled YES -default-test-execution-time-allowance 300 "$@"

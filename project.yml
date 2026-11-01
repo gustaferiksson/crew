@@ -150,6 +150,19 @@ targets:
       - Sources/Chat/Payments.swift
       - Sources/Chat/PaymentCard.swift
       - Sources/Chat/TranscriptScroll.swift
+      - Sources/Chat/ChatView.swift
+      - Sources/Chat/WorkLog.swift
+      - Sources/Chat/UserBubble.swift
+      - Sources/Chat/MessageMenu.swift
+      - Sources/Chat/ReplyText.swift
+      - Sources/Chat/Markdown.swift
+      - Sources/Chat/TrackpadSwipe.swift
+      - Sources/Chat/MentionPeek.swift
+      - Sources/Profile/ModelSwitcher.swift
+      - Sources/Snapshot.swift
+      - Sources/MenuCommands.swift
+      - Sources/Connection.swift
+      - Sources/Keychain.swift
       - Sources/Push/PushRoute.swift
       - Sources/Chat/Mentions.swift
       - Sources/Chat/SlashCommands.swift

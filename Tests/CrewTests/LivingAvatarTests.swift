@@ -129,7 +129,8 @@ private struct CountingClock: Clock {
     return steps.count.load(ordering: .relaxed)
 }
 
-@Test @MainActor func onlyAvatarsOnScreenMove() async throws {
+@Test(.enabled(if: !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion && !ProcessInfo.processInfo.isLowPowerModeEnabled, "the host stills avatars"))
+@MainActor func onlyAvatarsOnScreenMove() async throws {
     let perAvatar = Double(try await steps(rows: 4)) / 4
     let active = Double(try await steps(rows: 1000)) / perAvatar
     print("avatars moving in a 400 pt list of 1000 working bots: \(active) (\(perAvatar) steps each in 1.5 s at 40x)")

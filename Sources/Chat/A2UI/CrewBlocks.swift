@@ -6,7 +6,13 @@ let crewTones: [String: Color] = ["info": .blue, "success": .green, "warning": .
 struct CrewHeader: View {
     let node: Node
 
+    @Environment(\.hiddenHeader) private var hiddenHeader
+
     var body: some View {
+        if hiddenHeader != node.id { header }
+    }
+
+    @ViewBuilder private var header: some View {
         let subtitle = node.string(for: "subtitle")
         let tint = crewTones[node.string(for: "tone") ?? ""] ?? .accentColor
         VStack(alignment: .leading, spacing: 16) {

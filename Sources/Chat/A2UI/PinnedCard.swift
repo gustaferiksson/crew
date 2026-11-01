@@ -5,6 +5,8 @@ import SwiftUI
 extension EnvironmentValues {
     @Entry var pinKey: String?
     @Entry var openedCard: Binding<OpenedCard?>?
+    @Entry var expandedCards: Binding<Set<String>>?
+    @Entry var hiddenHeader: String?
 }
 
 nonisolated let chatSpace = "chat"
@@ -15,6 +17,7 @@ struct OpenedCard: Equatable {
 }
 
 struct CardSummary {
+    let header: String?
     let title: String?
     let subtitle: String?
     let image: URL?
@@ -32,6 +35,7 @@ struct CardSummary {
             queue += node.allChildNodes
         }
         let line = text?.string(for: "text")?.split(whereSeparator: \.isNewline).first.map { String(cardMarkdown(String($0)).characters) }
+        self.header = header?.id
         title = [header?.string(for: "title"), line].compactMap { $0?.trimmingCharacters(in: .whitespaces) }.first { !$0.isEmpty }
         subtitle = header?.string(for: "subtitle")?.trimmingCharacters(in: .whitespaces).split(whereSeparator: \.isNewline).first.map(String.init)
         image = header?.string(for: "image").flatMap(URL.init(string:)).flatMap { $0.scheme == "https" ? $0 : nil }

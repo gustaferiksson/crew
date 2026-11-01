@@ -48,3 +48,16 @@ private func imageMemoryRows(caption: String = imageOnlyPrompt) throws -> [Histo
     #expect(Prompt(raw: "Plan my week\n" + stored[memory...], sentAt: .now).text == "Plan my week")
     #expect(Prompt(raw: "Plan my week\n<memory-context>\n[System note: cut off", sentAt: .now).text == "Plan my week")
 }
+
+@Test func serverPreviewFallbackDropsTheMemoryContext() throws {
+    let stored = try #require(imageMemoryRows().first?.content)
+    let memory = try #require(stored.firstRange(of: "<memory-context>")).lowerBound
+    let shaped = ("Thanks\n" + stored[memory...]).replacingOccurrences(of: "\n", with: " ")
+    let preview = String(shaped.prefix(60)) + "..."
+    let profile: [String: Any] = ["name": "default", "is_default": true, "has_avatar": false, "canonical_session": ["id": "s1", "resolved_id": "s1", "preview": preview]]
+    let roster = try JSONDecoder().decode(Roster.self, from: JSONSerialization.data(withJSONObject: ["profiles": [profile]]))
+    let store = BotStore(fixture: [], statuses: [:])
+    store.apply(roster: roster.profiles)
+    let bot = try #require(store.bots.first)
+    #expect(ChatSessions().summary(of: bot, in: store).preview == "Thanks")
+}

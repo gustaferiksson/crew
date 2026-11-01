@@ -1036,6 +1036,57 @@ if phases.contains("a2ui") {
     print("REPLY", reply.path)
 }
 
+if phases.contains("a2ui-update") {
+    let skill = try String(contentsOf: URL(fileURLWithPath: #filePath).appending(path: "../../../Sources/Profile/crew-ui.SKILL.md").standardized, encoding: .utf8)
+    var install = hermesRequest("api/skills/content", on: server, json: ["name": "crew-ui", "content": skill, "profile": "crew-test"])
+    install.httpMethod = "PUT"
+    _ = try await fetch(install, with: urlSession, as: JSONValue.self)
+    let name = "crew-test-\(UUID().uuidString.prefix(6).lowercased())"
+    let store = BotStore(fixture: [], statuses: [:])
+    Task { await store.run(gateway, urlSession: urlSession) }
+    try await Task.sleep(for: .seconds(3))
+    do {
+        try await store.create(NewProfile(name: name, description: "Crew card probe", soul: nil, cloneFrom: "crew-test"), via: gateway) { $0.title = "Crew Cards" }
+        await store.reload(gateway)
+        guard let fresh = store.bots.first(where: { $0.name == name }) else { throw HermesError.invalidResponse }
+        let described = try await gateway.call("profiles.describe", ["name": name], as: JSONValue.self)
+        print("A2UI-UPDATE skill", String(decoding: try encoder.encode(described), as: UTF8.self).firstMatch(of: /\{[^{}]*"crew-ui"[^{}]*\}/).map { String($0.0) } ?? "crew-ui missing")
+        let chat = try await attached(fresh)
+        func surfaceIds(_ reply: String) -> [String] { reply.matches(of: /"surfaceId"\s*:\s*"([^"]+)"/).map { String($0.1) } }
+        func turn(_ text: String) async throws {
+            chat.send(text, mode: .send)
+            try await Task.sleep(for: .seconds(2))
+            try await waitIdle(chat)
+            let reply = chat.transcript.turns.last?.reply ?? ""
+            print("A2UI-UPDATE", text, "| ids", surfaceIds(reply), "| creates", reply.matches(of: /createSurface/).count, "| chars", reply.count)
+        }
+        try await turn(env["A2UI_PROMPT"] ?? "Give me a recipe for köttbullar for 4")
+        try await turn("Make it for 6")
+        try await turn("Tick off the onion and the breadcrumbs on the card, I already have them.")
+        try await turn("Also give me a vegan version, I want to keep this one too")
+        try await Task.sleep(for: .seconds(3))
+        await store.reload(gateway)
+        guard let session = store.bots.first(where: { $0.name == name })?.canonicalSession else { throw HermesError.invalidResponse }
+        let (data, _) = try await urlSession.data(for: historyRequest(of: session.resolvedID, profile: name, on: server, limit: 200))
+        guard case .object(let page) = try JSONDecoder().decode(JSONValue.self, from: data), case .array(let messages) = page["messages"] else { throw HermesError.invalidResponse }
+        let keys: Set = ["id", "role", "content", "tool_call_id", "tool_calls", "timestamp", "reasoning", "reasoning_content", "display_kind"]
+        let kept = messages.map { row in if case .object(let object) = row { JSONValue.object(object.filter { keys.contains($0.key) }) } else { row } }
+        let pretty = JSONEncoder()
+        pretty.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+        let scrubs = [(server.host() ?? "", "hermes.example.com"), (name, "crew-test-peer")].filter { $0.0.count > 2 }
+        let text = scrubs.reduce(String(decoding: try pretty.encode(JSONValue.object(["messages": .array(kept)])), as: UTF8.self)) { $0.replacingOccurrences(of: $1.0, with: $1.1) }.replacingOccurrences(of: "/opt/data/", with: "/opt/hermes/data/")
+        let file = URL(fileURLWithPath: #filePath).appending(path: "../../fixtures/chat.a2ui-update.history.json").standardized
+        try Data((text + "\n").utf8).write(to: file)
+        print("RECORDED \(kept.count) rows to \(file.path)")
+    } catch {
+        print("A2UI-UPDATE FAILED", error)
+    }
+    await store.reload(gateway)
+    if let bot = store.bots.first(where: { $0.name == name }) { try await store.delete(bot, via: gateway, urlSession: urlSession) }
+    print(store.bots.contains { $0.name == name } ? "THROWAWAY NOT DELETED: \(name)" : "throwaway deleted")
+    exit(0)
+}
+
 if phases.contains("mention") {
     record("mention-turn")
     let roster = try await gateway.call("profiles.list", ["include_sessions": true], as: BotRoster.self).profiles

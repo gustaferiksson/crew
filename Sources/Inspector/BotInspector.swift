@@ -368,6 +368,7 @@ struct BotInspector: View {
         } footer: {
             Text("Lets this bot answer with cards, checklists and forms that Crew draws natively. Other apps show them as code.")
         }
+        BotVoicePicker(bot: bot)
         Section {
             if isEditable {
                 TextArea(text: $draft.fields.soul, placeholder: "Who this bot is")

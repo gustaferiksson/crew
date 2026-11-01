@@ -49,6 +49,8 @@ final class Dictation {
 
     func start(fallback transcribe: @escaping (Data) async throws -> String) async {
         guard phase == .idle else { return }
+        Speaker.shared.stop()
+        Speaker.shared.isRecording = true
         phase = .starting
         text = ""
         failure = nil
@@ -177,6 +179,7 @@ final class Dictation {
         results = nil
         recording = nil
         phase = .idle
+        Speaker.shared.isRecording = false
         #if os(iOS)
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         #endif

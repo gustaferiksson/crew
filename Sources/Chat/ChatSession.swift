@@ -181,6 +181,7 @@ final class ChatSession {
 
     func startNewChat() async throws {
         guard let runtime, stored != nil, !isRunning else { return }
+        Speaker.shared.stop()
         for (method, params) in botChatRetirement(of: runtime) {
             _ = try await gateway.call(method, params, as: JSONValue.self)
         }

@@ -4,6 +4,7 @@ struct MessageMenu<PreviewShape: Shape>: ViewModifier {
     let text: String
     let shape: PreviewShape
     var remove: (() -> Void)?
+    var speech: (id: String, profile: String?)?
 
     @State private var isSelecting = false
 
@@ -25,6 +26,14 @@ struct MessageMenu<PreviewShape: Shape>: ViewModifier {
                 Button("Select", systemImage: "selection.pin.in.out") { isSelecting = true }
                 #endif
                 ShareLink(item: text)
+                if let speech, !Speaker.shared.isRecording {
+                    let spoken = BotAnswer.speech(from: text)
+                    if Speaker.shared.speakingID == speech.id {
+                        Button("Stop Speaking", systemImage: "stop.fill") { Speaker.shared.stop() }
+                    } else if !spoken.isEmpty {
+                        Button("Speak", systemImage: "speaker.wave.2") { Speaker.shared.speak(spoken, id: speech.id, profile: speech.profile) }
+                    }
+                }
                 if let remove {
                     Button("Remove from Queue", systemImage: "trash", role: .destructive, action: remove)
                 }

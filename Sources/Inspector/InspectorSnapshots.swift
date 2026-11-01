@@ -145,6 +145,9 @@ struct InspectorFixtureScreen: View {
         if [.inspectorConnections, .addConnection, .customConnection].contains(snapshot) {
             Form { ConnectionsSection(bot: ada, store: connections, isAdding: .constant(false)) }
                 .formStyle(.grouped)
+        } else if snapshot == .inspectorVoice {
+            Form { BotVoicePicker(bot: ada) }
+                .formStyle(.grouped)
         } else {
             botInspector
         }

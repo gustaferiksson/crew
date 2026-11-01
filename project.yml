@@ -182,6 +182,8 @@ targets:
       - Sources/NewBotAdvanced.swift
       - Sources/Voice/VoiceBot.swift
       - Sources/Voice/BotAnswer.swift
+      - Sources/Voice/BotVoices.swift
+      - Sources/Voice/Speaker.swift
       - Tests/CrewTests
     settings:
       base:

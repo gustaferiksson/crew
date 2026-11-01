@@ -63,6 +63,7 @@ enum Snapshot: String {
     case inspectorRoutines = "inspector-routines"
     case inspectorRoutinesEmpty = "inspector-routines-empty"
     case inspectorLook = "inspector-look"
+    case inspectorVoice = "inspector-voice"
     case profileSkills = "profile-skills"
     case botPage = "bot-page"
     case chatOptions = "chat-options"
@@ -150,7 +151,7 @@ enum Snapshot: String {
 
     var inspectorTab: InspectorTab? {
         if isPasswords { return .passwords }
-        if [.inspectorConnections, .addConnection, .customConnection].contains(self) { return .info }
+        if [.inspectorConnections, .addConnection, .customConnection, .inspectorVoice].contains(self) { return .info }
         return [.inspectorInfo: .info, .inspectorTasks: .tasks, .inspectorRoutines: .routines, .inspectorRoutinesEmpty: .routines][self]
     }
 

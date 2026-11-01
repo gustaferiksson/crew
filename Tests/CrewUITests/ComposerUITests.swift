@@ -51,4 +51,18 @@ final class ComposerUITests: XCTestCase {
         XCTAssertEqual(attach.frame.minX.rounded(), 16)
         XCTAssertEqual((width - (focusedStop?.frame.maxX ?? 0) - 4).rounded(), 16)
     }
+
+    @MainActor func testPhotosInThePlusMenuOpensThePhotoPicker() {
+        let app = launch("chat")
+        XCTAssertTrue(app.textFields.firstMatch.waitForExistence(timeout: 10))
+        app.buttons["Attach"].tap()
+        let photos = app.buttons["Photos"]
+        XCTAssertTrue(photos.waitForExistence(timeout: 5))
+        photos.tap()
+
+        XCTAssertTrue(photos.waitForNonExistence(timeout: 3), "the tap went to the field behind the menu")
+        let covered = XCTNSPredicateExpectation(predicate: NSPredicate(format: "isHittable == false"), object: app.buttons["Attach"])
+        XCTAssertEqual(XCTWaiter().wait(for: [covered], timeout: 5), .completed, "no photo picker covers the composer")
+        XCTAssertEqual(app.keyboards.count, 0)
+    }
 }

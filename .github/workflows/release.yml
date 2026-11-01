@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     tags: [ 'v*' ]
-    branches: [ main, ci-release-speed ]
+    branches: [ main ]
 
 permissions:
   contents: write

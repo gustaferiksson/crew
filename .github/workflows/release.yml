@@ -44,9 +44,7 @@ jobs:
             .build/SDKExplicitPrecompiledModules
             .build/SourcePackages
           key: xcode-release-mac-${{ github.sha }}
-          restore-keys: |
-            xcode-release-mac-
-            xcode-app-
+          restore-keys: xcode-release-mac-
 
       - name: Build Release for macOS, unsigned
         run: |
@@ -116,9 +114,7 @@ jobs:
             .build/SDKExplicitPrecompiledModules
             .build/SourcePackages
           key: xcode-release-ios-${{ github.sha }}
-          restore-keys: |
-            xcode-release-ios-
-            xcode-app-
+          restore-keys: xcode-release-ios-
 
       - name: Build the IPA
         env:

@@ -130,6 +130,16 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
         return id
     }
 
+    @ViewBuilder private var cardSheet: some View {
+        if let openedCard {
+            PinnedCardContent(surfaces: surfaces, id: openedCard, fallbackTitle: cardFallbackTitle, isPinned: pinKey.map { pins.pinned(in: $0) == openedCard }) {
+                guard let pinKey else { return }
+                unpins += 1
+                pins.pin(pins.pinned(in: pinKey) == openedCard ? nil : openedCard, in: pinKey)
+            }
+        }
+    }
+
     private var cardFallbackTitle: String {
         profile == nil ? String(localized: "Card") : String(localized: "Card from \(botName)")
     }
@@ -140,6 +150,22 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
     }
 
     var body: some View {
+        chat
+        .onChange(of: surfaces.present) {
+            if let openedCard, !surfaces.present.contains(openedCard) { self.openedCard = nil }
+        }
+        .onChange(of: openedCard) {
+            if openedCard != nil { isComposerFocused = false }
+        }
+        .onChange(of: request?.id) {
+            if request != nil { openedCard = nil }
+        }
+        .sheet(isPresented: Binding(get: { openedCard != nil }, set: { if !$0 { openedCard = nil } })) {
+            cardSheet
+        }
+    }
+
+    private var chat: some View {
         TranscriptScroll(position: $position, revision: transcript, barHeight: barHeight) {
             LazyVStack(alignment: .leading, spacing: 28) {
                 ForEach(Array(transcript.turns.enumerated()), id: \.element.id) { index, turn in
@@ -180,6 +206,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
             }
             .scrollTargetLayout()
             .environment(\.pinKey, pinKey)
+            .environment(\.openedCard, $openedCard)
             .animation(.interactiveSpring, value: reveal)
             .padding(16)
         }
@@ -337,19 +364,6 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
                     } unpin: {
                         unpins += 1
                         pins.pin(nil, in: pinKey)
-                    }
-                    .onDisappear { openedCard = nil }
-                    .onChange(of: surfaces.present) {
-                        if let openedCard, !surfaces.present.contains(openedCard) { self.openedCard = nil }
-                    }
-                    .popover(isPresented: Binding(get: { openedCard != nil }, set: { if !$0 { openedCard = nil } }), arrowEdge: .top) {
-                        if let openedCard {
-                            PinnedCardContent(surfaces: surfaces, id: openedCard, fallbackTitle: cardFallbackTitle) {
-                                self.openedCard = nil
-                                unpins += 1
-                                pins.pin(nil, in: pinKey)
-                            }
-                        }
                     }
                     #if os(iOS)
                     .padding(.horizontal, isComposerFocused ? 16 : 28)

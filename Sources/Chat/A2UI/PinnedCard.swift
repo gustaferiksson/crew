@@ -4,10 +4,13 @@ import SwiftUI
 
 extension EnvironmentValues {
     @Entry var pinKey: String?
+    @Entry var openedCard: Binding<String?>?
 }
 
 struct CardSummary {
     let title: String?
+    let subtitle: String?
+    let image: URL?
     let symbol: String
     let tint: Color
 
@@ -23,6 +26,8 @@ struct CardSummary {
         }
         let line = text?.string(for: "text")?.split(whereSeparator: \.isNewline).first.map { String(cardMarkdown(String($0)).characters) }
         title = [header?.string(for: "title"), line].compactMap { $0?.trimmingCharacters(in: .whitespaces) }.first { !$0.isEmpty }
+        subtitle = header?.string(for: "subtitle")?.trimmingCharacters(in: .whitespaces).split(whereSeparator: \.isNewline).first.map(String.init)
+        image = header?.string(for: "image").flatMap(URL.init(string:)).flatMap { $0.scheme == "https" ? $0 : nil }
         symbol = systemSymbol(header?.string(for: "symbol")) ?? "rectangle.on.rectangle"
         tint = crewTones[header?.string(for: "tone") ?? ""] ?? .accentColor
     }
@@ -83,42 +88,38 @@ struct PinnedCardContent: View {
     let surfaces: SurfaceStore
     let id: String
     let fallbackTitle: String
-    let unpin: () -> Void
+    let isPinned: Bool?
+    let togglePin: () -> Void
 
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         if let model = surfaces.processor.surfaceGroupModel[id] {
-            #if os(iOS)
             NavigationStack {
                 card(model)
                     .navigationTitle(Text(CardSummary(model.rootNode).title ?? fallbackTitle))
+                    #if os(iOS)
                     .navigationBarTitleDisplayMode(.inline)
+                    #endif
                     .toolbar {
                         ToolbarItem(placement: .cancellationAction) {
                             Button(role: .close) { dismiss() }
                         }
-                        ToolbarItem(placement: .primaryAction) {
-                            Button("Unpin", systemImage: "pin.slash", action: unpin)
+                        if let isPinned {
+                            ToolbarItem(placement: .primaryAction) {
+                                Button(isPinned ? "Unpin" : "Pin", systemImage: isPinned ? "pin.slash" : "pin", action: togglePin)
+                            }
                         }
                     }
             }
+            #if os(iOS)
             .frame(idealWidth: 440, idealHeight: 560)
-            .presentationCompactAdaptation(.sheet)
+            .presentationSizing(.form)
             .presentationDetents([.medium, .large])
             .presentationBackgroundInteraction(.enabled(upThrough: .medium))
             #else
-            VStack(alignment: .leading, spacing: 0) {
-                HStack {
-                    Spacer()
-                    Button("Unpin", systemImage: "pin.slash", action: unpin)
-                        .buttonStyle(.borderless)
-                }
-                .padding([.horizontal, .top], 12)
-                card(model)
-            }
             .frame(width: 440)
-            .frame(maxHeight: 560)
+            .frame(minHeight: 200, maxHeight: 560)
             #endif
         }
     }

@@ -18,6 +18,9 @@ final class CarouselMacUITests: XCTestCase {
 
     @MainActor func testHoverArrowsPageTheCarousel() {
         let app = launch(appearance: "Light")
+        let preview = app.buttons.matching(NSPredicate(format: "label == %@", "Brown sheepskin slippers")).firstMatch
+        XCTAssertTrue(preview.waitForExistence(timeout: 20), app.debugDescription)
+        preview.click()
         let tile = { (position: Int) in
             app.descendants(matching: .any).matching(NSPredicate(format: "label ENDSWITH %@", "\(position) of 4")).firstMatch
         }
@@ -38,6 +41,9 @@ final class CarouselMacUITests: XCTestCase {
         app.terminate()
 
         let dark = launch(appearance: "Dark")
+        let darkPreview = dark.buttons.matching(NSPredicate(format: "label == %@", "Brown sheepskin slippers")).firstMatch
+        XCTAssertTrue(darkPreview.waitForExistence(timeout: 20))
+        darkPreview.click()
         XCTAssertTrue(dark.descendants(matching: .any).matching(NSPredicate(format: "label ENDSWITH %@", "1 of 4")).firstMatch.waitForExistence(timeout: 20))
         attach(dark, "macos-chat-a2ui-carousel-dark")
     }

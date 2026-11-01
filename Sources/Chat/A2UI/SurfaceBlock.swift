@@ -11,6 +11,7 @@ struct SurfaceBlock: View {
 
     @Environment(\.surfaces) private var store
     @Environment(\.pinKey) private var pinKey
+    @Environment(\.openedCard) private var openedCard
     @Environment(ChatPins.self) private var pins
     @State private var pinTaps = 0
     @State private var preview: SurfaceViewModel?
@@ -59,18 +60,16 @@ struct SurfaceBlock: View {
 
     private func card(_ model: SurfaceViewModel, id: String, in store: SurfaceStore, revised: Bool) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            SurfaceCard(model: model)
-                .environment(\.surfaceChoice, store.choices[id])
-                .disabled(store.isBusy)
-                .contextMenu {
-                    if let pinKey {
-                        let isPinned = pins.pinned(in: pinKey) == id
-                        Button(isPinned ? "Unpin Card" : "Pin Card", systemImage: isPinned ? "pin.slash" : "pin") {
-                            pinTaps += 1
-                            pins.pin(isPinned ? nil : id, in: pinKey)
-                        }
+            CardPreview(model: model, fallbackTitle: String(localized: "Card")) { openedCard?.wrappedValue = id }
+            .contextMenu {
+                if let pinKey {
+                    let isPinned = pins.pinned(in: pinKey) == id
+                    Button(isPinned ? "Unpin Card" : "Pin Card", systemImage: isPinned ? "pin.slash" : "pin") {
+                        pinTaps += 1
+                        pins.pin(isPinned ? nil : id, in: pinKey)
                     }
                 }
+            }
             if revised {
                 Text("Updated")
                     .font(.footnote)
@@ -115,20 +114,6 @@ private struct CardGoneLine: View {
         Label("Updated a card that's no longer in this chat", systemImage: "rectangle.on.rectangle")
             .font(.footnote)
             .foregroundStyle(.secondary)
-    }
-}
-
-private struct SurfaceCard: View {
-    @ObservedObject var model: SurfaceViewModel
-
-    var body: some View {
-        if model.rootNode != nil {
-            Surface(viewModel: model, catalogs: crewCatalogs)
-                .padding(20)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background { Color.clear.glassEffect(.regular, in: .rect(cornerRadius: 28)) }
-                .frame(maxWidth: 560, alignment: .leading)
-        }
     }
 }
 

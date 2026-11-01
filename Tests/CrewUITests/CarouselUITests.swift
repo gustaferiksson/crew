@@ -3,10 +3,14 @@ import XCTest
 private let titles = ["MJÙKA Idun · Brown", "MJÙKA Thurid · Brown", "MJÙKA Astrid · Chestnut", "HAIKA Sandefjord · Brown"]
 
 final class CarouselUITests: XCTestCase {
-    @MainActor func testSwipingThroughTheSlipperCarouselShowsEveryItemWithoutFightingTheTranscript() {
+    @MainActor func testSwipingThroughTheSlipperCarouselInItsSheetShowsEveryItem() {
         let app = XCUIApplication()
         app.launchArguments = ["-snapshot", "chat-a2ui-carousel", "-server", "hermes.example.com", "-username", "gustaf"]
         app.launch()
+
+        let preview = app.buttons.matching(NSPredicate(format: "label == %@", "Brown sheepskin slippers")).firstMatch
+        XCTAssertTrue(preview.waitForExistence(timeout: 30), "card preview missing:\n\(app.debugDescription)")
+        preview.tap()
 
         let tiles = titles.enumerated().map { index, title in
             app.buttons.matching(NSPredicate(format: "label CONTAINS %@ AND label ENDSWITH %@", title, "\(index + 1) of \(titles.count)")).firstMatch
@@ -28,12 +32,8 @@ final class CarouselUITests: XCTestCase {
         XCTAssertEqual(seen, Set(titles.indices), "every item should be reachable by swiping")
         XCTAssertEqual(current(), titles.count - 1, "the last tile should settle fully visible")
 
-        let header = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "Brown sheepskin slippers")).firstMatch
-        XCTAssertTrue(header.exists)
-        let headerY = header.frame.minY
         let start = photo(tiles[titles.count - 1])
-        start.press(forDuration: 0.05, thenDragTo: start.withOffset(CGVector(dx: 0, dy: 150)))
-        XCTAssertGreaterThan(header.frame.minY, headerY + 40, "a vertical drag on the carousel should scroll the transcript")
+        start.press(forDuration: 0.05, thenDragTo: start.withOffset(CGVector(dx: 0, dy: -150)))
         XCTAssertEqual(current(), titles.count - 1, "a vertical drag should not page the carousel")
     }
 }

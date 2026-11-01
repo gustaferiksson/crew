@@ -12,6 +12,14 @@ nonisolated private final class SilentSynthesizer: AVSpeechSynthesizer {
     override func stopSpeaking(at boundary: AVSpeechBoundary) -> Bool {
         true
     }
+
+    override func pauseSpeaking(at boundary: AVSpeechBoundary) -> Bool {
+        true
+    }
+
+    override func continueSpeaking() -> Bool {
+        true
+    }
 }
 
 private let installed = [
@@ -54,17 +62,17 @@ private let installed = [
 
 @Test func speakingAnotherReplyReplacesTheFirst() throws {
     let synthesizer = SilentSynthesizer()
-    let speaker = Speaker(voices: BotVoices(defaults: try #require(UserDefaults(suiteName: "crew-tests-speaker"))), synthesizer: synthesizer)
-    speaker.speak("First reply.", id: "t1", profile: "ada")
+    let speaker = Speaker(voices: BotVoices(defaults: try #require(UserDefaults(suiteName: "crew-tests-speaker"))), synthesizer: synthesizer, nowPlaying: nil)
+    speaker.speak("First reply.", id: "t1", profile: "ada", from: "Ada")
     let first = try #require(speaker.utterance)
-    speaker.speak("Second reply.", id: "t2", profile: "ada")
+    speaker.speak("Second reply.", id: "t2", profile: "ada", from: "Ada")
     #expect(speaker.speakingID == "t2")
     speaker.finished(first)
     #expect(speaker.speakingID == "t2")
     let second = try #require(speaker.utterance)
     speaker.finished(second)
     #expect(speaker.speakingID == nil)
-    speaker.speak("Third reply.", id: "t3", profile: nil)
+    speaker.speak("Third reply.", id: "t3", profile: nil, from: "Ada")
     speaker.stop()
     #expect(speaker.speakingID == nil)
     #expect(synthesizer.spoken == ["First reply.", "Second reply.", "Third reply."])
@@ -72,17 +80,62 @@ private let installed = [
 
 @Test func emptySpeechSpeaksNothing() throws {
     let synthesizer = SilentSynthesizer()
-    let speaker = Speaker(voices: BotVoices(defaults: try #require(UserDefaults(suiteName: "crew-tests-speaker"))), synthesizer: synthesizer)
-    speaker.speak(BotAnswer.speech(from: "```swift\nlet a = 1\n```"), id: "t1", profile: "ada")
+    let speaker = Speaker(voices: BotVoices(defaults: try #require(UserDefaults(suiteName: "crew-tests-speaker"))), synthesizer: synthesizer, nowPlaying: nil)
+    speaker.speak(BotAnswer.speech(from: "```swift\nlet a = 1\n```"), id: "t1", profile: "ada", from: "Ada")
     #expect(speaker.speakingID == nil)
     #expect(synthesizer.spoken.isEmpty)
 }
 
 @Test func nothingSpeaksWhileTheMicrophoneRecords() throws {
     let synthesizer = SilentSynthesizer()
-    let speaker = Speaker(voices: BotVoices(defaults: try #require(UserDefaults(suiteName: "crew-tests-speaker"))), synthesizer: synthesizer)
+    let speaker = Speaker(voices: BotVoices(defaults: try #require(UserDefaults(suiteName: "crew-tests-speaker"))), synthesizer: synthesizer, nowPlaying: nil)
     speaker.isRecording = true
-    speaker.speak("A reply.", id: "t1", profile: "ada")
+    speaker.speak("A reply.", id: "t1", profile: "ada", from: "Ada")
     #expect(speaker.speakingID == nil)
     #expect(synthesizer.spoken.isEmpty)
+}
+
+@Test func autoReadSpeaksOnlyFinishedRepliesOfBotsThatReadAloud() throws {
+    let suite = "crew-tests-read-aloud"
+    let defaults = try #require(UserDefaults(suiteName: suite))
+    defer { defaults.removePersistentDomain(forName: suite) }
+    let synthesizer = SilentSynthesizer()
+    let voices = BotVoices(defaults: defaults)
+    let speaker = Speaker(voices: voices, synthesizer: synthesizer, nowPlaying: nil, isOnCall: { false })
+    let reply = Turn(id: "t1", reply: "**Done.** Here it is.", status: .complete, startedAt: .now)
+    speaker.readAloud(reply, profile: "ada", from: "Ada")
+    #expect(synthesizer.spoken.isEmpty)
+    voices.readAloud(true, for: "ada")
+    #expect(BotVoices(defaults: defaults).readingAloud == ["ada"])
+    var interrupted = reply
+    interrupted.status = .interrupted
+    speaker.readAloud(interrupted, profile: "ada", from: "Ada")
+    speaker.isRecording = true
+    speaker.readAloud(reply, profile: "ada", from: "Ada")
+    speaker.isRecording = false
+    Speaker(voices: voices, synthesizer: synthesizer, nowPlaying: nil, isOnCall: { true }).readAloud(reply, profile: "ada", from: "Ada")
+    #expect(synthesizer.spoken.isEmpty)
+    speaker.readAloud(reply, profile: "ada", from: "Ada")
+    #expect(synthesizer.spoken == ["Done. Here it is."])
+    #expect(speaker.speakingID == "t1-reply")
+    speaker.readAloud(Turn(id: "t2", reply: "```a2ui\n[]\n```", status: .complete, startedAt: .now), profile: "ada", from: "Ada")
+    #expect(speaker.speakingID == "t1-reply")
+    voices.readAloud(false, for: "ada")
+    #expect(BotVoices(defaults: defaults).readingAloud.isEmpty)
+}
+
+@Test func lockScreenPauseAndPlayResumeTheSameReply() throws {
+    let speaker = Speaker(voices: BotVoices(defaults: try #require(UserDefaults(suiteName: "crew-tests-speaker"))), synthesizer: SilentSynthesizer(), nowPlaying: nil)
+    speaker.pause()
+    #expect(!speaker.isPaused)
+    speaker.speak("A long reply.", id: "t1", profile: "ada", from: "Ada")
+    speaker.pause()
+    #expect(speaker.isPaused)
+    #expect(speaker.speakingID == "t1")
+    speaker.resume()
+    #expect(!speaker.isPaused)
+    speaker.pause()
+    speaker.stop()
+    #expect(!speaker.isPaused)
+    #expect(speaker.speakingID == nil)
 }

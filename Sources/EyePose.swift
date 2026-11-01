@@ -9,9 +9,9 @@ struct EyePose: Equatable, Sendable {
     var centring = 0.0
 
     static let rest = EyePose()
-    static let wide = EyePose(scale: 1.18, gaze: CGSize(width: 0, height: 0.02), centring: 0.5)
+    static let wide = EyePose(scale: 1.25, gaze: CGSize(width: 0, height: 0.02), centring: 0.8)
     static let squint = EyePose(openness: 0.22, stretch: 1.35)
-    static let happy = EyePose(openness: 0.28, stretch: 1.6, gaze: CGSize(width: 0, height: -0.03))
+    static let happy = EyePose(openness: 0.45, stretch: 1.3, gaze: CGSize(width: 0, height: -0.045))
     static let sleepy = EyePose(openness: 0.5, gaze: CGSize(width: 0, height: 0.02))
     static let readingStart = EyePose(gaze: CGSize(width: -0.04, height: 0))
     static let readingEnd = EyePose(gaze: CGSize(width: 0.04, height: 0))

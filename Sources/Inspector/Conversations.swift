@@ -101,7 +101,7 @@ struct ConversationTranscript: View {
             ChatView(
                 botName: bot.title,
                 title: conversation.title ?? String(localized: "Untitled"),
-                avatar: BotAvatar(bot: bot, status: .idle, photo: bots.photos[bot.id], size: 28),
+                avatar: BotAvatar(bot: bot, status: nil, photo: bots.photos[bot.id], size: 28),
                 transcript: session?.visible ?? Transcript(),
                 emptyState: emptyState,
                 mentionable: bots.bots.filter { $0.id != bot.id },

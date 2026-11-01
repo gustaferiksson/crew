@@ -18,13 +18,13 @@ Every pose is applied on top of the bot's expression: lid openness scales the ey
 | Idle (read) | Rest, as today | A blink every 3 to 8 s at seeded random intervals (the first one too); about one in six is a double blink. Blink: lids to 12 % in 70 ms, held 110 ms, open in 120 ms (today's timing). |
 | Unread | Rest | Same rhythm as idle with plain blinks; the unread dot already says it, so the happy blink plays only on arrival (Transitions). |
 | Working | Reading | Eyes read along a line: start on the left (gaze x -0.04), drift right to +0.04 over about 1.1 s (ease in out), snap back left in 0.18 s, next line; after 2 to 4 lines a pause at rest with a blink, 2 to 5 s, so a list of several working bots stays calm next to their Working labels and badges. The first move also waits that pause, so a quick working blip doesn't twitch. |
-| Needs approval, question, payment (waiting) | Wide | Eyes turn toward the viewer (centring 0.5, gaze y +0.02, i.e. slightly down toward the face's middle) and open 18 % larger, eased in 0.35 s; held, with idle blinks. |
+| Needs approval, question, payment (waiting) | Wide | Eyes turn toward the viewer (centring 0.8, gaze y +0.02, i.e. slightly down toward the face's middle) and open 25 % larger, eased in 0.35 s; held, with idle blinks. |
 | Failed | Squint, then Sad | On entering failed: lids to 22 % and eyes 35 % wider (a wince) in 0.12 s, held 0.45 s, then open into the Sad expression (as today), which stays. |
 | Dormant (idle and read, last activity 7 days or more ago) | Sleepy | Lids at 50 %, gaze y +0.02 (down); slow blinks (close in 0.25 s) every 8 to 14 s. Any activity wakes it: the next status is a normal state. Bots without a session are never dormant. |
 
 ### Transitions (play once, when the avatar sees the change)
 
-- Working or waiting to unread (a reply arrived while you were elsewhere): one happy blink. Not from idle: at launch and after a reset every bot starts idle and then loads its real status, which must not make the whole list blink. Not working to idle: that is also Stop, a denied approval or a dismissed question, and in an open chat the reply itself is the news. Happy blink: a pleased squeeze, lids to 28 %, eyes 60 % wider and lifted 0.03, in 0.12 s, held 0.35 s, out in 0.2 s (a tilted smile was tried and read as confused on the leaning capsule eyes).
+- Working or waiting to unread (a reply arrived while you were elsewhere): one happy blink. Not from idle: at launch and after a reset every bot starts idle and then loads its real status, which must not make the whole list blink. Not working to idle: that is also Stop, a denied approval or a dismissed question, and in an open chat the reply itself is the news. Happy blink: a pleased squeeze, lids to 45 %, eyes 30 % wider and lifted 0.045 (more open and higher than the squint, so the two never read alike), in 0.12 s, held 0.35 s, out in 0.2 s (a tilted smile was tried and read as confused on the leaning capsule eyes).
 - To failed: the squint above.
 - To waiting: the widen above. Waiting to working (approved): eyes ease back and start reading.
 - Every other change eases to the new resting pose in 0.35 s (`.smooth`).
@@ -35,7 +35,7 @@ Every pose is applied on top of the bot's expression: lid openness scales the ey
 Everything settles to the state's resting pose, with no animation:
 
 - **Reduce Motion:** static eyes. Waiting still shows Wide, dormant still Sleepy, failed shows Sad, others Rest; changes between them are instant. No blinks, reading, squint or happy blink.
-- **Low Power Mode:** same as Reduce Motion; checked before each step, so turning it off resumes motion at the next step (a few seconds at most) with no observer.
+- **Low Power Mode:** same as Reduce Motion; read when the avatar renders and before each step, so turning it on stills the eyes at the next step and turning it off resumes motion when the avatar next renders or its status changes, with no observer.
 - **Off screen:** the motion is a `.task` on the avatar, so a lazy list row, strip tile or favourite tile scrolled away, a list covered by a pushed chat on iPhone, or a closed inspector stops it. Only avatars on screen move.
 - **Background or inactive scene:** stopped while `scenePhase` is not `.active` or the window doesn't appear active (`appearsActive`, which on the Mac is false when Crew isn't the frontmost app or the window isn't key), restarted when both are back. A visible Mac window that is key stays live even if partly covered, accepted.
 - **Closed Mac inspector:** SwiftUI keeps the hidden inspector's content alive, so `BotInspector` turns its header avatar's motion off while `isPresented` is false (`avatarsAnimate` environment value).
@@ -54,9 +54,9 @@ Every surface that shows a bot's status gets it; the rest pass idle (blink only,
 - **Mac sidebar strip tiles:** 40 pt, under the existing status badge knockout; the badge (and its variable colour effect) is unchanged.
 - **iOS favourite tiles:** tile size, unread dot unchanged. The grid sits in one `List` row, so all favourite tiles start and stop together with that row, not per tile.
 - **Chat persona pill** (iOS and Mac, 28 pt): status of the open chat, so the reading eyes show while the reply streams and a happy blink when it lands.
-- **Inspector header** (96 pt, iOS profile page and Mac inspector): now gets the bot's status from `chats.status(of:in:)` (it passed none before; `.failed` exists only there) and seeds its rhythm from `bot.name`, not the editable name. While the look editor popover is open the preview shows the edited look with the same live eyes.
+- **Inspector header** (96 pt, iOS profile page and Mac inspector): now gets the bot's status from `chats.status(of:in:)` (it passed none before; `.failed` exists only there) and seeds its rhythm from `bot.name`, not the editable name. The look editor's own 120 pt preview stays idle (blink only).
 - **Mention peek** (44 pt): already passes status.
-- Idle only, unchanged: work log and chat mention chips, group members and room avatars, New Bot and New Group sheets, Login, avatar picker previews, voice and Live Activity.
+- Idle only, unchanged (these pass no status, so they never turn sleepy either; a mention tag image bakes the resting idle eyes): work log and chat mention chips, group members and room avatars, New Bot and New Group sheets, Login, avatar picker previews, voice and Live Activity.
 - **Light and dark:** eye colour logic unchanged (contrast against the body colour); poses are geometry only.
 - **Small sizes** (16 to 28 pt): the same poses; reading's ±0.04 is about 1 pt at 28 pt, readable but quiet.
 - **VoiceOver:** the avatar stays hidden from accessibility; status is already spoken by the row, tile and pill labels. Motion carries no information that isn't also text.

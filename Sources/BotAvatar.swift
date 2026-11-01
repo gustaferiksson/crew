@@ -2,7 +2,7 @@ import SwiftUI
 
 struct BotAvatar: View {
     let bot: Bot
-    let status: BotStatus
+    let status: BotStatus?
     let photo: Image?
     let size: CGFloat
 
@@ -12,7 +12,7 @@ struct BotAvatar: View {
             shape: look.shape,
             color: look.color,
             expression: .resolve(bot.meta.expression),
-            mood: AvatarMood(status: status, lastActive: bot.canonicalSession?.lastActive),
+            mood: status.map { AvatarMood(status: $0, lastActive: bot.canonicalSession?.lastActive) } ?? .idle,
             photo: photo,
             seed: bot.name,
             size: size

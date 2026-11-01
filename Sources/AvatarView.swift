@@ -47,17 +47,21 @@ struct AvatarView: View {
             .animation(animates ? .snappy : nil, value: mood)
             .accessibilityHidden(true)
             .task(id: animates ? mood : nil) { await live() }
+            .onDisappear { pose = nil }
         }
     }
 
     private var animates: Bool {
-        !reduceMotion && scenePhase == .active && appearsActive && avatarsAnimate
+        !reduceMotion && !ProcessInfo.processInfo.isLowPowerModeEnabled && scenePhase == .active && appearsActive && avatarsAnimate
     }
 
     private func live() async {
         let previous = settledMood
         settledMood = mood
-        guard animates else { return }
+        guard animates else {
+            pose = nil
+            return
+        }
         withAnimation(previous == nil ? nil : .smooth(duration: 0.35)) { pose = mood.restingPose }
         var generator = SeededGenerator(seed: seed + mood.rawValue)
         var steps = previous.map { mood.greeting(from: $0) } ?? []

@@ -13,7 +13,7 @@ nonisolated let chatSpace = "chat"
 
 struct OpenedCard: Equatable {
     let id: String
-    let anchor: CGRect?
+    let anchor: CGRect
 }
 
 struct CardSummary {
@@ -44,24 +44,42 @@ struct CardSummary {
     }
 }
 
-struct PinnedCardButton: View {
+struct PinnedCardChip: View {
     @ObservedObject var model: SurfaceViewModel
     let fallbackTitle: String
     let open: () -> Void
     let unpin: () -> Void
 
+    @ScaledMetric private var tile: CGFloat = 24
+    #if os(iOS)
+    @ScaledMetric private var height: CGFloat = 36
+    #else
+    @ScaledMetric private var height: CGFloat = 30
+    #endif
+
     var body: some View {
         let summary = CardSummary(model.rootNode)
-        let title = summary.title ?? fallbackTitle
-        Menu {
-            Button("Unpin", systemImage: "pin.slash", action: unpin)
-        } label: {
-            Label(title, systemImage: summary.symbol)
-        } primaryAction: {
-            open()
+        Button(action: open) {
+            HStack(spacing: 8) {
+                Image(systemName: summary.symbol)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: tile, height: tile)
+                    .background(summary.tint.gradient, in: .circle)
+                    .accessibilityHidden(true)
+                Text(summary.title ?? fallbackTitle)
+                    .font(.subheadline.weight(.medium))
+                    .lineLimit(1)
+            }
+            .padding(.leading, (height - tile) / 2)
+            .padding(.trailing, 14)
+            .frame(minHeight: height)
+            .contentShape(.capsule)
         }
-        .menuIndicator(.hidden)
-        .help(title)
+        .buttonStyle(.plain)
+        .background { Color.clear.glassEffect(.regular.interactive(), in: .capsule) }
+        .contextMenu { Button("Unpin", systemImage: "pin.slash", action: unpin) }
+        .accessibilityValue("Pinned card")
         .accessibilityHint("Shows the card")
         .accessibilityAction(named: "Unpin", unpin)
     }

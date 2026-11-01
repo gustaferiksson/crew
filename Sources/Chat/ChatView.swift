@@ -105,6 +105,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
     @State private var responses: [SensoryFeedback] = []
     @State private var openedCard: OpenedCard?
     @State private var expandedCards: Set<String>
+    @State private var chipFrame = CGRect.zero
     @State private var unpins = 0
     @State private var isOnScreen = false
     @State private var liveTurn: Turn.ID?
@@ -180,16 +181,12 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
     }
 
     private var pinnedCard: String? {
-        guard let pinKey, let id = pins.pinned(in: pinKey), surfaces.present.contains(id) else { return nil }
+        guard let pinKey, request == nil, paymentNotice == nil, shopOffer == nil, let id = pins.pinned(in: pinKey), surfaces.present.contains(id) else { return nil }
         return id
     }
 
-    private var toolbarCard: String? {
-        pinnedCard ?? openedCard.flatMap { $0.anchor == nil ? $0.id : nil }
-    }
-
     private var showsPinnedCard: Binding<Bool> {
-        Binding(get: { openedCard.map { $0.anchor == nil } ?? false }, set: { openedCard = $0 ? pinnedCard.map { OpenedCard(id: $0, anchor: openedCard?.anchor) } : nil })
+        Binding(get: { openedCard != nil && openedCard?.id == pinnedCard }, set: { openedCard = $0 ? pinnedCard.map { OpenedCard(id: $0, anchor: openedCard?.anchor ?? chipFrame) } : nil })
     }
 
     @ViewBuilder private var cardSheet: some View {
@@ -222,7 +219,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
         .onChange(of: request?.id) {
             if request != nil { openedCard = nil }
         }
-        .popover(isPresented: Binding(get: { openedCard?.anchor != nil }, set: { if !$0 { openedCard = nil } }), attachmentAnchor: .rect(.rect(openedCard?.anchor ?? .zero))) {
+        .popover(isPresented: Binding(get: { openedCard != nil }, set: { if !$0 { openedCard = nil } }), attachmentAnchor: .rect(.rect(openedCard?.anchor ?? .zero))) {
             cardSheet
         }
         .coordinateSpace(.named(chatSpace))
@@ -360,22 +357,6 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
                 }
             }
             .sharedBackgroundVisibility(.hidden)
-            if let pinKey, let toolbarCard {
-                ToolbarItem(placement: .primaryAction) {
-                    if let model = surfaces.processor.surfaceGroupModel[toolbarCard] {
-                        PinnedCardButton(model: model, fallbackTitle: cardFallbackTitle) {
-                            showsPinnedCard.wrappedValue = true
-                        } unpin: {
-                            unpins += 1
-                            pins.pin(nil, in: pinKey)
-                        }
-                        .popover(isPresented: showsPinnedCard) {
-                            cardSheet
-                        }
-                    }
-                }
-                .visibilityPriority(.high)
-            }
         }
         .navigationTitle(title ?? botName)
         .onAppear { isOnScreen = true }
@@ -457,6 +438,21 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
                         .frame(maxWidth: 560)
                         .padding(.horizontal, 16)
                 }
+                if let pinKey, let pinnedCard, let model = surfaces.processor.surfaceGroupModel[pinnedCard] {
+                    PinnedCardChip(model: model, fallbackTitle: cardFallbackTitle) {
+                        showsPinnedCard.wrappedValue = true
+                    } unpin: {
+                        unpins += 1
+                        pins.pin(nil, in: pinKey)
+                    }
+                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(chatSpace)) } action: { chipFrame = $0 }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    #if os(iOS)
+                    .padding(.horizontal, isComposerFocused ? 16 : 28)
+                    #else
+                    .padding(.horizontal, 16)
+                    #endif
+                }
                 #if os(iOS)
                 if let voice = VoiceMessage.shared.attributes, voice.bot.name == profile {
                     VoiceComposer(voice: .shared)
@@ -472,6 +468,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
             }
         }
         .animation(.smooth, value: request?.id)
+        .animation(.smooth, value: pinnedCard)
         .sensoryFeedback(.impact(weight: .light), trigger: unpins)
         .sensoryFeedback(.warning, trigger: request?.id) { _, id in id != nil }
         .sensoryFeedback(.selection, trigger: models?.current) { previous, _ in previous != nil }

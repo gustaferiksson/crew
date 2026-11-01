@@ -430,8 +430,7 @@ extension Transcript {
 
     private mutating func narrate(_ text: String, id: String, at date: Date) {
         let index = turns.count - 1
-        let ranTool = turns[index].work.contains { if case .tool = $0.kind { true } else { false } }
-        guard !turns[index].isSteer || turns[index].answer != nil || ranTool else { return turns[index].answer = text }
+        guard !turns[index].isSteer || turns[index].answer != nil else { return turns[index].answer = text }
         appendWork(.note(text), id: id, at: date)
     }
 

@@ -13,6 +13,7 @@ struct SurfaceBlock: View {
     @Environment(\.pinKey) private var pinKey
     @Environment(ChatPins.self) private var pins
     @State private var pinTaps = 0
+    @State private var preview: SurfaceViewModel?
 
     var body: some View {
         if let store, case .surfaces(let created, let revised, let updated) = store.blocks[source] {
@@ -39,6 +40,10 @@ struct SurfaceBlock: View {
             CardGoneLine()
         } else if let store, case .failed(let reason) = store.blocks[source] {
             FailedSurface(reason: reason, source: source)
+        } else if let preview {
+            SurfaceCard(model: preview)
+                .disabled(true)
+                .task(id: previewStep(forLength: source.utf8.count)) { refreshPreview() }
         } else {
             Label {
                 Text("Preparing card…")
@@ -48,6 +53,7 @@ struct SurfaceBlock: View {
             }
             .font(.footnote)
             .foregroundStyle(.secondary)
+            .task(id: previewStep(forLength: source.utf8.count)) { refreshPreview() }
         }
     }
 
@@ -72,6 +78,11 @@ struct SurfaceBlock: View {
                     .padding(.leading, 20)
             }
         }
+    }
+
+    private func refreshPreview() {
+        guard let store, store.isBusy, store.blocks[source] == nil, let model = store.preview(source) else { return }
+        preview = model
     }
 }
 

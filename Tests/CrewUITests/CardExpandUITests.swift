@@ -19,6 +19,7 @@ final class CardExpandUITests: XCTestCase {
         expand.tap()
         XCTAssertTrue(inline.waitForExistence(timeout: 5), "the chevron shows the full card in the transcript")
         XCTAssertFalse(app.navigationBars[title].exists, "expanding opens no sheet")
+        XCTAssertTrue(preview.isHittable, "the row stays on screen while the card grows below it")
         let screenshot = XCTAttachment(screenshot: app.screenshot())
         screenshot.name = "card-expanded"
         screenshot.lifetime = .keepAlways

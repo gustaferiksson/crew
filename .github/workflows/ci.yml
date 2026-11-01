@@ -102,6 +102,10 @@ jobs:
           echo "name=$name version=$version description(${#description})=$description"
           [ -n "$name" ] && [ -n "$version" ] && [ -n "$description" ] && [ "${#description}" -le 60 ]
 
+      - name: SwiftUI lint
+        working-directory: .
+        run: scripts/lint-ui.sh
+
       - name: Install test dependencies
         run: pip install pytest httpx h2 'PyJWT[crypto]' fastapi
 

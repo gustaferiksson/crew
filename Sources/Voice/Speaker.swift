@@ -60,9 +60,8 @@ final class Speaker: NSObject, AVSpeechSynthesizerDelegate {
     }
 
     func speak(_ text: String, id: String, profile: String?, from name: String) {
-        guard !isRecording else { return }
+        guard !isRecording, !text.isEmpty else { return }
         halt()
-        guard !text.isEmpty else { return }
         let next = AVSpeechUtterance(string: text)
         next.voice = voices.voice(for: profile, speaking: text)
         #if os(iOS)

@@ -118,6 +118,8 @@ private let installed = [
     speaker.readAloud(reply, profile: "ada", from: "Ada")
     #expect(synthesizer.spoken == ["Done. Here it is."])
     #expect(speaker.speakingID == "t1-reply")
+    speaker.readAloud(Turn(id: "t2", reply: "```a2ui\n[]\n```", status: .complete, startedAt: .now), profile: "ada", from: "Ada")
+    #expect(speaker.speakingID == "t1-reply")
     voices.readAloud(false, for: "ada")
     #expect(BotVoices(defaults: defaults).readingAloud.isEmpty)
 }

@@ -41,6 +41,7 @@ Now Playing and remote commands only go to the app that owns a non-mixable sessi
 - Dictating, recording or on a call: silent, nothing queued for later.
 - Locked or in the background when a reply finishes: silent (the chat is not on screen); speech already playing continues.
 - Light and dark: a system switch only.
+- Known gap: on iPhone the mention sheet covers the chat without it disappearing, so a reply finishing behind that sheet is read.
 
 ## Not in this layer
 

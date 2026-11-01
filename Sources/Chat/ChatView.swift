@@ -154,6 +154,22 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
         }
     }
 
+    private var lastTurnState: [String]? {
+        transcript.turns.last { $0.pending == nil }.map { [$0.id, $0.status.rawValue] }
+    }
+
+    private func readFinishedReply() {
+        guard isOnScreen, scenePhase == .active, appearsActive else {
+            liveTurn = nil
+            return
+        }
+        if let live = liveTurn, let done = transcript.turns.first(where: { $0.id == live }), done.status != .streaming {
+            liveTurn = nil
+            if let profile { Speaker.shared.readAloud(done, profile: profile, from: botName) }
+        }
+        if let turn = transcript.turns.last(where: { $0.pending == nil }), turn.status == .streaming { liveTurn = turn.id }
+    }
+
     private var reveal: CGFloat {
         if presentation.revealsTimestamps { return -timestampWidth }
         return -min(max(0, -(dragTravel + trackpadTravel)) / 3, timestampWidth)
@@ -356,12 +372,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
         }
         .navigationTitle(title ?? botName)
         .onAppear { isOnScreen = true }
-        .onChange(of: transcript.turns.last?.status) { old, new in
-            guard let turn = transcript.turns.last, isOnScreen, scenePhase == .active, appearsActive else { return }
-            if new == .streaming { liveTurn = turn.id }
-            guard old == .streaming, turn.id == liveTurn, let profile else { return }
-            Speaker.shared.readAloud(turn, profile: profile, from: botName)
-        }
+        .onChange(of: lastTurnState, readFinishedReply)
         .onDisappear {
             isOnScreen = false
             liveTurn = nil

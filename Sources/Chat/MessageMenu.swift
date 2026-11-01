@@ -4,7 +4,7 @@ struct MessageMenu<PreviewShape: Shape>: ViewModifier {
     let text: String
     let shape: PreviewShape
     var remove: (() -> Void)?
-    var speech: (id: String, profile: String?)?
+    var speech: (id: String, profile: String?, name: String)?
 
     @State private var isSelecting = false
 
@@ -31,7 +31,7 @@ struct MessageMenu<PreviewShape: Shape>: ViewModifier {
                     if Speaker.shared.speakingID == speech.id {
                         Button("Stop Speaking", systemImage: "stop.fill") { Speaker.shared.stop() }
                     } else if !spoken.isEmpty {
-                        Button("Speak", systemImage: "speaker.wave.2") { Speaker.shared.speak(spoken, id: speech.id, profile: speech.profile) }
+                        Button("Speak", systemImage: "speaker.wave.2") { Speaker.shared.speak(spoken, id: speech.id, profile: speech.profile, from: speech.name) }
                     }
                 }
                 if let remove {

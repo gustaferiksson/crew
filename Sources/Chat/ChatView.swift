@@ -104,8 +104,16 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
     @State private var responses: [SensoryFeedback] = []
     @State private var openedCard: OpenedCard?
     @State private var unpins = 0
+    @State private var isOnScreen = false
+    @State private var liveTurn: Turn.ID?
     @Environment(ChatPins.self) private var pins
     @Environment(BotStore.self) private var bots
+    @Environment(\.scenePhase) private var scenePhase
+    #if os(macOS)
+    @Environment(\.appearsActive) private var appearsActive
+    #else
+    private let appearsActive = true
+    #endif
     @FocusState private var isComposerFocused: Bool
     private let presentation: ChatPresentation
 
@@ -230,6 +238,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
                             timestampWidth: timestampWidth,
                             mentionable: mentionable,
                             profile: profile,
+                            speakerName: speaker?.title ?? turn.speaker ?? botName,
                             isExpanded: expansion.turns.contains(turn.id),
                             expandedWork: expansion.work.filter { id in turn.work.contains { $0.id == id } },
                             expandedRuns: expansion.runs.filter { id in turn.work.contains { $0.id == id } },
@@ -346,7 +355,16 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
             }
         }
         .navigationTitle(title ?? botName)
+        .onAppear { isOnScreen = true }
+        .onChange(of: transcript.turns.last?.status) { old, new in
+            guard let turn = transcript.turns.last, isOnScreen, scenePhase == .active, appearsActive else { return }
+            if new == .streaming { liveTurn = turn.id }
+            guard old == .streaming, turn.id == liveTurn, let profile else { return }
+            Speaker.shared.readAloud(turn, profile: profile, from: botName)
+        }
         .onDisappear {
+            isOnScreen = false
+            liveTurn = nil
             guard let speaking = Speaker.shared.speakingID, transcript.turns.contains(where: { speaking.hasPrefix("\($0.id)-") }) else { return }
             Speaker.shared.stop()
         }
@@ -465,6 +483,7 @@ struct TurnView: View {
     let timestampWidth: CGFloat
     let mentionable: [Bot]
     var profile: String?
+    let speakerName: String
     let isExpanded: Bool
     let expandedWork: Set<WorkItem.ID>
     let expandedRuns: Set<String>
@@ -531,7 +550,7 @@ struct TurnView: View {
                     ReplyText(source: a2uiFenced(answer))
                         .environment(\.surfaces, surfaces)
                         .padding(12)
-                        .modifier(MessageMenu(text: answer, shape: .rect(cornerRadius: 18), speech: turn.status == .streaming ? nil : ("\(turn.id)-answer", turn.speaker ?? profile)))
+                        .modifier(MessageMenu(text: answer, shape: .rect(cornerRadius: 18), speech: turn.status == .streaming ? nil : ("\(turn.id)-answer", turn.speaker ?? profile, speakerName)))
                         .padding(-12)
                         .modifier(Timestamp(date: turn.startedAt, reveal: reveal, width: timestampWidth))
                 }
@@ -558,7 +577,7 @@ struct TurnView: View {
                     ReplyText(source: a2uiFenced(turn.reply))
                         .environment(\.surfaces, surfaces)
                         .padding(12)
-                        .modifier(MessageMenu(text: turn.reply, shape: .rect(cornerRadius: 18), speech: turn.status == .streaming ? nil : ("\(turn.id)-reply", turn.speaker ?? profile)))
+                        .modifier(MessageMenu(text: turn.reply, shape: .rect(cornerRadius: 18), speech: turn.status == .streaming ? nil : ("\(turn.id)-reply", turn.speaker ?? profile, speakerName)))
                         .padding(-12)
                         .modifier(Timestamp(date: turn.finishedAt ?? turn.startedAt, reveal: reveal, width: timestampWidth))
                 }

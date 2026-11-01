@@ -50,6 +50,7 @@ nonisolated func resolvedVoice(stored: String?, language: String?, region: Strin
 final class BotVoices {
     private(set) var installed: [VoiceOption] = []
     private(set) var chosen: [String: String]
+    private(set) var readingAloud: Set<String>
 
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private var changes: Task<Void, Never>?
@@ -57,6 +58,7 @@ final class BotVoices {
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         chosen = defaults.dictionary(forKey: "botVoices") as? [String: String] ?? [:]
+        readingAloud = Set(defaults.stringArray(forKey: "botReadAloud") ?? [])
         reload()
         changes = Task { [weak self] in
             for await _ in NotificationCenter.default.notifications(named: AVSpeechSynthesizer.availableVoicesDidChangeNotification) {
@@ -76,6 +78,11 @@ final class BotVoices {
     func choose(_ voice: String?, for profile: String) {
         chosen[profile] = voice
         defaults.set(chosen, forKey: "botVoices")
+    }
+
+    func readAloud(_ isOn: Bool, for profile: String) {
+        if isOn { readingAloud.insert(profile) } else { readingAloud.remove(profile) }
+        defaults.set(readingAloud.sorted(), forKey: "botReadAloud")
     }
 
     func voice(for profile: String?, speaking text: String) -> AVSpeechSynthesisVoice? {

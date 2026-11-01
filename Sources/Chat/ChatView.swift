@@ -59,6 +59,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
     var activity: String?
     var models: ModelSwitcher?
     var focus: SearchFocus?
+    var pinKey: String?
     var actions = ChatActions()
 
     @Binding var draft: String
@@ -76,10 +77,13 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
     @State private var highlighted: Turn.ID?
     @State private var handledFocus: UUID?
     @State private var responses: [SensoryFeedback] = []
+    @State private var openedCard: String?
+    @State private var unpins = 0
+    @Environment(ChatPins.self) private var pins
     @FocusState private var isComposerFocused: Bool
     private let presentation: ChatPresentation
 
-    init(botName: String, profile: String? = nil, title: String? = nil, avatar: Avatar, transcript: Transcript, emptyState: EmptyState, mentionable: [Bot], slashCommands: [SlashCommand] = [], draft: Binding<String>, tray: AttachmentTray, features: ComposerFeatures = .all, request: PendingRequest? = nil, payment: PaymentCardState? = nil, paymentNotice: String? = nil, shopOffer: String? = nil, offlineReason: String? = nil, activity: String? = nil, models: ModelSwitcher? = nil, focus: SearchFocus? = nil, presentation: ChatPresentation = ChatPresentation(), actions: ChatActions = ChatActions()) {
+    init(botName: String, profile: String? = nil, title: String? = nil, avatar: Avatar, transcript: Transcript, emptyState: EmptyState, mentionable: [Bot], slashCommands: [SlashCommand] = [], draft: Binding<String>, tray: AttachmentTray, features: ComposerFeatures = .all, request: PendingRequest? = nil, payment: PaymentCardState? = nil, paymentNotice: String? = nil, shopOffer: String? = nil, offlineReason: String? = nil, activity: String? = nil, models: ModelSwitcher? = nil, focus: SearchFocus? = nil, pinKey: String? = nil, presentation: ChatPresentation = ChatPresentation(), actions: ChatActions = ChatActions()) {
         self.botName = botName
         self.profile = profile
         self.title = title
@@ -97,6 +101,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
         self.activity = activity
         self.models = models
         self.focus = focus
+        self.pinKey = pinKey
         self.actions = actions
         self.presentation = presentation
         _expandedTurns = State(initialValue: presentation.expandedTurns)
@@ -118,6 +123,15 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
     private var reveal: CGFloat {
         if presentation.revealsTimestamps { return -timestampWidth }
         return -min(max(0, -(dragTravel + trackpadTravel)) / 3, timestampWidth)
+    }
+
+    private var pinnedCard: String? {
+        guard let pinKey, request == nil, paymentNotice == nil, shopOffer == nil, let id = pins.pinned(in: pinKey), surfaces.present.contains(id) else { return nil }
+        return id
+    }
+
+    private var cardFallbackTitle: String {
+        profile == nil ? String(localized: "Card") : String(localized: "Card from \(botName)")
     }
 
     private var composerPhase: Composer.Phase {
@@ -165,6 +179,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
                 }
             }
             .scrollTargetLayout()
+            .environment(\.cardPinning, pinKey.map { key in CardPinning(pinned: pins.pinned(in: key)) { pins.pin($0, in: key) } })
             .animation(.interactiveSpring, value: reveal)
             .padding(16)
         }
@@ -195,6 +210,10 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
         .onChange(of: transcript.turns.map(\.status), initial: true) {
             surfaces.send = actions.sendHidden
             surfaces.sync(transcript)
+        }
+        .onChange(of: surfaces.newest, initial: true) {
+            guard let pinKey, let newest = surfaces.newest else { return }
+            pins.arrived(newest, in: pinKey)
         }
         .dropDestination(for: URL.self) { urls, _ in
             guard features.contains(.attachments) else { return false }
@@ -253,6 +272,29 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
                             .frame(maxWidth: 560)
                             .padding(.horizontal, 16)
                     }
+                    if let pinKey, let pinnedCard, let model = surfaces.processor.surfaceGroupModel[pinnedCard] {
+                        PinnedCardBar(model: model, fallbackTitle: cardFallbackTitle) {
+                            isComposerFocused = false
+                            openedCard = pinnedCard
+                        } unpin: {
+                            unpins += 1
+                            pins.pin(nil, in: pinKey)
+                        }
+                        .popover(isPresented: Binding(get: { openedCard.map(surfaces.present.contains) ?? false }, set: { if !$0 { openedCard = nil } }), arrowEdge: .top) {
+                            if let openedCard {
+                                PinnedCardContent(surfaces: surfaces, id: openedCard, fallbackTitle: cardFallbackTitle) {
+                                    self.openedCard = nil
+                                    unpins += 1
+                                    pins.pin(nil, in: pinKey)
+                                }
+                            }
+                        }
+                        #if os(iOS)
+                        .padding(.horizontal, isComposerFocused ? 16 : 28)
+                        #else
+                        .padding(.horizontal, 16)
+                        #endif
+                    }
                     #if os(iOS)
                     if let voice = VoiceMessage.shared.attributes, voice.bot.name == profile {
                         VoiceComposer(voice: .shared)
@@ -268,6 +310,8 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
                 }
             }
             .animation(.smooth, value: request?.id)
+            .animation(.smooth, value: pinnedCard)
+            .sensoryFeedback(.impact(weight: .light), trigger: unpins)
             .sensoryFeedback(.warning, trigger: request?.id) { _, id in id != nil }
             .sensoryFeedback(.selection, trigger: models?.current) { previous, _ in previous != nil }
             .sensoryFeedback(trigger: responses) { _, responses in responses.last }

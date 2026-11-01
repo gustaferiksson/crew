@@ -66,6 +66,7 @@ struct GroupChatScreen: View {
             features: [],
             request: session?.request,
             offlineReason: offlineReason,
+            pinKey: room.selectionID,
             actions: ChatActions(
                 send: { text, _, _, _ in session?.send(text) },
                 stop: { session?.stop() },

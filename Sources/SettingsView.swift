@@ -33,6 +33,7 @@ private struct AccountSettings: View {
     @Environment(Connection.self) private var connection
     @Environment(PushCenter.self) private var push
     @Environment(ChatDrafts.self) private var drafts
+    @Environment(ChatPins.self) private var pins
     @Environment(\.openWindow) private var openWindow
     @AppStorage("username") private var username = ""
     @State private var confirmsSignOut = false
@@ -78,12 +79,13 @@ private struct AccountSettings: View {
                         await push.unregister(on: connection)
                         await connection.signOut()
                         drafts.reset()
+                        pins.reset()
                         isSigningOut = false
                         openWindow(id: "main")
                     }
                 }
             } message: {
-                Text("Crew forgets this session and the unsent drafts on this Mac, and closes its chat windows.")
+                Text("Crew forgets this session, the unsent drafts and pinned cards on this Mac, and closes its chat windows.")
             }
         } else {
             ContentUnavailableView {

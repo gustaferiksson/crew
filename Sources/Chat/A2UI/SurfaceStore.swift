@@ -21,9 +21,11 @@ final class SurfaceStore {
     private(set) var owners: [String: String] = [:]
     private(set) var choices: [String: String] = [:]
     private(set) var isBusy = false
+    private(set) var newest: ChatPins.Card?
+    private(set) var present: Set<String> = []
     @ObservationIgnored var send: (String) -> Void = { _ in }
     @ObservationIgnored let processor = MessageProcessor(catalogs: crewCatalogs)
-    @ObservationIgnored private var readReplies: Set<String> = []
+    @ObservationIgnored private var replyBlocks: [String: [String]] = [:]
 
     init() {
         processor.outboundListener = { [weak self] message in
@@ -33,19 +35,34 @@ final class SurfaceStore {
 
     func sync(_ transcript: Transcript) {
         var choices: [String: String] = [:]
+        var cards: [ChatPins.Card] = []
         for turn in transcript.turns {
             if let action = turn.hiddenText.flatMap(SentAction.init(text:)) {
                 choices[action.surfaceId] = action.sourceComponentId
             }
-            guard turn.status != .streaming, turn.reply.contains("a2ui"), readReplies.insert(turn.reply).inserted else { continue }
-            for block in markdownBlocks(from: a2uiFenced(turn.reply)) where block.kind == .code(language: "a2ui") {
-                let source = String(block.content.characters).trimmingCharacters(in: .newlines)
-                if blocks[source] == nil { blocks[source] = ingest(source) }
+            guard turn.status != .streaming, turn.reply.contains("a2ui") else { continue }
+            for source in replyBlocks[turn.reply] ?? read(turn.reply) {
+                guard case .surfaces(let ids) = blocks[source] else { continue }
+                cards += ids.map { ChatPins.Card(surface: $0, source: source, finishedAt: turn.finishedAt ?? turn.startedAt) }
             }
         }
         if choices != self.choices { self.choices = choices }
+        if cards.last != newest { newest = cards.last }
+        let present = Set(cards.map(\.surface))
+        if present != self.present { self.present = present }
         let isBusy = transcript.turns.last?.status == .streaming
         if isBusy != self.isBusy { self.isBusy = isBusy }
+    }
+
+    private func read(_ reply: String) -> [String] {
+        let sources = markdownBlocks(from: a2uiFenced(reply))
+            .filter { $0.kind == .code(language: "a2ui") }
+            .map { String($0.content.characters).trimmingCharacters(in: .newlines) }
+        for source in sources where blocks[source] == nil {
+            blocks[source] = ingest(source)
+        }
+        replyBlocks[reply] = sources
+        return sources
     }
 
     private func ingest(_ source: String) -> Block {

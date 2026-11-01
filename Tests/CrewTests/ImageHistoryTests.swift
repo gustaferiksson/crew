@@ -61,3 +61,13 @@ private func imageMemoryRows(caption: String = imageOnlyPrompt) throws -> [Histo
     let bot = try #require(store.bots.first)
     #expect(ChatSessions().summary(of: bot, in: store).preview == "Thanks")
 }
+
+@Test func botRowPreviewShowsRepliesWithoutMarkdownMarks() throws {
+    let preview = "**Saturday still looks best, but aim for 13:00–14:00, not the morning.** I checked _dew point_, `wind` and [the forecast](https://yr.no)..."
+    let profile: [String: Any] = ["name": "alfred", "is_default": false, "has_avatar": false, "canonical_session": ["id": "s1", "resolved_id": "s1", "preview": preview]]
+    let roster = try JSONDecoder().decode(Roster.self, from: JSONSerialization.data(withJSONObject: ["profiles": [profile]]))
+    let store = BotStore(fixture: [], statuses: [:])
+    store.apply(roster: roster.profiles)
+    let bot = try #require(store.bots.first)
+    #expect(ChatSessions().summary(of: bot, in: store).preview == "Saturday still looks best, but aim for 13:00–14:00, not the morning. I checked dew point, wind and the forecast...")
+}

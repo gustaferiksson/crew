@@ -44,7 +44,9 @@ final class ChatSessions {
 
     func summary(of bot: Bot, in store: BotStore) -> BotSummary {
         let last = sessions[bot.id]?.transcript.preview ?? store.previews[bot.id]
-        return BotSummary(status: status(of: bot.id, in: store), preview: last?.text ?? bot.canonicalSession?.preview.map { noticeText(kind: nil, content: $0) ?? Prompt(raw: $0, sentAt: .now).text } ?? "", time: last?.date ?? bot.canonicalSession?.lastActive)
+        let text = String((last?.text ?? bot.canonicalSession?.preview.map { noticeText(kind: nil, content: $0) ?? Prompt(raw: $0, sentAt: .now).text } ?? "").prefix(400))
+        let plain = (try? AttributedString(markdown: text, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))).map { String($0.characters) } ?? text
+        return BotSummary(status: status(of: bot.id, in: store), preview: plain, time: last?.date ?? bot.canonicalSession?.lastActive)
     }
 
     func reset() {

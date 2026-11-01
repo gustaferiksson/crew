@@ -45,13 +45,14 @@ final class InspectorUITests: XCTestCase {
         }
     }
 
-    @MainActor func testAddConnectionSheetStaysOpen() {
+    @MainActor func testAddConnectionSheetStaysOpen() throws {
         let app = XCUIApplication()
         app.launchArguments = ["-snapshot", "inspector-info", "-server", "hermes.example.com", "-username", "gustaf"]
         app.launch()
 
         let opener = app.buttons["Add Connection…"]
         XCTAssertTrue(app.segmentedControls.firstMatch.waitForExistence(timeout: 10))
+        try app.auditHitRegionsAndClipping()
         for _ in 0..<10 where !(opener.exists && opener.isHittable) { app.swipeUp(velocity: .slow) }
         opener.tap()
 

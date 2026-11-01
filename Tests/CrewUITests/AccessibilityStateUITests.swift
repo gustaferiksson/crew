@@ -22,7 +22,13 @@ final class AccessibilityStateUITests: XCTestCase {
         XCTAssertEqual(openThoughts.count, 2)
     }
 
-    @MainActor func testThePendingAttachmentRemoveButtonIsAFullTouchTarget() {
+    @MainActor func testTheBotListPassesTheAccessibilityAudit() throws {
+        let app = launch("sidebar")
+        XCTAssertTrue(app.navigationBars.firstMatch.waitForExistence(timeout: 10))
+        try app.auditHitRegionsAndClipping()
+    }
+
+    @MainActor func testThePendingAttachmentRemoveButtonIsAFullTouchTarget() throws {
         let app = launch("chat-attachments")
         for name in ["Trailhead.png", "Lofoten itinerary.pdf"] {
             let remove = app.buttons["Remove \(name)"]
@@ -30,6 +36,7 @@ final class AccessibilityStateUITests: XCTestCase {
             XCTAssertGreaterThanOrEqual(remove.frame.width.rounded(), 44, name)
             XCTAssertGreaterThanOrEqual(remove.frame.height.rounded(), 44, name)
         }
+        try app.auditHitRegionsAndClipping()
         let remove = app.buttons["Remove Trailhead.png"]
         let corner = CGVector(dx: remove.frame.maxX - 42, dy: remove.frame.minY + 42)
         app.coordinate(withNormalizedOffset: .zero).withOffset(corner).tap()

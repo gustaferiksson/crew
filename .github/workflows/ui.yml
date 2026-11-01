@@ -1,15 +1,6 @@
 name: UI tests
 
 on:
-  push:
-    branches: [ main ]
-    paths:
-      - '**'
-      - '!docs/**'
-      - '!server/crew-push/**'
-      - '!**.md'
-      - 'Sources/**/*.md'
-      - 'Tests/fixtures/**/*.md'
   workflow_dispatch:
 
 concurrency:

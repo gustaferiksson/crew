@@ -65,8 +65,8 @@ private func replayedStore() throws -> BotStore {
         guard let bot = store.bots.first(where: { $0.name == name }) else { return }
         sessions[name] = ChatSession(fixture: bot, transcript: Transcript(history: try history("\(name).history")), todos: [])
     })
-    #expect(open.sessions["crew-test"]?.transcript.preview == store.previews["crew-test"])
-    #expect(open.sessions["crew-test-peer"]?.transcript.preview == store.previews["crew-test-peer"])
+    #expect(open.sessions["crew-test"]?.visible.lastMessage == store.previews["crew-test"])
+    #expect(open.sessions["crew-test-peer"]?.visible.lastMessage == store.previews["crew-test-peer"])
 }
 
 @Test func exchangeShowsWorkingThenUnread() throws {

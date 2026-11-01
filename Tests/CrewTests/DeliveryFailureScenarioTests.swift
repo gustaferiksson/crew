@@ -79,7 +79,7 @@ private func peekOutcome(_ transcript: Transcript) throws -> MentionExchange.Out
     store.apply(live: try recorded("active_list.after", as: ActiveList.self, keys: .useDefaultKeys).sessions)
     store.showPreview(of: "crew-test", from: try recorded("crew-test.preview", as: [HistoryRow].self))
     #expect(store.previews["crew-test"]?.text == "Crew Peer couldn’t reply because its configured model, `gpt-crew-test-missing`, is unsupported by the connected ChatGPT account.")
-    #expect(try sender().preview == store.previews["crew-test"])
+    #expect(try sender().visible.lastMessage == store.previews["crew-test"])
     let chats = ChatSessions(fixture: ["crew-test": ChatSession(fixture: try #require(store.bots.first { $0.name == "crew-test" }), transcript: try sender(), todos: [])])
     #expect(chats.status(of: "crew-test", in: store) != .failed)
 }

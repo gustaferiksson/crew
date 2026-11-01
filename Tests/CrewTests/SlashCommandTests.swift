@@ -80,11 +80,11 @@ private func recordedReplies() throws -> [String: SlashReply] {
     shown.beginCommand("/status", id: "c", at: start.addingTimeInterval(30))
     shown.finishCommand("c", output: "Hermes TUI Status\n", at: start.addingTimeInterval(31))
     #expect(shown.turns.last?.output == "Hermes TUI Status\n")
-    #expect(shown.preview?.text == "Hello")
+    #expect(shown.visible.lastMessage?.text == "Hello")
     var reloaded = history
     reloaded.keepCommands(from: shown)
     #expect(reloaded.turns.map(\.id) == ["1", "c", "2"])
-    #expect(reloaded.preview?.text == "Sure")
+    #expect(reloaded.visible.lastMessage?.text == "Sure")
 }
 
 @Test func aFailedCommandShowsHermesMessage() throws {

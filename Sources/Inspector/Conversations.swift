@@ -102,7 +102,7 @@ struct ConversationTranscript: View {
                 botName: bot.title,
                 title: conversation.title ?? String(localized: "Untitled"),
                 avatar: BotAvatar(bot: bot, status: .idle, photo: bots.photos[bot.id], size: 28),
-                transcript: session?.transcript.visible ?? Transcript(),
+                transcript: session?.visible ?? Transcript(),
                 emptyState: emptyState,
                 mentionable: bots.bots.filter { $0.id != bot.id },
                 slashCommands: session?.slashCommands ?? [],

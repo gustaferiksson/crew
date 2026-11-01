@@ -25,15 +25,15 @@ final class SurfaceStore {
     private(set) var newest: ChatPins.Card?
     private(set) var present: Set<String> = []
     @ObservationIgnored var send: (String) -> Void = { _ in }
-    @ObservationIgnored let processor = MessageProcessor(catalogs: crewCatalogs)
-    @ObservationIgnored private var replyBlocks: [String: [String]] = [:]
-    @ObservationIgnored private var previews: [String: (healed: String, processor: MessageProcessor)] = [:]
-
-    init() {
+    @ObservationIgnored private(set) lazy var processor = {
+        let processor = MessageProcessor(catalogs: crewCatalogs)
         processor.outboundListener = { [weak self] message in
             MainActor.assumeIsolated { self?.forward(message) }
         }
-    }
+        return processor
+    }()
+    @ObservationIgnored private var replyBlocks: [String: [String]] = [:]
+    @ObservationIgnored private var previews: [String: (healed: String, processor: MessageProcessor)] = [:]
 
     func sync(_ transcript: Transcript) {
         var choices: [String: String] = [:]

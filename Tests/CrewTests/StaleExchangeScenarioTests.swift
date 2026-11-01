@@ -79,7 +79,7 @@ private func settle(_ session: ChatSession) async throws {
     }
     #expect(session.transcript.visible.turns.count == 5)
     #expect(session.transcript.visible.turns.last?.startedAt == Date(timeIntervalSince1970: try #require(rows.first { $0.id == 22 }).timestamp))
-    #expect(session.transcript.preview?.text == "Message from Crew Test")
+    #expect(session.visible.lastMessage?.text == "Message from Crew Test")
 }
 
 @Test func freshTargetChatOpenDuringTheExchangeShowsIt() async throws {
@@ -89,7 +89,7 @@ private func settle(_ session: ChatSession) async throws {
     try await settle(session)
     #expect(session.transcript.visible.turns.count == 1)
     #expect(session.transcript.visible.turns.first?.agentMessage?.sender == "Crew Test")
-    #expect(session.transcript.preview?.text == "Message from Crew Test")
+    #expect(session.visible.lastMessage?.text == "Message from Crew Test")
 }
 
 @Test func refetchKeepsLocalFailures() {
@@ -141,7 +141,7 @@ private func settle(_ session: ChatSession) async throws {
     store.apply(roster: try recorded("profiles.after", as: Roster.self).profiles)
     store.showPreview(of: "crew-test", from: try recorded("crew-test.preview", as: [HistoryRow].self))
     #expect(store.previews["crew-test"]?.text == "@test-bot: “Hello! 👋”")
-    #expect(Transcript(history: try recorded("crew-test.history", as: [HistoryRow].self)).preview == store.previews["crew-test"])
+    #expect(Transcript(history: try recorded("crew-test.history", as: [HistoryRow].self)).visible.lastMessage == store.previews["crew-test"])
 }
 
 @Test func windowWithoutAPromptFallsBackToTheServerPreview() throws {

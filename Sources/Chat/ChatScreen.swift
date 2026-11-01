@@ -45,7 +45,7 @@ struct ChatScreen: View {
             botName: live.title,
             profile: bot.name,
             avatar: BotAvatar(bot: live, status: status, photo: bots.photos[bot.id], size: 28),
-            transcript: session?.transcript.visible ?? Transcript(),
+            transcript: session?.visible ?? Transcript(),
             emptyState: EmptyView(),
             mentionable: bots.bots.filter { $0.id != bot.id },
             slashCommands: session?.slashCommands ?? [],

@@ -250,10 +250,12 @@ struct BotInspector: View {
             shape: draft.fields.identity.shape,
             color: draft.fields.identity.color,
             expression: draft.fields.identity.expression,
+            mood: AvatarMood(status: chats.status(of: bot.id, in: store), lastActive: bot.canonicalSession?.lastActive),
             photo: draft.photo.map { Image(decorative: $0, scale: 1) } ?? (isEditable ? nil : store.photos[bot.id]),
-            seed: draft.name,
+            seed: bot.name,
             size: 96
         )
+        .environment(\.avatarsAnimate, isPresented)
         if isEditable {
             Button {
                 showsLook = true

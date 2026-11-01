@@ -22,6 +22,8 @@ struct RootView: View {
                 #if os(iOS)
                 VoiceActivityFixture()
                 #endif
+            } else if Snapshot.requested == .avatarEyes {
+                LivingEyesFixture()
             } else if Snapshot.requested == .avatarPicker {
                 AvatarPickerFixture()
             } else if Snapshot.requested == .profileSkills {

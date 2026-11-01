@@ -84,6 +84,52 @@ struct AvatarGallery: View {
     }
 }
 
+struct LivingEyesFixture: View {
+    private let looks: [(shape: AvatarShape, color: String, expression: AvatarExpression)] = [
+        (.circle, "#14b8a6", .neutral),
+        (.triangle, "#ef4444", .scared),
+        (.squircle, "#38bdf8", .happy),
+        (.hexagon, AvatarColor.adaptiveHex, .wary),
+    ]
+    private let states: [(name: LocalizedStringKey, pose: EyePose, sad: Bool)] = [
+        ("Idle", .rest, false),
+        ("Blink", EyePose.rest.blinked, false),
+        ("Reading, line start", .readingStart, false),
+        ("Reading, line end", .readingEnd, false),
+        ("Needs approval", .wide, false),
+        ("Failed, squint", .squint, true),
+        ("Failed, settled", .rest, true),
+        ("New reply", .happy, false),
+        ("Long idle", .sleepy, false),
+    ]
+
+    var body: some View {
+        ScrollView {
+            Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 6) {
+                ForEach(states.indices, id: \.self) { index in
+                    let state = states[index]
+                    GridRow {
+                        Text(state.name)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        ForEach(looks.indices, id: \.self) { look in
+                            AvatarFace(
+                                shape: looks[look].shape,
+                                color: looks[look].color,
+                                expression: state.sad ? .sad : looks[look].expression,
+                                pose: state.pose,
+                                size: 56
+                            )
+                        }
+                    }
+                }
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity)
+        }
+    }
+}
+
 struct AvatarPickerFixture: View {
     @State private var shape = AvatarShape.blob
     @State private var color = "#8b5cf6"

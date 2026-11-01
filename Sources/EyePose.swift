@@ -1,0 +1,27 @@
+import SwiftUI
+
+struct EyePose: Equatable, Sendable {
+    var openness = 1.0
+    var scale = 1.0
+    var stretch = 1.0
+    var tilt = 0.0
+    var gaze = CGSize.zero
+    var centring = 0.0
+
+    static let rest = EyePose()
+    static let wide = EyePose(scale: 1.18, gaze: CGSize(width: 0, height: 0.02), centring: 0.5)
+    static let squint = EyePose(openness: 0.22, stretch: 1.35)
+    static let happy = EyePose(openness: 0.28, stretch: 1.6, gaze: CGSize(width: 0, height: -0.03))
+    static let sleepy = EyePose(openness: 0.5, gaze: CGSize(width: 0, height: 0.02))
+    static let readingStart = EyePose(gaze: CGSize(width: -0.04, height: 0))
+    static let readingEnd = EyePose(gaze: CGSize(width: 0.04, height: 0))
+
+    var blinked: EyePose {
+        EyePose(openness: openness * 0.12, scale: scale, stretch: stretch, tilt: tilt, gaze: gaze, centring: centring)
+    }
+}
+
+extension EnvironmentValues {
+    @Entry var avatarClock: any Clock<Duration> = ContinuousClock()
+    @Entry var avatarsAnimate = true
+}

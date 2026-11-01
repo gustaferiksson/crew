@@ -12,17 +12,25 @@ struct BotAvatar: View {
             shape: look.shape,
             color: look.color,
             expression: .resolve(bot.meta.expression),
-            mood: mood,
+            mood: AvatarMood(status: status, lastActive: bot.canonicalSession?.lastActive),
             photo: photo,
             seed: bot.name,
             size: size
         )
     }
+}
 
-    private var mood: AvatarMood {
-        if case .waiting = status { return .waiting }
-        if status == .failed { return .failed }
-        return status == .working ? .working : .idle
+extension AvatarMood {
+    init(status: BotStatus, lastActive: Date?, now: Date = .now) {
+        if case .waiting = status {
+            self = .waiting
+            return
+        }
+        if status == .working { self = .working; return }
+        if status == .failed { self = .failed; return }
+        if status == .unread { self = .unread; return }
+        let dormant = lastActive.map { now.timeIntervalSince($0) >= 7 * 24 * 3600 } ?? false
+        self = dormant ? .dormant : .idle
     }
 }
 

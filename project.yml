@@ -99,6 +99,10 @@ targets:
       - Sources/Voice/VoiceShared.swift
       - Sources/Voice/VoiceBot.swift
       - Sources/AvatarView.swift
+      - Sources/AvatarFace.swift
+      - Sources/EyePose.swift
+      - Sources/EyeScript.swift
+      - Sources/SeededGenerator.swift
       - Sources/AvatarShape.swift
     info:
       path: Widgets/Info.plist
@@ -172,6 +176,10 @@ targets:
       - Sources/BotAvatar.swift
       - Sources/BotRow.swift
       - Sources/AvatarView.swift
+      - Sources/AvatarFace.swift
+      - Sources/EyePose.swift
+      - Sources/EyeScript.swift
+      - Sources/SeededGenerator.swift
       - Sources/Chat/A2UI/MapPinPoint.swift
       - Sources/Chat/A2UI/CachedImage.swift
       - Sources/Chat/A2UI/SystemSymbol.swift

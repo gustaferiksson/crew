@@ -25,6 +25,9 @@ final class CardExpandUITests: XCTestCase {
         screenshot.lifetime = .keepAlways
         add(screenshot)
 
+        let transcript = app.scrollViews.firstMatch
+        let start = transcript.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.6))
+        start.press(forDuration: 0.05, thenDragTo: start.withOffset(CGVector(dx: 0, dy: -150)))
         preview.tap()
         let sheet = app.navigationBars[title]
         XCTAssertTrue(sheet.waitForExistence(timeout: 5), "tapping the row still opens the sheet")

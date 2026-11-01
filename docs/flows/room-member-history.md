@@ -21,7 +21,7 @@ Show each member's room history length and offer Compress per member, as Desktop
 
 ### Room inspector, Members section (Mac inspector column, iPhone pushed page)
 
-- Each member row keeps its avatar, name and role line, and the tap that selects the bot. The size is trailing secondary text, like Settings: "128 in history" (`live_message_count ?? message_count`, system number format). The accessibility label reads "128 messages in room history".
+- Each member row keeps its avatar, name and role line, and the tap that selects the bot. The size is trailing secondary text, like Settings: "128 in history" (`live_message_count ?? message_count`, system number format).
 - Compress follows the inspector's row-action convention (PLAN.md, logins, shops, routines): an iOS trailing swipe action "Compress" and a context menu item "Compress Room History…" on both platforms (the context menu covers Mac). While it runs, a small `ProgressView` replaces the count.
 - Compress asks first, like Compact Chat (#115): "Compress Ada's Room History?" / "Ada replaces older room messages in its context with a summary. The room's transcript stays." Buttons Compress, Cancel.
 - Then `session.resume` + `session.compress` with a 660 s timeout (Desktop's, matching the gateway's compute-host wait), then the count reloads from `session.list`.
@@ -34,7 +34,7 @@ Show each member's room history length and offer Compress per member, as Desktop
 
 ### Data and cost
 
-- `session.list` for each local member, in parallel (at most 6), once when the inspector appears and after each Compress. Never in the chat, never polled, nothing on the transcript or streaming path; nothing persisted.
+- `session.list` for each local member, one after another (at most 6), once when the inspector appears and after each Compress. Never in the chat, never polled, nothing on the transcript or streaming path; nothing persisted.
 - Working state: the inspector reads `groups.state` once alongside the counts (the chat's `GroupSession` polling may stop while the inspector is pushed on iPhone). Compress is disabled while `driver_status.working`, offline, or while another Compress runs.
 
 ### States
@@ -51,7 +51,7 @@ Show each member's room history length and offer Compress per member, as Desktop
 
 ## Evidence and tests
 
-- First implementation step: record a `room-member-history` scenario on `crew-test` plus a throwaway (`session.list` rows before and after a Compress that changes something, and the compress reply) into `Tests/fixtures`, then unit tests that decode them into row text and action state, each shown failing without the fix.
+- `Tests/chat_probe/run.sh room-history` records `Tests/fixtures/rooms/` on `crew-test` plus a throwaway (eight rounds, `session.list` before and after Compress, a lookup with no session, and the compress reply; Hermes refused that compress because the summary would have grown the 16 messages, which is the headline the alert shows). Unit tests decode them into row text and outcomes.
 - Real-server probe of the full flow on crew-test, every direction: Compress, then another room round lands in the same session.
 - Renders of `group-inspector` on iPhone and Mac, light and dark.
 - Probe side effects so far: crew-test keeps two hidden `Group: room-…` sessions from the disbanded test rooms; the room store keeps their tombstones.

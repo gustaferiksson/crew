@@ -1,0 +1,17 @@
+{
+  "after_messages" : 16,
+  "after_tokens" : 10325,
+  "before_messages" : 16,
+  "before_tokens" : 10325,
+  "removed" : 0,
+  "status" : "compressed",
+  "summary" : {
+    "aborted" : false,
+    "fallback_used" : false,
+    "headline" : "Compression refused (summary would grow the conversation): 16 messages preserved",
+    "noop" : true,
+    "note" : "The generated summary was larger than what it would replace; no messages were removed.",
+    "refused_would_grow" : true,
+    "token_line" : "Approx request size: ~10,325 tokens (unchanged)"
+  }
+}

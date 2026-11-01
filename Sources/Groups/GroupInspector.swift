@@ -13,13 +13,21 @@ struct GroupInspector: View {
     @State private var renameFailure: String?
     @State private var disbanding: Room?
     @State private var disbandFailure: String?
+    @State private var histories: [String: RoomHistory?] = [:]
+    @State private var historiesLoaded = false
+    @State private var isWorking = false
+    @State private var compressing: String?
+    @State private var confirmingCompress: RoomMember?
+    @State private var compressResult: (title: String, message: String)?
     @FocusState private var isEditingName: Bool
 
-    init(room: Room, isPresented: Binding<Bool>, select: @escaping (Bot.ID) -> Void) {
+    init(room: Room, isPresented: Binding<Bool>, histories: [String: RoomHistory?]? = nil, select: @escaping (Bot.ID) -> Void) {
         self.room = room
         _isPresented = isPresented
         self.select = select
         _name = State(initialValue: room.name)
+        _histories = State(initialValue: histories ?? [:])
+        _historiesLoaded = State(initialValue: histories != nil)
     }
 
     private var members: [Bot] {
@@ -57,6 +65,7 @@ struct GroupInspector: View {
             }
         }
         #endif
+        .task(id: connection.state == .connected) { await loadHistories() }
         .onChange(of: room.name) {
             if !isEditingName { name = room.name }
         }
@@ -74,6 +83,21 @@ struct GroupInspector: View {
             }
         } message: { _ in
             Text("This permanently ends the group and its history for every app. The bots stay.")
+        }
+        .confirmationDialog(
+            "Compress \(confirmingCompress.map(memberName) ?? "")'s Room History?",
+            isPresented: Binding(get: { confirmingCompress != nil }, set: { if !$0 { confirmingCompress = nil } }),
+            titleVisibility: .visible,
+            presenting: confirmingCompress
+        ) { member in
+            Button("Compress") { Task { await compress(member) } }
+        } message: { member in
+            Text("\(memberName(member)) replaces older room messages in its context with a summary. The room's transcript stays.")
+        }
+        .alert(compressResult?.title ?? "", isPresented: Binding(get: { compressResult != nil }, set: { if !$0 { compressResult = nil } })) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(compressResult?.message ?? "")
         }
         .alert("Couldn't Disband Group", isPresented: Binding(get: { disbandFailure != nil }, set: { if !$0 { disbandFailure = nil } })) {
             Button("OK", role: .cancel) {}
@@ -152,6 +176,14 @@ struct GroupInspector: View {
                     }
                 }
                 Spacer(minLength: 8)
+                if compressing == member.profile {
+                    ProgressView()
+                        .controlSize(.small)
+                } else if historiesLoaded, let label = roomHistoryLabel(bot == nil ? nil : histories[member.profile], isPeer: member.isPeer, isOnline: connection.state == .connected) {
+                    Text(label)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
                 #if os(macOS)
                 Image(systemName: "chevron.forward")
                     .foregroundStyle(.tertiary)
@@ -166,6 +198,61 @@ struct GroupInspector: View {
         .tint(.primary)
         #endif
         .disabled(bot == nil)
+        .swipeActions(edge: .trailing) {
+            if canCompress(member) {
+                Button("Compress") { confirmingCompress = member }
+            }
+        }
+        .contextMenu {
+            if canCompress(member) {
+                Button("Compress Room History…", systemImage: "arrow.down.right.and.arrow.up.left") { confirmingCompress = member }
+            }
+        }
+    }
+
+    private func memberName(_ member: RoomMember) -> String {
+        bots.bots.first { $0.name == member.profile }?.title ?? member.displayName ?? member.memberID
+    }
+
+    private func canCompress(_ member: RoomMember) -> Bool {
+        let history = histories[member.profile] ?? nil
+        return history != nil && !member.isPeer && !isWorking && compressing == nil && connection.state == .connected
+    }
+
+    private func loadHistories() async {
+        guard let gateway = connection.gateway, connection.state == .connected else { return }
+        isWorking = (try? await gateway.call("groups.state", ["room_id": room.id], as: RoomState.self))?.driverStatus?.working ?? false
+        var loaded: [String: RoomHistory?] = [:]
+        for member in room.members where !member.isPeer && bots.bots.contains(where: { $0.name == member.profile }) {
+            do {
+                loaded[member.profile] = .some(try await roomHistory(of: member.profile, in: room.id, via: gateway))
+            } catch {
+                continue
+            }
+        }
+        histories = loaded
+        historiesLoaded = true
+    }
+
+    private func compress(_ member: RoomMember) async {
+        guard let gateway = connection.gateway, let history = histories[member.profile] ?? nil else { return }
+        compressing = member.profile
+        defer { compressing = nil }
+        let name = memberName(member)
+        let failed = String(localized: "Couldn't Compress Room History")
+        do {
+            let outcome = try await compressRoomHistory(history, of: member.profile, via: gateway)
+            compressResult = switch outcome {
+            case .compressed(let headline): (String(localized: "Room History Compressed"), headline)
+            case .pending: (String(localized: "Still Compressing"), String(localized: "Hermes is finishing in the background. Check again in a minute."))
+            case .busy: (failed, String(localized: "\(name) is busy right now. Try again when the room is quiet."))
+            case .aborted(let note): (failed, note)
+            }
+        } catch {
+            let message = if case GatewayError.rpc(_, let message) = error { message } else { error.localizedDescription }
+            compressResult = (failed, message)
+        }
+        await loadHistories()
     }
 
     private func rename() {

@@ -181,6 +181,7 @@ targets:
       - Sources/Inspector/MCP.swift
       - Sources/NewBotAdvanced.swift
       - Sources/Voice/VoiceBot.swift
+      - Sources/Voice/BotAnswer.swift
       - Tests/CrewTests
     settings:
       base:

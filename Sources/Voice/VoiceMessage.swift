@@ -176,6 +176,8 @@ final class VoiceMessage {
 struct CrewShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
         AppShortcut(intent: TalkToBotIntent(), phrases: ["Talk to a bot in \(.applicationName)"], shortTitle: "Talk to Bot", systemImageName: "waveform")
+        AppShortcut(intent: AskBotIntent(), phrases: ["Ask \(\.$bot) in \(.applicationName)", "Ask a bot in \(.applicationName)"], shortTitle: "Ask Bot", systemImageName: "bubble.left.and.text.bubble.right")
+        AppShortcut(intent: OpenBotChatIntent(), phrases: ["Open \(\.$target) in \(.applicationName)", "Open a bot in \(.applicationName)"], shortTitle: "Open Bot Chat", systemImageName: "bubble.left.and.bubble.right")
     }
 }
 #endif

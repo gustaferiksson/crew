@@ -52,9 +52,10 @@ final class ComposerUITests: XCTestCase {
         XCTAssertEqual((width - (focusedStop?.frame.maxX ?? 0) - 4).rounded(), 16)
     }
 
-    @MainActor func testPhotosInThePlusMenuOpensThePhotoPicker() {
+    @MainActor func testPhotosInThePlusMenuOpensThePhotoPicker() throws {
         let app = launch("chat")
         XCTAssertTrue(app.textFields.firstMatch.waitForExistence(timeout: 10))
+        try app.auditHitRegionsAndClipping()
         app.buttons["Attach"].tap()
         let photos = app.buttons["Photos"]
         XCTAssertTrue(photos.waitForExistence(timeout: 5))

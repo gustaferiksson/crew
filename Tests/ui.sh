@@ -1,22 +1,22 @@
 #!/usr/bin/env bash
 # Runs the CrewUITests XCUITests on a private iOS 27 simulator (never on the Mac). Usage: Tests/ui.sh [-only-testing:CrewUITests/...]
-# UI_DEVICE=<booted simulator> skips creating, building and booting, for CI where products arrive prebuilt in .build/Build/Products.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-device=${UI_DEVICE:-}
-if [[ -z "$device" ]]; then
-  device=$(xcrun simctl create "crew-ui-$$" "${IOS_SIMULATOR:-iPhone 18 Pro}" com.apple.CoreSimulator.SimRuntime.iOS-27-0)
-  trap 'xcrun simctl shutdown "$device" >/dev/null 2>&1 || true; xcrun simctl delete "$device"' EXIT
+device=$(xcrun simctl create "crew-ui-$$" "${IOS_SIMULATOR:-iPhone 18 Pro}" com.apple.CoreSimulator.SimRuntime.iOS-27-0)
+trap 'xcrun simctl shutdown "$device" >/dev/null 2>&1 || true; xcrun simctl delete "$device"' EXIT
 
-  echo "▸ Building for testing…"
-  xcodegen generate --quiet
-  xcodebuild build-for-testing -quiet -project Crew.xcodeproj -scheme CrewUITests -derivedDataPath .build -skipPackagePluginValidation -skipMacroValidation \
-    -destination "platform=iOS Simulator,id=$device" CODE_SIGNING_ALLOWED=NO
+echo "▸ Building for testing…"
+xcodegen generate --quiet
+SECONDS=0
+xcodebuild build-for-testing -quiet -project Crew.xcodeproj -scheme CrewUITests -derivedDataPath .build -skipPackagePluginValidation -skipMacroValidation \
+  -destination "platform=iOS Simulator,id=$device" CODE_SIGNING_ALLOWED=NO
+echo "▸ Built in ${SECONDS}s"
 
-  echo "▸ Booting the simulator…"
-  xcrun simctl bootstatus "$device" -b >/dev/null
-fi
+echo "▸ Booting the simulator…"
+SECONDS=0
+xcrun simctl bootstatus "$device" -b >/dev/null
+echo "▸ Booted in ${SECONDS}s"
 
 echo "▸ Warming up…"
 ready="$HOME/Library/Developer/CoreSimulator/Devices/$device/data/tmp/crew-ready.log"
@@ -34,4 +34,5 @@ echo "▸ First launch rendered in ${SECONDS}s"
 xcrun simctl terminate "$device" dev.gustaf.crew
 
 xcodebuild test-without-building -xctestrun .build/Build/Products/CrewUITests_*.xctestrun \
-  -destination "id=$device" -collect-test-diagnostics never -test-timeouts-enabled YES -default-test-execution-time-allowance 300 "$@"
+  -destination "id=$device" -collect-test-diagnostics never -test-timeouts-enabled YES -default-test-execution-time-allowance 300 \
+  -parallel-testing-enabled YES -parallel-testing-worker-count "${UI_WORKERS:-2}" "$@"

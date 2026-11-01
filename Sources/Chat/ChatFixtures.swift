@@ -118,7 +118,7 @@ enum ChatFixture {
             return transcript
         }
         if self == .waiting { return Transcript(turns: turns + [Turn(id: "t6", prompt: Prompt(text: "How many files are in your working directory?", sentAt: now.addingTimeInterval(-3)), status: .streaming, startedAt: now.addingTimeInterval(-3))]) }
-        if self == .attachments { return Transcript(turns: [greeting(now.addingTimeInterval(-26 * 3600)), receipt(now.addingTimeInterval(-6 * 60))]) }
+        if self == .attachments { return Transcript(turns: [greeting(now.addingTimeInterval(-26 * 3600)), receipt(now.addingTimeInterval(-6 * 60)), screenshot(now.addingTimeInterval(-2 * 60))]) }
         if self == .mentions {
             let reply = Turn(id: "t8", agentMessage: AgentMessage("Message from 🤖 Scout (@scout): Found three options under 2 000 kr: SAS on Friday at 07:10, Norwegian on Saturday at 09:45, and Widerøe via Bodø."), status: .complete, startedAt: now.addingTimeInterval(-4 * 60))
             let earlier = (0..<UserDefaults.standard.integer(forKey: "mentionTurns")).flatMap { index in
@@ -307,6 +307,18 @@ enum ChatFixture {
             status: .complete,
             startedAt: start,
             finishedAt: start.addingTimeInterval(9)
+        )
+    }
+
+    private func screenshot(_ start: Date) -> Turn {
+        let stored = "\(imageOnlyPrompt)\n\n[Image attached at: /opt/data/images/upload_hbv1ik2k.png]\n[screenshot]\n<memory-context>\n[System note: The following is recalled memory context, NOT new user input.]\n\n## Basic Memory Recall\n- **Hermes Session 2026-10-30 0915 aaaaaa**\n</memory-context>"
+        return Turn(
+            id: "t6b",
+            prompt: Prompt(raw: stored, sentAt: start),
+            reply: "I see a chat app with an approval dialog waiting for an answer.",
+            status: .complete,
+            startedAt: start,
+            finishedAt: start.addingTimeInterval(12)
         )
     }
 

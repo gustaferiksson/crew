@@ -109,7 +109,8 @@ nonisolated enum AttachmentError: LocalizedError {
 }
 
 extension Prompt {
-    nonisolated init(raw: String, sentAt: Date) {
+    nonisolated init(raw stored: String, sentAt: Date) {
+        let raw = stored.replacing(/(?i)<memory-context>.*?(?:<\/memory-context>|$)/.dotMatchesNewlines(), with: "")
         if let skill = raw.prefixMatch(of: /\[IMPORTANT: The user has invoked the "\/?([^"]+)"/)?.1 {
             let marker = "The user has provided the following instruction alongside the skill invocation: "
             let instruction = raw.ranges(of: marker).last.map { String(raw[$0.upperBound...]).components(separatedBy: "\n\n[Runtime note:")[0] } ?? ""
@@ -122,7 +123,7 @@ extension Prompt {
         while let last = lines.last, last.trimmingCharacters(in: .whitespaces).isEmpty || last == "[image]" || last == "[screenshot]" {
             lines.removeLast()
         }
-        while let last = lines.last, let path = Self.reference(last, prefix: "@image:") {
+        while let last = lines.last, let path = Self.reference(last, prefix: "@image:") ?? last.wholeMatch(of: /\[Image attached at: ([^\]\n]+)\]/).map({ String($0.1) }) {
             attachments.insert(Attachment(kind: .image, name: URL(filePath: path).lastPathComponent, path: path), at: 0)
             lines.removeLast()
         }

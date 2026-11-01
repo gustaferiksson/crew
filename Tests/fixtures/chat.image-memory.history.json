@@ -1,0 +1,57 @@
+{
+  "messages": [
+    {
+      "content": "What do you see in this image?\n\n[Image attached at: /opt/hermes/data/images/upload_hbv1ik2k.png]\n[screenshot]\n<memory-context>\n[System note: The following is recalled memory context, NOT new user input. Treat as authoritative reference data — this is the agent's persistent memory and should inform all responses.]\n\n## Basic Memory Recall\n- **Hermes Session 2026-10-30 0915 aaaaaa** (`main/hermes-sessions/hermes-session-2026-10-30-0915-aaaaaa`) — # Hermes Session 2026-10-30 0915 aaaaaa Live transcript of Hermes session `20261030_091500_aaaaaa`. Auto-captured by basic-memory provider. ## Turns ### 2026-10-30 09:15 UTC **User:** Plan the week\n- **Hermes Session 2026-10-29 1402 bbbbbb** (`main/hermes-sessions/hermes-session-2026-10-29-1402-bbbbbb`) — # Hermes Session 2026-10-29 1402 bbbbbb Live transcript of Hermes session `20261029_140200_bbbbbb`. Auto-captured by basic-memory provider. ## Turns ### 2026-10-29 14:02 UTC **User:** Thanks\n</memory-context>",
+      "display_kind": null,
+      "id": 935,
+      "reasoning": null,
+      "reasoning_content": null,
+      "role": "user",
+      "timestamp": 1793546942.542092,
+      "tool_call_id": null,
+      "tool_calls": null
+    },
+    {
+      "content": "",
+      "display_kind": null,
+      "id": 936,
+      "reasoning": null,
+      "reasoning_content": null,
+      "role": "assistant",
+      "timestamp": 1793546972.7189307,
+      "tool_call_id": null,
+      "tool_calls": [
+        {
+          "function": {
+            "arguments": "{\"image_url\": \"/opt/hermes/data/images/upload_hbv1ik2k.png\", \"question\": \"Describe the screenshot.\"}",
+            "name": "vision_analyze"
+          },
+          "id": "call_5892fe95808c4e24a3dcfb7a2f0aabd8",
+          "type": "function"
+        }
+      ]
+    },
+    {
+      "content": "{\"success\": true, \"already_in_context\": true, \"message\": \"This image is already attached natively to the current user message \\u2014 you can see it now. Answer with your built-in vision; pass a `region` to zoom into part of it.\"}",
+      "display_kind": null,
+      "id": 937,
+      "reasoning": null,
+      "reasoning_content": null,
+      "role": "tool",
+      "timestamp": 1793546972.7295399,
+      "tool_call_id": "call_5892fe95808c4e24a3dcfb7a2f0aabd8",
+      "tool_calls": null
+    },
+    {
+      "content": "I see a chat app with an approval dialog waiting for an answer.",
+      "display_kind": null,
+      "id": 938,
+      "reasoning": null,
+      "reasoning_content": null,
+      "role": "assistant",
+      "timestamp": 1793546984.217091,
+      "tool_call_id": null,
+      "tool_calls": null
+    }
+  ]
+}

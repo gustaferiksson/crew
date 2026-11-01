@@ -114,6 +114,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
     private var composer: some View {
         Composer(botName: botName, phase: composerPhase, draft: $draft, isFocused: $isComposerFocused, tray: tray, mentionable: mentionable, slashCommands: slashCommands, features: features, completePath: actions.completePath, dictation: presentation.dictation, transcribe: actions.transcribe) { mode in
             position.scrollTo(id: transcriptEnd, anchor: .bottom)
+            Speaker.shared.stop()
             actions.send(draft, tray.take(), mentionedBots(in: draft, among: mentionable), mode)
             draft = ""
         } stop: {
@@ -188,6 +189,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
                             reveal: reveal,
                             timestampWidth: timestampWidth,
                             mentionable: mentionable,
+                            profile: profile,
                             expandedTurns: $expandedTurns,
                             expandedWork: $expandedWork,
                             expandedRuns: $expandedRuns,
@@ -288,6 +290,10 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
             .sharedBackgroundVisibility(.hidden)
         }
         .navigationTitle(title ?? botName)
+        .onDisappear {
+            guard let speaking = Speaker.shared.speakingID, transcript.turns.contains(where: { speaking.hasPrefix("\($0.id)-") }) else { return }
+            Speaker.shared.stop()
+        }
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #else
@@ -415,6 +421,7 @@ struct TurnView: View {
     let reveal: CGFloat
     let timestampWidth: CGFloat
     let mentionable: [Bot]
+    var profile: String?
     @Binding var expandedTurns: Set<Turn.ID>
     @Binding var expandedWork: Set<WorkItem.ID>
     @Binding var expandedRuns: Set<String>
@@ -477,7 +484,7 @@ struct TurnView: View {
                     ReplyText(source: a2uiFenced(answer))
                         .environment(\.surfaces, surfaces)
                         .padding(12)
-                        .modifier(MessageMenu(text: answer, shape: .rect(cornerRadius: 18)))
+                        .modifier(MessageMenu(text: answer, shape: .rect(cornerRadius: 18), speech: turn.status == .streaming ? nil : ("\(turn.id)-answer", turn.speaker ?? profile)))
                         .padding(-12)
                         .modifier(Timestamp(date: turn.startedAt, reveal: reveal, width: timestampWidth))
                 }
@@ -504,7 +511,7 @@ struct TurnView: View {
                     ReplyText(source: a2uiFenced(turn.reply))
                         .environment(\.surfaces, surfaces)
                         .padding(12)
-                        .modifier(MessageMenu(text: turn.reply, shape: .rect(cornerRadius: 18)))
+                        .modifier(MessageMenu(text: turn.reply, shape: .rect(cornerRadius: 18), speech: turn.status == .streaming ? nil : ("\(turn.id)-reply", turn.speaker ?? profile)))
                         .padding(-12)
                         .modifier(Timestamp(date: turn.finishedAt ?? turn.startedAt, reveal: reveal, width: timestampWidth))
                 }

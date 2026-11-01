@@ -49,6 +49,7 @@ final class Dictation {
 
     func start(fallback transcribe: @escaping (Data) async throws -> String) async {
         guard phase == .idle else { return }
+        Speaker.shared.stop()
         phase = .starting
         text = ""
         failure = nil

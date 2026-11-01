@@ -11,7 +11,7 @@ The first version was a full-width glass capsule directly above the composer. Th
 - **It cost a row of conversation** (52 pt on iPhone) in every chat with a card, all the time, for something used occasionally.
 - **The X** invited an accidental unpin next to the field the thumb aims for, and is not how Apple dismisses an accessory (Music's mini player has no close button).
 
-Alternatives rendered (PR #<n>): a content-hugging chip above the composer without the X (still a second glass shape in the composer stack and still a copy of the preview right above it; no Apple screen puts a chip there), and hiding the bar while its preview is on screen (a bar that comes and goes as you scroll; no Apple screen does that).
+Alternatives rendered (PR #253): a content-hugging chip above the composer without the X (still a second glass shape in the composer stack and still a copy of the preview right above it; no Apple screen puts a chip there), and hiding the bar while its preview is on screen (a bar that comes and goes as you scroll; no Apple screen does that).
 
 ## Apple's precedent
 

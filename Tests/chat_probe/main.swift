@@ -477,6 +477,23 @@ if phases.contains("voice") {
     exit(1)
 }
 
+if phases.contains("ask") {
+    let bot = try await crewTest()
+    let started = ContinuousClock.now
+    let (_, snapshot) = try await openBotChat(bot.canonicalSession?.id, profile: bot.name, via: gateway)
+    let ask = { (text: String, seconds: Int) in
+        try await BotAnswer.wait(in: snapshot.sessionID, for: gateway.events(), after: { try await gateway.call("prompt.submit", ["session_id": snapshot.sessionID.rawValue, "text": text], as: SubmitStatus.self) }, until: .now + .seconds(seconds))
+    }
+    let word = "ask-\(UUID().uuidString.prefix(4).lowercased())"
+    let answer = try await ask("Reply with just the word \(word), in bold.", 20)
+    print("ASK answer \(answer), speech \(BotAnswer.speech(from: { if case .reply(let text) = answer { text } else { "" } }())), \(ContinuousClock.now - started) from open")
+    let slow = try await ask("Write a 400-word story about a lighthouse.", 1)
+    print("ASK long turn with a 1 s deadline: \(slow)")
+    let busy = try await ask("Reply with just: queued", 3)
+    print("ASK while busy: \(busy)")
+    exit(answer == .reply("**\(word)**") || answer == .reply(word) ? 0 : 1)
+}
+
 if phases.contains("slash") {
     let catalog = try await gateway.call("commands.catalog", ["profile": "crew-test"], as: JSONValue.self)
     let pretty = JSONEncoder()

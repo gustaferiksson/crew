@@ -2,10 +2,11 @@
 import ActivityKit
 import AppIntents
 import AVFoundation
+import CoreSpotlight
 import ImageIO
 import SwiftUI
 
-nonisolated struct BotEntity: AppEntity {
+nonisolated struct BotEntity: IndexedEntity, Equatable {
     static let typeDisplayRepresentation: TypeDisplayRepresentation = "Bot"
     static let defaultQuery = BotEntityQuery()
 

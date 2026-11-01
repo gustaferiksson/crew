@@ -2,6 +2,10 @@ import Foundation
 import ImageIO
 import Observation
 import SwiftUI
+#if os(iOS)
+import AppIntents
+import CoreSpotlight
+#endif
 
 nonisolated struct BotMeta: Hashable, Sendable {
     var title: String?
@@ -286,6 +290,9 @@ final class BotStore {
     private var clearingUnread: Set<Bot.ID> = []
     private(set) var clearedUnread: [Bot] = []
     private var gateway: Gateway?
+    #if os(iOS)
+    @ObservationIgnored private var siriBots: [BotEntity]?
+    #endif
     private var urlSession: URLSession?
     private var reloadTask: Task<Void, Never>?
     private var isRosterSaved = false
@@ -542,6 +549,10 @@ final class BotStore {
         guard let cacheURL, let photoDirectory else { return }
         try? FileManager.default.removeItem(at: cacheURL)
         try? FileManager.default.removeItem(at: photoDirectory)
+        #if os(iOS)
+        VoiceBot.cacheURL.map { try? FileManager.default.removeItem(at: $0) }
+        publishToSiri([])
+        #endif
     }
 
     private func scheduleReload(_ gateway: Gateway) {
@@ -599,8 +610,21 @@ final class BotStore {
         }
         try? FileManager.default.createDirectory(at: voiceURL.deletingLastPathComponent(), withIntermediateDirectories: true)
         try? encoder.encode(voiceBots).write(to: voiceURL, options: .atomic)
+        publishToSiri(voiceBots.filter { !$0.hidden }.map { BotEntity(id: $0.name, title: $0.title) })
         #endif
     }
+
+    #if os(iOS)
+    private func publishToSiri(_ entities: [BotEntity]) {
+        guard entities != siriBots else { return }
+        siriBots = entities
+        Task {
+            try? await CSSearchableIndex.default().deleteAppEntities(ofType: BotEntity.self)
+            try? await CSSearchableIndex.default().indexAppEntities(entities)
+            CrewShortcuts.updateAppShortcutParameters()
+        }
+    }
+    #endif
 
     private func refreshPhotos(_ gateway: Gateway) async {
         guard let photoDirectory else { return }

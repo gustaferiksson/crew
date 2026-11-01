@@ -9,6 +9,7 @@ nonisolated struct VoiceOption: Identifiable, Hashable, Sendable {
     let quality: Int
 
     var title: String {
+        if name.contains("(") { return name }
         if quality >= AVSpeechSynthesisVoiceQuality.premium.rawValue { return String(localized: "\(name) (Premium)") }
         if quality == AVSpeechSynthesisVoiceQuality.enhanced.rawValue { return String(localized: "\(name) (Enhanced)") }
         return name
@@ -69,7 +70,7 @@ final class BotVoices {
     }
 
     func selection(for profile: String) -> String? {
-        chosen[profile].flatMap { id in installed.contains { $0.id == id } ? id : nil }
+        chosen[profile].flatMap { id in sections.contains { $0.voices.contains { $0.id == id } } ? id : nil }
     }
 
     func choose(_ voice: String?, for profile: String) {
@@ -79,7 +80,7 @@ final class BotVoices {
 
     func voice(for profile: String?, speaking text: String) -> AVSpeechSynthesisVoice? {
         let language = NLLanguageRecognizer.dominantLanguage(for: text).flatMap { Locale.Language(identifier: $0.rawValue).languageCode?.identifier }
-        let option = resolvedVoice(stored: profile.flatMap { chosen[$0] }, language: language, region: AVSpeechSynthesisVoice.currentLanguageCode(), in: installed)
+        let option = resolvedVoice(stored: profile.flatMap(selection), language: language, region: AVSpeechSynthesisVoice.currentLanguageCode(), in: installed)
         return option.flatMap { AVSpeechSynthesisVoice(identifier: $0.id) }
     }
 

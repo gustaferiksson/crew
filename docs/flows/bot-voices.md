@@ -13,6 +13,7 @@ What Apple does: Speak Selection and Speak Screen read text on request with the 
 | Bot inspector, Info tab | A "Voice" section right after Rich UI: a menu `Picker` "Voice" and a "Play Sample" / "Stop" button. |
 | Composer (bot chat and group chat) | Sending a message stops speech. Starting dictation stops speech. |
 | Action button voice message (`VoiceMessage`) | Starting to record stops speech (it records through `Dictation`, same hook). |
+| While dictating or recording | Speak is hidden and Play Sample does nothing, so speech never takes the session from the microphone. |
 | Start New Chat | Stops speech (the chat it came from is gone). |
 | Compact card sheet (#243), command output, work log | No Speak: cards and code are not read aloud. |
 | Chat screen | Leaving the chat that is speaking (navigating away, switching bots on Mac, closing a chat window) stops speech, so nothing keeps talking with no visible Stop. A transcript reload keeps the same turn ids, so speech carries on and the menu still shows Stop Speaking. |
@@ -41,9 +42,9 @@ What Apple does: Speak Selection and Speak Screen read text on request with the 
 ## Voice choice
 
 - Stored per bot on this device only (`UserDefaults` key `botVoices`, `[profile: voice identifier]`, like `PushPrefs`): voice identifiers differ per device and between iPhone and Mac, so it never goes to `ui_meta` or the profile config.
-- Picker options: "Automatic" first, then installed voices in the user's preferred languages (`Locale.preferredLanguages`), one section per language and region (named like "English (United Kingdom)", the device's own region first), best quality first inside a section (Premium, Enhanced, then default), quality shown after the name ("Ava (Premium)"). Novelty voices and duplicate name/language pairs are left out. Personal Voice is not listed in v1.
+- Picker options: "Automatic" first, then installed voices in the user's preferred languages (`Locale.preferredLanguages`), one section per language and region (named like "English (United Kingdom)"), sections in preferred-language order then by their best voice, best quality first inside a section (Premium, Enhanced, then default), quality shown after the name ("Ava (Premium)"). Novelty voices and duplicate name/language pairs are left out. Personal Voice is not listed in v1.
 - Automatic: the best installed voice for the reply's language (detected on device with `NLLanguageRecognizer`), else for the device language, else the system default.
-- A stored voice is used when it is installed, else Automatic. A stored voice that is no longer installed reads as Automatic in the picker and in speech; its stored value is kept so it comes back if the voice is reinstalled.
+- A stored voice is used when it is installed, else Automatic. A stored voice that is no longer installed, or no longer listed (a better copy of the same voice replaced it), reads as Automatic in the picker and in speech; its stored value is kept so it comes back if the voice is reinstalled.
 - The voice list refreshes on `AVSpeechSynthesizer.availableVoicesDidChangeNotification` (a voice downloaded or deleted in Settings while Crew runs).
 - Play Sample speaks "Hi, I'm <bot title>. This is how I sound." in the selected voice; it becomes "Stop" while playing. Changing the voice while a sample plays stops it.
 - Footer: "Saved on this device. Download more voices in Accessibility settings." (one wording for iPhone, iPad and Mac, and it survives settings renames).

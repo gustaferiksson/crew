@@ -77,3 +77,12 @@ private let installed = [
     #expect(speaker.speakingID == nil)
     #expect(synthesizer.spoken.isEmpty)
 }
+
+@Test func nothingSpeaksWhileTheMicrophoneRecords() throws {
+    let synthesizer = SilentSynthesizer()
+    let speaker = Speaker(voices: BotVoices(defaults: try #require(UserDefaults(suiteName: "crew-tests-speaker"))), synthesizer: synthesizer)
+    speaker.isRecording = true
+    speaker.speak("A reply.", id: "t1", profile: "ada")
+    #expect(speaker.speakingID == nil)
+    #expect(synthesizer.spoken.isEmpty)
+}

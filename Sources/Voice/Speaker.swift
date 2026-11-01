@@ -8,6 +8,7 @@ final class Speaker: NSObject, AVSpeechSynthesizerDelegate {
 
     let voices: BotVoices
     private(set) var speakingID: String?
+    var isRecording = false
     @ObservationIgnored private(set) var utterance: AVSpeechUtterance?
     @ObservationIgnored private let synthesizer: AVSpeechSynthesizer
     @ObservationIgnored private var interruptions: Task<Void, Never>?
@@ -27,6 +28,7 @@ final class Speaker: NSObject, AVSpeechSynthesizerDelegate {
     }
 
     func speak(_ text: String, id: String, profile: String?) {
+        guard !isRecording else { return }
         halt()
         guard !text.isEmpty else { return }
         let next = AVSpeechUtterance(string: text)
@@ -36,6 +38,7 @@ final class Speaker: NSObject, AVSpeechSynthesizerDelegate {
             try AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio, options: [.duckOthers, .interruptSpokenAudioAndMixWithOthers])
             try AVAudioSession.sharedInstance().setActive(true)
         } catch {
+            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
             return
         }
         #endif

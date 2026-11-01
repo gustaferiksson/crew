@@ -26,7 +26,7 @@ struct MessageMenu<PreviewShape: Shape>: ViewModifier {
                 Button("Select", systemImage: "selection.pin.in.out") { isSelecting = true }
                 #endif
                 ShareLink(item: text)
-                if let speech {
+                if let speech, !Speaker.shared.isRecording {
                     let spoken = speechText(from: text)
                     if Speaker.shared.speakingID == speech.id {
                         Button("Stop Speaking", systemImage: "stop.fill") { Speaker.shared.stop() }

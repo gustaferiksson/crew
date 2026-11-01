@@ -63,15 +63,15 @@ private func logEntries(for work: [WorkItem], expandedRuns: Set<String>) -> [Log
 struct WorkLog: View {
     let turn: Turn
     let activity: String?
-    @Binding var expandedTurns: Set<Turn.ID>
-    @Binding var expandedWork: Set<WorkItem.ID>
-    @Binding var expandedRuns: Set<String>
+    let isExpanded: Bool
+    let expandedWork: Set<WorkItem.ID>
+    let expandedRuns: Set<String>
     var stop: (() -> Void)?
 
     @Environment(BotStore.self) private var bots
+    @Environment(\.transcriptExpansion) private var expansion
 
     private var isLive: Bool { turn.status == .streaming }
-    private var isExpanded: Bool { expandedTurns.contains(turn.id) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -99,7 +99,7 @@ struct WorkLog: View {
                             WorkRow(item: item, isExpanded: Binding {
                                 expandedWork.contains(item.id)
                             } set: { _ in
-                                withAnimation(.snappy) { expandedWork.formSymmetricDifference([item.id]) }
+                                withAnimation(.snappy) { expansion?.work.formSymmetricDifference([item.id]) }
                             })
                         case .hiddenTools(let runID, let count):
                             runToggle("+\(count) previous tool calls", systemImage: "ellipsis", runID: runID)
@@ -122,7 +122,7 @@ struct WorkLog: View {
 
     private var header: some View {
         Button {
-            withAnimation(.snappy) { expandedTurns.formSymmetricDifference([turn.id]) }
+            withAnimation(.snappy) { expansion?.turns.formSymmetricDifference([turn.id]) }
         } label: {
             HStack(spacing: 4) {
                 if let message = turn.agentMessage {
@@ -166,7 +166,7 @@ struct WorkLog: View {
 
     private func runToggle(_ title: String, systemImage: String, runID: String) -> some View {
         Button {
-            withAnimation(.snappy) { expandedRuns.formSymmetricDifference([runID]) }
+            withAnimation(.snappy) { expansion?.runs.formSymmetricDifference([runID]) }
         } label: {
             Label(title, systemImage: systemImage)
                 .font(.subheadline)

@@ -31,6 +31,32 @@ struct ChatPresentation {
     var questionProgress = QuestionProgress()
 }
 
+@Observable
+final class TranscriptExpansion {
+    var turns: Set<Turn.ID>
+    var work: Set<WorkItem.ID>
+    var runs: Set<String> = []
+
+    init(turns: Set<Turn.ID> = [], work: Set<WorkItem.ID> = []) {
+        self.turns = turns
+        self.work = work
+    }
+}
+
+final class LatestChatActions {
+    var actions = ChatActions()
+}
+
+extension EnvironmentValues {
+    @Entry var chatActions: LatestChatActions?
+    @Entry var transcriptExpansion: TranscriptExpansion?
+}
+
+private struct TranscriptRevision: Equatable {
+    let count: Int
+    let last: Turn?
+}
+
 private let separatorGap: TimeInterval = 60 * 60
 
 private let separatorFormatter = {
@@ -67,9 +93,8 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
     @State private var position = ScrollPosition(idType: Turn.ID.self)
     @State private var barRoom = CGFloat.infinity
     @State private var barHeight: CGFloat = 0
-    @State private var expandedTurns: Set<Turn.ID>
-    @State private var expandedWork: Set<WorkItem.ID>
-    @State private var expandedRuns: Set<String> = []
+    @State private var expansion: TranscriptExpansion
+    @State private var latestActions = LatestChatActions()
     @GestureState private var dragTravel: CGFloat = 0
     @State private var trackpadTravel: CGFloat = 0
     @State private var timestampWidth: CGFloat = 40
@@ -80,6 +105,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
     @State private var openedCard: OpenedCard?
     @State private var unpins = 0
     @Environment(ChatPins.self) private var pins
+    @Environment(BotStore.self) private var bots
     @FocusState private var isComposerFocused: Bool
     private let presentation: ChatPresentation
 
@@ -104,8 +130,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
         self.pinKey = pinKey
         self.actions = actions
         self.presentation = presentation
-        _expandedTurns = State(initialValue: presentation.expandedTurns)
-        _expandedWork = State(initialValue: presentation.expandedWork)
+        _expansion = State(initialValue: TranscriptExpansion(turns: presentation.expandedTurns, work: presentation.expandedWork))
         _draft = draft
         self.tray = tray
     }
@@ -179,7 +204,8 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
     }
 
     private var chat: some View {
-        TranscriptScroll(position: $position, revision: transcript, barHeight: barHeight) {
+        latestActions.actions = actions
+        return TranscriptScroll(position: $position, revision: TranscriptRevision(count: transcript.turns.count, last: transcript.turns.last), barHeight: barHeight) {
             LazyVStack(alignment: .leading, spacing: 28) {
                 ForEach(Array(transcript.turns.enumerated()), id: \.element.id) { index, turn in
                     VStack(alignment: .leading, spacing: 12) {
@@ -192,20 +218,22 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 4)
                         }
+                        let speaker = turn.speaker.flatMap { name in bots.bots.first { $0.name == name } }
                         TurnView(
                             turn: turn,
                             surfaces: surfaces,
+                            speaker: speaker,
+                            speakerPhoto: speaker.flatMap { bots.photos[$0.id] },
+                            failureTarget: turn.deliveryFailure.flatMap { failure in bots.bots.first { $0.name == failure.target }?.title },
                             activity: turn.status == .streaming ? activity : nil,
                             reveal: reveal,
                             timestampWidth: timestampWidth,
                             mentionable: mentionable,
                             profile: profile,
-                            expandedTurns: $expandedTurns,
-                            expandedWork: $expandedWork,
-                            expandedRuns: $expandedRuns,
-                            stop: offlineReason == nil ? actions.stop : nil,
-                            retry: actions.retry,
-                            unqueue: { actions.unqueue(turn.id) }
+                            isExpanded: expansion.turns.contains(turn.id),
+                            expandedWork: expansion.work.filter { id in turn.work.contains { $0.id == id } },
+                            expandedRuns: expansion.runs.filter { id in turn.work.contains { $0.id == id } },
+                            canStop: offlineReason == nil
                         )
                         .background {
                             if highlighted == turn.id {
@@ -221,6 +249,8 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
             .scrollTargetLayout()
             .environment(\.pinKey, pinKey)
             .environment(\.openedCard, $openedCard)
+            .environment(\.chatActions, latestActions)
+            .environment(\.transcriptExpansion, expansion)
             .animation(.interactiveSpring, value: reveal)
             .padding(16)
         }
@@ -427,29 +457,36 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
 struct TurnView: View {
     let turn: Turn
     let surfaces: SurfaceStore
+    let speaker: Bot?
+    let speakerPhoto: Image?
+    let failureTarget: String?
     let activity: String?
     let reveal: CGFloat
     let timestampWidth: CGFloat
     let mentionable: [Bot]
     var profile: String?
-    @Binding var expandedTurns: Set<Turn.ID>
-    @Binding var expandedWork: Set<WorkItem.ID>
-    @Binding var expandedRuns: Set<String>
-    var stop: (() -> Void)?
-    var retry: (String) -> Void = { _ in }
-    var unqueue: () -> Void = {}
+    let isExpanded: Bool
+    let expandedWork: Set<WorkItem.ID>
+    let expandedRuns: Set<String>
+    let canStop: Bool
 
-    @Environment(BotStore.self) private var bots
+    @Environment(\.chatActions) private var latest
+
+    #if DEBUG
+    static var bodies = 0
+    #endif
 
     var body: some View {
+        #if DEBUG
+        let _ = Self.bodies += 1
+        #endif
         VStack(alignment: .leading, spacing: 8) {
-            if let speaker = turn.speaker {
-                let bot = bots.bots.first { $0.name == speaker }
+            if let name = turn.speaker {
                 HStack(spacing: 8) {
-                    if let bot {
-                        BotAvatar(bot: bot, status: .idle, photo: bots.photos[bot.id], size: 24)
+                    if let speaker {
+                        BotAvatar(bot: speaker, status: .idle, photo: speakerPhoto, size: 24)
                     }
-                    Text(bot?.title ?? speaker)
+                    Text(speaker?.title ?? name)
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.secondary)
                 }
@@ -477,7 +514,7 @@ struct TurnView: View {
                             .offset(x: reveal)
                     }
                     if !prompt.text.isEmpty {
-                        UserBubble(text: prompt.text, mentionable: mentionable, turnID: turn.id, pending: turn.pending, unqueue: unqueue)
+                        UserBubble(text: prompt.text, mentionable: mentionable, turnID: turn.id, pending: turn.pending, unqueue: { latest?.actions.unqueue(turn.id) })
                             .offset(x: reveal)
                             .modifier(Timestamp(date: prompt.sentAt, reveal: reveal, width: timestampWidth))
                     }
@@ -499,7 +536,7 @@ struct TurnView: View {
                         .modifier(Timestamp(date: turn.startedAt, reveal: reveal, width: timestampWidth))
                 }
                 if !turn.work.isEmpty || turn.status == .streaming {
-                    WorkLog(turn: turn, activity: activity, expandedTurns: $expandedTurns, expandedWork: $expandedWork, expandedRuns: $expandedRuns, stop: turn.status == .streaming && turn.agentMessage == nil ? stop : nil)
+                    WorkLog(turn: turn, activity: activity, isExpanded: isExpanded, expandedWork: expandedWork, expandedRuns: expandedRuns, stop: canStop && turn.status == .streaming && turn.agentMessage == nil ? { latest?.actions.stop() } : nil)
                         .modifier(Timestamp(date: turn.startedAt, reveal: reveal, width: timestampWidth))
                 }
                 ForEach(Array(turn.paymentReceipts.enumerated()), id: \.offset) { _, receipt in
@@ -530,14 +567,14 @@ struct TurnView: View {
                         Label(turn.failure ?? "Something went wrong.", systemImage: "exclamationmark.triangle.fill")
                             .foregroundStyle(.red)
                         if let retryID = turn.retryID {
-                            Button("Retry") { retry(retryID) }
+                            Button("Retry") { latest?.actions.retry(retryID) }
                                 .buttonStyle(.borderless)
                         }
                     }
                     .font(.footnote)
                 }
                 if let failure = turn.deliveryFailure {
-                    let bot = bots.bots.first { $0.name == failure.target }?.title ?? failure.target ?? String(localized: "the bot")
+                    let bot = failureTarget ?? failure.target ?? String(localized: "the bot")
                     let tint = failure.isUnconfirmed ? AnyShapeStyle(.secondary) : AnyShapeStyle(.red)
                     Label {
                         Text("\(Text(failure.headline(for: bot)).foregroundStyle(tint))\(failure.explanation(for: bot).map { " " + $0 } ?? "")")

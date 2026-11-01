@@ -30,6 +30,12 @@ jobs:
       build: |
         brew install xcodegen
         ./package.sh mac
+      cache_paths: |
+        .build/CompilationCache.noindex
+        .build/SDKExplicitPrecompiledModules
+        .build/SourcePackages
+      cache_key: xcode-release-mac-${{ github.sha }}
+      cache_restore_keys: xcode-release-mac-
 
   macos-cache:
     if: ${{ github.ref_type != 'tag' }}

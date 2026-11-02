@@ -59,30 +59,40 @@ struct PinnedCardChip: View {
 
     var body: some View {
         let summary = CardSummary(model.rootNode)
-        Button(action: open) {
-            HStack(spacing: 8) {
-                Image(systemName: summary.symbol)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: tile, height: tile)
-                    .background(summary.tint.gradient, in: .circle)
-                    .accessibilityHidden(true)
-                Text(summary.title ?? fallbackTitle)
-                    .font(.subheadline.weight(.medium))
-                    .lineLimit(1)
+        HStack(spacing: 0) {
+            Button(action: open) {
+                HStack(spacing: 8) {
+                    Image(systemName: summary.symbol)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: tile, height: tile)
+                        .background(summary.tint.gradient, in: .circle)
+                        .accessibilityHidden(true)
+                    Text(summary.title ?? fallbackTitle)
+                        .font(.subheadline.weight(.medium))
+                        .lineLimit(1)
+                }
+                .padding(.leading, (height - tile) / 2)
+                .padding(.trailing, 4)
+                .frame(minHeight: height)
+                .contentShape(.rect)
             }
-            .padding(.leading, (height - tile) / 2)
-            .padding(.trailing, 14)
-            .frame(minHeight: height)
-            .contentShape(.capsule)
+            .help(summary.title ?? fallbackTitle)
+            .accessibilityValue("Pinned card")
+            .accessibilityHint("Shows the card")
+            .accessibilityAction(named: "Unpin", unpin)
+            Button("Unpin", systemImage: "xmark", action: unpin)
+                .labelStyle(.iconOnly)
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(.secondary)
+                .frame(width: height - 4, height: height)
+                .contentShape(.rect)
+                .help("Unpin")
         }
         .buttonStyle(.plain)
         .background { Color.clear.glassEffect(.regular.interactive(), in: .capsule) }
+        .contentShape(.capsule)
         .contextMenu { Button("Unpin", systemImage: "pin.slash", action: unpin) }
-        .help(summary.title ?? fallbackTitle)
-        .accessibilityValue("Pinned card")
-        .accessibilityHint("Shows the card")
-        .accessibilityAction(named: "Unpin", unpin)
     }
 }
 

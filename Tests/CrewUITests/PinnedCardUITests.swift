@@ -3,14 +3,19 @@ import XCTest
 private let title = "Brown sheepskin slippers"
 
 final class PinnedCardUITests: XCTestCase {
-    @MainActor func testTheNewestCardPinsAsANavigationBarButtonThatOpensTheSameSheetAsItsPreview() {
+    @MainActor func testTheNewestCardPinsAsAChipAboveTheComposerThatOpensTheSameSheetAsItsPreview() {
         let app = XCUIApplication()
         app.launchArguments = ["-snapshot", "chat-a2ui-pinned", "-server", "hermes.example.com", "-username", "gustaf"]
         app.launch()
 
-        let button = app.navigationBars["Hermes"].buttons[title]
-        XCTAssertTrue(button.waitForExistence(timeout: 30), "the pinned card should be a navigation bar button:\n\(app.debugDescription)")
-        XCTAssertFalse(app.buttons.matching(NSPredicate(format: "label == %@", "Unpin")).firstMatch.exists, "nothing above the composer offers an X")
+        let button = app.buttons.matching(NSPredicate(format: "label == %@ AND value == %@", title, "Pinned card")).firstMatch
+        XCTAssertTrue(button.waitForExistence(timeout: 30), "the pinned card should be a chip:\n\(app.debugDescription)")
+        XCTAssertFalse(app.navigationBars["Hermes"].buttons[title].exists, "the pin is no longer a navigation bar button")
+        let attach = app.buttons["Attach"]
+        XCTAssertTrue(button.frame.maxY <= attach.frame.minY && button.frame.maxY > attach.frame.minY - 40, "the chip sits just above the + button")
+        XCTAssertEqual(button.frame.minX, attach.frame.minX, accuracy: 2, "the chip lines up with the + button")
+        XCTAssertLessThan(button.frame.width, app.windows.firstMatch.frame.width * 0.8, "the chip hugs its content")
+        XCTAssertFalse(app.buttons.matching(NSPredicate(format: "label == %@", "Unpin")).firstMatch.exists, "the chip has no X")
 
         button.tap()
         let sheet = app.navigationBars[title]
@@ -31,9 +36,10 @@ final class PinnedCardUITests: XCTestCase {
         XCTAssertTrue(sheet.waitForExistence(timeout: 5))
         sheet.buttons["Unpin"].tap()
         XCTAssertTrue(sheet.buttons["Pin"].waitForExistence(timeout: 5), "Unpin in the sheet keeps it open")
+        XCTAssertTrue(button.waitForNonExistence(timeout: 5), "Unpin in the sheet removes the chip at once")
         app.buttons["Close"].firstMatch.tap()
         XCTAssertTrue(sheet.waitForNonExistence(timeout: 5))
-        XCTAssertTrue(button.waitForNonExistence(timeout: 5), "the button goes once its unpinned card closes")
+        XCTAssertTrue(button.waitForNonExistence(timeout: 5), "the chip goes once its card is unpinned")
 
         let preview = app.scrollViews.buttons[title].firstMatch
         XCTAssertTrue(preview.exists, "the transcript shows the card as a compact preview:\n\(app.debugDescription)")
@@ -42,22 +48,22 @@ final class PinnedCardUITests: XCTestCase {
         Thread.sleep(forTimeInterval: 3)
         XCTAssertTrue(sheet.exists, "the card sheet opened from the transcript should stay open")
         sheet.buttons["Pin"].tap()
-        XCTAssertTrue(button.waitForExistence(timeout: 5), "Pin in the sheet brings the button back")
+        XCTAssertTrue(button.waitForExistence(timeout: 5), "Pin in the sheet brings the chip back")
         XCTAssertTrue(sheet.exists, "pinning keeps the sheet open")
         app.buttons["Close"].firstMatch.tap()
         XCTAssertTrue(sheet.waitForNonExistence(timeout: 5))
 
         button.press(forDuration: 1.2)
         let unpin = app.buttons["Unpin"].firstMatch
-        XCTAssertTrue(unpin.waitForExistence(timeout: 5), "holding the button offers Unpin")
+        XCTAssertTrue(unpin.waitForExistence(timeout: 5), "the chip's context menu offers Unpin")
         unpin.tap()
-        XCTAssertTrue(button.waitForNonExistence(timeout: 5), "Unpin from the button's menu removes it")
+        XCTAssertTrue(button.waitForNonExistence(timeout: 5), "Unpin from the chip's context menu removes it")
 
         preview.press(forDuration: 1.2)
         let pin = app.buttons["Pin Card"]
         XCTAssertTrue(pin.waitForExistence(timeout: 5), "the preview's context menu should offer Pin Card")
         pin.tap()
-        XCTAssertTrue(button.waitForExistence(timeout: 5), "Pin Card brings the button back")
+        XCTAssertTrue(button.waitForExistence(timeout: 5), "Pin Card brings the chip back")
 
         button.tap()
         XCTAssertTrue(sheet.waitForExistence(timeout: 5))

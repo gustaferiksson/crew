@@ -13,7 +13,7 @@ nonisolated let chatSpace = "chat"
 
 struct OpenedCard: Equatable {
     let id: String
-    let anchor: CGRect
+    let anchor: CGRect?
 }
 
 struct CardSummary {
@@ -79,6 +79,7 @@ struct PinnedCardChip: View {
         .buttonStyle(.plain)
         .background { Color.clear.glassEffect(.regular.interactive(), in: .capsule) }
         .contextMenu { Button("Unpin", systemImage: "pin.slash", action: unpin) }
+        .help(summary.title ?? fallbackTitle)
         .accessibilityValue("Pinned card")
         .accessibilityHint("Shows the card")
         .accessibilityAction(named: "Unpin", unpin)

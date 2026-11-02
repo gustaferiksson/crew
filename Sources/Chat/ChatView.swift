@@ -186,7 +186,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
     }
 
     private var showsPinnedCard: Binding<Bool> {
-        Binding(get: { openedCard != nil && openedCard?.id == pinnedCard }, set: { openedCard = $0 ? pinnedCard.map { OpenedCard(id: $0, anchor: openedCard?.anchor ?? chipFrame) } : nil })
+        Binding(get: { openedCard != nil && openedCard?.id == pinnedCard }, set: { openedCard = $0 ? pinnedCard.map { OpenedCard(id: $0, anchor: openedCard?.anchor) } : nil })
     }
 
     @ViewBuilder private var cardSheet: some View {
@@ -219,7 +219,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
         .onChange(of: request?.id) {
             if request != nil { openedCard = nil }
         }
-        .popover(isPresented: Binding(get: { openedCard != nil }, set: { if !$0 { openedCard = nil } }), attachmentAnchor: .rect(.rect(openedCard?.anchor ?? .zero))) {
+        .popover(isPresented: Binding(get: { openedCard != nil }, set: { if !$0 { openedCard = nil } }), attachmentAnchor: .rect(.rect(openedCard?.anchor ?? chipFrame))) {
             cardSheet
         }
         .coordinateSpace(.named(chatSpace))

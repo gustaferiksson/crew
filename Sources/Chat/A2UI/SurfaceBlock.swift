@@ -69,7 +69,7 @@ struct SurfaceBlock: View {
             VStack(alignment: .leading, spacing: 0) {
                 CardPreview(model: model, fallbackTitle: String(localized: "Card"), expanded: expanded) { frame in
                     guard let openedCard else { return }
-                    openedCard.wrappedValue = OpenedCard(id: id, anchor: openedCard.wrappedValue?.anchor ?? frame)
+                    openedCard.wrappedValue = OpenedCard(id: id, anchor: openedCard.wrappedValue == nil ? frame : openedCard.wrappedValue?.anchor)
                 }
                 .contextMenu {
                     if let expanded {

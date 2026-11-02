@@ -446,6 +446,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
                         pins.pin(nil, in: pinKey)
                     }
                     .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(chatSpace)) } action: { chipFrame = $0 }
+                    .transition(.scale(0.5, anchor: .leading).combined(with: .opacity))
                     .frame(maxWidth: .infinity, alignment: .leading)
                     #if os(iOS)
                     .padding(.horizontal, isComposerFocused ? 16 : 28)

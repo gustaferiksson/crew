@@ -7,9 +7,7 @@ on:
     paths-ignore: [ 'docs/**' ]
 
 permissions:
-  contents: write
-  pages: write
-  id-token: write
+  contents: read
 
 concurrency:
   group: release-${{ github.ref }}
@@ -18,7 +16,9 @@ concurrency:
 jobs:
   macos:
     if: ${{ github.ref_type == 'tag' }}
-    uses: gustaferiksson/macos-release/.github/workflows/release.yml@main
+    permissions:
+      contents: write
+    uses: gustaferiksson/macos-release/.github/workflows/release.yml@6d88888e7a9b6418de945c26f96a468a40075b9a # v0.1.0
     secrets: inherit
     with:
       # AppUpdater downloads Crew-<version>.zip, and the shared workflow names the zip after `name`.
@@ -43,6 +43,8 @@ jobs:
     runs-on: xcode-27
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
 
       - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -71,9 +73,12 @@ jobs:
 
   ios:
     name: iOS build
+    if: ${{ github.ref_type == 'tag' }}
     runs-on: xcode-27
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
 
       - name: Preflight, every iOS secret is set
         env:
@@ -125,7 +130,7 @@ jobs:
 
       - name: Build the IPA
         env:
-          VERSION: ${{ github.ref_type == 'tag' && github.ref_name || 'v0.0.0' }}
+          VERSION: ${{ github.ref_name }}
           BUILD: ${{ github.run_number }}
         run: |
           set -euo pipefail
@@ -134,7 +139,6 @@ jobs:
             IOS_WIDGETS_ADHOC_PROFILE_PATH="$RUNNER_TEMP/Crew_Widgets_AdHoc.mobileprovision" ./package.sh ios
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: ${{ github.ref_type == 'tag' }}
         with:
           name: ios
           path: |
@@ -142,9 +146,34 @@ jobs:
             dist/manifest.plist
           retention-days: 7
 
+  ios-cache:
+    if: ${{ github.ref_type != 'tag' }}
+    name: iOS build cache
+    runs-on: xcode-27
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            .build/CompilationCache.noindex
+            .build/SDKExplicitPrecompiledModules
+            .build/SourcePackages
+          key: xcode-release-ios-${{ github.sha }}
+          restore-keys: xcode-release-ios-
+
+      - name: Build Release for iOS, unsigned
+        run: |
+          set -euo pipefail
+          brew install xcodegen
+          xcodegen generate --quiet
+          xcodebuild -project Crew.xcodeproj -scheme Crew -configuration Release -derivedDataPath .build -quiet -skipPackagePluginValidation -skipMacroValidation \
+            -destination 'generic/platform=iOS' MARKETING_VERSION=0.0.0 CURRENT_PROJECT_VERSION=${{ github.run_number }} CODE_SIGNING_ALLOWED=NO build
+
       # A cache saved on a tag is visible only to that tag, so main saves the one the next tag restores.
       - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        if: ${{ github.ref_type != 'tag' }}
         with:
           path: |
             .build/CompilationCache.noindex
@@ -157,11 +186,17 @@ jobs:
     needs: [ macos, ios ]
     name: iOS, plugin and Pages
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
 
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:

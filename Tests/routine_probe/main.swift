@@ -92,20 +92,20 @@ func plainJSON(_ path: String) async throws -> [String: JSONValue] {
     return object
 }
 
-func probeRunSessions() async throws -> [String] {
+func probeRunSessions(_ titles: [String] = ["Long check", "Minute check"]) async throws -> [(id: String, ended: Bool)] {
     guard case .array(let sessions) = try await plainJSON("api/sessions")["sessions"] else { return [] }
     return sessions.compactMap { session in
         guard case .object(let row) = session, case .string("cron") = row["source"], case .string(let title) = row["title"], case .string(let id) = row["id"],
-              title.hasPrefix("[bot:crew-test] Long check · ") || title.hasPrefix("[bot:crew-test] Minute check · ")
+              titles.contains(where: { title.hasPrefix("[bot:crew-test] \($0) · ") })
         else { return nil }
-        return id
+        if case .number = row["ended_at"] { return (id, true) }
+        return (id, false)
     }
 }
 
 let store = RoutineStore()
 let cleanupOnly = CommandLine.arguments.contains("--cleanup")
 var created: [String] = CommandLine.arguments.dropFirst().filter { $0 != "--cleanup" }
-var removed: Set<String> = []
 
 if !cleanupOnly {
     Task { await store.run(profile: "crew-test", gateway: gateway, urlSession: urlSession) }
@@ -118,7 +118,10 @@ if !cleanupOnly {
         guard let job = store.jobs.first(where: { $0.id == id }) else { throw HermesError.invalidResponse }
         check(!store.isRunning(job) && job.tracksRuns, "idle routine is not running")
 
-        let trigger = Task { await store.trigger(job) }
+        let trigger = Task {
+            await store.trigger(job)
+            log("Run Now returned")
+        }
         try await Task.sleep(for: .milliseconds(300))
         check(store.isRunning(job), "Run Now shows Running at once")
         try await Task.sleep(for: .seconds(12))
@@ -135,6 +138,11 @@ if !cleanupOnly {
         check(stopped.map { !store.isRunning($0) } ?? false, "row no longer Running")
         await trigger.value
         check(store.alert == nil, "the returning Run Now raised no alert")
+        if case .array(let runs) = try await plainJSON("api/cron/jobs/\(id)/runs")["runs"], case .object(let newest) = runs.first, case .string(let title) = newest["title"] {
+            check(title.hasPrefix("CANCELLED"), "run history titles the stopped run \(title.prefix(40))")
+        } else {
+            check(false, "run history lists the stopped run")
+        }
 
         if let stopped { await store.stop(stopped) }
         check(store.alert?.title == "Nothing Was Running", "second Stop says Nothing Was Running")
@@ -156,18 +164,21 @@ if !cleanupOnly {
         check(paused?.isPaused == true && paused?.liveRunID != nil, "Pause leaves the live run going")
         if let job = store.jobs.first(where: { $0.id == id }) { await store.delete(job) }
         check(!store.jobs.contains { $0.id == id } && store.alert == nil, "Delete while running removes the row")
-        removed.insert(id)
+        check(try await waitFor(30) { try await probeRunSessions(["Minute check"]).contains { $0.ended } }, "Delete while running ends the run")
     } catch {
         check(false, "scheduler flow threw \(error)")
     }
 }
 
-for id in created where !removed.contains(id) {
-    let reply = try? await gateway.call("cron.manage", ["action": .string("remove"), "profile": .string("crew-test"), "name": .string(id)] as [String: JSONValue], as: JSONValue.self)
-    log(reply == nil ? "REMOVE FAILED, remove \(id) on crew-test by hand" : "removed \(id)")
+for id in created {
+    _ = try? await gateway.call("cron.manage", ["action": .string("remove"), "profile": .string("crew-test"), "name": .string(id)] as [String: JSONValue], as: JSONValue.self)
+}
+if case .array(let left) = try await fetch(cron(""), with: urlSession, as: JSONValue.self) {
+    let names = left.compactMap { job -> String? in if case .object(let row) = job, case .string(let name) = row["name"] { name } else { nil } }
+    check(!names.contains { $0.hasPrefix("[bot:crew-test] Long check") || $0.hasPrefix("[bot:crew-test] Minute check") }, "no probe routine left on crew-test")
 }
 try await Task.sleep(for: .seconds(5))
-for session in (try? await probeRunSessions()) ?? [] {
+for session in ((try? await probeRunSessions()) ?? []).map(\.id) {
     let snapshot = (try? await plainJSON("api/sessions/\(session)/mutation-snapshot")) ?? [:]
     var request = hermesRequest("api/sessions/\(session)", on: server)
     request.httpMethod = "DELETE"

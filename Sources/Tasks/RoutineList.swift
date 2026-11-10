@@ -158,26 +158,28 @@ private struct RoutineRow<Actions: View>: View {
                     .controlSize(.small)
                     .frame(width: actionSize, height: actionSize)
             } else {
-                if isRunning, job.tracksRuns {
-                    Button(action: onStop) {
-                        Label("Stop", systemImage: "stop.circle")
+                HStack(spacing: 12) {
+                    if isRunning, job.tracksRuns {
+                        Button(action: onStop) {
+                            Label("Stop", systemImage: "stop.circle")
+                                .labelStyle(.iconOnly)
+                                .frame(width: actionSize, height: actionSize)
+                                .contentShape(.rect)
+                        }
+                        .buttonStyle(.borderless)
+                    }
+                    Menu {
+                        actions
+                    } label: {
+                        Label("Actions", systemImage: "ellipsis")
                             .labelStyle(.iconOnly)
                             .frame(width: actionSize, height: actionSize)
                             .contentShape(.rect)
                     }
+                    .menuIndicator(.hidden)
                     .buttonStyle(.borderless)
+                    .fixedSize()
                 }
-                Menu {
-                    actions
-                } label: {
-                    Label("Actions", systemImage: "ellipsis")
-                        .labelStyle(.iconOnly)
-                        .frame(width: actionSize, height: actionSize)
-                        .contentShape(.rect)
-                }
-                .menuIndicator(.hidden)
-                .buttonStyle(.borderless)
-                .fixedSize()
             }
         }
         .opacity(job.isPaused ? 0.7 : 1)

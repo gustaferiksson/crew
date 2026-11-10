@@ -11,14 +11,18 @@ nonisolated private func listing(_ name: String, _ edit: (inout [String: Any]) -
     return (try? JSONSerialization.data(withJSONObject: [object])) ?? Data()
 }
 
+nonisolated private let recordedLiveRunID = ((try? JSONSerialization.jsonObject(with: Data(contentsOf: scenario.appending(path: "jobs.running.json")))) as? [String: Any])
+    .flatMap { ($0["live_execution"] as? [String: Any])?["id"] as? String } ?? ""
+
 private func job(_ listed: Data) throws -> RoutineJob {
     let decoder = JSONDecoder()
     decoder.keyDecodingStrategy = .convertFromSnakeCase
     return try decoder.decode([RoutineJob].self, from: listed)[0]
 }
 
-private func missed(finishedAt: String) -> Data {
-    listing("jobs.stopped") {
+private func missed(secondsAfterTheLastRun offset: TimeInterval) throws -> Data {
+    let finishedAt = try #require(try job(listing("jobs.stopped")).lastRun).addingTimeInterval(offset).ISO8601Format()
+    return listing("jobs.stopped") {
         $0["latest_execution"] = [
             "id": "m1", "status": "missed", "error": "missed ×3 (skipped, catch-up off; next run 2026-11-11T19:58:24+00:00)",
             "claimed_at": finishedAt, "finished_at": finishedAt, "scheduled_instant": "2026-11-10T17:00:00+00:00",
@@ -35,7 +39,7 @@ private func missed(finishedAt: String) -> Data {
     #expect(idle.title == "Long check")
 
     let running = try job(listing("jobs.running"))
-    #expect(running.liveRunID == "ae927ca4089b4a0d8025937ce75192a5")
+    #expect(running.liveRunID == recordedLiveRunID && !recordedLiveRunID.isEmpty)
 
     let stopped = try job(listing("jobs.stopped"))
     #expect(stopped.liveRunID == nil)
@@ -55,7 +59,7 @@ private func missed(finishedAt: String) -> Data {
 }
 
 @Test func aMissNewerThanTheLastRunIsTheResult() throws {
-    let routine = try job(missed(finishedAt: "2026-11-10T21:30:00+00:00"))
+    let routine = try job(missed(secondsAfterTheLastRun: 3600))
     #expect(routine.lastStatus == "missed")
     #expect(routine.missedRuns == 3)
     #expect(routine.lastRun == (try Date("2026-11-10T17:00:00+00:00", strategy: .iso8601)))
@@ -64,7 +68,7 @@ private func missed(finishedAt: String) -> Data {
 }
 
 @Test func aMissBookedDuringTheLastRunDoesNotHideItsResult() throws {
-    let routine = try job(missed(finishedAt: "2026-11-10T20:32:10+00:00"))
+    let routine = try job(missed(secondsAfterTheLastRun: -10))
     #expect(routine.lastStatus == "cancelled")
     #expect(routine.missedRuns == nil)
 }
@@ -87,7 +91,7 @@ nonisolated private struct CronStub: Sendable {
     var afterCancel = listing("jobs.stopped")
     var cancels = true
     var triggerFails = false
-    var triggerDelay = 0.5
+    var triggerDelay = 1.0
 }
 
 nonisolated private final class CronServer: URLProtocol {
@@ -108,7 +112,7 @@ nonisolated private final class CronServer: URLProtocol {
         let (body, fails, delay): (Data, Bool, Double) = CronServer.state.withLock { stub in
             if path.hasSuffix("/cancel") {
                 if stub.cancels { stub.list = stub.afterCancel }
-                return (Data(#"{"cancelled": \#(stub.cancels), "execution_id": "ae927ca4089b4a0d8025937ce75192a5", "success": true}"#.utf8), false, 0)
+                return (Data(#"{"cancelled": \#(stub.cancels), "execution_id": "\#(recordedLiveRunID)", "success": true}"#.utf8), false, 0)
             }
             if path.hasSuffix("/trigger") { return (Data("{}".utf8), stub.triggerFails, stub.triggerDelay) }
             return (stub.list, false, 0)

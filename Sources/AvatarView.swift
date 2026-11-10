@@ -7,6 +7,7 @@ struct AvatarView: View {
     let mood: AvatarMood
     let photo: Image?
     let seed: String
+    let pokes: Int
     let size: CGFloat
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -14,16 +15,22 @@ struct AvatarView: View {
     @Environment(\.appearsActive) private var appearsActive
     @Environment(\.avatarsAnimate) private var avatarsAnimate
     @Environment(\.avatarClock) private var clock
+    @Environment(\.avatarsFollowPointer) private var followsPointer
+    @Environment(\.avatarFrozenPose) private var frozenPose
     @State private var pose: EyePose?
     @State private var settledMood: AvatarMood?
+    @State private var glance: CGSize?
+    @State private var tracker = PokeTracker()
+    @State private var playedPokes = 0
 
-    init(shape: AvatarShape, color: String, expression: AvatarExpression = .neutral, mood: AvatarMood = .idle, photo: Image? = nil, seed: String = "", size: CGFloat) {
+    init(shape: AvatarShape, color: String, expression: AvatarExpression = .neutral, mood: AvatarMood = .idle, photo: Image? = nil, seed: String = "", pokes: Int = 0, size: CGFloat) {
         self.shape = shape
         self.color = color
         self.expression = expression
         self.mood = mood
         self.photo = photo
         self.seed = seed
+        self.pokes = pokes
         self.size = size
     }
 
@@ -41,40 +48,88 @@ struct AvatarView: View {
                 shape: shape,
                 color: color,
                 expression: mood == .failed ? .sad : expression,
-                pose: animates ? pose ?? mood.restingPose : mood.restingPose,
+                pose: frozenPose ?? shownPose,
                 size: size
             )
-            .animation(animates ? .snappy : nil, value: mood)
+            .animation(isLive && moves ? .snappy : nil, value: mood)
             .accessibilityHidden(true)
-            .task(id: animates ? mood : nil) { await live() }
-            .onDisappear { pose = nil }
+            .onContinuousHover { phase in
+                guard case .active(let point) = phase else { return lookBack() }
+                look(at: point)
+            }
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { look(at: $0.location) }
+                    .onEnded { _ in lookBack() },
+                isEnabled: followsPointer && moves
+            )
+            .onChange(of: pokes) { tracker.poke(at: .now) }
+            .task(id: isLive ? AvatarTaskKey(mood: mood, pokes: tracker.count, moves: moves) : nil) { await live() }
+            .onDisappear {
+                pose = nil
+                glance = nil
+            }
         }
     }
 
-    private var animates: Bool {
-        !reduceMotion && !ProcessInfo.processInfo.isLowPowerModeEnabled && scenePhase == .active && appearsActive && avatarsAnimate
+    private var isLive: Bool {
+        scenePhase == .active && appearsActive && avatarsAnimate
+    }
+
+    private var moves: Bool {
+        !reduceMotion && !ProcessInfo.processInfo.isLowPowerModeEnabled
+    }
+
+    private var shownPose: EyePose {
+        guard isLive else { return mood.restingPose }
+        var shown = pose ?? mood.restingPose
+        if let glance { shown.gaze = glance }
+        return shown
+    }
+
+    private func look(at point: CGPoint) {
+        guard followsPointer, moves else { return }
+        withAnimation(.smooth(duration: 0.25)) { glance = EyePose.glance(at: point, size: size) }
+    }
+
+    private func lookBack() {
+        guard glance != nil else { return }
+        withAnimation(.smooth(duration: 0.4)) { glance = nil }
     }
 
     private func live() async {
         let previous = settledMood
+        let poked = tracker.count > playedPokes
         settledMood = mood
-        guard animates else {
+        playedPokes = tracker.count
+        guard isLive else {
             pose = nil
             return
         }
-        withAnimation(previous == nil ? nil : .smooth(duration: 0.35)) { pose = mood.restingPose }
+        guard moves else {
+            _ = await play(poked ? mood.stillPoke : [])
+            pose = nil
+            return
+        }
+        if !poked {
+            withAnimation(previous == nil ? nil : .smooth(duration: 0.35)) { pose = mood.restingPose }
+        }
         var generator = SeededGenerator(seed: seed + mood.rawValue)
-        var steps = previous.map { mood.greeting(from: $0) } ?? []
-        while !Task.isCancelled {
-            for step in steps {
-                if ProcessInfo.processInfo.isLowPowerModeEnabled {
-                    pose = mood.restingPose
-                } else {
-                    withAnimation(step.animation) { pose = step.pose }
-                }
-                guard (try? await clock.sleep(for: step.hold, tolerance: .milliseconds(100))) != nil else { return }
-            }
+        var steps = poked ? mood.reaction(to: tracker) : previous.map { mood.greeting(from: $0) } ?? []
+        while await play(steps) {
             steps = mood.cycle(using: &generator)
         }
+    }
+
+    private func play(_ steps: [EyeStep]) async -> Bool {
+        for step in steps {
+            if ProcessInfo.processInfo.isLowPowerModeEnabled {
+                pose = mood.restingPose
+            } else {
+                withAnimation(step.animation) { pose = step.pose }
+            }
+            guard (try? await clock.sleep(for: step.hold, tolerance: .milliseconds(100))) != nil else { return false }
+        }
+        return !Task.isCancelled
     }
 }

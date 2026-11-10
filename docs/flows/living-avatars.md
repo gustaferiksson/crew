@@ -34,7 +34,7 @@ Every pose is applied on top of the bot's expression: lid openness scales the ey
 
 Everything settles to the state's resting pose, with no animation:
 
-- **Reduce Motion:** static eyes. Waiting still shows Wide, dormant still Sleepy, failed shows Sad, others Rest; changes between them are instant. No blinks, reading, squint or happy blink.
+- **Reduce Motion:** static eyes. Waiting still shows Wide, dormant still Sleepy, failed shows Sad, others Rest; changes between them are instant. No blinks, reading, squint or happy blink, except that a poke on the inspector avatar is one still blink (`docs/flows/avatar-play.md`).
 - **Low Power Mode:** same as Reduce Motion; read when the avatar renders and before each step, so turning it on stills the eyes at the next step and turning it off resumes motion when the avatar next renders or its status changes, with no observer.
 - **Off screen:** the motion is a `.task` on the avatar, so a lazy list row, strip tile or favourite tile scrolled away, a list covered by a pushed chat on iPhone, or a closed inspector stops it. Only avatars on screen move.
 - **Background or inactive scene:** stopped while `scenePhase` is not `.active` or the window doesn't appear active (`appearsActive`, which on the Mac is false when Crew isn't the frontmost app or the window isn't key), restarted when both are back. A visible Mac window that is key stays live even if partly covered, accepted.

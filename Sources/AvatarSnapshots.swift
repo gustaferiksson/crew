@@ -101,6 +101,8 @@ struct LivingEyesFixture: View {
         ("Failed, settled", .rest, true),
         ("New reply", .happy, false),
         ("Long idle", .sleepy, false),
+        ("Poked", .startled, false),
+        ("Grumpy", .grumpy, false),
     ]
 
     var body: some View {

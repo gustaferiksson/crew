@@ -39,6 +39,25 @@ extension AvatarMood {
         return [wait] + blink + (twice ? blink : [])
     }
 
+    func reaction(to pokes: PokeTracker) -> [EyeStep] {
+        let rest = restingPose
+        if pokes.isGrumpy {
+            return [
+                EyeStep(pose: .grumpy, animation: .easeOut(duration: 0.2), hold: .milliseconds(2200)),
+                EyeStep(pose: rest, animation: .smooth(duration: 0.4), hold: .milliseconds(400)),
+            ]
+        }
+        return [
+            EyeStep(pose: rest.blinked, animation: .easeIn(duration: 0.05), hold: .milliseconds(70)),
+            EyeStep(pose: .startled, animation: .snappy(duration: 0.18), hold: .milliseconds(450)),
+            EyeStep(pose: rest, animation: .smooth(duration: 0.35), hold: .milliseconds(350)),
+        ]
+    }
+
+    var stillPoke: [EyeStep] {
+        [EyeStep(pose: restingPose.blinked, animation: nil, hold: .milliseconds(180))]
+    }
+
     private var happyBlink: [EyeStep] {
         [
             EyeStep(pose: .happy, animation: .easeOut(duration: 0.12), hold: .milliseconds(470)),

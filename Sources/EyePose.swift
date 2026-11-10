@@ -16,7 +16,7 @@ struct EyePose: Equatable, Sendable {
     static let readingStart = EyePose(gaze: CGSize(width: -0.04, height: 0))
     static let readingEnd = EyePose(gaze: CGSize(width: 0.04, height: 0))
     static let startled = EyePose(openness: 1.08, scale: 1.3)
-    static let grumpy = EyePose(openness: 0.38, stretch: 1.12, gaze: CGSize(width: 0.06, height: 0.02))
+    static let grumpy = EyePose(openness: 0.3, stretch: 1.4, gaze: CGSize(width: 0.05, height: 0.02))
 
     static func glance(at point: CGPoint, size: CGFloat) -> CGSize {
         let offset = CGSize(width: point.x / size - 0.5, height: point.y / size - 0.5)

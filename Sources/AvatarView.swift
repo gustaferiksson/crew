@@ -57,12 +57,6 @@ struct AvatarView: View {
                 guard case .active(let point) = phase else { return lookBack() }
                 look(at: point)
             }
-            .simultaneousGesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { look(at: $0.location) }
-                    .onEnded { _ in lookBack() },
-                isEnabled: followsPointer && moves
-            )
             .onChange(of: pokes) { tracker.poke(at: .now) }
             .task(id: isLive ? AvatarTaskKey(mood: mood, pokes: tracker.count, moves: moves) : nil) { await live() }
             .onDisappear {

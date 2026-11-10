@@ -57,3 +57,11 @@ private struct Breakdown: Decodable {
     #expect(ContextUsage(used: 400_000, window: 1_000_000).isHigh)
     #expect(ContextUsage(used: 1_200_000, window: 1_000_000).fraction == 1)
 }
+
+@MainActor @Test func afterCompactTheRingReadsHermesFreshEstimateInsteadOfTheStaleUsage() throws {
+    let reply = fixtures.appending(path: "\(ChatSession.compactedContextMethod).after-compact.v0.23.0.json")
+
+    let context = try JSONDecoder().decode(ContextUsage.self, from: Data(contentsOf: reply))
+
+    #expect(context == ContextUsage(used: 16_492, window: 500_000))
+}

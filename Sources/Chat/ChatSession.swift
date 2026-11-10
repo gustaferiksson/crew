@@ -194,6 +194,9 @@ final class ChatSession {
         runtime != nil && !isRunning && !transcript.turns.isEmpty
     }
 
+    // After a compaction session.usage omits the context fields until the next turn; the breakdown re-estimates at once.
+    static let compactedContextMethod = "session.context_breakdown"
+
     func compact() async throws -> String? {
         guard let runtime, let stored, !isRunning else { return nil }
         let reply = try await gateway.call("session.compress", ["session_id": runtime.rawValue], as: CompressReply.self, timeout: .seconds(300))
@@ -203,7 +206,7 @@ final class ChatSession {
         reloaded.keepCommands(from: shown)
         reloaded.adoptIDs(from: shown)
         transcript = reloaded
-        context = (try? await gateway.call("session.usage", ["session_id": runtime.rawValue], as: ContextUsage.self)) ?? context
+        context = (try? await gateway.call(Self.compactedContextMethod, ["session_id": runtime.rawValue], as: ContextUsage.self)) ?? context
         return reply.summary?.headline
     }
 

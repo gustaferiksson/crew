@@ -19,7 +19,7 @@ How full the bot's session context is, modelled on Claude Code's Usage sheet.
 
 - No window known (fresh chat, no turn yet, or a server that reports none): no ring at all, never a guessed size. The first completed turn brings it.
 - Live: the ring and an open sheet follow every `message.complete`, `session.info` and `session.usage` that carries context fields; a payload without them never clears a known value. The sheet refetches the breakdown whenever usage changes.
-- After Compact Chat Crew asks `session.usage` once (the recorded compaction emits no `session.info`).
+- After Compact Chat Crew reads `session.context_breakdown`'s `context_used` once: the recorded compaction emits no `session.info`, and `session.usage` omits the context fields until the next turn (both replies in `Tests/fixtures/usage/*.after-compact.v0.23.0.json`).
 - Start New Chat clears the ring until the new chat's first turn.
 - Breakdown error or empty: the sheet shows used of total only.
 - Long content: the sheet is a grouped Form, rows wrap; numbers use the locale's compact notation ("462,3K" in Swedish).

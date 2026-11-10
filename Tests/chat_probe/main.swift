@@ -531,6 +531,25 @@ if phases.contains("usage") {
     exit(0)
 }
 
+if phases.contains("usage-compact") {
+    let pretty = JSONEncoder()
+    pretty.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+    let folder = URL(fileURLWithPath: #filePath).appending(path: "../../fixtures/usage").standardized
+    let chat = try await attached(try await crewTest())
+    chat.send("Reply with just: ok", mode: .send)
+    try await waitIdle(chat)
+    print("BEFORE", String(describing: chat.context))
+    let (_, snapshot) = try await openBotChat(try await crewTest().canonicalSession?.resolvedID, profile: "crew-test", via: gateway)
+    let session = ["session_id": snapshot.sessionID.rawValue]
+    _ = try await gateway.call("session.compress", session, as: JSONValue.self, timeout: .seconds(300))
+    for method in ["session.usage", "session.context_breakdown"] {
+        let reply = try await gateway.call(method, session, as: JSONValue.self)
+        try (pretty.encode(reply) + Data("\n".utf8)).write(to: folder.appending(path: "\(method).after-compact.v0.23.0.json"))
+        print("RECORDED", method, String(decoding: try pretty.encode(reply), as: UTF8.self).prefix(400))
+    }
+    exit(0)
+}
+
 if phases.contains("other") {
     nonisolated struct Row: Decodable, Sendable { let id: StoredSessionID; let title: String?; let source: String? }
     nonisolated struct Page: Decodable, Sendable { let sessions: [Row] }

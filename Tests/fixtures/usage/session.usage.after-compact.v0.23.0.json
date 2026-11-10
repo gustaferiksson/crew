@@ -1,0 +1,15 @@
+{
+  "active_subagents" : 0,
+  "avg_latency_s" : 3,
+  "avg_tps" : 10.1,
+  "cache_hit_pct" : 92,
+  "calls" : 20,
+  "completion" : 813,
+  "compressions" : 3,
+  "input" : 30293,
+  "model" : "gpt-6.1-sol",
+  "output" : 813,
+  "prompt" : 383957,
+  "reasoning" : 17,
+  "total" : 384770
+}

@@ -266,7 +266,7 @@ final class GroupSession {
             let isMovedOn = events[(index + 1)...].contains { event in
                 (["room.activity", "room.continued"].contains(event.kind) && event.payload.discussionEventID == discussion)
                     || (event.kind == "message.user" && event.payload.threadID == pause.payload.threadID)
-            }
+            } || unsent.contains { $0.thread == pause.payload.threadID && $0.turn.status != .error }
             let grants = events.count { $0.kind == "room.continued" && $0.payload.discussionEventID == discussion }
             return isMovedOn || lastStop > source || grants >= limit || continuing.contains(discussion) ? nil : pause.eventID
         })
@@ -352,11 +352,14 @@ final class GroupSession {
     }
 
     func continueDiscussion(_ discussionEventID: String) {
-        continuing.insert(discussionEventID)
+        guard continuing.insert(discussionEventID).inserted else { return }
         Task {
             defer { continuing.remove(discussionEventID) }
             do {
                 _ = try await gateway.call("groups.continue", RoomParams(roomID: room.id, discussionEventID: discussionEventID), as: JSONValue.self)
+                await refresh()
+            } catch GatewayError.rpc {
+                failure = String(localized: "This discussion can't be continued anymore.")
                 await refresh()
             } catch {
                 failure = error.localizedDescription

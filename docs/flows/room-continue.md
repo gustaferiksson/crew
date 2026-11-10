@@ -20,10 +20,10 @@ Hermes 0.23.0 stops a room discussion at its cap and waits for a client to conti
 - Continue shows only when all of these hold, the same rules the server checks, computed over the whole log (not just the shown thread):
   - this pause is the discussion's latest `room.activity` or `room.continued`;
   - no `room.stop_requested` after the discussion's own message;
-  - no newer `message.user` in the same thread;
+  - no newer `message.user` in the same thread, and no send to that thread still in flight;
   - fewer `room.continued` for this discussion than `driver_status.max_continues`;
   - `max_continues` is present (older gateways get the plain row).
-- While the call runs the button is gone (a second tap would be refused; the call is one round trip, and the "Continued" notice replaces it). On success the room refreshes: `room.continued` shows as a centred "Continued" notice under the paused row, the working row appears and the members carry on (the server's `working` is already true, probed). If the server could not prepare the members, the wake-up row below shows instead. On failure the room's "Something Went Wrong" alert shows the server's message and the room refreshes, so the button comes back only if the server still shows the pause (0.23.0's gateway-owned path answers a refused Continue with a bare `invalid_params`, probed).
+- While the call runs the button is gone (a second tap would be refused; the call is one round trip, and the "Continued" notice replaces it). On success the room refreshes: `room.continued` shows as a centred "Continued" notice under the paused row, the working row appears and the members carry on (the server's `working` is already true, probed). If the server could not prepare the members, the wake-up row below shows instead. On failure the room's "Something Went Wrong" alert says "This discussion can't be continued anymore." for a server refusal (the transport error otherwise) and the room refreshes, so the button comes back only if the server still shows the pause (0.23.0's gateway-owned path answers a refused Continue with a bare `invalid_params`, probed).
 - **Superseded:** a new message in the thread, a Stop, or Continue elsewhere (Hermes Desktop on the same room): the row keeps its text and loses the button. A later pause of the same discussion gets its own row.
 - **Used up:** after 5 Continues the sixth pause shows the text only. Sending a new message starts a new discussion.
 - **Other thread selected:** the row lives in its thread like every room event; the thread menu is unchanged.

@@ -547,6 +547,7 @@ struct TurnView: View {
                         .frame(minWidth: 44, minHeight: 44)
                         .contentShape(.rect)
                         .accessibilityLabel("Continue Discussion")
+                        .accessibilityInputLabels(["Continue", "Continue Discussion"])
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, -12)
                 }

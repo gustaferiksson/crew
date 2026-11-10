@@ -205,6 +205,8 @@ targets:
       - Sources/Voice/BotAnswer.swift
       - Sources/Voice/BotVoices.swift
       - Sources/Voice/Speaker.swift
+      - Sources/Tasks/Routines.swift
+      - Sources/Tasks/RoutineList.swift
       - Tests/CrewTests
     settings:
       base:

@@ -5,7 +5,6 @@ nonisolated struct RoutineJob: Identifiable, Hashable, Sendable {
     let id: String
     let name: String
     let title: String
-    let owner: String?
     let prompt: String
     let schedule: String
     let nextRun: Date?
@@ -13,39 +12,73 @@ nonisolated struct RoutineJob: Identifiable, Hashable, Sendable {
     let lastStatus: String?
     let issue: String?
     let isPaused: Bool
+    var missedRuns: Int?
+    var latestRun: RoutineRun?
+    var liveRunID: String?
+    var tracksRuns = false
+}
+
+nonisolated struct RoutineRun: Decodable, Hashable, Sendable {
+    let id: String
+    let status: String
+    let error: String?
+    let claimedAt: Date?
+    let finishedAt: Date?
+    let scheduledInstant: Date?
+
+    private enum CodingKeys: CodingKey {
+        case id, status, error, claimedAt, finishedAt, scheduledInstant
+    }
+
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        status = try container.decode(String.self, forKey: .status)
+        error = try? container.decodeIfPresent(String.self, forKey: .error)
+        claimedAt = (try? container.decodeIfPresent(String.self, forKey: .claimedAt)).flatMap { try? Date($0, strategy: .iso8601) }
+        finishedAt = (try? container.decodeIfPresent(String.self, forKey: .finishedAt)).flatMap { try? Date($0, strategy: .iso8601) }
+        scheduledInstant = (try? container.decodeIfPresent(String.self, forKey: .scheduledInstant)).flatMap { try? Date($0, strategy: .iso8601) }
+    }
+}
+
+nonisolated private struct FireError: Decodable {
+    let detail: String?
 }
 
 nonisolated extension RoutineJob: Decodable {
-    private enum CodingKeys: String, CodingKey {
-        case name, schedule, enabled, state
-        case id = "job_id"
-        case prompt = "prompt_preview"
-        case nextRun = "next_run_at"
-        case lastRun = "last_run_at"
-        case lastStatus = "last_status"
-        case lastFireError = "last_fire_error"
-        case lastDeliveryError = "last_delivery_error"
-        case lastError = "last_error"
-        case pausedReason = "paused_reason"
+    private enum CodingKeys: CodingKey {
+        case id, name, prompt, enabled, state, scheduleDisplay, nextRunAt, lastRunAt, lastStatus
+        case lastFireError, lastDeliveryError, lastError, pausedReason, latestExecution, liveExecution
     }
 
     init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(String.self, forKey: .id)
         name = (try? container.decodeIfPresent(String.self, forKey: .name)) ?? ""
-        let tag = name.wholeMatch(of: /\[bot:([A-Za-z0-9][A-Za-z0-9_-]*)\]\s*(.*)/)
-        owner = tag.map { String($0.1).lowercased() }
-        title = tag.map { String($0.2) } ?? name
+        title = name.wholeMatch(of: /\[bot:[A-Za-z0-9][A-Za-z0-9_-]*\]\s*(.*)/).map { String($0.1) } ?? name
         prompt = (try? container.decodeIfPresent(String.self, forKey: .prompt)) ?? ""
-        schedule = (try? container.decodeIfPresent(String.self, forKey: .schedule)) ?? ""
-        nextRun = (try? container.decodeIfPresent(String.self, forKey: .nextRun)).flatMap { try? Date($0, strategy: .iso8601) }
-        lastRun = (try? container.decodeIfPresent(String.self, forKey: .lastRun)).flatMap { try? Date($0, strategy: .iso8601) }
-        lastStatus = try? container.decodeIfPresent(String.self, forKey: .lastStatus)
-        issue = [CodingKeys.lastFireError, .lastDeliveryError, .lastError, .pausedReason]
-            .compactMap { try? container.decodeIfPresent(String.self, forKey: $0)?.trimmingCharacters(in: .whitespacesAndNewlines) }
+        schedule = (try? container.decodeIfPresent(String.self, forKey: .scheduleDisplay)) ?? ""
+        nextRun = (try? container.decodeIfPresent(String.self, forKey: .nextRunAt)).flatMap { try? Date($0, strategy: .iso8601) }
+        let fireError = (try? container.decodeIfPresent(String.self, forKey: .lastFireError))
+            ?? (try? container.decodeIfPresent(FireError.self, forKey: .lastFireError))?.detail
+        issue = ([fireError] + [CodingKeys.lastDeliveryError, .lastError, .pausedReason].map { try? container.decodeIfPresent(String.self, forKey: $0) })
+            .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
             .first { !$0.isEmpty }
         isPaused = (try? container.decodeIfPresent(Bool.self, forKey: .enabled)) == false
             || (try? container.decodeIfPresent(String.self, forKey: .state)) == "paused"
+        latestRun = try? container.decodeIfPresent(RoutineRun.self, forKey: .latestExecution)
+        liveRunID = (try? container.decodeIfPresent(RoutineRun.self, forKey: .liveExecution))?.id
+        tracksRuns = container.contains(.liveExecution)
+
+        let ranAt = (try? container.decodeIfPresent(String.self, forKey: .lastRunAt)).flatMap { try? Date($0, strategy: .iso8601) }
+        guard let missed = latestRun, missed.status == "missed", let finished = missed.finishedAt, ranAt.map({ finished > $0 }) ?? true else {
+            lastRun = ranAt
+            lastStatus = try? container.decodeIfPresent(String.self, forKey: .lastStatus)
+            return
+        }
+        lastRun = missed.scheduledInstant ?? finished
+        lastStatus = missed.status
+        missedRuns = missed.error?.firstMatch(of: /×(\d+)/).flatMap { Int($0.1) } ?? 1
     }
 }
 
@@ -55,25 +88,33 @@ nonisolated private struct CronParams: Encodable {
     var name: String?
     var schedule: String?
     var prompt: String?
-    var includeDisabled: Bool?
-
-    private enum CodingKeys: String, CodingKey {
-        case action, profile, name, schedule, prompt
-        case includeDisabled = "include_disabled"
-    }
 }
 
 nonisolated private struct CronReply: Decodable {
     let success: Bool?
     let error: String?
-    let jobs: [RoutineJob]?
-    let scoped: String?
+}
+
+nonisolated private struct CancelReply: Decodable {
+    let cancelled: Bool
+    let executionId: String?
+}
+
+nonisolated struct RoutineAlert: Hashable, Sendable {
+    let title: String
+    let message: String
 }
 
 private struct CronContext {
     let profile: String
     let gateway: Gateway
     let urlSession: URLSession
+
+    func request(_ path: String, post: Bool = false) -> URLRequest {
+        var request = hermesRequest("api/cron/jobs\(path)", on: gateway.server, json: post ? [:] : nil)
+        request.url?.append(queryItems: [URLQueryItem(name: "profile", value: profile)])
+        return request
+    }
 }
 
 nonisolated private struct RoutineError: LocalizedError {
@@ -86,7 +127,9 @@ final class RoutineStore {
     private(set) var isLoaded: Bool
     private(set) var loadError: String?
     private(set) var inFlight: Set<RoutineJob.ID> = []
-    var failure: String?
+    private(set) var stopping: Set<RoutineJob.ID> = []
+    private var triggers: [RoutineJob.ID: Date] = [:]
+    var alert: RoutineAlert?
 
     private var context: CronContext?
 
@@ -95,9 +138,11 @@ final class RoutineStore {
         isLoaded = false
     }
 
-    init(fixture jobs: [RoutineJob]) {
+    init(fixture jobs: [RoutineJob], stopping: Set<RoutineJob.ID> = []) {
         self.jobs = jobs
         isLoaded = true
+        self.stopping = stopping
+        inFlight = stopping
     }
 
     func run(profile: String, gateway: Gateway, urlSession: URLSession) async {
@@ -105,6 +150,7 @@ final class RoutineStore {
             jobs = []
             isLoaded = false
             loadError = nil
+            triggers = [:]
         }
         context = CronContext(profile: profile, gateway: gateway, urlSession: urlSession)
         let events = gateway.events()
@@ -123,6 +169,12 @@ final class RoutineStore {
         }
     }
 
+    func isRunning(_ job: RoutineJob) -> Bool {
+        if job.liveRunID != nil { return true }
+        guard let tapped = triggers[job.id] else { return false }
+        return !(job.latestRun?.claimedAt.map { $0 >= tapped.addingTimeInterval(-2) } ?? false)
+    }
+
     func toggle(_ job: RoutineJob) async {
         await perform(job) { context in
             _ = try await self.manage(CronParams(action: job.isPaused ? "resume" : "pause", profile: context.profile, name: job.id), on: context.gateway)
@@ -136,11 +188,46 @@ final class RoutineStore {
     }
 
     func trigger(_ job: RoutineJob) async {
-        await perform(job) { context in
-            var request = hermesRequest("api/cron/jobs/\(job.id)/trigger", on: context.gateway.server, json: [:])
-            request.url?.append(queryItems: [URLQueryItem(name: "profile", value: context.profile)])
+        guard let context, triggers[job.id] == nil, !inFlight.contains(job.id) else { return }
+        triggers[job.id] = .now
+        var request = context.request("/\(job.id)/trigger", post: true)
+        request.timeoutInterval = 7200
+        let failure: (any Error)?
+        do {
             _ = try await fetch(request, with: context.urlSession, as: JSONValue.self)
+            failure = nil
+        } catch {
+            failure = error
         }
+        guard self.context?.profile == context.profile else { return }
+        await reload()
+        triggers[job.id] = nil
+        guard let failure, let current = jobs.first(where: { $0.id == job.id }), current.liveRunID == nil, current.lastRun == job.lastRun else { return }
+        alert = RoutineAlert(title: String(localized: "Couldn't Update Routine"), message: describe(failure))
+    }
+
+    func stop(_ job: RoutineJob) async {
+        guard !inFlight.contains(job.id) else { return }
+        stopping.insert(job.id)
+        await perform(job) { context in
+            let cancel = context.request("/\(job.id)/cancel", post: true)
+            var reply = try await fetch(cancel, with: context.urlSession, as: CancelReply.self)
+            if !reply.cancelled, self.triggers[job.id] != nil, (try? await Task.sleep(for: .seconds(1))) != nil {
+                reply = try await fetch(cancel, with: context.urlSession, as: CancelReply.self)
+            }
+            guard reply.cancelled else {
+                if self.context?.profile == context.profile {
+                    self.alert = RoutineAlert(title: String(localized: "Nothing Was Running"), message: String(localized: "\(job.title) had already finished."))
+                }
+                return
+            }
+            for _ in 0..<30 {
+                guard (try? await Task.sleep(for: .seconds(1))) != nil else { return }
+                await self.reload()
+                guard self.context?.profile == context.profile, self.jobs.first(where: { $0.id == job.id })?.liveRunID == reply.executionId else { return }
+            }
+        }
+        stopping.remove(job.id)
     }
 
     func create(title: String, prompt: String, schedule: String) async throws {
@@ -157,8 +244,9 @@ final class RoutineStore {
     private func reload() async {
         guard let context else { return }
         do {
-            let reply = try await manage(CronParams(action: "list", profile: context.profile, includeDisabled: true), on: context.gateway)
-            jobs = (reply.jobs ?? []).filter { reply.scoped == context.profile || $0.owner == context.profile.lowercased() }
+            let listed = try await fetch(context.request(""), with: context.urlSession, as: [RoutineJob].self)
+            guard self.context?.profile == context.profile else { return }
+            jobs = listed
             isLoaded = true
             loadError = nil
         } catch {
@@ -172,7 +260,9 @@ final class RoutineStore {
         do {
             try await action(context)
         } catch {
-            failure = describe(error)
+            if self.context?.profile == context.profile {
+                alert = RoutineAlert(title: String(localized: "Couldn't Update Routine"), message: describe(error))
+            }
         }
         await reload()
         inFlight.remove(job.id)

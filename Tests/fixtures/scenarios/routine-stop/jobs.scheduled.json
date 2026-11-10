@@ -1,0 +1,30 @@
+{
+  "enabled" : true,
+  "id" : "794525b1bc08",
+  "last_delivery_error" : null,
+  "last_error" : null,
+  "last_run_at" : null,
+  "last_status" : null,
+  "latest_execution" : {
+    "claimed_at" : "2026-11-10T20:49:25.053976+00:00",
+    "error" : null,
+    "finished_at" : null,
+    "id" : "eb290e59d8c04c3ea47d5b18f7aab349",
+    "scheduled_instant" : "2026-11-10T20:48:33.437577+00:00",
+    "status" : "running"
+  },
+  "live_execution" : {
+    "claimed_at" : "2026-11-10T20:49:25.053976+00:00",
+    "error" : null,
+    "finished_at" : null,
+    "id" : "eb290e59d8c04c3ea47d5b18f7aab349",
+    "scheduled_instant" : "2026-11-10T20:48:33.437577+00:00",
+    "status" : "running"
+  },
+  "name" : "[bot:crew-test] Minute check",
+  "next_run_at" : "2026-11-10T20:50:25.072668+00:00",
+  "paused_reason" : null,
+  "prompt" : "First call the terminal tool in the foreground with the command `sleep 150` and timeout 200. Then write a 2000-word story about a lighthouse keeper and reply with it.",
+  "schedule_display" : "every 1m",
+  "state" : "scheduled"
+}

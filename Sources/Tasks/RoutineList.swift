@@ -29,7 +29,11 @@ struct RoutineList: View {
             } else {
                 Section {
                     ForEach(store.jobs) { job in
-                        RoutineRow(job: job, isBusy: store.inFlight.contains(job.id)) { actions(job) }
+                        RoutineRow(job: job, isRunning: store.isRunning(job), isStopping: store.stopping.contains(job.id), isBusy: store.inFlight.contains(job.id)) {
+                            Task { await store.stop(job) }
+                        } actions: {
+                            actions(job)
+                        }
                             .contextMenu { actions(job) }
                             #if os(iOS)
                             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
@@ -52,16 +56,21 @@ struct RoutineList: View {
         } message: { _ in
             Text("It stops running and is removed from the server.")
         }
-        .alert("Couldn't Update Routine", isPresented: Binding { store.failure != nil } set: { if !$0 { store.failure = nil } }) {
+        .alert(store.alert?.title ?? "", isPresented: Binding { store.alert != nil } set: { if !$0 { store.alert = nil } }, presenting: store.alert) { _ in
             Button("OK", role: .cancel) {}
-        } message: {
-            Text(store.failure ?? "")
+        } message: { alert in
+            Text(alert.message)
         }
     }
 
     @ViewBuilder
     private func actions(_ job: RoutineJob) -> some View {
-        Button("Run Now", systemImage: "play") { Task { await store.trigger(job) } }
+        if store.isRunning(job), job.tracksRuns {
+            Button("Stop", systemImage: "stop.circle") { Task { await store.stop(job) } }
+        } else {
+            Button("Run Now", systemImage: "play") { Task { await store.trigger(job) } }
+                .disabled(store.isRunning(job))
+        }
         Button(job.isPaused ? "Resume" : "Pause", systemImage: job.isPaused ? "play.circle" : "pause.circle") {
             Task { await store.toggle(job) }
         }
@@ -72,7 +81,10 @@ struct RoutineList: View {
 
 private struct RoutineRow<Actions: View>: View {
     let job: RoutineJob
+    let isRunning: Bool
+    let isStopping: Bool
     let isBusy: Bool
+    let onStop: () -> Void
     @ViewBuilder let actions: Actions
 
     #if os(iOS)
@@ -100,7 +112,21 @@ private struct RoutineRow<Actions: View>: View {
                 Text(describeSchedule(job.schedule))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-                if !job.isPaused, let next = job.nextRun {
+                if isStopping {
+                    Label("Stopping…", systemImage: "stop.circle")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else if isRunning {
+                    Label {
+                        Text("Running")
+                    } icon: {
+                        ProgressView()
+                            .controlSize(.mini)
+                            .accessibilityHidden(true)
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                } else if !job.isPaused, let next = job.nextRun {
                     Label {
                         Text("Next run \(next, format: .relative(presentation: .named))")
                     } icon: {
@@ -110,6 +136,7 @@ private struct RoutineRow<Actions: View>: View {
                     .foregroundStyle(.secondary)
                 }
                 if let lastRun = job.lastRun {
+                    let result = job.result
                     Label {
                         Text("\(result.text) \(lastRun, format: .relative(presentation: .named))")
                     } icon: {
@@ -131,28 +158,46 @@ private struct RoutineRow<Actions: View>: View {
                     .controlSize(.small)
                     .frame(width: actionSize, height: actionSize)
             } else {
-                Menu {
-                    actions
-                } label: {
-                    Label("Actions", systemImage: "ellipsis")
-                        .labelStyle(.iconOnly)
-                        .frame(width: actionSize, height: actionSize)
-                        .contentShape(.rect)
+                HStack(spacing: 12) {
+                    if isRunning, job.tracksRuns {
+                        Button(action: onStop) {
+                            Label("Stop", systemImage: "stop.circle")
+                                .labelStyle(.iconOnly)
+                                .frame(width: actionSize, height: actionSize)
+                                .contentShape(.rect)
+                        }
+                        .buttonStyle(.borderless)
+                    }
+                    Menu {
+                        actions
+                    } label: {
+                        Label("Actions", systemImage: "ellipsis")
+                            .labelStyle(.iconOnly)
+                            .frame(width: actionSize, height: actionSize)
+                            .contentShape(.rect)
+                    }
+                    .menuIndicator(.hidden)
+                    .buttonStyle(.borderless)
+                    .fixedSize()
                 }
-                .menuIndicator(.hidden)
-                .buttonStyle(.borderless)
-                .fixedSize()
             }
         }
         .opacity(job.isPaused ? 0.7 : 1)
     }
+}
 
-    private var result: (text: String, symbol: String, tint: Color) {
-        if job.lastStatus == "ok" { return (String(localized: "Succeeded"), "checkmark.circle.fill", .green) }
-        if job.lastStatus == "error" { return (String(localized: "Failed"), "xmark.octagon.fill", .red) }
-        if job.lastStatus == "delivery_failed" { return (String(localized: "Delivery failed"), "exclamationmark.triangle.fill", .orange) }
-        if job.lastStatus == "blocked_config" { return (String(localized: "Blocked by config"), "exclamationmark.triangle.fill", .orange) }
-        return (job.lastStatus.map { String(localized: "Ran (\($0))") } ?? String(localized: "Ran"), "clock.arrow.circlepath", .secondary)
+extension RoutineJob {
+    var result: (text: String, symbol: String, tint: Color) {
+        if lastStatus == "ok" { return (String(localized: "Succeeded"), "checkmark.circle.fill", .green) }
+        if lastStatus == "error" { return (String(localized: "Failed"), "xmark.octagon.fill", .red) }
+        if lastStatus == "delivery_failed" { return (String(localized: "Delivery failed"), "exclamationmark.triangle.fill", .orange) }
+        if lastStatus == "blocked_config" { return (String(localized: "Blocked by config"), "exclamationmark.triangle.fill", .orange) }
+        if lastStatus == "cancelled" { return (String(localized: "Stopped"), "stop.circle", .secondary) }
+        if lastStatus == "missed" {
+            let runs = missedRuns ?? 1
+            return (runs == 1 ? String(localized: "Missed 1 run") : String(localized: "Missed \(runs) runs"), "calendar.badge.exclamationmark", .orange)
+        }
+        return (lastStatus.map { String(localized: "Ran (\($0))") } ?? String(localized: "Ran"), "clock.arrow.circlepath", .secondary)
     }
 }
 

@@ -1,0 +1,7 @@
+{
+  "cancelled" : false,
+  "detail" : "No run of this job is in flight — nothing to cancel.",
+  "execution_id" : null,
+  "job_id" : "74bc6a155223",
+  "success" : true
+}

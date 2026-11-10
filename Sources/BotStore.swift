@@ -330,7 +330,7 @@ final class BotStore {
         #else
         let photoDirectory = URL.cachesDirectory.appending(path: "avatars")
         #endif
-        let chatDirectory = URL.cachesDirectory.appending(path: "transcripts")
+        let chatDirectory = URL.cachesDirectory.appending(path: Bundle.main.bundleIdentifier ?? "dev.gustaf.crew").appending(path: "transcripts")
         self.cacheURL = cacheURL
         self.photoDirectory = photoDirectory
         self.chatDirectory = chatDirectory
@@ -686,11 +686,12 @@ final class BotStore {
 
     func refreshPreviews(from server: URL, with urlSession: URLSession) async {
         let generation = self.generation
-        let listed = favourites + ranked.filter { $0.meta.pinned != true && $0.meta.hidden != true }
+        let listed = favourites + sections.flatMap(\.bots)
         let cached = Set(listed.prefix(Self.cachedChatLimit).map(\.id))
         for bot in listed.filter({ cached.contains($0.id) }) + bots.filter({ !cached.contains($0.id) }) {
             guard let session = bot.canonicalSession, let position = session.position else { continue }
-            let caches = cached.contains(bot.id)
+            let isBusy = if case .waiting = statuses[bot.id] { true } else { statuses[bot.id] == .working }
+            let caches = cached.contains(bot.id) && !isBusy
             guard previewPositions[bot.id] != position || caches && cachedChats[bot.id]?.position != position else { continue }
             previewPositions[bot.id] = position
             guard let rows = try? await history(of: session.resolvedID, profile: bot.name, on: server, with: urlSession, limit: caches ? Self.pageRows : 20) else {
@@ -698,6 +699,7 @@ final class BotStore {
                 continue
             }
             guard self.generation == generation else { return }
+            guard bots.first(where: { $0.id == bot.id })?.canonicalSession?.position == position else { continue }
             guard caches else {
                 showPreview(of: bot.id, from: rows)
                 continue
@@ -720,9 +722,14 @@ final class BotStore {
     }
 
     private func save(_ chat: CachedChat, of id: Bot.ID) {
-        guard let chatDirectory, !chat.transcript.turns.isEmpty, let data = try? JSONEncoder().encode(chat), data.count <= 1_000_000 else { return }
+        guard let chatDirectory else { return }
+        let file = chatDirectory.appending(path: "\(id).json")
+        guard !chat.transcript.turns.isEmpty, let data = try? JSONEncoder().encode(chat), data.count <= 1_000_000 else {
+            try? FileManager.default.removeItem(at: file)
+            return
+        }
         try? FileManager.default.createDirectory(at: chatDirectory, withIntermediateDirectories: true)
-        try? data.write(to: chatDirectory.appending(path: "\(id).json"), options: [.atomic, .completeFileProtection])
+        try? data.write(to: file, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
     }
 
     private func trimCachedChats(keeping wanted: Set<Bot.ID>) {
@@ -742,6 +749,7 @@ final class BotStore {
                 continue
             }
             cachedChats[id] = chat
+            guard bots.first(where: { $0.id == id })?.canonicalSession?.position == chat.position else { continue }
             previews[id] = previews[id] ?? chat.transcript.visible.lastMessage
             previewPositions[id] = previewPositions[id] ?? chat.position
         }
@@ -750,7 +758,8 @@ final class BotStore {
     @concurrent nonisolated private static func readCachedChats(in directory: URL) async -> [Bot.ID: CachedChat] {
         let files = (try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)) ?? []
         return Dictionary(uniqueKeysWithValues: files.compactMap { file in
-            guard let chat = (try? Data(contentsOf: file)).flatMap({ try? JSONDecoder().decode(CachedChat.self, from: $0) }) else {
+            guard let data = try? Data(contentsOf: file) else { return nil }
+            guard let chat = try? JSONDecoder().decode(CachedChat.self, from: data) else {
                 try? FileManager.default.removeItem(at: file)
                 return nil
             }

@@ -35,8 +35,13 @@ struct ChatScreen: View {
         return String(localized: "Can't reach \(connection.session?.server.host() ?? String(localized: "the server"))")
     }
 
+    private func seedLoadedCache() {
+        guard let seed = bots.cachedTranscript(of: live) else { return }
+        session?.seed(seed)
+    }
+
     private var shopOffer: String? {
-        guard connection.supportsPayments, let session, let turn = session.transcript.turns.last, turn.id != session.dismissedOffer else { return nil }
+        guard connection.supportsPayments, let session, !session.showsSeed, let turn = session.transcript.turns.last, turn.id != session.dismissedOffer else { return nil }
         return turn.missingShop
     }
 
@@ -117,6 +122,7 @@ struct ChatScreen: View {
             session?.returned = []
             drafts.update(bot.id, to: ([drafts.text(for: bot.id)] + returned).filter { !$0.isEmpty }.joined(separator: "\n"))
         }
+        .onChange(of: bots.cachedChats[bot.id] == nil, seedLoadedCache)
         .onChange(of: live.canonicalSession?.position, initial: true) {
             bots.markSeen(live)
         }

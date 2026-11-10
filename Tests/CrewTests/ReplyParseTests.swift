@@ -6,28 +6,20 @@ nonisolated private struct HistoryFile: Decodable {
 }
 
 @Test func redrawingLongRepliesReusesTheirParse() throws {
-    let decoder = JSONDecoder()
-    decoder.keyDecodingStrategy = .convertFromSnakeCase
-    let file = URL(filePath: #filePath).deletingLastPathComponent().deletingLastPathComponent().appending(path: "fixtures/chat.long-replies.history.json")
-    let rows = try decoder.decode(HistoryFile.self, from: Data(contentsOf: file)).messages
-    let replies = Transcript(history: rows).turns.map(\.reply).filter { !$0.isEmpty }.map(a2uiFenced)
+    let replies = try longReplies()
     #expect(replies.count == 6)
     #expect(replies.allSatisfy { !markdownBlocks(from: $0).isEmpty })
-    let clock = ContinuousClock()
-    let parsing = clock.measure {
-        for _ in 0..<20 { for reply in replies { _ = parseMarkdownBlocks(from: reply) } }
+    let cache = ParseCache<Int>(costLimit: 4 * 1024 * 1024)
+    var parses = 0
+    for _ in 0..<20 {
+        for reply in replies {
+            _ = cache.value(for: reply) { _ in
+                parses += 1
+                return parses
+            }
+        }
     }
-    let redrawing = clock.measure {
-        for _ in 0..<20 { for reply in replies { _ = markdownBlocks(from: reply) } }
-    }
-    #expect(redrawing < parsing / 4, "20 redraws took \(redrawing), 20 parses \(parsing)")
-    let building = clock.measure {
-        for _ in 0..<20 { for reply in replies { _ = buildReplySegments(from: reply) } }
-    }
-    let macRedrawing = clock.measure {
-        for _ in 0..<20 { for reply in replies { _ = replySegments(from: reply) } }
-    }
-    #expect(macRedrawing < building / 4, "20 Mac redraws took \(macRedrawing), 20 builds \(building)")
+    #expect(parses == replies.count, "20 redraws of \(replies.count) replies parsed \(parses) times")
 }
 
 private let edgeCases = [
@@ -67,10 +59,12 @@ private func longReplies() throws -> [String] {
 @Test func streamingALongReplyReparsesOnlyItsLastSection() throws {
     let reply = try #require(try longReplies().max { $0.count < $1.count })
     let prefixes = stride(from: 30, to: reply.count, by: 30).map { String(reply.prefix($0)) + " streaming" }
-    let clock = ContinuousClock()
-    let parse = clock.measure { for _ in 0..<5 { _ = parseMarkdownBlocks(from: reply) } } / 5
-    let streaming = clock.measure {
-        for prefix in prefixes { _ = markdownBlocks(from: prefix) }
+    var parsed = Set<String>()
+    var parsedCharacters = 0
+    for prefix in prefixes {
+        for section in markdownSections(of: prefix) where parsed.insert(section).inserted {
+            parsedCharacters += section.count
+        }
     }
-    #expect(streaming < parse * 40, "\(prefixes.count) tokens took \(streaming), one parse of the whole reply \(parse)")
+    #expect(parsedCharacters < reply.count * 40, "\(prefixes.count) tokens parsed \(parsedCharacters) characters of a \(reply.count) character reply")
 }

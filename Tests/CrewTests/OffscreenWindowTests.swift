@@ -27,4 +27,20 @@ import Testing
         settle()
         #expect(onScreen(window).isEmpty, "resized to \(window.frame)")
     }
+
+    @Test func aWindowLargerThanTheScreenKeepsItsSize() throws {
+        let screen = try #require(NSScreen.main?.frame.size)
+        let size = NSSize(width: screen.width + 500, height: screen.height + 500)
+        let window = OffscreenWindow(size: size, styleMask: [.titled, .resizable])
+        window.isRestorable = false
+        window.alphaValue = 0
+        window.contentViewController = NSHostingController(rootView: Color.clear.frame(minWidth: 100, minHeight: 100))
+        window.setContentSize(size)
+        window.orderBack(nil)
+        defer { window.orderOut(nil) }
+        settle()
+
+        #expect(window.contentRect(forFrameRect: window.frame).size == size)
+        #expect(onScreen(window).isEmpty, "ordered in at \(window.frame)")
+    }
 }

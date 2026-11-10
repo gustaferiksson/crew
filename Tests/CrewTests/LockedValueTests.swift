@@ -39,7 +39,7 @@ private struct ScrolledTranscript: View {
 
 @MainActor struct LockedValueTests {
     @Test func theMacComposerFieldIs36PointsTall16FromTheSidesAnd8AboveTheBottom() throws {
-        let window = NSWindow(contentRect: NSRect(x: -20000, y: -20000, width: 600, height: 300), styleMask: [.borderless], backing: .buffered, defer: false)
+        let window = OffscreenWindow(size: NSSize(width: 600, height: 300), styleMask: [.borderless])
         window.isRestorable = false
         window.contentView = NSHostingView(rootView: ComposerOnly())
         window.orderBack(nil)
@@ -55,7 +55,7 @@ private struct ScrolledTranscript: View {
     }
 
     @Test func jumpToLatestSits12PointsAboveTheComposerBar() throws {
-        let window = NSWindow(contentRect: NSRect(x: -20000, y: -20000, width: 600, height: 700), styleMask: [.titled, .resizable], backing: .buffered, defer: false)
+        let window = OffscreenWindow(size: NSSize(width: 600, height: 700), styleMask: [.titled, .resizable])
         window.isRestorable = false
         window.contentViewController = NSHostingController(rootView: ScrolledTranscript(barHeight: 60))
         window.setContentSize(NSSize(width: 600, height: 700))

@@ -25,7 +25,7 @@ private struct ReturnChatHost: View {
     }
 }
 
-private final class KeyLoopWindow: NSWindow {
+private final class KeyLoopWindow: OffscreenWindow {
     var keyLoopRebuilds = 0
     var responderChanges = 0
 
@@ -59,7 +59,7 @@ private final class KeyLoopWindow: NSWindow {
     }
 
     private func focusedComposer(_ chat: ReturnChat) throws -> (KeyLoopWindow, NSTextView) {
-        let window = KeyLoopWindow(contentRect: NSRect(x: -20000, y: -20000, width: 480, height: 240), styleMask: [.borderless], backing: .buffered, defer: false)
+        let window = KeyLoopWindow(size: NSSize(width: 480, height: 240), styleMask: [.borderless])
         window.contentView = NSHostingView(rootView: ReturnChatHost(chat: chat))
         window.orderBack(nil)
         settle()

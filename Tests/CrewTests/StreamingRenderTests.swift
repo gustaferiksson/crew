@@ -28,7 +28,7 @@ private struct LiveChat: View {
         let events = try String(contentsOf: fixtures.appending(path: "chat.steer-answer-after-tools-turn.jsonl"), encoding: .utf8).split(separator: "\n")
             .map { try JSONDecoder().decode(GatewayEvent.self, from: Data($0.utf8)) }
         let session = ChatSession(fixture: crewTest, transcript: transcript, todos: [])
-        let window = NSWindow(contentRect: NSRect(x: -20000, y: -20000, width: 700, height: 1600), styleMask: [.titled, .resizable], backing: .buffered, defer: false)
+        let window = OffscreenWindow(size: NSSize(width: 700, height: 1600), styleMask: [.titled, .resizable])
         window.isRestorable = false
         window.contentViewController = NSHostingController(rootView: LiveChat(session: session).environment(BotStore(fixture: [crewTest], statuses: [:])).environment(ChatPins(fileURL: nil)))
         window.setContentSize(NSSize(width: 700, height: 1600))

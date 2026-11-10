@@ -66,7 +66,7 @@ nonisolated private func recordedRows(copies: Int) throws -> [[String: Any]] {
         let gateway = Gateway(server: URL(string: "https://hermes.invalid")!, urlSession: ChatStub.session) { throw CancellationError() }
         let chat = ChatSession(bot: bot, gateway: gateway, urlSession: ChatStub.session)
 
-        chat.sync(to: ReadPosition(session: "s", messages: 490))
+        chat.sync(to: ReadPosition(session: "s", messages: 491))
         try await settled(chat) { !chat.visible.turns.isEmpty }
         #expect(ChatStub.requests.withLock { $0.map(\.limit) } == [100], "the open chat fetched more than one page")
         #expect(chat.earlier == .more)

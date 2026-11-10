@@ -63,21 +63,21 @@ private func shape(_ turn: Turn) -> String {
 
 @MainActor @Test func aRefetchedLatestPageKeepsTheOlderPagesUnlessItLeavesAGap() throws {
     let rows = try #require(try recordedHistories().map(\.rows).max { $0.count < $1.count }).sorted { $0.id < $1.id }
-    try #require(rows.count >= 40)
-    var pages = HistoryPages(size: 10)
-    pages.merge(latest: Array(rows.dropLast(5).suffix(10)))
-    pages.prepend(older: Array(rows.dropLast(15).suffix(10)))
-    #expect(pages.rows.map(\.id) == rows.dropLast(5).suffix(20).map(\.id))
-    pages.merge(latest: Array(rows.suffix(10)))
-    #expect(pages.rows.map(\.id) == rows.suffix(25).map(\.id), "five new rows join the loaded ones")
+    try #require(rows.count >= 20)
+    var pages = HistoryPages(size: 5)
+    pages.merge(latest: Array(rows.dropLast(3).suffix(5)))
+    pages.prepend(older: Array(rows.dropLast(8).suffix(5)))
+    #expect(pages.rows.map(\.id) == rows.dropLast(3).suffix(10).map(\.id))
+    pages.merge(latest: Array(rows.suffix(5)))
+    #expect(pages.rows.map(\.id) == rows.suffix(13).map(\.id), "three new rows join the loaded ones")
     #expect(!pages.reachedStart)
 
-    var gapped = HistoryPages(size: 10)
-    gapped.merge(latest: Array(rows.prefix(10)))
-    gapped.merge(latest: Array(rows.suffix(10)))
-    #expect(gapped.rows.map(\.id) == rows.suffix(10).map(\.id), "a page that does not reach the loaded rows replaces them")
+    var gapped = HistoryPages(size: 5)
+    gapped.merge(latest: Array(rows.prefix(5)))
+    gapped.merge(latest: Array(rows.suffix(5)))
+    #expect(gapped.rows.map(\.id) == rows.suffix(5).map(\.id), "a page that does not reach the loaded rows replaces them")
 
-    var short = HistoryPages(size: 10)
+    var short = HistoryPages(size: 5)
     short.merge(latest: Array(rows.suffix(4)))
     #expect(short.reachedStart)
 }

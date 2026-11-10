@@ -29,6 +29,7 @@ private func rows(_ turns: [Turn]) -> [String] {
         "from scout",
         "to scout",
         "from scout",
+        "from scout",
     ])
 
     let call = try #require(history.first { $0.id == 1077 }?.toolCalls?.first)
@@ -72,10 +73,62 @@ private func rows(_ turns: [Turn]) -> [String] {
     #expect(transcript.lastMessage?.text == "I've asked Hermes to check the live version.")
 }
 
-@Test func coalescedDeliveryNoticeHidesTheNewMessageInTheEarlierExchange() throws {
-    let shown = Transcript(history: try recorded("default")).visible.turns
+@Test func coalescedDeliveryNoticeSplitsTheAppendedMessageIntoItsOwnExchange() throws {
+    let history = try recorded("default")
+    let time = { (id: Int) in Date(timeIntervalSince1970: history.first { $0.id == id }?.timestamp ?? 0) }
+    let shown = Transcript(history: history).visible.turns
+    try #require(shown.count == 8)
+    #expect(Set(shown.map(\.id)).count == shown.count)
+
     let earlier = shown[4]
     #expect(earlier.agentMessage?.body.hasPrefix("The morning summary failed") == true)
-    #expect(earlier.work.contains { $0.kind == .note("Scout, read-only checks returned: Hermes Agent v0.23.0.") })
-    #expect(!shown.contains { $0.agentMessage?.body == "Please check the live Hermes version of our instance." })
+    #expect(earlier.finishedAt == time(1082))
+    #expect(!earlier.work.contains { $0.kind == .note("Scout, read-only checks returned: Hermes Agent v0.23.0.") })
+
+    #expect(shown[6].agentMessage?.body == "Understood, I keep the task. The file tool only has head and tail reads; proposed fix: a paged reader.")
+    #expect(shown[6].work.last?.kind == .note("Scout confirmed the gap: the file tool has no paging. **Do you approve adding a paged reader?**"))
+
+    let appended = shown[7]
+    #expect(appended.agentMessage == AgentMessage(sender: "Scout", handle: "scout", body: "Please check the live Hermes version of our instance."))
+    #expect(appended.id == "1082-1")
+    #expect(appended.delivery == nil)
+    #expect(appended.status == .complete)
+    #expect(appended.startedAt == time(1083))
+    #expect(appended.finishedAt == time(1091))
+    try #require(appended.work.count == 3)
+    #expect(appended.work[0].kind == .note("> Please check the live Hermes version of our instance."))
+    guard case .tool(let check) = appended.work[1].kind else { Issue.record("expected the version check"); return }
+    #expect(check.name == "terminal")
+    #expect(check.result == #"{"output": "Hermes Agent v0.23.0", "exit_code": 0, "error": null}"#)
+    #expect(appended.work[2].kind == .note("Scout, read-only checks returned: Hermes Agent v0.23.0."))
+}
+
+@Test func coalescedExchangeSetsThePreview() throws {
+    let history = try recorded("default")
+    let latest = LastMessage(text: "Message from Scout", date: Date(timeIntervalSince1970: try #require(history.first { $0.id == 1091 }?.timestamp)))
+    #expect(Transcript(history: history).visible.lastMessage == latest)
+
+    let window = Transcript(history: history.filter { $0.id >= 1082 }).visible
+    #expect(rows(window.turns) == ["from scout"])
+    #expect(window.lastMessage == latest)
+}
+
+@Test func coalescedNoticeSplitsAtEachNoticeAndKeepsAnAppendedPrompt() throws {
+    let recordedNotice = try #require(try recorded("default").first { $0.id == 1082 }?.content)
+    let notice = String(try #require(recordedNotice.firstRange(of: "\n\nMessage from 🤖").map { recordedNotice[..<$0.lowerBound] }))
+    let merged = notice + "\n\n" + notice.replacingOccurrences(of: "proc_01789a0d57b0", with: "proc_02") + "\n\nWhich version are we on?"
+    let stored: [[String: Any]] = [
+        ["id": 1, "role": "user", "content": merged, "timestamp": 100.0],
+        ["id": 2, "role": "assistant", "content": "Hermes Agent v0.23.0.", "timestamp": 160.0],
+    ]
+    let decoder = JSONDecoder()
+    decoder.keyDecodingStrategy = .convertFromSnakeCase
+    let turns = Transcript(history: try decoder.decode([HistoryRow].self, from: JSONSerialization.data(withJSONObject: stored))).turns
+    try #require(turns.count == 3)
+    #expect(turns.map(\.delivery) == ["proc_01789a0d57b0", "proc_02", nil])
+    #expect(turns[0].deliveryFailure == nil)
+    #expect(turns[2].prompt?.text == "Which version are we on?")
+    #expect(turns[2].reply == "Hermes Agent v0.23.0.")
+    #expect(turns[2].startedAt == Date(timeIntervalSince1970: 160))
+    #expect(Set(turns.map(\.id)).count == 3)
 }

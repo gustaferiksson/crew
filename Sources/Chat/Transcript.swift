@@ -199,6 +199,13 @@ nonisolated func deliveryProcess(in content: String) -> String? {
     return content.firstMatch(of: /proc_[0-9a-f]+/).map { String($0.output) }
 }
 
+nonisolated func mergedUserRows(in content: String) -> [String] {
+    guard let footer = content.firstMatch(of: /\n\n\[INTERNAL NOTIFICATION — [^\]\n]*\]\n\n(?=\S)/) else { return [content] }
+    let notice = String(content[..<footer.range.lowerBound])
+    guard deliveryProcess(in: notice) != nil else { return [content] }
+    return [notice] + mergedUserRows(in: String(content[footer.range.upperBound...]))
+}
+
 nonisolated struct DeliveryFailure: Codable, Sendable, Equatable {
     var reason: String?
     var detail: String?
@@ -296,7 +303,8 @@ extension Transcript {
                 turns[index].work.contains { item in if case .tool(let call) = item.kind { call.name == "message_agent" && call.result?.contains(delivery) == true } else { false } }
             }
             let origin = originIndex.map { turns[$0] }
-            let handle = origin?.work.first { item in if case .tool(let call) = item.kind { call.result?.contains(delivery) == true } else { false } }?.messagedHandle
+            let call = origin?.work.first { item in if case .tool(let call) = item.kind { call.result?.contains(delivery) == true } else { false } }
+            let handle = call?.messagedHandle
             let repliedLater = turn.deliveryFailure?.isUnconfirmed == true && handle != nil && turns[(position + 1)...].contains { $0.agentMessage?.handle == handle }
             if !repliedLater { awaited.removeAll { $0.origin == origin?.id } }
             var followUp = turn
@@ -304,7 +312,8 @@ extension Transcript {
             if let origin, let index = exchanges[origin.id] {
                 shown[index].work += log(turn)
                 shown[index].finishedAt = turn.finishedAt
-                shown[index].deliveryFailure = shown[index].deliveryFailure ?? followUp.deliveryFailure
+                let failed = call.flatMap { call in shown.firstIndex { $0.id == "\(call.id)-to" } } ?? index
+                shown[failed].deliveryFailure = shown[failed].deliveryFailure ?? followUp.deliveryFailure
                 if shown[index].status == .complete {
                     shown[index].status = turn.status
                     shown[index].failure = turn.failure
@@ -326,7 +335,8 @@ extension Transcript {
 
     init(history rows: [HistoryRow]) {
         self.init()
-        for row in rows.sorted(by: { $0.id < $1.id }) {
+        let sorted = rows.sorted { $0.id < $1.id }
+        for (position, row) in sorted.enumerated() {
             let date = Date(timeIntervalSince1970: row.timestamp)
             let text = row.displayContent ?? row.content ?? ""
             if row.role == "user", row.displayKind == "steer", !turns.isEmpty {
@@ -335,12 +345,18 @@ extension Transcript {
                 continue
             }
             if row.role == "user" {
-                let delivery = deliveryProcess(in: text)
-                let notice = delivery == nil ? noticeText(kind: row.displayKind, content: text) : nil
-                let prompt = notice == nil && delivery == nil && row.displayKind != "hidden" ? Prompt(raw: text, sentAt: date) : nil
-                let isRoutine = notice != nil && text.hasPrefix("[Cronjob \"")
-                let hiddenText = row.displayKind == "hidden" || isRoutine ? row.content ?? text : nil
-                turns.append(Turn(id: String(row.id), prompt: prompt, notice: notice, agentMessage: AgentMessage(text), delivery: delivery, deliveryFailure: DeliveryFailure(notice: text), hiddenText: hiddenText, status: .complete, startedAt: date, finishedAt: date, isRoutine: isRoutine))
+                let parts = mergedUserRows(in: text)
+                let answeredAt = sorted.dropFirst(position + 1).first.flatMap { $0.role == "user" ? nil : Date(timeIntervalSince1970: $0.timestamp) } ?? date
+                for (index, part) in parts.enumerated() {
+                    let kind = index == 0 ? row.displayKind : nil
+                    let start = index == 0 ? date : answeredAt
+                    let delivery = deliveryProcess(in: part)
+                    let notice = delivery == nil ? noticeText(kind: kind, content: part) : nil
+                    let prompt = notice == nil && delivery == nil && kind != "hidden" ? Prompt(raw: part, sentAt: start) : nil
+                    let isRoutine = notice != nil && part.hasPrefix("[Cronjob \"")
+                    let hiddenText = kind == "hidden" || isRoutine ? (parts.count == 1 ? row.content ?? part : part) : nil
+                    turns.append(Turn(id: index == 0 ? String(row.id) : "\(row.id)-\(index)", prompt: prompt, notice: notice, agentMessage: AgentMessage(part), delivery: delivery, deliveryFailure: DeliveryFailure(notice: part), hiddenText: hiddenText, status: .complete, startedAt: start, finishedAt: start, isRoutine: isRoutine))
+                }
                 continue
             }
             if row.role == "assistant" {
@@ -524,6 +540,7 @@ extension Transcript {
     }
 
     private mutating func appendAssistant(_ row: HistoryRow, at date: Date) {
+        guard row.displayKind != "hidden" else { return }
         if turns.isEmpty {
             turns.append(Turn(id: String(row.id), status: .complete, startedAt: date))
         }

@@ -132,5 +132,20 @@ jobs:
       - name: Install test dependencies
         run: pip install pytest httpx h2 'PyJWT[crypto]' fastapi
 
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          repository: NousResearch/hermes-agent
+          ref: 2bd378ed1b8d6bf2192cb26e0a55ff3091e6bd19 # v0.23.0
+          path: hermes-agent
+          persist-credentials: false
+          filter: blob:none
+          sparse-checkout: |
+            agent
+            cron
+            hermes_cli
+            tools
+
       - name: Test
-        run: python -m pytest -q
+        env:
+          CREW_PUSH_HERMES_PINNED: ${{ github.workspace }}/hermes-agent
+        run: python -m pytest -q -rs

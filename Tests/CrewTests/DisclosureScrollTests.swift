@@ -38,10 +38,10 @@ private func botThread(endingWith last: String) throws -> Transcript {
     @Test(.serialized, arguments: ["from", "to"])
     func theLastBotMessageRowOpensAndClosesWithTheEndHeld(last: String) throws {
         let distances = EndDistances()
-        let window = NSWindow(contentRect: NSRect(x: -20000, y: -20000, width: 700, height: 800), styleMask: [.titled, .resizable], backing: .buffered, defer: false)
+        let window = NSWindow(contentRect: NSRect(x: -20000, y: -20000, width: 600, height: 500), styleMask: [.titled, .resizable], backing: .buffered, defer: false)
         window.isRestorable = false
         window.contentViewController = NSHostingController(rootView: HostedChat(transcript: try botThread(endingWith: last), distances: distances).environment(BotStore(fixture: [scout], statuses: [:])).environment(ChatPins(fileURL: nil)))
-        window.setContentSize(NSSize(width: 700, height: 800))
+        window.setContentSize(NSSize(width: 600, height: 500))
         window.orderBack(nil)
         defer { window.orderOut(nil) }
         settle(2)
@@ -52,11 +52,9 @@ private func botThread(endingWith last: String) throws -> Transcript {
         var growth: CGFloat = 0
         let header = stride(from: CGFloat(40), to: 300, by: 4).first { y in
             let before = height()
-            TurnView.bodies = 0
             click(window, at: NSPoint(x: 60, y: y))
             settle(0.5)
             growth = height() - before
-            if TurnView.bodies > 0 || growth != 0 { print("Disclosure \(last): click at \(y) ran \(TurnView.bodies) turn bodies and changed the height by \(growth)") }
             return growth > 20
         }
         let y = try #require(header, "no click opened the last row")

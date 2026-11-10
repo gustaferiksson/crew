@@ -25,17 +25,32 @@ struct InspectorFixtureScreen: View {
 
     private let routines = [
         RoutineJob(
-            id: "a1", name: "[bot:ada] Morning briefing", title: "Morning briefing", owner: "ada", prompt: "Summarise overnight papers.",
+            id: "a1", name: "[bot:ada] Morning briefing", title: "Morning briefing", prompt: "Summarise overnight papers.",
             schedule: "0 8 * * 1-5", nextRun: .now.addingTimeInterval(16 * 3600), lastRun: .now.addingTimeInterval(-8 * 3600),
             lastStatus: "ok", issue: nil, isPaused: false
         ),
         RoutineJob(
-            id: "a2", name: "[bot:ada] Inbox sweep", title: "Inbox sweep", owner: "ada", prompt: "Triage the inbox.",
+            id: "a4", name: "[bot:ada] Literature scan", title: "Literature scan", prompt: "Scan new preprints.",
+            schedule: "0 6 * * *", nextRun: .now.addingTimeInterval(20 * 3600), lastRun: .now.addingTimeInterval(-24 * 3600),
+            lastStatus: "ok", issue: nil, isPaused: false, liveRunID: "e4", tracksRuns: true
+        ),
+        RoutineJob(
+            id: "a2", name: "[bot:ada] Inbox sweep", title: "Inbox sweep", prompt: "Triage the inbox.",
             schedule: "every 120m", nextRun: .now.addingTimeInterval(40 * 60), lastRun: .now.addingTimeInterval(-80 * 60),
             lastStatus: "error", issue: "Model provider returned 429 Too Many Requests.", isPaused: false
         ),
         RoutineJob(
-            id: "a3", name: "[bot:ada] Weekly digest", title: "Weekly digest", owner: "ada", prompt: "Write the weekly digest.",
+            id: "a5", name: "[bot:ada] Citation check", title: "Citation check", prompt: "Check the draft's citations.",
+            schedule: "every 1440m", nextRun: .now.addingTimeInterval(23 * 3600), lastRun: .now.addingTimeInterval(-50 * 60),
+            lastStatus: "cancelled", issue: nil, isPaused: false
+        ),
+        RoutineJob(
+            id: "a6", name: "[bot:ada] Lab notes", title: "Lab notes", prompt: "Tidy the lab notes.",
+            schedule: "0 * * * *", nextRun: .now.addingTimeInterval(25 * 60), lastRun: .now.addingTimeInterval(-3 * 3600),
+            lastStatus: "missed", issue: nil, isPaused: false, missedRuns: 3
+        ),
+        RoutineJob(
+            id: "a3", name: "[bot:ada] Weekly digest", title: "Weekly digest", prompt: "Write the weekly digest.",
             schedule: "30 17 * * 5", nextRun: nil, lastRun: .now.addingTimeInterval(-6 * 24 * 3600),
             lastStatus: "ok", issue: nil, isPaused: true
         ),

@@ -2,7 +2,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 enum ChatFixture {
-    case conversation, history, earlierLoading, earlierFailed, timestamps, workLog, question, questions, questionsSnacks, questionLong, offline, attachments, dictation, mentions, slash, slashOutput, agentMessage, routine, deliveryFailure, a2ui, a2uiCards, a2uiForm, a2uiTable, a2uiChart, a2uiMap, a2uiCarousel, a2uiCarouselStates, a2uiPinned, a2uiExpanded, a2uiProducts, a2uiUpdates, a2uiStreaming
+    case conversation, history, earlierLoading, earlierFailed, timestamps, workLog, workLogTools, question, questions, questionsSnacks, questionLong, offline, attachments, dictation, mentions, slash, slashOutput, agentMessage, routine, deliveryFailure, a2ui, a2uiCards, a2uiForm, a2uiTable, a2uiChart, a2uiMap, a2uiCarousel, a2uiCarouselStates, a2uiPinned, a2uiExpanded, a2uiProducts, a2uiUpdates, a2uiStreaming
     case composerLine, composerLines, composerRunning, composerRunningText, steer, steerTaken, waiting
     case payment, paymentHolding, paymentApproved, paymentLoading, paymentFailed, paymentUnverified, paymentPunycode, paymentCountdown, paymentNotice, paymentOffer, paymentOfferHistory, paymentReceipts
 
@@ -23,6 +23,7 @@ enum ChatFixture {
         if self == .a2uiExpanded { return ChatPresentation(expandedCards: ["brown-slippers-picks"], scrollTarget: "a8") }
         if self == .timestamps { return ChatPresentation(revealsTimestamps: true, scrollTarget: "t2") }
         if self == .workLog { return ChatPresentation(expandedTurns: ["t4"], expandedWork: ["t4-w0", "t4-w2"], scrollTarget: "t4") }
+        if self == .workLogTools { return ChatPresentation(expandedTurns: ["t9"], scrollTarget: "t9") }
         if self == .attachments {
             return ChatPresentation(attachments: [
                 Attachment(kind: .image, name: "Trailhead.png", data: Self.samplePhoto),
@@ -125,6 +126,7 @@ enum ChatFixture {
             transcript.apply(.toolStart(id: "t6", name: "terminal", context: "kubectl --context staging rollout status deploy/crew-api", arguments: "{}"), at: now.addingTimeInterval(-12))
             return transcript
         }
+        if self == .workLogTools { return Transcript(turns: turns + [browse(now.addingTimeInterval(-40))]) }
         if self == .waiting { return Transcript(turns: turns + [Turn(id: "t6", prompt: Prompt(text: "How many files are in your working directory?", sentAt: now.addingTimeInterval(-3)), status: .streaming, startedAt: now.addingTimeInterval(-3))]) }
         if self == .attachments { return Transcript(turns: [greeting(now.addingTimeInterval(-26 * 3600)), receipt(now.addingTimeInterval(-6 * 60)), screenshot(now.addingTimeInterval(-2 * 60))]) }
         if self == .mentions {
@@ -327,6 +329,20 @@ enum ChatFixture {
             status: .complete,
             startedAt: start,
             finishedAt: start.addingTimeInterval(12)
+        )
+    }
+
+    private func browse(_ start: Date) -> Turn {
+        let shot = Attachment(kind: .image, name: "shot.png", data: Self.samplePhoto)
+        return Turn(
+            id: "t9",
+            prompt: Prompt(text: "Open the trail map and index the hut guide for the Lofoten trip.", sentAt: start),
+            work: [
+                WorkItem(id: "t9-w0", kind: .tool(ToolCall(name: "browser_exec", subject: "Open the trail map and take a screenshot", arguments: #"{"code": "goto('https://example.com/trail')"}"#, result: #"{"success": true, "screenshot_path": "/tmp/shot.png"}"#, status: .success, image: shot)), startedAt: start.addingTimeInterval(2), duration: 4),
+                WorkItem(id: "t9-w1", kind: .tool(ToolCall(name: "mcp_docs_index", subject: "lofoten-huts.pdf", arguments: #"{"file": "lofoten-huts.pdf"}"#, status: .running, percent: 40, progressMessage: "Indexing page 12 of 30")), startedAt: start.addingTimeInterval(8)),
+            ],
+            status: .streaming,
+            startedAt: start
         )
     }
 

@@ -610,13 +610,16 @@ final class ChatSession {
             generatingTool = nil
             return transcript.apply(.toolStart(id: id, name: payload.name ?? "tool", context: payload.context, arguments: payload.arguments ?? ""))
         }
+        if type == "tool.progress", let id = payload.toolID {
+            return transcript.apply(.toolProgress(id: id, percent: payload.percent, message: payload.message))
+        }
         if type == "tool.complete", let id = payload.toolID {
             let isVault = transcript.turns.last?.work.contains { item in
                 guard item.id == id, case .tool(let call) = item.kind else { return false }
                 return call.name == "browser_vault"
             } ?? false
             if isVault { openRequests.removeAll { PendingRequest($0)?.isPayment == true } }
-            return transcript.apply(.toolComplete(id: id, duration: payload.duration, summary: payload.summary, result: payload.result ?? ""))
+            return transcript.apply(.toolComplete(id: id, duration: payload.duration, summary: payload.summary, result: payload.result ?? "", imagePath: payload.imagePath))
         }
         if type == "message.complete" {
             let hasThinking = transcript.turns.last?.work.contains { if case .thinking = $0.kind { true } else { false } } ?? false
@@ -891,6 +894,8 @@ nonisolated private struct EventPayload: Sendable {
     var result: String?
     var summary: String?
     var duration: TimeInterval?
+    var percent: Int?
+    var imagePath: String?
     var todos: [TodoItem]?
     var revision: Int?
     var status: String?
@@ -903,11 +908,12 @@ nonisolated private struct EventPayload: Sendable {
 
 nonisolated extension EventPayload: Decodable {
     private enum CodingKeys: String, CodingKey {
-        case text, message, name, context, args, result, summary, todos, revision, status, error, reasoning, id
+        case text, message, name, context, args, result, summary, percent, todos, revision, status, error, reasoning, id
         case toolID = "tool_id"
         case argsText = "args_text"
         case resultText = "result_text"
         case duration = "duration_s"
+        case imagePath = "image_path"
         case failureReason = "failure_reason"
         case requestIDs = "request_ids"
     }
@@ -931,6 +937,8 @@ nonisolated extension EventPayload: Decodable {
         }
         summary = try? container.decodeIfPresent(String.self, forKey: .summary)
         duration = try? container.decodeIfPresent(Double.self, forKey: .duration)
+        percent = try? container.decodeIfPresent(Int.self, forKey: .percent)
+        imagePath = try? container.decodeIfPresent(String.self, forKey: .imagePath)
         todos = try? container.decodeIfPresent([TodoItem].self, forKey: .todos)
         revision = try? container.decodeIfPresent(Int.self, forKey: .revision)
         status = try? container.decodeIfPresent(String.self, forKey: .status)

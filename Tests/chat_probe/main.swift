@@ -880,7 +880,7 @@ if phases.contains("slash-raw") {
                 _ = try await gateway.call("prompt.submit", ["session_id": runtime, "text": message], as: JSONValue.self)
                 try await Task.sleep(for: .seconds(Double(env["SUBMIT"] ?? "") ?? 60))
                 let stored = bot.canonicalSession?.resolvedID ?? StoredSessionID(rawValue: "")
-                let (data, _) = try await urlSession.data(for: historyRequest(of: stored, profile: "crew-test", on: server, limit: 6))
+                let (data, _) = try await urlSession.data(for: historyRequest(of: stored, profile: "crew-test", on: server, limit: 8))
                 guard case .object(let page) = try JSONDecoder().decode(JSONValue.self, from: data), case .array(let messages) = page["messages"] else { throw HermesError.invalidResponse }
                 let pretty = JSONEncoder()
                 pretty.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
@@ -972,6 +972,34 @@ if phases.contains("tool") {
     print("LIVE    ", live)
     print("HISTORY ", fromHistory)
     print("turn counts", chat.transcript.turns.count, reloaded.transcript.turns.count)
+}
+
+if phases.contains("screenshot") {
+    record("screenshot-turn")
+    chat.send("Use your browser_exec tool to open https://example.com and take a screenshot of the page, then tell me in one short sentence what the heading says.", mode: .send)
+    try await waitIdle(chat)
+    show("screenshot live", chat)
+    let images: [Attachment] = chat.transcript.turns.last?.work.compactMap { if case .tool(let call) = $0.kind { call.image } else { nil } } ?? []
+    for image in images {
+        let bytes = (try? await chat.download(image))?.count ?? -1
+        print("IMAGE", image.name, "bytes", bytes)
+    }
+    let reloaded = try await attached(try await crewTest())
+    let historyImages: [String] = reloaded.transcript.turns.last?.work.compactMap { if case .tool(let call) = $0.kind { call.image?.name } else { nil } } ?? []
+    print("HISTORY IMAGES", historyImages)
+}
+
+if phases.contains("screenshot-history") {
+    if let stored = bot.canonicalSession?.resolvedID {
+        let (data, _) = try await urlSession.data(for: historyRequest(of: stored, profile: "crew-test", on: server, limit: 8))
+        try data.write(to: outDir.appending(path: "screenshot.history.json"))
+    }
+    let reloaded = try await attached(try await crewTest())
+    for item in reloaded.transcript.turns.last?.work ?? [] {
+        guard case .tool(let call) = item.kind else { continue }
+        print("HISTORY RESULT", call.name, String((call.result ?? "").prefix(900)).replacing("\n", with: " | "))
+        if let image = call.image { print("HISTORY IMAGE", image.name, "bytes", (try? await reloaded.download(image))?.count ?? -1) }
+    }
 }
 
 if phases.contains("compressed") {

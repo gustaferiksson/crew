@@ -268,6 +268,11 @@ final class ReplyTextView: NSTextView {
 
     override var canBecomeKeyView: Bool { false }
 
+    override func viewWillDraw() {
+        if let container = textContainer, container.size.width != bounds.width { container.size.width = bounds.width }
+        super.viewWillDraw()
+    }
+
     override func updateDragTypeRegistration() {
         unregisterDraggedTypes()
     }
@@ -334,7 +339,7 @@ struct ReplySegmentText: NSViewRepresentable {
     final class Coordinator {
         var source: String?
         var offset: Int?
-        var measured: (width: CGFloat?, size: CGSize)?
+        var measured: [(width: CGFloat?, size: CGSize)] = []
     }
 
     func makeCoordinator() -> Coordinator { Coordinator() }
@@ -350,19 +355,18 @@ struct ReplySegmentText: NSViewRepresentable {
         view.source = source
         coordinator.source = source
         coordinator.offset = offset
-        coordinator.measured = nil
+        coordinator.measured = []
     }
 
     func sizeThatFits(_ proposal: ProposedViewSize, nsView view: ReplyTextView, context: Context) -> CGSize? {
         guard let container = view.textContainer, let layout = view.layoutManager else { return nil }
         let width = proposal.width.flatMap { $0.isFinite ? $0 : nil }
-        if let measured = context.coordinator.measured, measured.width == width { return measured.size }
+        if let measured = context.coordinator.measured.first(where: { $0.width == width }) { return measured.size }
         container.size = NSSize(width: width ?? .greatestFiniteMagnitude, height: .greatestFiniteMagnitude)
         layout.ensureLayout(for: container)
         let used = layout.usedRect(for: container)
-        if view.frame.width > 0 { container.size.width = view.frame.width }
         let size = CGSize(width: width ?? ceil(used.width), height: ceil(used.height))
-        context.coordinator.measured = (width, size)
+        context.coordinator.measured = [(width, size)] + context.coordinator.measured.prefix(1)
         return size
     }
 }

@@ -45,6 +45,7 @@ enum Snapshot: String {
     case chatAgentMessage = "chat-agent-message"
     case chatRoutine = "chat-routine"
     case chatDeliveryFailure = "chat-delivery-failure"
+    case chatLimitFailure = "chat-limit-failure"
     case chatA2UI = "chat-a2ui"
     case chatA2UICards = "chat-a2ui-cards"
     case chatA2UIForm = "chat-a2ui-form"

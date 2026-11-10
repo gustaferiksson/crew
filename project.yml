@@ -141,6 +141,8 @@ targets:
       - Sources/BotStore.swift
       - Sources/Profile/ProfileTypes.swift
       - Sources/Chat/Transcript.swift
+      - Sources/Chat/LimitFailure.swift
+      - Sources/Chat/FailureMetadata.swift
       - Sources/Chat/MarkdownBlocks.swift
       - Sources/Chat/A2UI/PartialA2UI.swift
       - Sources/Chat/ReplyTextView.swift

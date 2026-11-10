@@ -403,30 +403,41 @@ private struct ToolImage: View {
 
     @Environment(\.chatSession) private var session
     @State private var loaded: (data: Data, image: CGImage)?
+    @State private var isGone = false
     @State private var preview: URL?
 
     var body: some View {
-        ZStack {
-            if let loaded {
-                Button(action: open) {
-                    Image(decorative: loaded.image, scale: 1)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(maxWidth: 200, maxHeight: 200, alignment: .leading)
-                        .clipShape(.rect(cornerRadius: 12))
+        if !isGone {
+            Button(action: open) {
+                Group {
+                    if let loaded {
+                        Image(decorative: loaded.image, scale: 1)
+                            .resizable()
+                            .scaledToFill()
+                    } else {
+                        Rectangle()
+                            .fill(.fill.tertiary)
+                    }
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel(attachment.name)
-                .padding(.leading, 28)
-                .padding(.bottom, 6)
+                .frame(width: 200, height: 200)
+                .clipShape(.rect(cornerRadius: 12))
+                .contentShape(.rect(cornerRadius: 12))
             }
-        }
-        .quickLookPreview($preview)
-        .task(id: attachment.id) {
-            guard let data = try? await session?.download(attachment) ?? attachment.data,
-                  let image = await thumbnail(of: data, side: 200)
-            else { return }
-            loaded = (data, image)
+            .buttonStyle(.plain)
+            .disabled(loaded == nil)
+            .accessibilityLabel(attachment.name)
+            .padding(.leading, 28)
+            .padding(.bottom, 6)
+            .quickLookPreview($preview)
+            .task(id: attachment.id) {
+                guard let data = try? await session?.download(attachment) ?? attachment.data,
+                      let image = await thumbnail(of: data, side: 200)
+                else {
+                    isGone = true
+                    return
+                }
+                loaded = (data, image)
+            }
         }
     }
 

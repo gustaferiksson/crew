@@ -979,26 +979,16 @@ if phases.contains("screenshot") {
     chat.send("Use your browser_exec tool to open https://example.com and take a screenshot of the page, then tell me in one short sentence what the heading says.", mode: .send)
     try await waitIdle(chat)
     show("screenshot live", chat)
-    let images: [Attachment] = chat.transcript.turns.last?.work.compactMap { if case .tool(let call) = $0.kind { call.image } else { nil } } ?? []
-    for image in images {
-        let bytes = (try? await chat.download(image))?.count ?? -1
-        print("IMAGE", image.name, "bytes", bytes)
-    }
     let reloaded = try await attached(try await crewTest())
-    let historyImages: [String] = reloaded.transcript.turns.last?.work.compactMap { if case .tool(let call) = $0.kind { call.image?.name } else { nil } } ?? []
-    print("HISTORY IMAGES", historyImages)
-}
-
-if phases.contains("screenshot-history") {
-    if let stored = bot.canonicalSession?.resolvedID {
+    if let stored = try await crewTest().canonicalSession?.resolvedID {
         let (data, _) = try await urlSession.data(for: historyRequest(of: stored, profile: "crew-test", on: server, limit: 8))
         try data.write(to: outDir.appending(path: "screenshot.history.json"))
     }
-    let reloaded = try await attached(try await crewTest())
-    for item in reloaded.transcript.turns.last?.work ?? [] {
-        guard case .tool(let call) = item.kind else { continue }
-        print("HISTORY RESULT", call.name, String((call.result ?? "").prefix(900)).replacing("\n", with: " | "))
-        if let image = call.image { print("HISTORY IMAGE", image.name, "bytes", (try? await reloaded.download(image))?.count ?? -1) }
+    for (label, session) in [("LIVE", chat), ("HISTORY", reloaded)] {
+        for item in session.transcript.turns.last?.work ?? [] {
+            guard case .tool(let call) = item.kind, let image = call.image else { continue }
+            print(label, "IMAGE", image.name, "bytes", (try? await session.download(image))?.count ?? -1)
+        }
     }
 }
 

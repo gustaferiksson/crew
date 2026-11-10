@@ -67,7 +67,7 @@ private func contract() throws -> [String: JSONValue] {
     var reloaded = Transcript(turns: [Turn(id: live.turns[0].id, prompt: live.turns[0].prompt, status: .complete, startedAt: live.turns[0].startedAt)])
     reloaded.keepFailures(from: live)
 
-    #expect(reloaded.turns.last?.limit == live.turns[0].limit)
+    #expect(try #require(reloaded.turns.last?.limit) == live.turns[0].limit)
 }
 
 @Test func aReopenedChatShowsTheLimitFromItsFailedTurnRow() throws {

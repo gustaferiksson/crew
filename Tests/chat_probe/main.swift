@@ -540,6 +540,103 @@ if phases.contains("other") {
     exit(0)
 }
 
+if phases.contains("room-paused") {
+    let store = BotStore(fixture: [], statuses: [:])
+    Task { await store.run(gateway, urlSession: urlSession) }
+    try await Task.sleep(for: .seconds(3))
+    let name = "crew-test-\(UUID().uuidString.prefix(6).lowercased())"
+    let roomID = "room-\(UUID().uuidString.lowercased())"
+    let pretty = JSONEncoder()
+    pretty.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+    let scrubs = [(server.host() ?? "", "hermes.example.com"), (env["HERMES_USER"] ?? "", "user"), (name, "crew-test-peer")].filter { $0.0.count > 2 }
+    func save(_ value: JSONValue, _ file: String) throws {
+        let url = URL(fileURLWithPath: #filePath).appending(path: "../../fixtures/rooms/\(file)").standardized
+        let text = scrubs.reduce(String(decoding: try pretty.encode(value), as: UTF8.self)) { $0.replacingOccurrences(of: $1.0, with: $1.1) }
+        try Data((text + "\n").utf8).write(to: url)
+        print("RECORDED", file)
+    }
+    func state() async throws -> JSONValue {
+        try await gateway.call("groups.state", ["room_id": roomID], as: JSONValue.self)
+    }
+    func log() async throws -> [JSONValue] {
+        var events: [JSONValue] = []
+        var cursor = 0
+        while true {
+            guard case .object(let page) = try await gateway.call("groups.log", ["room_id": .string(roomID), "since_seq": .number(Double(cursor))] as [String: JSONValue], as: JSONValue.self),
+                  case .array(let rows) = page["events"] ?? .null, case .number(let next) = page["cursor"] ?? .null else { throw HermesError.invalidResponse }
+            events += rows
+            cursor = Int(next)
+            guard page["has_more"] == .bool(true) else { return events }
+        }
+    }
+    func driver(_ state: JSONValue) -> [String: JSONValue] {
+        guard case .object(let s) = state, case .object(let driver) = s["driver_status"] ?? .null else { return [:] }
+        return driver
+    }
+    func activities(_ events: [JSONValue]) -> [String] {
+        events.compactMap { event in
+            guard case .object(let e) = event, e["kind"] == .string("room.activity"), case .object(let p) = e["payload"] ?? .null, case .string(let status) = p["status"] ?? .null else { return nil }
+            return status
+        }
+    }
+    func waitForOutcome(after count: Int, saveWorking: Bool) async throws -> [JSONValue] {
+        var savedWorking = !saveWorking
+        for _ in 0..<180 {
+            try await Task.sleep(for: .seconds(2))
+            let current = try await state()
+            let driver = driver(current)
+            if !savedWorking, case .array(let rows) = driver["member_activity"] ?? .null, rows.contains(where: { if case .object(let r) = $0 { r["started_at"] != nil } else { false } }) {
+                try save(current, "paused.state.working.json")
+                savedWorking = true
+            }
+            if driver["working"] == .bool(false) {
+                let events = try await log()
+                if activities(events).count > count { return events }
+            }
+        }
+        throw HermesError.invalidResponse
+    }
+    var created = false
+    do {
+        try await store.create(NewProfile(name: name, description: "Crew room probe", soul: nil, cloneFrom: nil), via: gateway) { $0.title = "Crew Peer" }
+        await store.reload(gateway)
+        guard let peer = store.bots.first(where: { $0.name == name }), let test = store.bots.first(where: { $0.name == "crew-test" }) else { throw HermesError.invalidResponse }
+        let members: [JSONValue] = [test, peer].map { .object(["member_id": .string($0.name), "profile": .string($0.name), "handle": .string($0.handle), "display_name": .string($0.title)]) }
+        _ = try await gateway.call("groups.create", ["room_id": .string(roomID), "name": .string("Crew probe room"), "members": .array(members)] as [String: JSONValue], as: JSONValue.self)
+        created = true
+        print("DRIVER", driver(try await state()).filter { ["max_rounds", "max_continues", "working"].contains($0.key) })
+        let text = "@\(test.handle) @\(peer.handle) Relay game: answer in one short sentence and end it by @-mentioning the other member by handle, every time."
+        _ = try await gateway.call("groups.send", ["room_id": .string(roomID), "event_id": .string("crew-probe-\(UUID().uuidString.lowercased())"), "payload": .object(["text": .string(text), "thread_id": .string("crew-probe")])] as [String: JSONValue], as: JSONValue.self)
+        let paused = try await waitForOutcome(after: 0, saveWorking: true)
+        print("OUTCOMES", activities(paused))
+        try save(.array(paused), "paused.log.json")
+        try save(try await state(), "paused.state.json")
+        guard activities(paused).last == "bounded" else { throw HermesError.invalidResponse }
+        let bounded = paused.last { if case .object(let e) = $0 { e["kind"] == .string("room.activity") } else { false } }
+        guard case .object(let b) = bounded, case .object(let payload) = b["payload"] ?? .null, let discussion = payload["discussion_event_id"] else { throw HermesError.invalidResponse }
+        for params: [String: JSONValue] in [["room_id": .string(roomID), "task_id": .string("crew-probe-missing")], ["room_id": .string(roomID), "task_id": .string("crew-probe-missing"), "member_id": .string(test.name), "execution_generation": .number(1)]] {
+            do { print("RETRY", params.keys.sorted(), try await gateway.call("groups.retry", params, as: JSONValue.self)) } catch { print("RETRY", params.keys.sorted(), error) }
+        }
+        let continued = try await gateway.call("groups.continue", ["room_id": .string(roomID), "discussion_event_id": discussion], as: JSONValue.self)
+        try save(continued, "continue.reply.json")
+        print("AFTER CONTINUE working", driver(try await state())["working"] ?? .null)
+        do { print("SECOND CONTINUE", try await gateway.call("groups.continue", ["room_id": .string(roomID), "discussion_event_id": discussion], as: JSONValue.self)) } catch { print("SECOND CONTINUE", error) }
+        let after = try await waitForOutcome(after: activities(paused).count, saveWorking: false)
+        print("OUTCOMES", activities(after))
+        try save(.array(after), "continued.log.json")
+        _ = try await gateway.call("groups.stop", ["room_id": .string(roomID), "cancel_id": .string("crew-probe-stop-\(UUID().uuidString.lowercased())")] as [String: JSONValue], as: JSONValue.self)
+        do { print("CONTINUE AFTER STOP", try await gateway.call("groups.continue", ["room_id": .string(roomID), "discussion_event_id": discussion], as: JSONValue.self)) } catch { print("CONTINUE AFTER STOP", error) }
+    } catch {
+        print("ROOM PAUSED FAILED", error)
+    }
+    if created { _ = try? await gateway.call("groups.disband", ["room_id": roomID], as: JSONValue.self) }
+    await store.reload(gateway)
+    if let bot = store.bots.first(where: { $0.name == name }) { try? await store.delete(bot, via: gateway, urlSession: urlSession) }
+    await store.reload(gateway)
+    print(store.bots.contains { $0.name == name } ? "THROWAWAY NOT DELETED: \(name)" : "throwaway deleted")
+    exit(0)
+}
+
 if phases.contains("room-history") {
     let store = BotStore(fixture: [], statuses: [:])
     Task { await store.run(gateway, urlSession: urlSession) }

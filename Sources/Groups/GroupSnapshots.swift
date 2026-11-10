@@ -43,9 +43,21 @@ struct GroupChatFixtureScreen: View {
             RoomAction(kind: "approval", memberID: "forge", taskID: "t-forge", executionGeneration: 1, requestID: "r1", approval: approval),
             RoomAction(kind: "retry", memberID: nil, taskID: "t-scout", executionGeneration: nil, requestID: nil, approval: nil),
         ]
-        let session = Snapshot.requested == .groupWelcome
-            ? GroupSession(fixture: room, events: [], actions: [], isWorking: false)
-            : GroupSession(fixture: room, events: events, actions: actions, isWorking: true)
+        let paused = [
+            event(1, "message.user", nil, RoomEvent.Payload(text: "Ada and Scout, agree on a launch time and @mention each other until you do.", threadID: "main")),
+            event(2, "message.member", "ada", RoomEvent.Payload(text: "Thursday at 10:00 works for the database side. @scout does that suit you?", memberID: "ada", threadID: "main", discussionEventID: "e1")),
+            event(3, "message.member", "scout", RoomEvent.Payload(text: "Thursday is tight for the store review, Friday at 9:00? @ada", memberID: "scout", threadID: "main", discussionEventID: "e1")),
+            event(4, "message.member", "ada", RoomEvent.Payload(text: "Friday at 9:00 is fine if the dry run holds. @scout", memberID: "ada", threadID: "main", discussionEventID: "e1")),
+            event(5, "room.activity", nil, RoomEvent.Payload(threadID: "main", status: "bounded", discussionEventID: "e1")),
+        ]
+        let working = RoomState.Driver(working: true, pendingActions: actions, memberActivity: [RoomState.Activity(memberID: "forge", status: "running", startedAt: start.addingTimeInterval(130), tool: "terminal")])
+        let session = if Snapshot.requested == .groupWelcome {
+            GroupSession(fixture: room, events: [], driver: RoomState.Driver())
+        } else if Snapshot.requested == .groupChatPaused {
+            GroupSession(fixture: room, events: paused, driver: RoomState.Driver(maxContinues: 5))
+        } else {
+            GroupSession(fixture: room, events: events, driver: working)
+        }
         return GroupChatScreen(room: room, showsInspector: .constant(false), session: session) { _ in }
     }
 }

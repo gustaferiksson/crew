@@ -78,6 +78,7 @@ enum Snapshot: String {
     case settingsNotifications = "settings-notifications"
     case settingsNotificationsAsk = "settings-notifications-ask"
     case groupChat = "group-chat"
+    case groupChatPaused = "group-chat-paused"
     case groupWelcome = "group-welcome"
     case groupInspector = "group-inspector"
     case chatPayment = "chat-payment"

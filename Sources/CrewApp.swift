@@ -12,7 +12,7 @@ struct CrewApp: App {
     @State private var chats = Snapshot.requested?.chats ?? ChatSessions()
     @State private var drafts = Snapshot.requested?.drafts ?? .shared
     @State private var pins = Snapshot.requested == nil ? ChatPins.shared : ChatPins(fixture: [:])
-    @State private var groups = [.groupChat, .groupWelcome, .groupInspector, .sidebarCompact].contains(Snapshot.requested) ? GroupStore(fixture: [Snapshot.fixtureRoom]) : GroupStore()
+    @State private var groups = [.groupChat, .groupChatPaused, .groupWelcome, .groupInspector, .sidebarCompact].contains(Snapshot.requested) ? GroupStore(fixture: [Snapshot.fixtureRoom]) : GroupStore()
     @State private var scenes = Scenes()
     #if os(iOS)
     @State private var updates = UpdateCheck()

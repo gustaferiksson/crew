@@ -13,12 +13,15 @@ nonisolated struct RoomEvent: Decodable, Sendable, Equatable {
         var name: String?
         var threadID: String?
         var taskID: String?
+        var status: String?
+        var discussionEventID: String?
 
         private enum CodingKeys: String, CodingKey {
-            case text, error, name
+            case text, error, name, status
             case memberID = "member_id"
             case threadID = "thread_id"
             case taskID = "task_id"
+            case discussionEventID = "discussion_event_id"
         }
     }
 
@@ -54,13 +57,32 @@ nonisolated struct RoomAction: Decodable, Sendable {
 }
 
 nonisolated struct RoomState: Decodable, Sendable {
+    struct Activity: Decodable, Sendable {
+        let memberID: String
+        let status: String
+        var startedAt: Date?
+        var tool: String?
+
+        private enum CodingKeys: String, CodingKey {
+            case status, tool
+            case memberID = "member_id"
+            case startedAt = "started_at"
+        }
+    }
+
     struct Driver: Decodable, Sendable {
-        let working: Bool
-        let pendingActions: [RoomAction]
+        var working = false
+        var pendingActions: [RoomAction] = []
+        var memberActivity: [Activity]?
+        var lastError: String?
+        var maxContinues: Int?
 
         private enum CodingKeys: String, CodingKey {
             case working
             case pendingActions = "pending_actions"
+            case memberActivity = "member_activity"
+            case lastError = "last_error"
+            case maxContinues = "max_continues"
         }
     }
 
@@ -91,17 +113,23 @@ nonisolated private struct RoomLogPage: Decodable, Sendable {
     }
 }
 
-nonisolated private struct RoomParams: Encodable, Sendable {
+nonisolated struct RoomParams: Encodable, Sendable {
     let roomID: String
     var sinceSeq: Int?
     var cancelID: String?
     var taskID: String?
+    var memberID: String?
+    var executionGeneration: Int?
+    var discussionEventID: String?
 
     private enum CodingKeys: String, CodingKey {
         case roomID = "room_id"
         case sinceSeq = "since_seq"
         case cancelID = "cancel_id"
         case taskID = "task_id"
+        case memberID = "member_id"
+        case executionGeneration = "execution_generation"
+        case discussionEventID = "discussion_event_id"
     }
 }
 
@@ -150,12 +178,12 @@ final class GroupSession {
     let room: Room
     var failure: String?
     private(set) var events: [RoomEvent] = []
-    private(set) var isWorking = false
-    private(set) var actions: [RoomAction] = []
+    private(set) var driver = RoomState.Driver()
     private(set) var unsent: [(thread: String, turn: Turn)] = []
     private var chosenThread: String?
     private var answered: Set<String> = []
     private var retrying: Set<String> = []
+    private var continuing: Set<String> = []
     private var cursor = 0
     private let gateway: Gateway
 
@@ -164,11 +192,22 @@ final class GroupSession {
         self.gateway = gateway
     }
 
-    convenience init(fixture room: Room, events: [RoomEvent], actions: [RoomAction], isWorking: Bool) {
+    convenience init(fixture room: Room, events: [RoomEvent], driver: RoomState.Driver) {
         self.init(room: room, gateway: Gateway(server: URL(filePath: "/"), urlSession: .shared) { throw CancellationError() })
         self.events = events
-        self.actions = actions
-        self.isWorking = isWorking
+        self.driver = driver
+    }
+
+    var isWorking: Bool { driver.working }
+
+    var activity: String? {
+        let running = (driver.memberActivity ?? []).filter { $0.status != "queued" }
+        guard !running.isEmpty else { return nil }
+        return running.map { row in
+            let name = room.members.first { $0.memberID == row.memberID }.map { $0.displayName ?? $0.memberID } ?? row.memberID
+            return [name, row.tool?.replacing("_", with: " ")].compactMap(\.self).joined(separator: " · ")
+        }
+        .joined(separator: ", ")
     }
 
     var threadID: String {
@@ -196,25 +235,45 @@ final class GroupSession {
     var transcript: Transcript {
         let thread = threadID
         let shown = events.filter { $0.payload.threadID.map { $0 == thread } ?? true }
-        let retryable = Set(actions.filter { $0.kind == "retry" }.compactMap(\.taskID)).subtracting(retrying)
+        let retryable = Set(driver.pendingActions.filter { $0.kind == "retry" }.compactMap(\.taskID)).subtracting(retrying)
         let names = room.members.map { $0.displayName ?? $0.memberID }.formatted(.list(type: .and))
         let welcome = hasMessages ? [Turn(id: "welcome", notice: String(localized: "\(names) are in this group."), status: .complete, startedAt: room.createdAt, finishedAt: room.createdAt)] : []
+        let resumable = resumablePauses
         let replies = shown.indices.compactMap { index -> Turn? in
             let event = shown[index]
             let isSuperseded = event.kind == "turn.deferred" && shown[(index + 1)...].contains { $0.payload.taskID == event.payload.taskID }
-            return isSuperseded ? nil : turn(for: event, retryable: retryable)
+            return isSuperseded ? nil : turn(for: event, retryable: retryable, resumable: resumable)
         }
         let logged = Set(events.compactMap(\.payload.taskID))
         let stalled = retryable.subtracting(logged).sorted().map { id in
-            Turn(id: "retry-\(id)", status: .error, startedAt: events.last?.createdAt ?? room.createdAt, failure: String(localized: "A reply may not have finished."), retryID: id)
+            let wake = driver.lastError.map { String(localized: "Members couldn't be woken: \($0)") } ?? String(localized: "Members couldn't be woken.")
+            let failure = id.hasPrefix("prepare:") ? wake : String(localized: "A reply may not have finished.")
+            return Turn(id: "retry-\(id)", status: .error, startedAt: events.last?.createdAt ?? room.createdAt, failure: failure, retryID: id)
         }
         let pending = unsent.filter { item in item.thread == thread && !events.contains { $0.eventID == item.turn.id } }.map(\.turn)
-        let working = isWorking ? [Turn(id: "working", status: .streaming, startedAt: events.last?.createdAt ?? .now)] : []
+        let started = (driver.memberActivity ?? []).filter { $0.status != "queued" }.compactMap(\.startedAt).min()
+        let working = isWorking ? [Turn(id: "working", status: .streaming, startedAt: started ?? events.last?.createdAt ?? .now)] : []
         return Transcript(turns: welcome + replies + stalled + pending + working)
     }
 
+    private var resumablePauses: Set<String> {
+        guard let limit = driver.maxContinues else { return [] }
+        let lastStop = events.last { $0.kind == "room.stop_requested" }?.seq ?? 0
+        return Set(events.indices.compactMap { index -> String? in
+            let pause = events[index]
+            guard pause.kind == "room.activity", pause.payload.status == "bounded", let discussion = pause.payload.discussionEventID else { return nil }
+            let source = events.first { $0.eventID == discussion }?.seq ?? pause.seq
+            let isMovedOn = events[(index + 1)...].contains { event in
+                (["room.activity", "room.continued"].contains(event.kind) && event.payload.discussionEventID == discussion)
+                    || (event.kind == "message.user" && event.payload.threadID == pause.payload.threadID)
+            }
+            let grants = events.count { $0.kind == "room.continued" && $0.payload.discussionEventID == discussion }
+            return isMovedOn || lastStop > source || grants >= limit || continuing.contains(discussion) ? nil : pause.eventID
+        })
+    }
+
     var request: PendingRequest? {
-        actions.lazy.compactMap { action -> PendingRequest? in
+        driver.pendingActions.lazy.compactMap { action -> PendingRequest? in
             guard action.kind == "approval", let id = action.requestID, !self.answered.contains(id), let approval = action.approval else { return nil }
             let member = self.room.members.first { $0.memberID == action.memberID }
             return .approval(ApprovalRequest(
@@ -252,7 +311,7 @@ final class GroupSession {
                 let params = SendParams(roomID: room.id, eventID: id, payload: SendParams.Payload(text: text, threadID: thread))
                 let sent = try await gateway.call("groups.send", params, as: SentEvent.self).event
                 if let index = unsent.firstIndex(where: { $0.turn.id == id }) { unsent[index].turn.id = sent.eventID }
-                isWorking = true
+                driver.working = true
                 await refresh()
             } catch {
                 guard let index = unsent.firstIndex(where: { $0.turn.id == id }) else { return }
@@ -273,12 +332,18 @@ final class GroupSession {
         }
     }
 
+    func retryParams(for taskID: String) -> RoomParams {
+        let action = driver.pendingActions.first { $0.kind == "retry" && $0.taskID == taskID }
+        return RoomParams(roomID: room.id, taskID: taskID, memberID: action?.memberID, executionGeneration: action?.executionGeneration)
+    }
+
     func retry(_ taskID: String) {
+        let params = retryParams(for: taskID)
         retrying.insert(taskID)
         Task {
             defer { retrying.remove(taskID) }
             do {
-                _ = try await gateway.call("groups.retry", RoomParams(roomID: room.id, taskID: taskID), as: JSONValue.self)
+                _ = try await gateway.call("groups.retry", params, as: JSONValue.self)
                 await refresh()
             } catch {
                 failure = error.localizedDescription
@@ -286,8 +351,22 @@ final class GroupSession {
         }
     }
 
+    func continueDiscussion(_ discussionEventID: String) {
+        continuing.insert(discussionEventID)
+        Task {
+            defer { continuing.remove(discussionEventID) }
+            do {
+                _ = try await gateway.call("groups.continue", RoomParams(roomID: room.id, discussionEventID: discussionEventID), as: JSONValue.self)
+                await refresh()
+            } catch {
+                failure = error.localizedDescription
+                await refresh()
+            }
+        }
+    }
+
     func respond(to id: ApprovalRequest.ID, with choice: ApprovalChoice) {
-        guard let action = actions.first(where: { $0.requestID == id }),
+        guard let action = driver.pendingActions.first(where: { $0.requestID == id }),
               let memberID = action.memberID, let taskID = action.taskID, let generation = action.executionGeneration
         else { return }
         answered.insert(id)
@@ -314,12 +393,11 @@ final class GroupSession {
                 cursor = max(cursor, page.cursor)
                 guard page.hasMore else { break }
             }
-            isWorking = state.driverStatus?.working == true
-            actions = state.driverStatus?.pendingActions ?? []
+            driver = state.driverStatus ?? RoomState.Driver()
         } catch {}
     }
 
-    private func turn(for event: RoomEvent, retryable: Set<String>) -> Turn? {
+    private func turn(for event: RoomEvent, retryable: Set<String>, resumable: Set<String>) -> Turn? {
         let date = event.createdAt
         let speaker = event.actor.profile ?? room.members.first { $0.memberID == event.payload.memberID }?.profile
         if event.kind == "message.user" {
@@ -337,6 +415,14 @@ final class GroupSession {
         }
         if event.kind == "turn.cancelled" {
             return Turn(id: event.eventID, status: .interrupted, startedAt: date, finishedAt: date, speaker: speaker)
+        }
+        if event.kind == "room.activity", event.payload.status == "bounded" {
+            let count = events.count { $0.kind == "message.member" && $0.payload.discussionEventID == event.payload.discussionEventID && $0.seq < event.seq }
+            let notice = String(AttributedString(localized: "Paused after ^[\(count) message](inflect: true)").characters)
+            return Turn(id: event.eventID, notice: notice, status: .complete, startedAt: date, finishedAt: date, continueID: resumable.contains(event.eventID) ? event.payload.discussionEventID : nil)
+        }
+        if event.kind == "room.continued" {
+            return Turn(id: event.eventID, notice: String(localized: "Continued"), status: .complete, startedAt: date, finishedAt: date)
         }
         if event.kind == "room.renamed", let name = event.payload.name {
             return Turn(id: event.eventID, notice: String(localized: "Renamed to \(name)"), status: .complete, startedAt: date, finishedAt: date)

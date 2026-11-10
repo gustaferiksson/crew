@@ -6,7 +6,7 @@
 | crew-push hooks | `server/crew-push/tests` | `cd server/crew-push && python -m pytest -q` |
 | UI interactions (iOS Simulator) | `Tests/CrewUITests` | `Tests/ui.sh` (`IOS_SIMULATOR=<name>` picks another iOS 27 device) |
 | Mac window interactions (never on the user's Mac) | `Tests/CrewMacUITests` | `xcodebuild test -scheme CrewMacUITests -destination 'platform=macOS,arch=arm64' CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual CODE_SIGN_ENTITLEMENTS=` on a CI runner |
-| Real-server probes | `Tests/chat_probe`, `Tests/bot_probe` | `Tests/chat_probe/run.sh <phase>` |
+| Real-server probes | `Tests/chat_probe`, `Tests/bot_probe`, `Tests/routine_probe` | `Tests/chat_probe/run.sh <phase>`, `Tests/routine_probe/run.sh` |
 
 CI runs all but the probes. The UI tests run in two parallel shards on simulators that boot while the app job builds, then reuse its build (`UI_DEVICE` in `Tests/ui.sh`). A change that touches only `docs/`, `server/crew-push/` or Markdown outside `Sources/` and `Tests/fixtures/` skips the app and UI jobs.
 
@@ -28,6 +28,7 @@ A scenario is one real flow recorded once from the server into `Tests/fixtures/s
    `Tests/chat_probe/run.sh fresh` records `new-bot-chat` (a throwaway's first Bot Chat, with its runtime reaped before the first prompt) and needs no `crew-test`.
    `Tests/chat_probe/run.sh cold-open` records `cold-open` (a throwaway's CLI-style Bot Chat, reaped, then opened and prompted at once, catching `starting` in `session.active_list`) and needs no `crew-test`.
    `Tests/chat_probe/run.sh routine` records `routine-delivery` (one `deliver: "bot-chat"` routine run on a throwaway whose Bot Chat the delivery creates; it pushes to your devices, so run it once) and needs no `crew-test`.
+   `Tests/routine_probe/run.sh` records `routine-stop` (Run Now, Stop and a scheduler-started run on `crew-test`, driven through `RoutineStore` with the app's 10 s session, about 2 min; `cancel.live.json` is from an earlier recording) and removes its routines and their run sessions; `--cleanup <job id>...` only cleans up.
 3. Read the files before committing: no other profile (except read-only captures of a real bug, trimmed and with names replaced), no credentials, and the flow did what you meant (a failed delivery or an `ambiguous` `message_agent` result means record again).
 
 ### Add the tests

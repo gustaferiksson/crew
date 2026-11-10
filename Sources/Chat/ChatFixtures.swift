@@ -34,7 +34,7 @@ enum ChatFixture {
         if self == .composerLine { return ChatPresentation(draft: "Sounds good, book the 07:10") }
         if self == .composerLines { return ChatPresentation(draft: "Sounds good. Book the 07:10 SAS flight on Friday, window seat if there is one, and put the confirmation in the trip notes so Chef can plan the meals around it.") }
         if self == .composerRunningText { return ChatPresentation(draft: "Use the staging context, not prod") }
-        if self == .agentMessage { return ChatPresentation(expandedTurns: ["m2", "m2-w0-to"]) }
+        if self == .agentMessage { return ChatPresentation(expandedTurns: ["m2-w0-to"]) }
         if self == .paymentHolding { return ChatPresentation(holdProgress: 0.55) }
         if self == .questionsSnacks { return ChatPresentation(questionProgress: QuestionProgress(step: 1, picks: ["q0": [0], "q1": [0, 2]])) }
         if self == .questionLong { return ChatPresentation(questionProgress: QuestionProgress(picks: ["repeat": [0]])) }

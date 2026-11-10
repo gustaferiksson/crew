@@ -32,6 +32,7 @@ func notes(_ turn: Turn) -> [String?] {
     #expect(visible.turns.map(\.id) == ["1", "call_220ec837e8ef4d44898d5cd62dfb2dd1-to", "5"])
     #expect(visible.turns[1].outgoingMessage?.body == "Hello! Please pass my greeting along to the user.")
     #expect(notes(visible.turns[1]) == ["> Hello! Please pass my greeting along to the user."])
+    #expect(visible.turns[1].deliveryFailure?.isUnconfirmed == true)
     #expect(visible.turns[0].prompt == nil)
     #expect(visible.turns[0].reply.isEmpty)
     #expect(notes(visible.turns[0]) == ["> The user is greeting you—please say hello back.", nil, "Hello!"])

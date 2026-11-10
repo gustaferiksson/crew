@@ -266,7 +266,7 @@ extension Transcript {
                 shown += turn.work.compactMap { item in
                     guard turn.status != .streaming, case .tool(let call) = item.kind, call.result != nil, let sent = MessageAgentCall(call) else { return nil }
                     let note = WorkItem(id: "\(item.id)-message", kind: .note(quote(sent.message)), startedAt: item.startedAt)
-                    return Turn(id: "\(item.id)-to", outgoingMessage: AgentMessage(sender: sent.target, handle: sent.target, body: sent.message), deliveryFailure: call.deliveryFailure, work: [note], status: .complete, startedAt: item.startedAt, finishedAt: item.startedAt)
+                    return Turn(id: "\(item.id)-to", outgoingMessage: AgentMessage(sender: sent.target, handle: sent.target, body: sent.message), deliveryFailure: call.status == .error || sent.result["status"] as? String == "ambiguous" ? sent.failure : nil, work: [note], status: .complete, startedAt: item.startedAt, finishedAt: item.startedAt)
                 }
             }
             if let message = turn.agentMessage {

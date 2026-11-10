@@ -1,0 +1,73 @@
+{
+  "context" : {
+    "lead_member_id" : "",
+    "notes" : "",
+    "purpose" : "",
+    "routing" : "everyone"
+  },
+  "driver_status" : {
+    "blocked" : false,
+    "counts" : {
+      "running" : 1
+    },
+    "last_error" : null,
+    "max_continues" : 5,
+    "max_rounds" : 3,
+    "member_activity" : [
+      {
+        "member_id" : "crew-test",
+        "progress_at" : 1794339844.6947994,
+        "round_index" : 0,
+        "started_at" : 1794339844.4565487,
+        "status" : "running",
+        "thread_id" : "crew-probe"
+      }
+    ],
+    "peer_routes" : [
+
+    ],
+    "pending_actions" : [
+
+    ],
+    "routing_modes" : [
+      "everyone",
+      "lead",
+      "auto"
+    ],
+    "running" : true,
+    "working" : true
+  },
+  "room" : {
+    "authority_epoch" : 1,
+    "authority_gateway_id" : "install:f990dea42fbd4536a995a0e6678730fb",
+    "created_at" : 1794339844.1989226,
+    "idempotent" : false,
+    "latest_seq" : 1,
+    "members" : [
+      {
+        "display_name" : "Crew Test",
+        "handle" : "crew-test",
+        "member_id" : "crew-test",
+        "profile" : "crew-test",
+        "target" : {
+          "kind" : "local",
+          "profile" : "crew-test"
+        }
+      },
+      {
+        "display_name" : "Crew Peer",
+        "handle" : "crew-test-peer",
+        "member_id" : "crew-test-peer",
+        "profile" : "crew-test-peer",
+        "target" : {
+          "kind" : "local",
+          "profile" : "crew-test-peer"
+        }
+      }
+    ],
+    "name" : "Crew probe room",
+    "revision" : 1,
+    "room_id" : "room-21633ee1-c608-4285-8e57-58de9e8b91fd",
+    "updated_at" : 1794339844.3297222
+  }
+}

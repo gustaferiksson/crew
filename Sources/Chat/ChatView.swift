@@ -10,6 +10,7 @@ struct ChatActions {
     var changeModel: (ModelChoice) -> Void = { _ in }
     var respond: (ApprovalRequest.ID, ApprovalChoice) -> Void = { _, _ in }
     var retry: (String) -> Void = { _ in }
+    var continueDiscussion: (String) -> Void = { _ in }
     var unqueue: (Turn.ID) -> Void = { _ in }
     var answer: (QuestionRequest.ID, [String: String]) -> Void = { _, _ in }
     var retryPayment: (ApprovalRequest.ID) -> Void = { _ in }
@@ -537,6 +538,18 @@ struct TurnView: View {
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                         .frame(maxWidth: .infinity)
+                }
+                if let discussion = turn.continueID {
+                    Button("Continue") { latest?.actions.continueDiscussion(discussion) }
+                        .font(.footnote.weight(.semibold))
+                        .buttonStyle(.borderless)
+                        .foregroundStyle(.tint)
+                        .frame(minWidth: 44, minHeight: 44)
+                        .contentShape(.rect)
+                        .accessibilityLabel("Continue Discussion")
+                        .accessibilityInputLabels(["Continue", "Continue Discussion"])
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, -12)
                 }
                 if let output = turn.output {
                     ReplyText(source: "```\n\(output)\n```")

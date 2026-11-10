@@ -1,0 +1,675 @@
+[
+  {
+    "actor" : {
+      "id" : "desktop",
+      "kind" : "user"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794339844.3297222,
+    "event_id" : "user:f9e21e04a8a012a26df8bb019204564d4798c4ab9e36c581df371a13d2441e63",
+    "idempotent" : false,
+    "kind" : "message.user",
+    "payload" : {
+      "text" : "@crew-test @crew-test-peer Relay game: answer in one short sentence and end it by @-mentioning the other member by handle, every time.",
+      "thread_id" : "crew-probe"
+    },
+    "room_id" : "room-21633ee1-c608-4285-8e57-58de9e8b91fd",
+    "seq" : 1
+  },
+  {
+    "actor" : {
+      "display_name" : "Crew Test",
+      "id" : "crew-test",
+      "kind" : "member",
+      "profile" : "crew-test"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794339847.1939337,
+    "event_id" : "dmessage:35407d492faeb3dc71ace20df86a60afdb7f02326a96de5f",
+    "idempotent" : false,
+    "kind" : "message.member",
+    "payload" : {
+      "discussion_event_id" : "user:f9e21e04a8a012a26df8bb019204564d4798c4ab9e36c581df371a13d2441e63",
+      "member_id" : "crew-test",
+      "member_index" : 0,
+      "round_index" : 0,
+      "task_id" : "dtask:35407d492faeb3dc71ace20df86a60afdb7f02326a96de5f",
+      "text" : "The relay starts here, @crew-test-peer",
+      "thread_id" : "crew-probe",
+      "turn_id" : "d1.r0.p0.s1.m46eb3c289a3ef56e56dcf71a"
+    },
+    "room_id" : "room-21633ee1-c608-4285-8e57-58de9e8b91fd",
+    "seq" : 2
+  },
+  {
+    "actor" : {
+      "id" : "install:f990dea42fbd4536a995a0e6678730fb",
+      "kind" : "gateway"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794339847.198195,
+    "event_id" : "dterminal:35407d492faeb3dc71ace20df86a60afdb7f02326a96de5f",
+    "idempotent" : false,
+    "kind" : "turn.settled",
+    "payload" : {
+      "discussion_event_id" : "user:f9e21e04a8a012a26df8bb019204564d4798c4ab9e36c581df371a13d2441e63",
+      "member_id" : "crew-test",
+      "member_index" : 0,
+      "message_event_id" : "dmessage:35407d492faeb3dc71ace20df86a60afdb7f02326a96de5f",
+      "passed" : false,
+      "round_index" : 0,
+      "seen_through_seq" : 1,
+      "task_id" : "dtask:35407d492faeb3dc71ace20df86a60afdb7f02326a96de5f",
+      "thread_id" : "crew-probe",
+      "turn_id" : "d1.r0.p0.s1.m46eb3c289a3ef56e56dcf71a"
+    },
+    "room_id" : "room-21633ee1-c608-4285-8e57-58de9e8b91fd",
+    "seq" : 3
+  },
+  {
+    "actor" : {
+      "display_name" : "Crew Peer",
+      "id" : "crew-test-peer",
+      "kind" : "member",
+      "profile" : "crew-test-peer"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794339849.8233414,
+    "event_id" : "dmessage:19877ef98fde8241f1a7a864d4f4fd2c771773540636c2f9",
+    "idempotent" : false,
+    "kind" : "message.member",
+    "payload" : {
+      "discussion_event_id" : "user:f9e21e04a8a012a26df8bb019204564d4798c4ab9e36c581df371a13d2441e63",
+      "member_id" : "crew-test-peer",
+      "member_index" : 1,
+      "round_index" : 0,
+      "task_id" : "dtask:19877ef98fde8241f1a7a864d4f4fd2c771773540636c2f9",
+      "text" : "I’ve caught the baton and am passing it back, @crew-test",
+      "thread_id" : "crew-probe",
+      "turn_id" : "d1.r0.p1.s2.me904d37da55d34da81b9ec4a"
+    },
+    "room_id" : "room-21633ee1-c608-4285-8e57-58de9e8b91fd",
+    "seq" : 4
+  },
+  {
+    "actor" : {
+      "id" : "install:f990dea42fbd4536a995a0e6678730fb",
+      "kind" : "gateway"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794339849.8273478,
+    "event_id" : "dterminal:19877ef98fde8241f1a7a864d4f4fd2c771773540636c2f9",
+    "idempotent" : false,
+    "kind" : "turn.settled",
+    "payload" : {
+      "discussion_event_id" : "user:f9e21e04a8a012a26df8bb019204564d4798c4ab9e36c581df371a13d2441e63",
+      "member_id" : "crew-test-peer",
+      "member_index" : 1,
+      "message_event_id" : "dmessage:19877ef98fde8241f1a7a864d4f4fd2c771773540636c2f9",
+      "passed" : false,
+      "round_index" : 0,
+      "seen_through_seq" : 2,
+      "task_id" : "dtask:19877ef98fde8241f1a7a864d4f4fd2c771773540636c2f9",
+      "thread_id" : "crew-probe",
+      "turn_id" : "d1.r0.p1.s2.me904d37da55d34da81b9ec4a"
+    },
+    "room_id" : "room-21633ee1-c608-4285-8e57-58de9e8b91fd",
+    "seq" : 5
+  },
+  {
+    "actor" : {
+      "display_name" : "Crew Test",
+      "id" : "crew-test",
+      "kind" : "member",
+      "profile" : "crew-test"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794339853.8012714,
+    "event_id" : "dmessage:1faf8433362e32b7be852e2dcb1173bb2076a3c1ff94b714",
+    "idempotent" : false,
+    "kind" : "message.member",
+    "payload" : {
+      "discussion_event_id" : "user:f9e21e04a8a012a26df8bb019204564d4798c4ab9e36c581df371a13d2441e63",
+      "member_id" : "crew-test",
+      "member_index" : 0,
+      "round_index" : 1,
+      "task_id" : "dtask:1faf8433362e32b7be852e2dcb1173bb2076a3c1ff94b714",
+      "text" : "Let’s make the next lap a rhyming one, @crew-test-peer",
+      "thread_id" : "crew-probe",
+      "turn_id" : "d1.r1.p0.s4.m46eb3c289a3ef56e56dcf71a"
+    },
+    "room_id" : "room-21633ee1-c608-4285-8e57-58de9e8b91fd",
+    "seq" : 6
+  },
+  {
+    "actor" : {
+      "id" : "install:f990dea42fbd4536a995a0e6678730fb",
+      "kind" : "gateway"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794339853.8054402,
+    "event_id" : "dterminal:1faf8433362e32b7be852e2dcb1173bb2076a3c1ff94b714",
+    "idempotent" : false,
+    "kind" : "turn.settled",
+    "payload" : {
+      "discussion_event_id" : "user:f9e21e04a8a012a26df8bb019204564d4798c4ab9e36c581df371a13d2441e63",
+      "member_id" : "crew-test",
+      "member_index" : 0,
+      "message_event_id" : "dmessage:1faf8433362e32b7be852e2dcb1173bb2076a3c1ff94b714",
+      "passed" : false,
+      "round_index" : 1,
+      "seen_through_seq" : 4,
+      "task_id" : "dtask:1faf8433362e32b7be852e2dcb1173bb2076a3c1ff94b714",
+      "thread_id" : "crew-probe",
+      "turn_id" : "d1.r1.p0.s4.m46eb3c289a3ef56e56dcf71a"
+    },
+    "room_id" : "room-21633ee1-c608-4285-8e57-58de9e8b91fd",
+    "seq" : 7
+  },
+  {
+    "actor" : {
+      "display_name" : "Crew Peer",
+      "id" : "crew-test-peer",
+      "kind" : "member",
+      "profile" : "crew-test-peer"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794339856.918822,
+    "event_id" : "dmessage:55fb3a9c14978731dcbb501806ee833d5abf58f513e8190b",
+    "idempotent" : false,
+    "kind" : "message.member",
+    "payload" : {
+      "discussion_event_id" : "user:f9e21e04a8a012a26df8bb019204564d4798c4ab9e36c581df371a13d2441e63",
+      "member_id" : "crew-test-peer",
+      "member_index" : 0,
+      "round_index" : 1,
+      "task_id" : "dtask:55fb3a9c14978731dcbb501806ee833d5abf58f513e8190b",
+      "text" : "With rhythm and rhyme, we’re right on time, @crew-test",
+      "thread_id" : "crew-probe",
+      "turn_id" : "d1.r1.p0.s6.me904d37da55d34da81b9ec4a"
+    },
+    "room_id" : "room-21633ee1-c608-4285-8e57-58de9e8b91fd",
+    "seq" : 8
+  },
+  {
+    "actor" : {
+      "id" : "install:f990dea42fbd4536a995a0e6678730fb",
+      "kind" : "gateway"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794339856.9236002,
+    "event_id" : "dterminal:55fb3a9c14978731dcbb501806ee833d5abf58f513e8190b",
+    "idempotent" : false,
+    "kind" : "turn.settled",
+    "payload" : {
+      "discussion_event_id" : "user:f9e21e04a8a012a26df8bb019204564d4798c4ab9e36c581df371a13d2441e63",
+      "member_id" : "crew-test-peer",
+      "member_index" : 0,
+      "message_event_id" : "dmessage:55fb3a9c14978731dcbb501806ee833d5abf58f513e8190b",
+      "passed" : false,
+      "round_index" : 1,
+      "seen_through_seq" : 6,
+      "task_id" : "dtask:55fb3a9c14978731dcbb501806ee833d5abf58f513e8190b",
+      "thread_id" : "crew-probe",
+      "turn_id" : "d1.r1.p0.s6.me904d37da55d34da81b9ec4a"
+    },
+    "room_id" : "room-21633ee1-c608-4285-8e57-58de9e8b91fd",
+    "seq" : 9
+  },
+  {
+    "actor" : {
+      "display_name" : "Crew Test",
+      "id" : "crew-test",
+      "kind" : "member",
+      "profile" : "crew-test"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794339860.192817,
+    "event_id" : "dmessage:857981e5371f877d774a4225ed46aecaa259e175fb4e7f57",
+    "idempotent" : false,
+    "kind" : "message.member",
+    "payload" : {
+      "discussion_event_id" : "user:f9e21e04a8a012a26df8bb019204564d4798c4ab9e36c581df371a13d2441e63",
+      "member_id" : "crew-test",
+      "member_index" : 0,
+      "round_index" : 2,
+      "task_id" : "dtask:857981e5371f877d774a4225ed46aecaa259e175fb4e7f57",
+      "text" : "A moonwalking snail just joined our tale, @crew-test-peer",
+      "thread_id" : "crew-probe",
+      "turn_id" : "d1.r2.p0.s8.m46eb3c289a3ef56e56dcf71a"
+    },
+    "room_id" : "room-21633ee1-c608-4285-8e57-58de9e8b91fd",
+    "seq" : 10
+  },
+  {
+    "actor" : {
+      "id" : "install:f990dea42fbd4536a995a0e6678730fb",
+      "kind" : "gateway"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794339860.1971338,
+    "event_id" : "dterminal:857981e5371f877d774a4225ed46aecaa259e175fb4e7f57",
+    "idempotent" : false,
+    "kind" : "turn.settled",
+    "payload" : {
+      "discussion_event_id" : "user:f9e21e04a8a012a26df8bb019204564d4798c4ab9e36c581df371a13d2441e63",
+      "member_id" : "crew-test",
+      "member_index" : 0,
+      "message_event_id" : "dmessage:857981e5371f877d774a4225ed46aecaa259e175fb4e7f57",
+      "passed" : false,
+      "round_index" : 2,
+      "seen_through_seq" : 8,
+      "task_id" : "dtask:857981e5371f877d774a4225ed46aecaa259e175fb4e7f57",
+      "thread_id" : "crew-probe",
+      "turn_id" : "d1.r2.p0.s8.m46eb3c289a3ef56e56dcf71a"
+    },
+    "room_id" : "room-21633ee1-c608-4285-8e57-58de9e8b91fd",
+    "seq" : 11
+  },
+  {
+    "actor" : {
+      "display_name" : "Crew Peer",
+      "id" : "crew-test-peer",
+      "kind" : "member",
+      "profile" : "crew-test-peer"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794339863.129345,
+    "event_id" : "dmessage:40a04aa3086350da4037f53802d7c9b1ce48cbd213fbc16a",
+    "idempotent" : false,
+    "kind" : "message.member",
+    "payload" : {
+      "discussion_event_id" : "user:f9e21e04a8a012a26df8bb019204564d4798c4ab9e36c581df371a13d2441e63",
+      "member_id" : "crew-test-peer",
+      "member_index" : 0,
+      "round_index" : 2,
+      "task_id" : "dtask:40a04aa3086350da4037f53802d7c9b1ce48cbd213fbc16a",
+      "text" : "A tap-dancing whale swept in with the gale, @crew-test",
+      "thread_id" : "crew-probe",
+      "turn_id" : "d1.r2.p0.s10.me904d37da55d34da81b9ec4a"
+    },
+    "room_id" : "room-21633ee1-c608-4285-8e57-58de9e8b91fd",
+    "seq" : 12
+  },
+  {
+    "actor" : {
+      "id" : "install:f990dea42fbd4536a995a0e6678730fb",
+      "kind" : "gateway"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794339863.1336222,
+    "event_id" : "dterminal:40a04aa3086350da4037f53802d7c9b1ce48cbd213fbc16a",
+    "idempotent" : false,
+    "kind" : "turn.settled",
+    "payload" : {
+      "discussion_event_id" : "user:f9e21e04a8a012a26df8bb019204564d4798c4ab9e36c581df371a13d2441e63",
+      "member_id" : "crew-test-peer",
+      "member_index" : 0,
+      "message_event_id" : "dmessage:40a04aa3086350da4037f53802d7c9b1ce48cbd213fbc16a",
+      "passed" : false,
+      "round_index" : 2,
+      "seen_through_seq" : 10,
+      "task_id" : "dtask:40a04aa3086350da4037f53802d7c9b1ce48cbd213fbc16a",
+      "thread_id" : "crew-probe",
+      "turn_id" : "d1.r2.p0.s10.me904d37da55d34da81b9ec4a"
+    },
+    "room_id" : "room-21633ee1-c608-4285-8e57-58de9e8b91fd",
+    "seq" : 13
+  },
+  {
+    "actor" : {
+      "id" : "install:f990dea42fbd4536a995a0e6678730fb",
+      "kind" : "gateway"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794339863.1810544,
+    "event_id" : "dactivity:user:f9e21e04a8a012a26df8bb019204564d4798c4ab9e36c581df371a13d2441e63:max_rounds",
+    "idempotent" : false,
+    "kind" : "room.activity",
+    "payload" : {
+      "discussion_event_id" : "user:f9e21e04a8a012a26df8bb019204564d4798c4ab9e36c581df371a13d2441e63",
+      "reason_code" : "max_rounds",
+      "status" : "bounded",
+      "thread_id" : "crew-probe"
+    },
+    "room_id" : "room-21633ee1-c608-4285-8e57-58de9e8b91fd",
+    "seq" : 14
+  },
+  {
+    "actor" : {
+      "id" : "install:f990dea42fbd4536a995a0e6678730fb",
+      "kind" : "gateway"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794339863.8970778,
+    "event_id" : "dcontinue:user:f9e21e04a8a012a26df8bb019204564d4798c4ab9e36c581df371a13d2441e63:1",
+    "idempotent" : false,
+    "kind" : "room.continued",
+    "payload" : {
+      "discussion_event_id" : "user:f9e21e04a8a012a26df8bb019204564d4798c4ab9e36c581df371a13d2441e63",
+      "grant" : 1,
+      "thread_id" : "crew-probe"
+    },
+    "room_id" : "room-21633ee1-c608-4285-8e57-58de9e8b91fd",
+    "seq" : 15
+  },
+  {
+    "actor" : {
+      "display_name" : "Crew Test",
+      "id" : "crew-test",
+      "kind" : "member",
+      "profile" : "crew-test"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794339867.4321373,
+    "event_id" : "dmessage:948b1db91b1e5f51e7371b3b6377572d2fb6feb5de164c53",
+    "idempotent" : false,
+    "kind" : "message.member",
+    "payload" : {
+      "discussion_event_id" : "user:f9e21e04a8a012a26df8bb019204564d4798c4ab9e36c581df371a13d2441e63",
+      "member_id" : "crew-test",
+      "member_index" : 0,
+      "round_index" : 3,
+      "task_id" : "dtask:948b1db91b1e5f51e7371b3b6377572d2fb6feb5de164c53",
+      "text" : "A fox on bass set the groove for the brass, @crew-test-peer",
+      "thread_id" : "crew-probe",
+      "turn_id" : "d1.r3.p0.s12.m46eb3c289a3ef56e56dcf71a"
+    },
+    "room_id" : "room-21633ee1-c608-4285-8e57-58de9e8b91fd",
+    "seq" : 16
+  },
+  {
+    "actor" : {
+      "id" : "install:f990dea42fbd4536a995a0e6678730fb",
+      "kind" : "gateway"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794339867.436587,
+    "event_id" : "dterminal:948b1db91b1e5f51e7371b3b6377572d2fb6feb5de164c53",
+    "idempotent" : false,
+    "kind" : "turn.settled",
+    "payload" : {
+      "discussion_event_id" : "user:f9e21e04a8a012a26df8bb019204564d4798c4ab9e36c581df371a13d2441e63",
+      "member_id" : "crew-test",
+      "member_index" : 0,
+      "message_event_id" : "dmessage:948b1db91b1e5f51e7371b3b6377572d2fb6feb5de164c53",
+      "passed" : false,
+      "round_index" : 3,
+      "seen_through_seq" : 12,
+      "task_id" : "dtask:948b1db91b1e5f51e7371b3b6377572d2fb6feb5de164c53",
+      "thread_id" : "crew-probe",
+      "turn_id" : "d1.r3.p0.s12.m46eb3c289a3ef56e56dcf71a"
+    },
+    "room_id" : "room-21633ee1-c608-4285-8e57-58de9e8b91fd",
+    "seq" : 17
+  },
+  {
+    "actor" : {
+      "display_name" : "Crew Peer",
+      "id" : "crew-test-peer",
+      "kind" : "member",
+      "profile" : "crew-test-peer"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794339870.9215083,
+    "event_id" : "dmessage:395de2f4243454e4e50ec7f51cc92c08b711f592b501c83a",
+    "idempotent" : false,
+    "kind" : "message.member",
+    "payload" : {
+      "discussion_event_id" : "user:f9e21e04a8a012a26df8bb019204564d4798c4ab9e36c581df371a13d2441e63",
+      "member_id" : "crew-test-peer",
+      "member_index" : 0,
+      "round_index" : 3,
+      "task_id" : "dtask:395de2f4243454e4e50ec7f51cc92c08b711f592b501c83a",
+      "text" : "A bear on a chair tossed drumsticks in the air, @crew-test",
+      "thread_id" : "crew-probe",
+      "turn_id" : "d1.r3.p0.s16.me904d37da55d34da81b9ec4a"
+    },
+    "room_id" : "room-21633ee1-c608-4285-8e57-58de9e8b91fd",
+    "seq" : 18
+  },
+  {
+    "actor" : {
+      "id" : "install:f990dea42fbd4536a995a0e6678730fb",
+      "kind" : "gateway"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794339870.9256165,
+    "event_id" : "dterminal:395de2f4243454e4e50ec7f51cc92c08b711f592b501c83a",
+    "idempotent" : false,
+    "kind" : "turn.settled",
+    "payload" : {
+      "discussion_event_id" : "user:f9e21e04a8a012a26df8bb019204564d4798c4ab9e36c581df371a13d2441e63",
+      "member_id" : "crew-test-peer",
+      "member_index" : 0,
+      "message_event_id" : "dmessage:395de2f4243454e4e50ec7f51cc92c08b711f592b501c83a",
+      "passed" : false,
+      "round_index" : 3,
+      "seen_through_seq" : 16,
+      "task_id" : "dtask:395de2f4243454e4e50ec7f51cc92c08b711f592b501c83a",
+      "thread_id" : "crew-probe",
+      "turn_id" : "d1.r3.p0.s16.me904d37da55d34da81b9ec4a"
+    },
+    "room_id" : "room-21633ee1-c608-4285-8e57-58de9e8b91fd",
+    "seq" : 19
+  },
+  {
+    "actor" : {
+      "display_name" : "Crew Test",
+      "id" : "crew-test",
+      "kind" : "member",
+      "profile" : "crew-test"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794339874.055311,
+    "event_id" : "dmessage:317ea3bd63821b9c49c6f8a59ff9f8c439d7c8abc51a5575",
+    "idempotent" : false,
+    "kind" : "message.member",
+    "payload" : {
+      "discussion_event_id" : "user:f9e21e04a8a012a26df8bb019204564d4798c4ab9e36c581df371a13d2441e63",
+      "member_id" : "crew-test",
+      "member_index" : 0,
+      "round_index" : 4,
+      "task_id" : "dtask:317ea3bd63821b9c49c6f8a59ff9f8c439d7c8abc51a5575",
+      "text" : "A kite-flying crow stole the show with a bow, @crew-test-peer",
+      "thread_id" : "crew-probe",
+      "turn_id" : "d1.r4.p0.s18.m46eb3c289a3ef56e56dcf71a"
+    },
+    "room_id" : "room-21633ee1-c608-4285-8e57-58de9e8b91fd",
+    "seq" : 20
+  },
+  {
+    "actor" : {
+      "id" : "install:f990dea42fbd4536a995a0e6678730fb",
+      "kind" : "gateway"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794339874.0595033,
+    "event_id" : "dterminal:317ea3bd63821b9c49c6f8a59ff9f8c439d7c8abc51a5575",
+    "idempotent" : false,
+    "kind" : "turn.settled",
+    "payload" : {
+      "discussion_event_id" : "user:f9e21e04a8a012a26df8bb019204564d4798c4ab9e36c581df371a13d2441e63",
+      "member_id" : "crew-test",
+      "member_index" : 0,
+      "message_event_id" : "dmessage:317ea3bd63821b9c49c6f8a59ff9f8c439d7c8abc51a5575",
+      "passed" : false,
+      "round_index" : 4,
+      "seen_through_seq" : 18,
+      "task_id" : "dtask:317ea3bd63821b9c49c6f8a59ff9f8c439d7c8abc51a5575",
+      "thread_id" : "crew-probe",
+      "turn_id" : "d1.r4.p0.s18.m46eb3c289a3ef56e56dcf71a"
+    },
+    "room_id" : "room-21633ee1-c608-4285-8e57-58de9e8b91fd",
+    "seq" : 21
+  },
+  {
+    "actor" : {
+      "display_name" : "Crew Peer",
+      "id" : "crew-test-peer",
+      "kind" : "member",
+      "profile" : "crew-test-peer"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794339877.3100655,
+    "event_id" : "dmessage:7a5c9ace800bad9b28765be9695205a6eb24b543a6797c1b",
+    "idempotent" : false,
+    "kind" : "message.member",
+    "payload" : {
+      "discussion_event_id" : "user:f9e21e04a8a012a26df8bb019204564d4798c4ab9e36c581df371a13d2441e63",
+      "member_id" : "crew-test-peer",
+      "member_index" : 0,
+      "round_index" : 4,
+      "task_id" : "dtask:7a5c9ace800bad9b28765be9695205a6eb24b543a6797c1b",
+      "text" : "A frog in a coat sang the very last note, @crew-test",
+      "thread_id" : "crew-probe",
+      "turn_id" : "d1.r4.p0.s20.me904d37da55d34da81b9ec4a"
+    },
+    "room_id" : "room-21633ee1-c608-4285-8e57-58de9e8b91fd",
+    "seq" : 22
+  },
+  {
+    "actor" : {
+      "id" : "install:f990dea42fbd4536a995a0e6678730fb",
+      "kind" : "gateway"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794339877.315001,
+    "event_id" : "dterminal:7a5c9ace800bad9b28765be9695205a6eb24b543a6797c1b",
+    "idempotent" : false,
+    "kind" : "turn.settled",
+    "payload" : {
+      "discussion_event_id" : "user:f9e21e04a8a012a26df8bb019204564d4798c4ab9e36c581df371a13d2441e63",
+      "member_id" : "crew-test-peer",
+      "member_index" : 0,
+      "message_event_id" : "dmessage:7a5c9ace800bad9b28765be9695205a6eb24b543a6797c1b",
+      "passed" : false,
+      "round_index" : 4,
+      "seen_through_seq" : 20,
+      "task_id" : "dtask:7a5c9ace800bad9b28765be9695205a6eb24b543a6797c1b",
+      "thread_id" : "crew-probe",
+      "turn_id" : "d1.r4.p0.s20.me904d37da55d34da81b9ec4a"
+    },
+    "room_id" : "room-21633ee1-c608-4285-8e57-58de9e8b91fd",
+    "seq" : 23
+  },
+  {
+    "actor" : {
+      "display_name" : "Crew Test",
+      "id" : "crew-test",
+      "kind" : "member",
+      "profile" : "crew-test"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794339881.0091252,
+    "event_id" : "dmessage:7c8f82bfac4a7d9bf140f61df2aa1a3b58524e3b78a9658d",
+    "idempotent" : false,
+    "kind" : "message.member",
+    "payload" : {
+      "discussion_event_id" : "user:f9e21e04a8a012a26df8bb019204564d4798c4ab9e36c581df371a13d2441e63",
+      "member_id" : "crew-test",
+      "member_index" : 0,
+      "round_index" : 5,
+      "task_id" : "dtask:7c8f82bfac4a7d9bf140f61df2aa1a3b58524e3b78a9658d",
+      "text" : "An owl brought a light for the encore tonight, @crew-test-peer",
+      "thread_id" : "crew-probe",
+      "turn_id" : "d1.r5.p0.s22.m46eb3c289a3ef56e56dcf71a"
+    },
+    "room_id" : "room-21633ee1-c608-4285-8e57-58de9e8b91fd",
+    "seq" : 24
+  },
+  {
+    "actor" : {
+      "id" : "install:f990dea42fbd4536a995a0e6678730fb",
+      "kind" : "gateway"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794339881.0136273,
+    "event_id" : "dterminal:7c8f82bfac4a7d9bf140f61df2aa1a3b58524e3b78a9658d",
+    "idempotent" : false,
+    "kind" : "turn.settled",
+    "payload" : {
+      "discussion_event_id" : "user:f9e21e04a8a012a26df8bb019204564d4798c4ab9e36c581df371a13d2441e63",
+      "member_id" : "crew-test",
+      "member_index" : 0,
+      "message_event_id" : "dmessage:7c8f82bfac4a7d9bf140f61df2aa1a3b58524e3b78a9658d",
+      "passed" : false,
+      "round_index" : 5,
+      "seen_through_seq" : 22,
+      "task_id" : "dtask:7c8f82bfac4a7d9bf140f61df2aa1a3b58524e3b78a9658d",
+      "thread_id" : "crew-probe",
+      "turn_id" : "d1.r5.p0.s22.m46eb3c289a3ef56e56dcf71a"
+    },
+    "room_id" : "room-21633ee1-c608-4285-8e57-58de9e8b91fd",
+    "seq" : 25
+  },
+  {
+    "actor" : {
+      "display_name" : "Crew Peer",
+      "id" : "crew-test-peer",
+      "kind" : "member",
+      "profile" : "crew-test-peer"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794339885.6440856,
+    "event_id" : "dmessage:cea08efec810bdf0b516eb0bba5d2d10695618635eb78199",
+    "idempotent" : false,
+    "kind" : "message.member",
+    "payload" : {
+      "discussion_event_id" : "user:f9e21e04a8a012a26df8bb019204564d4798c4ab9e36c581df371a13d2441e63",
+      "member_id" : "crew-test-peer",
+      "member_index" : 0,
+      "round_index" : 5,
+      "task_id" : "dtask:cea08efec810bdf0b516eb0bba5d2d10695618635eb78199",
+      "text" : "A mouse with a flute played a moonlit salute, @crew-test",
+      "thread_id" : "crew-probe",
+      "turn_id" : "d1.r5.p0.s24.me904d37da55d34da81b9ec4a"
+    },
+    "room_id" : "room-21633ee1-c608-4285-8e57-58de9e8b91fd",
+    "seq" : 26
+  },
+  {
+    "actor" : {
+      "id" : "install:f990dea42fbd4536a995a0e6678730fb",
+      "kind" : "gateway"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794339885.6488554,
+    "event_id" : "dterminal:cea08efec810bdf0b516eb0bba5d2d10695618635eb78199",
+    "idempotent" : false,
+    "kind" : "turn.settled",
+    "payload" : {
+      "discussion_event_id" : "user:f9e21e04a8a012a26df8bb019204564d4798c4ab9e36c581df371a13d2441e63",
+      "member_id" : "crew-test-peer",
+      "member_index" : 0,
+      "message_event_id" : "dmessage:cea08efec810bdf0b516eb0bba5d2d10695618635eb78199",
+      "passed" : false,
+      "round_index" : 5,
+      "seen_through_seq" : 24,
+      "task_id" : "dtask:cea08efec810bdf0b516eb0bba5d2d10695618635eb78199",
+      "thread_id" : "crew-probe",
+      "turn_id" : "d1.r5.p0.s24.me904d37da55d34da81b9ec4a"
+    },
+    "room_id" : "room-21633ee1-c608-4285-8e57-58de9e8b91fd",
+    "seq" : 27
+  },
+  {
+    "actor" : {
+      "id" : "install:f990dea42fbd4536a995a0e6678730fb",
+      "kind" : "gateway"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794339885.6974952,
+    "event_id" : "dactivity:user:f9e21e04a8a012a26df8bb019204564d4798c4ab9e36c581df371a13d2441e63:max_rounds:c1",
+    "idempotent" : false,
+    "kind" : "room.activity",
+    "payload" : {
+      "discussion_event_id" : "user:f9e21e04a8a012a26df8bb019204564d4798c4ab9e36c581df371a13d2441e63",
+      "reason_code" : "max_rounds",
+      "status" : "bounded",
+      "thread_id" : "crew-probe"
+    },
+    "room_id" : "room-21633ee1-c608-4285-8e57-58de9e8b91fd",
+    "seq" : 28
+  }
+]

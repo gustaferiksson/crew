@@ -36,7 +36,7 @@ struct RootView: View {
                 NewBotAdvancedFixture()
             } else if Snapshot.requested == .newGroup {
                 NewGroupSheet { _ in }
-            } else if [.groupChat, .groupWelcome].contains(Snapshot.requested) {
+            } else if [.groupChat, .groupChatPaused, .groupWelcome].contains(Snapshot.requested) {
                 GroupChatFixtureScreen()
             } else if Snapshot.requested == .groupInspector {
                 GroupInspectorFixtureScreen()

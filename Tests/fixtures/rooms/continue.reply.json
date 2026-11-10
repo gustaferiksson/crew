@@ -1,0 +1,21 @@
+{
+  "continued" : true,
+  "event" : {
+    "actor" : {
+      "id" : "install:f990dea42fbd4536a995a0e6678730fb",
+      "kind" : "gateway"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794339863.8970778,
+    "event_id" : "dcontinue:user:f9e21e04a8a012a26df8bb019204564d4798c4ab9e36c581df371a13d2441e63:1",
+    "idempotent" : false,
+    "kind" : "room.continued",
+    "payload" : {
+      "discussion_event_id" : "user:f9e21e04a8a012a26df8bb019204564d4798c4ab9e36c581df371a13d2441e63",
+      "grant" : 1,
+      "thread_id" : "crew-probe"
+    },
+    "room_id" : "room-21633ee1-c608-4285-8e57-58de9e8b91fd",
+    "seq" : 15
+  }
+}

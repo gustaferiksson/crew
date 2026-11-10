@@ -36,6 +36,7 @@ nonisolated struct Turn: Identifiable, Codable, Sendable, Equatable {
     var failure: String?
     var speaker: String?
     var retryID: String?
+    var continueID: String?
     var pending: Pending?
     var isSteer = false
     var isRoutine = false

@@ -66,13 +66,15 @@ struct GroupChatScreen: View {
             features: [],
             request: session?.request,
             offlineReason: offlineReason,
+            activity: session?.activity,
             pinKey: room.selectionID,
             actions: ChatActions(
                 send: { text, _, _, _ in session?.send(text) },
                 stop: { session?.stop() },
                 openPersona: { showsInspector.toggle() },
                 respond: { session?.respond(to: $0, with: $1) },
-                retry: { session?.retry($0) }
+                retry: { session?.retry($0) },
+                continueDiscussion: { session?.continueDiscussion($0) }
             )
         )
         .toolbar {

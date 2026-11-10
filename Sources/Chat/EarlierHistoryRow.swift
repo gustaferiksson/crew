@@ -10,7 +10,16 @@ struct EarlierHistoryRow: View {
                 VStack(spacing: 4) {
                     Text("Couldn't load earlier messages")
                         .foregroundStyle(.secondary)
+                    #if os(iOS)
+                    Button(action: retry) {
+                        Text("Try Again")
+                            .frame(minWidth: 44, minHeight: 44)
+                            .contentShape(.rect)
+                    }
+                    .padding(.top, -4)
+                    #else
                     Button("Try Again", action: retry)
+                    #endif
                 }
                 .font(.footnote)
             } else {

@@ -2,7 +2,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 enum ChatFixture {
-    case conversation, history, timestamps, workLog, question, questions, questionsSnacks, questionLong, offline, attachments, dictation, mentions, slash, slashOutput, agentMessage, routine, deliveryFailure, a2ui, a2uiCards, a2uiForm, a2uiTable, a2uiChart, a2uiMap, a2uiCarousel, a2uiCarouselStates, a2uiPinned, a2uiExpanded, a2uiProducts, a2uiUpdates, a2uiStreaming
+    case conversation, history, earlierLoading, earlierFailed, timestamps, workLog, question, questions, questionsSnacks, questionLong, offline, attachments, dictation, mentions, slash, slashOutput, agentMessage, routine, deliveryFailure, a2ui, a2uiCards, a2uiForm, a2uiTable, a2uiChart, a2uiMap, a2uiCarousel, a2uiCarouselStates, a2uiPinned, a2uiExpanded, a2uiProducts, a2uiUpdates, a2uiStreaming
     case composerLine, composerLines, composerRunning, composerRunningText, steer, steerTaken, waiting
     case payment, paymentHolding, paymentApproved, paymentLoading, paymentFailed, paymentUnverified, paymentPunycode, paymentCountdown, paymentNotice, paymentOffer, paymentOfferHistory, paymentReceipts
 
@@ -89,6 +89,7 @@ enum ChatFixture {
             return Transcript(turns: earlier.reversed() + turns)
         }
         if [.offline, .history, .dictation, .composerLines].contains(self) { return Transcript(turns: turns) }
+        if [.earlierLoading, .earlierFailed].contains(self) { return Transcript(turns: [turns[0]]) }
         if self == .a2uiUpdates { return Transcript(turns: Self.a2uiUpdateTurns(now)) }
         if self == .a2uiStreaming { return Transcript(turns: Self.a2uiStreamingTurns(now)) }
         if self == .a2uiProducts { return Transcript(turns: Self.productTurns(now, count: max(UserDefaults.standard.integer(forKey: "productTurns"), 1))) }
@@ -420,6 +421,7 @@ struct ChatFixtureScreen: View {
         _draft = State(initialValue: fixture.presentation.draft)
         _transcript = State(initialValue: fixture.transcript)
         _tray = State(initialValue: AttachmentTray(items: fixture.presentation.attachments))
+        _earlier = State(initialValue: [.earlierLoading: .loading, .earlierFailed: .failed][fixture] ?? .complete)
     }
 
     var body: some View {

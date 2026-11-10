@@ -1689,9 +1689,9 @@ if phases.contains("pages") {
         print("\(bot.title) | \(session.id == session.resolvedID) | \(pages.rows.count) | \(shown.count) | \(ms(latest)) | \(slowest) | \(mismatches)")
     }
     for bot in bots.filter({ ($0.canonicalSession?.messageCount ?? 0) > BotStore.pageRows }) {
-        let chat = ChatSession(bot: bot, gateway: gateway, urlSession: urlSession)
+        let chat = ChatSession(bot: bot, resuming: bot.canonicalSession?.resolvedID, gateway: gateway, urlSession: urlSession)
         chat.sync(to: bot.canonicalSession?.position)
-        while chat.earlier == .complete || chat.visible.turns.isEmpty { try await Task.sleep(for: .milliseconds(20)) }
+        for _ in 0..<500 where chat.visible.turns.isEmpty { try await Task.sleep(for: .milliseconds(20)) }
         let first = chat.visible.turns.count
         var loads = 0
         while chat.earlier != .complete, loads < 30 {

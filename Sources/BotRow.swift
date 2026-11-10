@@ -36,6 +36,7 @@ struct BotRow: View {
                 .accessibilityLabel("Unread")
                 .accessibilityHidden(status != .unread)
             BotAvatar(bot: bot, status: status, photo: photo, size: rowAvatarSize)
+                .environment(\.avatarsFollowPointer, true)
                 .padding(.trailing, 12)
             VStack(alignment: .leading, spacing: 0) {
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
@@ -150,6 +151,7 @@ struct BotStripTile: View {
         }
         StripTile(name: bot.title) {
             BotAvatar(bot: bot, status: status, photo: photo, size: rowAvatarSize)
+                .environment(\.avatarsFollowPointer, true)
                 .mask {
                     ZStack(alignment: .bottomTrailing) {
                         Rectangle()

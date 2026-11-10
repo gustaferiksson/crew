@@ -31,7 +31,11 @@ extension Snapshot {
     var inspectorTab: InspectorTab? {
         if isPasswords { return .passwords }
         if [.inspectorConnections, .addConnection, .customConnection, .inspectorVoice].contains(self) { return .info }
-        return [.inspectorInfo: .info, .inspectorTasks: .tasks, .inspectorRoutines: .routines, .inspectorRoutinesEmpty: .routines][self]
+        return [.inspectorInfo: .info, .inspectorPoked: .info, .inspectorGrumpy: .info, .inspectorTasks: .tasks, .inspectorRoutines: .routines, .inspectorRoutinesEmpty: .routines][self]
+    }
+
+    var headerPose: EyePose? {
+        [.inspectorPoked: EyePose.startled, .inspectorGrumpy: .grumpy][self]
     }
 
     var isPasswords: Bool {

@@ -705,6 +705,7 @@ private struct PersonaPill<Avatar: View>: View {
         Button(action: action) {
             HStack(spacing: 8) {
                 avatar
+                    .environment(\.avatarsFollowPointer, true)
                 Text(botName)
                     .font(.headline)
                     .lineLimit(1)

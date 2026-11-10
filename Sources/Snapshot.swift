@@ -64,6 +64,8 @@ enum Snapshot: String {
     case chatWindowInspector = "chat-window-inspector"
     case chatWindowMissing = "chat-window-missing"
     case inspectorInfo = "inspector-info"
+    case inspectorPoked = "inspector-poked"
+    case inspectorGrumpy = "inspector-grumpy"
     case inspectorTasks = "inspector-tasks"
     case inspectorRoutines = "inspector-routines"
     case inspectorRoutinesEmpty = "inspector-routines-empty"

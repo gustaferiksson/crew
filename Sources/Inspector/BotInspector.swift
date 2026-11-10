@@ -21,6 +21,7 @@ struct BotInspector: View {
     @State private var isCreatingRoutine = false
     @State private var draft: ProfileDraft
     @State private var showsLook = false
+    @State private var pokes = 0
     @State private var photoItem: PhotosPickerItem?
     @State private var capabilitySheet: CapabilityKind?
     @State private var deleting: Bot?
@@ -253,20 +254,25 @@ struct BotInspector: View {
             mood: AvatarMood(status: chats.status(of: bot.id, in: store), lastActive: bot.canonicalSession?.lastActive),
             photo: draft.photo.map { Image(decorative: $0, scale: 1) } ?? (isEditable ? nil : store.photos[bot.id]),
             seed: bot.name,
+            pokes: pokes,
             size: 96
         )
         .environment(\.avatarsAnimate, isPresented)
+        .environment(\.avatarsFollowPointer, true)
+        .environment(\.avatarFrozenPose, Snapshot.requested?.headerPose)
+        .contentShape(.rect)
+        .onTapGesture(count: 2) { pokes += 1 }
+        .sensoryFeedback(.impact(weight: .light), trigger: pokes)
         if isEditable {
-            Button {
-                showsLook = true
-            } label: {
-                image.contentShape(.rect)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Edit Look")
-            .popover(isPresented: $showsLook) {
-                LookEditor(draft: draft, photoItem: $photoItem)
-            }
+            image
+                .onTapGesture { showsLook = true }
+                .accessibilityElement()
+                .accessibilityLabel("Edit Look")
+                .accessibilityAddTraits(.isButton)
+                .accessibilityAction { showsLook = true }
+                .popover(isPresented: $showsLook) {
+                    LookEditor(draft: draft, photoItem: $photoItem)
+                }
         } else {
             image.accessibilityHidden(true)
         }

@@ -94,6 +94,49 @@ private func seconds(_ steps: [EyeStep]) -> Double {
     #expect(AvatarMood.waiting.greeting(from: .working).isEmpty)
 }
 
+private func pokes(at offsets: [Double]) -> [PokeTracker] {
+    var tracker = PokeTracker()
+    return offsets.map {
+        tracker.poke(at: now.addingTimeInterval($0))
+        return tracker
+    }
+}
+
+@Test func aPokeStartlesAndThreeQuickPokesMakeItGrumpy() {
+    let quick = pokes(at: [0, 0.6, 1.2, 1.5])
+    #expect(quick.map(\.isGrumpy) == [false, false, true, false])
+    #expect(quick.map(\.count) == [1, 2, 3, 4])
+    #expect(pokes(at: [0, 1.5, 3, 4.5, 6]).allSatisfy { !$0.isGrumpy })
+
+    let startle = AvatarMood.idle.reaction(to: quick[0]).map(\.pose)
+    #expect(startle == [EyePose.rest.blinked, .startled, .rest])
+    #expect(EyePose.startled.scale > 1 && EyePose.startled.openness >= 1)
+
+    let grumpy = AvatarMood.waiting.reaction(to: quick[2])
+    #expect(grumpy.map(\.pose) == [.grumpy, .wide])
+    #expect(seconds([grumpy[0]]) >= 2)
+    #expect(EyePose.grumpy.openness < 0.5 && EyePose.grumpy.gaze.width > 0.04)
+    #expect(![EyePose.squint, .sleepy, .happy].contains(.grumpy))
+}
+
+@Test func reduceMotionTurnsAPokeIntoOneStillBlink() {
+    #expect(AvatarMood.idle.stillPoke.map(\.pose) == [EyePose.rest.blinked])
+    #expect(AvatarMood.dormant.stillPoke.map(\.pose) == [EyePose.sleepy.blinked])
+    #expect(AvatarMood.idle.stillPoke.allSatisfy { $0.animation == nil })
+}
+
+@Test func eyesGlanceTowardThePointerWithinTheBody() {
+    #expect(EyePose.glance(at: CGPoint(x: 20, y: 20), size: 40) == .zero)
+    let right = EyePose.glance(at: CGPoint(x: 40, y: 20), size: 40)
+    #expect(right.width == 0.06 && right.height == 0)
+    let up = EyePose.glance(at: CGPoint(x: 20, y: 0), size: 40)
+    #expect(up.width == 0 && up.height == -0.04)
+    let near = EyePose.glance(at: CGPoint(x: 25, y: 20), size: 40)
+    #expect(near.width > 0 && near.width < 0.06)
+    let corner = EyePose.glance(at: CGPoint(x: 0, y: 40), size: 40)
+    #expect(corner.width < 0 && corner.height > 0 && abs(corner.width) <= 0.06 && corner.height <= 0.04)
+}
+
 private final class Steps: Sendable {
     let count = Atomic<Int>(0)
 }

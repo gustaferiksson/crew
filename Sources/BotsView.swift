@@ -616,6 +616,7 @@ private struct MessageHitRow: View {
             Color.clear
                 .frame(width: dotGutter, height: 8)
             BotAvatar(bot: bot, status: chats.status(of: bot.id, in: store), photo: photo, size: rowAvatarSize)
+                .environment(\.avatarsFollowPointer, true)
                 .padding(.trailing, 12)
             VStack(alignment: .leading, spacing: 0) {
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
@@ -736,6 +737,7 @@ private struct FavouriteTile: View {
     var body: some View {
         VStack(spacing: 4) {
             BotAvatar(bot: bot, status: status, photo: photo, size: tileAvatarSize)
+                .environment(\.avatarsFollowPointer, true)
                 .overlay(alignment: .topLeading) {
                     if status == .unread {
                         Circle()

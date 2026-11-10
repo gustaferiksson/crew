@@ -637,6 +637,149 @@ if phases.contains("room-paused") {
     exit(0)
 }
 
+if phases.contains("room-context") {
+    let store = BotStore(fixture: [], statuses: [:])
+    Task { await store.run(gateway, urlSession: urlSession) }
+    try await Task.sleep(for: .seconds(3))
+    let name = "crew-test-\(UUID().uuidString.prefix(6).lowercased())"
+    let roomID = "room-\(UUID().uuidString.lowercased())"
+    let pretty = JSONEncoder()
+    pretty.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+    let scrubs = [(server.host() ?? "", "hermes.example.com"), (env["HERMES_USER"] ?? "", "user"), (name, "crew-test-peer"), (roomID, "room-context-probe")].filter { $0.0.count > 2 }
+    func save(_ value: JSONValue, _ file: String) throws {
+        let url = URL(fileURLWithPath: #filePath).appending(path: "../../fixtures/rooms/\(file)").standardized
+        let text = scrubs.reduce(String(decoding: try pretty.encode(value), as: UTF8.self)) { $0.replacingOccurrences(of: $1.0, with: $1.1) }
+        try Data((text + "\n").utf8).write(to: url)
+        print("RECORDED", file)
+    }
+    func state() async throws -> JSONValue {
+        try await gateway.call("groups.state", ["room_id": roomID], as: JSONValue.self)
+    }
+    func log() async throws -> [JSONValue] {
+        var events: [JSONValue] = []
+        var cursor = 0
+        while true {
+            guard case .object(let page) = try await gateway.call("groups.log", ["room_id": .string(roomID), "since_seq": .number(Double(cursor))] as [String: JSONValue], as: JSONValue.self),
+                  case .array(let rows) = page["events"] ?? .null, case .number(let next) = page["cursor"] ?? .null else { throw HermesError.invalidResponse }
+            events += rows
+            cursor = Int(next)
+            guard page["has_more"] == .bool(true) else { return events }
+        }
+    }
+    func kinds(_ events: [JSONValue]) -> [String] {
+        events.compactMap { event in
+            guard case .object(let e) = event, case .string(let kind) = e["kind"] ?? .null else { return nil }
+            let payload = if case .object(let p) = e["payload"] ?? .null { p } else { [String: JSONValue]() }
+            let actor = if case .object(let a) = e["actor"] ?? .null, case .string(let id) = a["id"] ?? .null { id } else { "-" }
+            let text = if case .string(let t) = payload["text"] ?? .null { " \"\(t.prefix(60))\"" } else { "" }
+            return "\(kind) by \(actor) thread \(payload["thread_id"].map { "\($0)" } ?? "-")\(text)"
+        }
+    }
+    func context(_ params: [String: String]) async -> JSONValue? {
+        var full = params.mapValues { JSONValue.string($0) }
+        full["room_id"] = .string(roomID)
+        full["event_id"] = .string("crew-probe-context-\(UUID().uuidString.lowercased())")
+        do {
+            let reply = try await gateway.call("groups.context", full, as: JSONValue.self)
+            print("CONTEXT", params.keys.sorted(), "->", reply)
+            return reply
+        } catch {
+            print("CONTEXT", params.keys.sorted(), "FAILED", error)
+            return nil
+        }
+    }
+    func send(_ text: String, thread: String) async throws {
+        _ = try await gateway.call("groups.send", ["room_id": .string(roomID), "event_id": .string("crew-probe-\(UUID().uuidString.lowercased())"), "payload": .object(["text": .string(text), "thread_id": .string(thread)])] as [String: JSONValue], as: JSONValue.self)
+    }
+    func settle(_ label: String) async throws {
+        var sawWorking = false
+        for tick in 0..<150 {
+            try await Task.sleep(for: .seconds(tick < 10 ? 0.5 : 2))
+            guard case .object(let s) = try await state(), case .object(let driver) = s["driver_status"] ?? .null else { continue }
+            if driver["working"] == .bool(true) { sawWorking = true }
+            if tick < 6 { print(label, "tick", tick, "working", driver["working"] ?? .null) }
+            if driver["working"] == .bool(false), tick > 6 { break }
+        }
+        print(label, "saw working", sawWorking)
+    }
+    var created = false
+    var jobID: String?
+    do {
+        try await store.create(NewProfile(name: name, description: "Crew room probe: answers questions about travel and dates", soul: nil, cloneFrom: nil), via: gateway) { $0.title = "Crew Peer" }
+        await store.reload(gateway)
+        guard let peer = store.bots.first(where: { $0.name == name }), let test = store.bots.first(where: { $0.name == "crew-test" }) else { throw HermesError.invalidResponse }
+        let members: [JSONValue] = [test, peer].map { .object(["member_id": .string($0.name), "profile": .string($0.name), "handle": .string($0.handle), "display_name": .string($0.title)]) }
+        _ = try await gateway.call("groups.create", ["room_id": .string(roomID), "name": .string("Crew context room"), "members": .array(members)] as [String: JSONValue], as: JSONValue.self)
+        created = true
+        let routineOnly = env["ROUTINE_ONLY"] != nil
+        if !routineOnly {
+        try save(try await state(), "context.state.empty.json")
+
+        _ = await context(["purpose": "Plan the team offsite in Lisbon", "notes": "Budget is 900 EUR per person.\nNobody flies before 08:00."])
+        _ = await context(["purpose": "Plan the team offsite in Lisbon", "notes": "Budget is 900 EUR per person.\nNobody flies before 08:00.", "routing": "lead", "lead_member_id": test.name])
+        _ = await context(["purpose": "Plan the team offsite in Lisbon, 12 to 14 May", "notes": "Budget is 900 EUR per person.\nNobody flies before 08:00."])
+        try save(try await state(), "context.state.lead.json")
+        _ = await context(["purpose": "x", "notes": "", "routing": "lead", "lead_member_id": ""])
+        _ = await context(["purpose": "x", "notes": "", "routing": "lead", "lead_member_id": test.handle + "-nobody"])
+        _ = await context(["purpose": String(repeating: "a", count: 501), "notes": ""])
+        _ = await context(["purpose": "x", "notes": String(repeating: "é", count: 2049)])
+        _ = await context(["purpose": "x", "notes": "", "routing": "sometimes"])
+        _ = await context(["purpose": "x"])
+
+        try await send("Which day should we fly out?", thread: "crew-probe-lead")
+        try await settle("LEAD")
+        try await send("And which airline is cheapest?", thread: "crew-probe-lead")
+        try await settle("LEAD SAME THREAD")
+        print(kinds(try await log()).joined(separator: "\n"))
+
+        let modes = if case .object(let s) = try await state(), case .object(let d) = s["driver_status"] ?? .null { d["routing_modes"] } else { JSONValue?.none }
+        print("ROUTING MODES", modes ?? .null)
+        _ = await context(["purpose": "Plan the team offsite in Lisbon, 12 to 14 May", "notes": "Budget is 900 EUR per person.\nNobody flies before 08:00.", "routing": "auto"])
+        try await send("What is the weather like in Lisbon in May?", thread: "crew-probe-auto")
+        try await settle("AUTO")
+        try save(try await state(), "context.state.auto.json")
+        _ = await context(["purpose": "", "notes": "", "routing": "everyone"])
+        }
+
+        let deliver = "room:\(roomID)@default"
+        let added = try await gateway.call("cron.manage", [
+            "action": .string("add"), "profile": .string(name), "name": .string("[bot:\(name)] Daily fares"), "schedule": .string("every 1440m"),
+            "prompt": .string("Reply with exactly this text and nothing else: Fares to Lisbon dropped to 129 EUR on TAP. @\(test.handle) can you check they fit the dates?"),
+            "deliver": .string(deliver),
+        ] as [String: JSONValue], as: JSONValue.self)
+        guard case .object(let job) = added, case .string(let id) = job["job_id"] else { print("ADD FAILED", added); throw HermesError.invalidResponse }
+        jobID = id
+        print("ROUTINE added", id, "deliver", job["deliver"] ?? .null)
+        var trigger = hermesRequest("api/cron/jobs/\(id)/trigger", on: server, json: [:])
+        trigger.url?.append(queryItems: [URLQueryItem(name: "profile", value: name)])
+        _ = try await fetch(trigger, with: urlSession, as: JSONValue.self)
+        var posted = false
+        for _ in 0..<120 where !posted {
+            try await Task.sleep(for: .seconds(3))
+            posted = kinds(try await log()).contains { $0.contains("by cron:") }
+        }
+        print("ROUTINE posted", posted)
+        let listed = try await gateway.call("cron.manage", ["action": .string("list"), "profile": .string(name), "include_disabled": .bool(true)] as [String: JSONValue], as: JSONValue.self)
+        if case .object(let l) = listed, case .array(let jobs) = l["jobs"] ?? .null {
+            for job in jobs { if case .object(let j) = job { print("JOB", j["deliver"] ?? .null, j["last_status"] ?? .null, j["last_delivery_error"] ?? .null) } }
+        }
+        try await settle("ROUTINE")
+        let final = try await log()
+        try save(.array(final), routineOnly ? "context.routine.log.json" : "context.log.json")
+        try save(try await state(), routineOnly ? "context.routine.state.json" : "context.state.json")
+        print(kinds(final).joined(separator: "\n"))
+    } catch {
+        print("ROOM CONTEXT FAILED", error)
+    }
+    if let jobID { _ = try? await gateway.call("cron.manage", ["action": "remove", "profile": name, "name": jobID], as: JSONValue.self) }
+    if created { _ = try? await gateway.call("groups.disband", ["room_id": roomID], as: JSONValue.self) }
+    await store.reload(gateway)
+    if let bot = store.bots.first(where: { $0.name == name }) { try? await store.delete(bot, via: gateway, urlSession: urlSession) }
+    await store.reload(gateway)
+    print(store.bots.contains { $0.name == name } ? "THROWAWAY NOT DELETED: \(name)" : "throwaway deleted")
+    exit(0)
+}
+
 if phases.contains("room-history") {
     let store = BotStore(fixture: [], statuses: [:])
     Task { await store.run(gateway, urlSession: urlSession) }

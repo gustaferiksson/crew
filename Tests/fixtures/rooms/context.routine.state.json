@@ -1,0 +1,66 @@
+{
+  "context" : {
+    "lead_member_id" : "",
+    "notes" : "",
+    "purpose" : "",
+    "routing" : "everyone"
+  },
+  "driver_status" : {
+    "blocked" : false,
+    "counts" : {
+      "settled" : 2
+    },
+    "last_error" : null,
+    "max_continues" : 5,
+    "max_rounds" : 3,
+    "member_activity" : [
+
+    ],
+    "peer_routes" : [
+
+    ],
+    "pending_actions" : [
+
+    ],
+    "routing_modes" : [
+      "everyone",
+      "lead",
+      "auto"
+    ],
+    "running" : true,
+    "working" : false
+  },
+  "room" : {
+    "authority_epoch" : 1,
+    "authority_gateway_id" : "install:f990dea42fbd4536a995a0e6678730fb",
+    "created_at" : 1794343547.8611584,
+    "idempotent" : false,
+    "latest_seq" : 5,
+    "members" : [
+      {
+        "display_name" : "Crew Test",
+        "handle" : "crew-test",
+        "member_id" : "crew-test",
+        "profile" : "crew-test",
+        "target" : {
+          "kind" : "local",
+          "profile" : "crew-test"
+        }
+      },
+      {
+        "display_name" : "Crew Peer",
+        "handle" : "crew-test-peer",
+        "member_id" : "crew-test-peer",
+        "profile" : "crew-test-peer",
+        "target" : {
+          "kind" : "local",
+          "profile" : "crew-test-peer"
+        }
+      }
+    ],
+    "name" : "Crew context room",
+    "revision" : 1,
+    "room_id" : "room-context-probe",
+    "updated_at" : 1794343616.161071
+  }
+}

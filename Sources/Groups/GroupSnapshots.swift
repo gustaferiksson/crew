@@ -50,9 +50,23 @@ struct GroupChatFixtureScreen: View {
             event(4, "message.member", "ada", RoomEvent.Payload(text: "Friday at 9:00 is fine if the dry run holds. @scout", memberID: "ada", threadID: "main", discussionEventID: "e1")),
             event(5, "room.activity", nil, RoomEvent.Payload(threadID: "main", status: "bounded", discussionEventID: "e1")),
         ]
+        let context = [
+            event(1, "room.context_set", nil, RoomEvent.Payload(purpose: "Ship 0.4.2 this week", notes: "Release notes go in CHANGELOG.md.", routing: "lead", leadMemberID: "ada")),
+            event(2, "message.user", nil, RoomEvent.Payload(text: "The App Store build was rejected for the privacy label. Who can fix it?", threadID: "main")),
+            event(3, "room.assignment", nil, RoomEvent.Payload(threadID: "main", leadMemberID: "ada", memberIDs: ["scout"], fallback: false)),
+            event(4, "message.member", "scout", RoomEvent.Payload(text: "On it. The label still lists crash data as linked to the user; I'll mark it as not linked and resubmit.", memberID: "scout", threadID: "main")),
+        ]
+        let routine = [
+            RoomEvent(seq: 1, eventID: "cron-post:1", kind: "message.user", actor: RoomEvent.Actor(profile: nil, id: "cron:0f3a", displayName: "[bot:forge] Nightly build"), payload: RoomEvent.Payload(text: "Nightly build 0.4.2-rc3 passed 412 tests in 6 min. @ada the migration step took 40 s longer than last night.", threadID: "cron-0f3a"), createdAt: start),
+            event(2, "message.member", "ada", RoomEvent.Payload(text: "The extra 40 s is the new index on messages. Expected, and it only runs once.", memberID: "ada", threadID: "cron-0f3a")),
+        ]
         let working = RoomState.Driver(working: true, pendingActions: actions, memberActivity: [RoomState.Activity(memberID: "forge", status: "running", startedAt: start.addingTimeInterval(130), tool: "terminal")])
         let session = if Snapshot.requested == .groupWelcome {
-            GroupSession(fixture: room, events: [], driver: RoomState.Driver())
+            GroupSession(fixture: room, events: [], driver: RoomState.Driver(), context: RoomContext(purpose: "Ship 0.4.2 this week"))
+        } else if Snapshot.requested == .groupChatContext {
+            GroupSession(fixture: room, events: context, driver: RoomState.Driver())
+        } else if Snapshot.requested == .groupChatRoutine {
+            GroupSession(fixture: room, events: routine, driver: RoomState.Driver())
         } else if Snapshot.requested == .groupChatPaused {
             GroupSession(fixture: room, events: paused, driver: RoomState.Driver(maxContinues: 5))
         } else {
@@ -81,6 +95,6 @@ struct GroupInspectorFixtureScreen: View {
     }
 
     private var inspector: some View {
-        GroupInspector(room: Snapshot.fixtureRoom, isPresented: .constant(true), histories: ["ada": RoomHistory(sessionID: "s-ada", messages: 1284), "forge": RoomHistory(sessionID: "s-forge", messages: 96), "scout": RoomHistory?.none]) { _ in }
+        GroupInspector(room: Snapshot.fixtureRoom, isPresented: .constant(true), histories: ["ada": RoomHistory(sessionID: "s-ada", messages: 1284), "forge": RoomHistory(sessionID: "s-forge", messages: 96), "scout": RoomHistory?.none], context: RoomContext(purpose: "Ship 0.4.2 this week", notes: "Release notes go in CHANGELOG.md.\nNobody publishes before the dry run passes.", routing: "lead", leadMemberID: "ada"), routingModes: ["everyone", "lead", "auto"]) { _ in }
     }
 }

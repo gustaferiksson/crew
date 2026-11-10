@@ -627,7 +627,8 @@ final class ChatSession {
                 transcript.apply(.reasoningAvailable(reasoning))
             }
             let status = payload.status.flatMap(Turn.Status.init(rawValue:)) ?? .complete
-            transcript.apply(.messageComplete(text: payload.text ?? "", status: status, error: payload.error ?? payload.failureReason))
+            let limit = LimitFailure(payload.errorSurface)
+            transcript.apply(.messageComplete(text: limit != nil && payload.partial != true ? "" : payload.text ?? "", status: status, error: payload.error ?? payload.failureReason, limit: limit))
             openRequests.removeAll { PendingRequest($0)?.isPayment == true }
             generatingTool = nil
             statusLine = nil
@@ -901,6 +902,8 @@ nonisolated private struct EventPayload: Sendable {
     var status: String?
     var error: String?
     var failureReason: String?
+    var errorSurface: LimitFailure.Surface?
+    var partial: Bool?
     var reasoning: String?
     var id: String?
     var requestIDs: [String]?
@@ -908,13 +911,14 @@ nonisolated private struct EventPayload: Sendable {
 
 nonisolated extension EventPayload: Decodable {
     private enum CodingKeys: String, CodingKey {
-        case text, message, name, context, args, result, summary, percent, todos, revision, status, error, reasoning, id
+        case text, message, name, context, args, result, summary, percent, todos, revision, status, error, reasoning, id, partial
         case toolID = "tool_id"
         case argsText = "args_text"
         case resultText = "result_text"
         case duration = "duration_s"
         case imagePath = "image_path"
         case failureReason = "failure_reason"
+        case errorSurface = "error_surface"
         case requestIDs = "request_ids"
     }
 
@@ -944,6 +948,10 @@ nonisolated extension EventPayload: Decodable {
         status = try? container.decodeIfPresent(String.self, forKey: .status)
         error = try? container.decodeIfPresent(String.self, forKey: .error)
         failureReason = try? container.decodeIfPresent(String.self, forKey: .failureReason)
+        let snakeCase = JSONDecoder()
+        snakeCase.keyDecodingStrategy = .convertFromSnakeCase
+        errorSurface = (try? container.decodeIfPresent(JSONValue.self, forKey: .errorSurface)).flatMap { try? encoder.encode($0) }.flatMap { try? snakeCase.decode(LimitFailure.Surface.self, from: $0) }
+        partial = try? container.decodeIfPresent(Bool.self, forKey: .partial)
         reasoning = try? container.decodeIfPresent(String.self, forKey: .reasoning)
         id = try? container.decodeIfPresent(String.self, forKey: .id)
         requestIDs = try? container.decodeIfPresent([String].self, forKey: .requestIDs)

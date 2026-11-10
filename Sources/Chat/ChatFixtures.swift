@@ -2,7 +2,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 enum ChatFixture {
-    case conversation, history, earlierLoading, earlierFailed, timestamps, workLog, workLogTools, question, questions, questionsSnacks, questionLong, offline, attachments, dictation, mentions, slash, slashOutput, agentMessage, routine, deliveryFailure, a2ui, a2uiCards, a2uiForm, a2uiTable, a2uiChart, a2uiMap, a2uiCarousel, a2uiCarouselStates, a2uiPinned, a2uiExpanded, a2uiProducts, a2uiUpdates, a2uiStreaming
+    case conversation, history, earlierLoading, earlierFailed, timestamps, workLog, workLogTools, question, questions, questionsSnacks, questionLong, offline, attachments, dictation, mentions, slash, slashOutput, agentMessage, routine, deliveryFailure, limitFailure, a2ui, a2uiCards, a2uiForm, a2uiTable, a2uiChart, a2uiMap, a2uiCarousel, a2uiCarouselStates, a2uiPinned, a2uiExpanded, a2uiProducts, a2uiUpdates, a2uiStreaming
     case composerLine, composerLines, composerRunning, composerRunningText, steer, steerTaken, waiting
     case payment, paymentHolding, paymentApproved, paymentLoading, paymentFailed, paymentUnverified, paymentPunycode, paymentCountdown, paymentNotice, paymentOffer, paymentOfferHistory, paymentReceipts
 
@@ -139,6 +139,13 @@ enum ChatFixture {
                 return [ask, Turn(id: "r\(index)", agentMessage: reply.agentMessage, status: .complete, startedAt: start.addingTimeInterval(30))]
             }
             return Transcript(turns: [greeting(now.addingTimeInterval(-26 * 3600))] + earlier + [handoff(now.addingTimeInterval(-6 * 60)), reply])
+        }
+        if self == .limitFailure {
+            let decoder = JSONDecoder()
+            decoder.keyDecodingStrategy = .convertFromSnakeCase
+            let surface = #"{"layer":"billing","code":"usage_window","retryable":true,"provider":"nous","provider_label":"Nous Portal","usage_limit":{"limit_name":"daily","resets_at_ms":\#(Int(now.addingTimeInterval(3 * 3600).timeIntervalSince1970 * 1000)),"suggestions":[{"model":"anthropic/claude-haiku-4.5","label":"Claude Haiku 4.5","note":"included","provider":"nous"}]}}"#
+            let failed = Turn(id: "t8", prompt: Prompt(text: "Draft the Q3 board update from the notes in my Drive.", sentAt: now.addingTimeInterval(-60)), status: .error, startedAt: now.addingTimeInterval(-60), finishedAt: now.addingTimeInterval(-58), failure: "HTTP 429: usage window exhausted", limit: LimitFailure(try? decoder.decode(LimitFailure.Surface.self, from: Data(surface.utf8))))
+            return Transcript(turns: [greeting(now.addingTimeInterval(-26 * 3600)), failed])
         }
         if self == .deliveryFailure {
             let notice = #"[IMPORTANT: Background process proc_7f3a exited (exit code 1).\#nCommand: /opt/hermes/.venv/bin/python /opt/hermes/tools/bot_mode_dm.py --run-delivery query-file /tmp/dm\#nOutput:\#n{"error": "Scout's Bot Chat is open on another surface right now.", "reason": "target_busy", "status": "failed"}\#n]"#

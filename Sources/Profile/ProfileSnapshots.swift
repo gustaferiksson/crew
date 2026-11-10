@@ -53,6 +53,13 @@ extension Snapshot {
         return ProfileDraft(bot: bot, details: details, toolsets: toolsets, instructions: "Answer in British English and keep summaries under 200 words.")
     }
 
+    static var limitModels: ModelSwitcher {
+        ModelSwitcher(
+            providers: [ModelProvider(slug: "nous", name: "Nous Portal", models: ["anthropic/claude-sonnet-4.5", "anthropic/claude-haiku-4.5"])],
+            current: ModelChoice(provider: "nous", model: "anthropic/claude-sonnet-4.5")
+        )
+    }
+
     static var profileModels: ModelSwitcher {
         ModelSwitcher(
             providers: [

@@ -274,7 +274,8 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
                             isExpanded: expansion.turns.contains(turn.id),
                             expandedWork: expansion.work.filter { id in turn.work.contains { $0.id == id } },
                             expandedRuns: expansion.runs.filter { id in turn.work.contains { $0.id == id } },
-                            canStop: offlineReason == nil
+                            canStop: offlineReason == nil,
+                            limitModel: turn.limit?.switchable(among: models?.providers ?? [], current: models?.current)
                         )
                         .background {
                             if highlighted == turn.id {
@@ -529,6 +530,7 @@ struct TurnView: View {
     let expandedWork: Set<WorkItem.ID>
     let expandedRuns: Set<String>
     let canStop: Bool
+    var limitModel: LimitFailure.Suggestion?
 
     @Environment(\.chatActions) private var latest
 
@@ -636,8 +638,19 @@ struct TurnView: View {
                 }
                 if turn.status == .error {
                     HStack(spacing: 8) {
-                        Label(turn.failure ?? "Something went wrong.", systemImage: "exclamationmark.triangle.fill")
-                            .foregroundStyle(.red)
+                        if let limit = turn.limit {
+                            TimelineView(.everyMinute) { context in
+                                Label(limit.sentence(at: context.date), systemImage: "exclamationmark.triangle.fill")
+                                    .foregroundStyle(.red)
+                            }
+                        } else {
+                            Label(turn.failure ?? "Something went wrong.", systemImage: "exclamationmark.triangle.fill")
+                                .foregroundStyle(.red)
+                        }
+                        if let limitModel {
+                            Button("Use \(limitModel.label ?? limitModel.model)") { latest?.actions.changeModel(limitModel.choice) }
+                                .buttonStyle(.borderless)
+                        }
                         if let retryID = turn.retryID {
                             Button("Retry") { latest?.actions.retry(retryID) }
                                 .buttonStyle(.borderless)

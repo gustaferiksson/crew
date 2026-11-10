@@ -168,7 +168,7 @@ struct BotsView: View {
         #endif
         .task(id: [selected?.id, selected?.model, connection.gateway.map { "\(ObjectIdentifier($0))" }]) {
             if modelsBot != selected?.id {
-                models = ModelSwitcher()
+                models = Snapshot.requested == .chatLimitFailure ? Snapshot.limitModels : ModelSwitcher()
                 modelsBot = selected?.id
             }
             guard let selected, let gateway = connection.gateway else { return }

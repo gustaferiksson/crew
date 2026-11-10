@@ -34,6 +34,7 @@ nonisolated struct Turn: Identifiable, Codable, Sendable, Equatable {
     var startedAt: Date
     var finishedAt: Date?
     var failure: String?
+    var limit: LimitFailure?
     var speaker: String?
     var retryID: String?
     var continueID: String?
@@ -115,7 +116,7 @@ nonisolated enum TurnEvent: Sendable {
     case toolStart(id: String, name: String, context: String?, arguments: String)
     case toolProgress(id: String, percent: Int?, message: String?)
     case toolComplete(id: String, duration: TimeInterval?, summary: String?, result: String, imagePath: String? = nil)
-    case messageComplete(text: String, status: Turn.Status, error: String?)
+    case messageComplete(text: String, status: Turn.Status, error: String?, limit: LimitFailure? = nil)
 }
 
 nonisolated struct HistoryRow: Decodable, Sendable {
@@ -154,6 +155,7 @@ nonisolated struct HistoryRow: Decodable, Sendable {
     let displayContent: String?
     let displayCommentary: [String]?
     let displayReasoning: String?
+    var displayMetadata: FailureMetadata? = nil
 }
 
 nonisolated func toolSubject(arguments: String) -> String {
@@ -400,6 +402,7 @@ extension Transcript {
             guard shown.status != .complete else { continue }
             turns[index].status = shown.status
             turns[index].failure = shown.failure
+            turns[index].limit = shown.limit
         }
         guard let last = old.turns.last, last.status == .error, !turns.contains(where: { $0.id == last.id }) else { return }
         turns.append(last)
@@ -538,7 +541,7 @@ extension Transcript {
             for item in waiting.indices where batchDone && waiting[item].pending == .steer { waiting[item].pending = .taken }
             return
         }
-        if case .messageComplete(let text, let status, let error) = event {
+        if case .messageComplete(let text, let status, let error, let limit) = event {
             closeThinking(at: date)
             if !text.isEmpty { turns[index].reply = text }
             for workIndex in turns[index].work.indices {
@@ -549,6 +552,7 @@ extension Transcript {
             }
             turns[index].status = status
             turns[index].failure = error
+            turns[index].limit = limit
             turns[index].finishedAt = date
         }
     }
@@ -559,6 +563,13 @@ extension Transcript {
             turns.append(Turn(id: String(row.id), status: .complete, startedAt: date))
         }
         let index = turns.count - 1
+        if row.displayKind == "failed_turn", let limit = LimitFailure(row.displayMetadata?.errorSurface) {
+            turns[index].status = .error
+            turns[index].failure = row.displayMetadata?.error
+            turns[index].limit = limit
+            turns[index].finishedAt = date
+            return
+        }
         let reasoning = row.displayCommentary == nil ? row.reasoning ?? row.reasoningContent : row.displayReasoning
         if let reasoning, !reasoning.isEmpty {
             appendWork(.thinking(reasoning), id: "\(row.id)-thinking", at: date)

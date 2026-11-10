@@ -540,6 +540,7 @@ extension Transcript {
     }
 
     private mutating func appendAssistant(_ row: HistoryRow, at date: Date) {
+        guard row.displayKind != "hidden" else { return }
         if turns.isEmpty {
             turns.append(Turn(id: String(row.id), status: .complete, startedAt: date))
         }

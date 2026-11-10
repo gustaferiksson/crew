@@ -4,7 +4,7 @@ Hermes plugin that sends APNs notifications to Crew (finished turns, failed turn
 
 ## Install (once)
 
-Replace `host` with the SSH name of the Hermes machine and run everything as the user that runs Hermes.
+Replace `host` with the SSH name of the Hermes machine and run everything as the user that runs Hermes. Paths use `~/.hermes`, the default `HERMES_HOME` without a container; on any install the plugin lives in `<HERMES_HOME>/plugins/crew-push` and its data in `<HERMES_HOME>/plugin-data/crew-push` (the official container image keeps `HERMES_HOME` at `/opt/data`, so copy to the host directory mounted there).
 
 1. **Apple Developer > Identifiers > `dev.gustaf.crew`**: enable Push Notifications.
 2. **Apple Developer > Keys > +**: tick *Apple Push Notifications service (APNs)*, environment *Sandbox & Production*, restriction *Team Scoped (All Topics)*. Download `AuthKey_<KEYID>.p8` (you only get one download) and note the Key ID.

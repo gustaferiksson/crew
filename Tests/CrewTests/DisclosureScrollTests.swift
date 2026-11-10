@@ -35,7 +35,7 @@ private func botThread(endingWith last: String) throws -> Transcript {
 }
 
 @MainActor struct DisclosureScrollTests {
-    @Test(arguments: ["from", "to"])
+    @Test(.serialized, arguments: ["from", "to"])
     func theLastBotMessageRowOpensAndClosesWithTheEndHeld(last: String) throws {
         let distances = EndDistances()
         let window = NSWindow(contentRect: NSRect(x: -20000, y: -20000, width: 700, height: 800), styleMask: [.titled, .resizable], backing: .buffered, defer: false)
@@ -48,13 +48,13 @@ private func botThread(endingWith last: String) throws -> Transcript {
 
         let scroll = try #require(window.contentView.flatMap(scrollView(in:)))
         let height = { scroll.documentView?.frame.height ?? 0 }
+        #expect(abs(distances.values.last ?? 0) < 1, "opened \(distances.values.last ?? 0) pt from the end")
         var growth: CGFloat = 0
         let header = stride(from: CGFloat(40), to: 300, by: 4).first { y in
             let before = height()
             click(window, at: NSPoint(x: 60, y: y))
             settle(0.5)
             growth = height() - before
-            if growth != 0 { print("Disclosure \(last): a click at \(y) changed the height by \(growth)") }
             return growth > 20
         }
         let y = try #require(header, "no click opened the last row")

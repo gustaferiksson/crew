@@ -543,6 +543,7 @@ struct TurnView: View {
                     Button("Continue") { latest?.actions.continueDiscussion(discussion) }
                         .font(.footnote.weight(.semibold))
                         .buttonStyle(.borderless)
+                        .foregroundStyle(.tint)
                         .frame(minWidth: 44, minHeight: 44)
                         .contentShape(.rect)
                         .accessibilityLabel("Continue Discussion")

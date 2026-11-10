@@ -79,6 +79,7 @@ private func summary(roster: String, window: String?) throws -> BotSummary {
     transcript.apply(.messageComplete(text: "Asked Scout.", status: .complete, error: nil))
     transcript.begin(remote: "Message from 🤖 Scout (@scout): Noted.", displayKind: nil, at: .now)
     transcript.apply(.messageComplete(text: "@scout replied: Noted.", status: .complete, error: nil))
-    #expect(transcript.visible.turns.map(\.agentMessage) == [nil, nil])
+    #expect(transcript.visible.turns.map(\.agentMessage) == [nil, nil, nil])
+    #expect(transcript.visible.turns[1].outgoingMessage?.handle == "scout")
     #expect(transcript.visible.turns.last?.reply == "@scout replied: Noted.")
 }

@@ -135,7 +135,7 @@ private func peekOutcome(_ transcript: Transcript) throws -> MentionExchange.Out
         Turn(id: "t3", agentMessage: AgentMessage("Message from 🤖 Scout (@scout): Found three flights."), reply: "Scout found three flights.", status: .complete, startedAt: start.addingTimeInterval(700)),
     ])
     let shown = transcript.visible.turns
-    #expect(shown.map(\.id) == ["t1", "t3"])
+    #expect(shown.map(\.id) == ["t1", "w1-to", "t3"])
     #expect(shown.allSatisfy { $0.agentMessage == nil && $0.deliveryFailure == nil })
 }
 

@@ -18,6 +18,7 @@ private func chatRows(_ transcript: Transcript) -> [String] {
     transcript.visible.turns.flatMap { turn in
         [
             turn.notice.map { "notice: \($0)" },
+            turn.outgoingMessage.map { "message to: \($0.handle)" },
             turn.prompt.flatMap { $0.attachments.isEmpty ? nil : "attachments: \($0.attachments.count)" },
             turn.prompt.flatMap { $0.text.isEmpty ? nil : "bubble: \($0.text)" },
             turn.work.isEmpty && turn.status != .streaming ? nil : "work log: \(turn.work.count)",
@@ -45,6 +46,8 @@ private func replayedStore() throws -> BotStore {
         "bubble: @crew-test-peer hi",
         "work log: 1",
         "reply: 👋",
+        "message to: crew-test-peer",
+        "work log: 1",
         "reply: @crew-test-peer: “Hello! Great to hear from you.”",
     ])
 }
@@ -52,7 +55,7 @@ private func replayedStore() throws -> BotStore {
 @Test func mentionedBotChatShowsOneCollapsedExchange() throws {
     let transcript = Transcript(history: try history("crew-test-peer.history"))
     #expect(transcript.turns.count == 2)
-    #expect(chatRows(transcript) == ["work log: 4"])
+    #expect(chatRows(transcript) == ["work log: 4", "message to: crew-test", "work log: 1"])
     #expect(transcript.visible.turns.first?.agentMessage?.sender == "Crew Test")
 }
 

@@ -481,6 +481,7 @@ struct ChatFixtureScreen: View {
             shopOffer: shopOffer,
             offlineReason: fixture == .offline ? "Can't reach hermes.example.com" : nil,
             activity: fixture == .conversation ? "Preparing terminal" : nil,
+            models: fixture == .limitFailure ? Snapshot.limitModels : nil,
             earlier: earlier,
             pinKey: fixture == .a2uiPinned ? "default" : nil,
             presentation: fixture.presentation,

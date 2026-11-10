@@ -30,8 +30,8 @@ private struct ResizingChat: View {
     }
 }
 
-@MainActor struct InspectorToggleTests {
-    @Test func theInspectorAnimationDoesNotRebuildTheTranscriptRowsOnEveryFrame() throws {
+@MainActor struct TranscriptResizeTests {
+    @Test func windowResizeStepsDoNotRebuildTheTranscriptRows() throws {
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         let rows = try decoder.decode(HistoryFile.self, from: Data(contentsOf: fixtures.appending(path: "chat.agent-messages.history.json"))).messages
@@ -56,7 +56,7 @@ private struct ResizingChat: View {
             window.displayIfNeeded()
         }
 
-        print("InspectorToggle: \(TurnView.bodies) TurnView bodies over \(steps) width steps")
-        #expect(TurnView.bodies <= 5 * steps, "a narrower chat column should reflow the visible rows, not rebuild them")
+        print("TranscriptResize: \(TurnView.bodies) TurnView bodies over \(steps) width steps")
+        #expect(TurnView.bodies <= 5 * steps, "a resize step should reflow the visible rows, not rebuild them")
     }
 }

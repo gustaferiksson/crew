@@ -46,6 +46,7 @@ final class ChatSession {
     private(set) var statusLine: String?
     private(set) var failure: String?
     private(set) var slashCommands: [SlashCommand] = []
+    private(set) var earlier = EarlierHistory.complete
 
     let profile: String
     private let gateway: Gateway
@@ -60,6 +61,8 @@ final class ChatSession {
     private var serverPosition: ReadPosition?
     private var isSyncing = false
     private var attachFailed = false
+    private var pages = HistoryPages()
+    private var pagedSession: StoredSessionID?
 
     init(bot: Bot, resuming session: StoredSessionID? = nil, seed: Transcript = Transcript(), gateway: Gateway, urlSession: URLSession) {
         self.transcript = seed
@@ -111,12 +114,13 @@ final class ChatSession {
             while let position = serverPosition, position != syncedPosition, !isRunning {
                 syncedPosition = position
                 let shown = transcript
-                guard let rows = try? await history(of: StoredSessionID(rawValue: position.session), profile: profile, on: gateway.server, with: urlSession) else {
+                let session = StoredSessionID(rawValue: position.session)
+                guard let rows = try? await history(of: session, profile: profile, on: gateway.server, with: urlSession, limit: BotStore.pageRows) else {
                     syncedPosition = nil
                     break
                 }
                 guard transcript == shown else { continue }
-                var reloaded = Transcript(history: rows)
+                var reloaded = merge(latest: rows, of: session)
                 reloaded.keepCommands(from: shown)
                 reloaded.adoptIDs(from: shown)
                 reloaded.keepFailures(from: shown)
@@ -188,7 +192,8 @@ final class ChatSession {
         guard let runtime, let stored, !isRunning else { return nil }
         let reply = try await gateway.call("session.compress", ["session_id": runtime.rawValue], as: CompressReply.self, timeout: .seconds(300))
         let shown = transcript
-        var reloaded = Transcript(history: try await history(of: stored, profile: profile, on: gateway.server, with: urlSession))
+        pagedSession = nil
+        var reloaded = merge(latest: try await history(of: stored, profile: profile, on: gateway.server, with: urlSession, limit: BotStore.pageRows), of: stored)
         reloaded.keepCommands(from: shown)
         reloaded.adoptIDs(from: shown)
         transcript = reloaded
@@ -206,6 +211,8 @@ final class ChatSession {
         let waiting = transcript.waiting
         transcript = Transcript()
         transcript.waiting = waiting
+        pagedSession = nil
+        earlier = .complete
         openRequests = []
         todos = []
         failure = nil
@@ -448,12 +455,12 @@ final class ChatSession {
     private func load(_ snapshot: LiveSnapshot) async throws {
         let stored = snapshot.storedSessionID ?? stored
         let rows = if let stored, snapshot.messageCount != 0 {
-            try await history(of: stored, profile: profile, on: gateway.server, with: urlSession)
+            try await history(of: stored, profile: profile, on: gateway.server, with: urlSession, limit: BotStore.pageRows)
         } else {
             [HistoryRow]()
         }
         let replay = try await gateway.eventsSince(snapshot.sessionID, after: 0)
-        var transcript = Transcript(history: rows)
+        var transcript = merge(latest: rows, of: stored)
         transcript.keepCommands(from: self.transcript)
         if snapshot.running == true {
             let startedAt = snapshot.turnStartedAt.map(Date.init(timeIntervalSince1970:)) ?? .now
@@ -493,6 +500,35 @@ final class ChatSession {
         openRequests.removeAll { request in request.sessionID != snapshot.sessionID || !incoming.contains { $0.id == request.id } }
         for request in incoming { await receive(request) }
         await checkAwaitedPayment()
+    }
+
+    func loadEarlier() {
+        guard earlier == .more || earlier == .failed, let session = pagedSession else { return }
+        earlier = .loading
+        Task {
+            var older: Transcript
+            repeat {
+                let oldest = pages.rows.first?.id
+                guard let rows = try? await history(of: session, profile: profile, on: gateway.server, with: urlSession, limit: BotStore.pageRows, offset: pages.rows.count) else {
+                    if pagedSession == session { earlier = .failed }
+                    return
+                }
+                guard pagedSession == session, pages.rows.first?.id == oldest else { return }
+                pages.prepend(older: rows)
+                older = pages.transcript
+            } while !pages.reachedStart && older.turns.first.map { first in transcript.turns.contains { $0.id == first.id } } != false
+            let shown = Set(transcript.turns.map(\.id))
+            transcript.turns.insert(contentsOf: older.turns.prefix { !shown.contains($0.id) }, at: 0)
+            earlier = pages.reachedStart ? .complete : .more
+        }
+    }
+
+    private func merge(latest rows: [HistoryRow], of session: StoredSessionID?) -> Transcript {
+        if pagedSession != session { pages = HistoryPages() }
+        pagedSession = session
+        pages.merge(latest: rows)
+        earlier = pages.reachedStart ? .complete : .more
+        return pages.transcript
     }
 
     private func receive(_ request: ServerRequest) async {
@@ -759,8 +795,8 @@ nonisolated func openBotChat(_ known: StoredSessionID?, profile: String, via gat
     return (nil, snapshot)
 }
 
-nonisolated func history(of stored: StoredSessionID, profile: String, on server: URL, with urlSession: URLSession, limit: Int = 500) async throws -> [HistoryRow] {
-    try await fetch(historyRequest(of: stored, profile: profile, on: server, limit: limit), with: urlSession, as: HistoryPage.self).messages
+nonisolated func history(of stored: StoredSessionID, profile: String, on server: URL, with urlSession: URLSession, limit: Int = 500, offset: Int = 0) async throws -> [HistoryRow] {
+    try await fetch(historyRequest(of: stored, profile: profile, on: server, limit: limit, offset: offset), with: urlSession, as: HistoryPage.self).messages
 }
 
 nonisolated func botChatRetirement(of runtime: RuntimeSessionID, at date: Date = .now) -> [(method: String, params: [String: JSONValue])] {
@@ -782,12 +818,13 @@ nonisolated private struct CompressReply: Decodable, Sendable {
     let summary: Summary?
 }
 
-nonisolated func historyRequest(of stored: StoredSessionID, profile: String, on server: URL, limit: Int) -> URLRequest {
+nonisolated func historyRequest(of stored: StoredSessionID, profile: String, on server: URL, limit: Int, offset: Int = 0) -> URLRequest {
     var request = hermesRequest("api/sessions/\(stored.rawValue)/messages", on: server)
     request.url?.append(queryItems: [
         URLQueryItem(name: "profile", value: profile),
         URLQueryItem(name: "order", value: "latest"),
         URLQueryItem(name: "limit", value: String(limit)),
+        URLQueryItem(name: "offset", value: String(offset)),
         URLQueryItem(name: "include_compacted", value: "true"),
         URLQueryItem(name: "inline_images", value: "false"),
     ])

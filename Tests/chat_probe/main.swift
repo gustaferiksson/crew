@@ -1663,6 +1663,47 @@ if phases.contains("open-timing") {
     show("seeded, sent before attach", seeded)
 }
 
+if phases.contains("pages") {
+    let clock = ContinuousClock()
+    let ms = { (duration: Duration) in String(format: "%.0f", Double(duration.components.attoseconds) / 1e15 + Double(duration.components.seconds) * 1000) }
+    let ids = { (transcript: Transcript) in transcript.visible.turns.map(\.id) }
+    let bots = try await gateway.call("profiles.list", ["include_sessions": true], as: BotRoster.self).profiles
+    print("bot | same ids | rows | pages | latest page ms | older page ms | window mismatches")
+    for bot in bots {
+        guard let session = bot.canonicalSession else { continue }
+        var pages = HistoryPages()
+        var start = clock.now
+        pages.merge(latest: try await history(of: session.resolvedID, profile: bot.name, on: server, with: urlSession, limit: BotStore.pageRows))
+        let latest = clock.now - start
+        var shown = [ids(pages.transcript)]
+        var older: [Duration] = []
+        while !pages.reachedStart {
+            start = clock.now
+            pages.prepend(older: try await history(of: session.resolvedID, profile: bot.name, on: server, with: urlSession, limit: BotStore.pageRows, offset: pages.rows.count))
+            older.append(clock.now - start)
+            shown.append(ids(pages.transcript))
+        }
+        let whole = ids(Transcript(history: pages.rows))
+        let mismatches = shown.filter { Array(whole.suffix($0.count)) != $0 }.count
+        let slowest = older.max().map(ms) ?? "-"
+        print("\(bot.title) | \(session.id == session.resolvedID) | \(pages.rows.count) | \(shown.count) | \(ms(latest)) | \(slowest) | \(mismatches)")
+    }
+    for bot in bots.filter({ ($0.canonicalSession?.messageCount ?? 0) > BotStore.pageRows }) {
+        let chat = ChatSession(bot: bot, gateway: gateway, urlSession: urlSession)
+        chat.sync(to: bot.canonicalSession?.position)
+        while chat.earlier == .complete || chat.visible.turns.isEmpty { try await Task.sleep(for: .milliseconds(20)) }
+        let first = chat.visible.turns.count
+        var loads = 0
+        while chat.earlier != .complete, loads < 30 {
+            chat.loadEarlier()
+            loads += 1
+            while chat.earlier == .loading { try await Task.sleep(for: .milliseconds(20)) }
+            if chat.earlier == .failed { break }
+        }
+        print("ChatSession \(bot.title): latest page \(first) turns, \(loads) older loads, \(chat.visible.turns.count) turns, state \(chat.earlier)")
+    }
+}
+
 if phases.contains("history") {
     let reloaded = try await attached(try await crewTest())
     print("== full history")

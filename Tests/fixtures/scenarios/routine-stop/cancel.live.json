@@ -1,8 +1,0 @@
-{
-  "cancelled": true,
-  "detail": "Cancel requested; the run stops at its next cancel check.",
-  "execution_id": "19d6720f10434429ab551237dbf48d3b",
-  "job_id": "0deba207cc75",
-  "status": "running",
-  "success": true
-}

@@ -65,10 +65,11 @@ struct RoutineList: View {
 
     @ViewBuilder
     private func actions(_ job: RoutineJob) -> some View {
-        if store.isRunning(job) {
+        if store.isRunning(job), job.tracksRuns {
             Button("Stop", systemImage: "stop.circle") { Task { await store.stop(job) } }
         } else {
             Button("Run Now", systemImage: "play") { Task { await store.trigger(job) } }
+                .disabled(store.isRunning(job))
         }
         Button(job.isPaused ? "Resume" : "Pause", systemImage: job.isPaused ? "play.circle" : "pause.circle") {
             Task { await store.toggle(job) }
@@ -112,7 +113,7 @@ private struct RoutineRow<Actions: View>: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                 if isStopping {
-                    Text("Stopping…")
+                    Label("Stopping…", systemImage: "stop.circle")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 } else if isRunning {
@@ -157,12 +158,14 @@ private struct RoutineRow<Actions: View>: View {
                     .controlSize(.small)
                     .frame(width: actionSize, height: actionSize)
             } else {
-                if isRunning {
-                    Button("Stop", systemImage: "stop.circle", action: onStop)
-                        .labelStyle(.iconOnly)
-                        .frame(width: actionSize, height: actionSize)
-                        .contentShape(.rect)
-                        .buttonStyle(.borderless)
+                if isRunning, job.tracksRuns {
+                    Button(action: onStop) {
+                        Label("Stop", systemImage: "stop.circle")
+                            .labelStyle(.iconOnly)
+                            .frame(width: actionSize, height: actionSize)
+                            .contentShape(.rect)
+                    }
+                    .buttonStyle(.borderless)
                 }
                 Menu {
                     actions

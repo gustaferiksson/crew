@@ -171,7 +171,7 @@ final class RoutineStore {
 
     func isRunning(_ job: RoutineJob) -> Bool {
         if job.liveRunID != nil { return true }
-        guard job.tracksRuns, let tapped = triggers[job.id] else { return false }
+        guard let tapped = triggers[job.id] else { return false }
         return !(job.latestRun?.claimedAt.map { $0 >= tapped.addingTimeInterval(-2) } ?? false)
     }
 
@@ -210,9 +210,15 @@ final class RoutineStore {
         guard !inFlight.contains(job.id) else { return }
         stopping.insert(job.id)
         await perform(job) { context in
-            let reply = try await fetch(context.request("/\(job.id)/cancel", post: true), with: context.urlSession, as: CancelReply.self)
+            let cancel = context.request("/\(job.id)/cancel", post: true)
+            var reply = try await fetch(cancel, with: context.urlSession, as: CancelReply.self)
+            if !reply.cancelled, self.triggers[job.id] != nil, (try? await Task.sleep(for: .seconds(1))) != nil {
+                reply = try await fetch(cancel, with: context.urlSession, as: CancelReply.self)
+            }
             guard reply.cancelled else {
-                self.alert = RoutineAlert(title: String(localized: "Nothing Was Running"), message: String(localized: "\(job.title) had already finished."))
+                if self.context?.profile == context.profile {
+                    self.alert = RoutineAlert(title: String(localized: "Nothing Was Running"), message: String(localized: "\(job.title) had already finished."))
+                }
                 return
             }
             for _ in 0..<30 {

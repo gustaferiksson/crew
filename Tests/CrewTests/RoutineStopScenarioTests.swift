@@ -4,42 +4,40 @@ import Testing
 
 nonisolated private let scenario = URL(filePath: #filePath).deletingLastPathComponent().deletingLastPathComponent().appending(path: "fixtures/scenarios/routine-stop")
 
-nonisolated private func recordedJSON(_ name: String) -> [String: Any] {
+nonisolated private func listing(_ name: String, _ edit: (inout [String: Any]) -> Void = { _ in }) -> Data {
     let data = (try? Data(contentsOf: scenario.appending(path: "\(name).json"))) ?? Data()
-    return ((try? JSONSerialization.jsonObject(with: data)) as? [String: Any]) ?? [:]
+    var object = ((try? JSONSerialization.jsonObject(with: data)) as? [String: Any]) ?? [:]
+    edit(&object)
+    return (try? JSONSerialization.data(withJSONObject: [object])) ?? Data()
 }
 
-nonisolated private func listing(_ job: [String: Any]) -> Data {
-    (try? JSONSerialization.data(withJSONObject: [job])) ?? Data()
-}
-
-private func job(_ object: [String: Any]) throws -> RoutineJob {
+private func job(_ listed: Data) throws -> RoutineJob {
     let decoder = JSONDecoder()
     decoder.keyDecodingStrategy = .convertFromSnakeCase
-    return try decoder.decode([RoutineJob].self, from: listing(object))[0]
+    return try decoder.decode([RoutineJob].self, from: listed)[0]
 }
 
-private func missed(finishedAt: String) -> [String: Any] {
-    var object = recordedJSON("jobs.stopped")
-    object["latest_execution"] = [
-        "id": "m1", "status": "missed", "error": "missed ×3 (skipped, catch-up off; next run 2026-11-11T19:58:24+00:00)",
-        "claimed_at": finishedAt, "finished_at": finishedAt, "scheduled_instant": "2026-11-10T17:00:00+00:00",
-    ]
-    return object
+private func missed(finishedAt: String) -> Data {
+    listing("jobs.stopped") {
+        $0["latest_execution"] = [
+            "id": "m1", "status": "missed", "error": "missed ×3 (skipped, catch-up off; next run 2026-11-11T19:58:24+00:00)",
+            "claimed_at": finishedAt, "finished_at": finishedAt, "scheduled_instant": "2026-11-10T17:00:00+00:00",
+        ]
+    }
 }
 
 @Test func recordedRowsShowRunningAndStopped() throws {
-    let idle = try job(recordedJSON("jobs.idle"))
+    let idle = try job(listing("jobs.idle"))
     #expect(idle.tracksRuns)
     #expect(idle.liveRunID == nil)
     #expect(idle.lastRun == nil)
     #expect(idle.schedule == "every 1440m")
     #expect(idle.title == "Long check")
 
-    let running = try job(recordedJSON("jobs.running"))
-    #expect(running.liveRunID == "4ea12cffbe6d4962a7d57412fb1d22a4")
+    let running = try job(listing("jobs.running"))
+    #expect(running.liveRunID == "ae927ca4089b4a0d8025937ce75192a5")
 
-    let stopped = try job(recordedJSON("jobs.stopped"))
+    let stopped = try job(listing("jobs.stopped"))
     #expect(stopped.liveRunID == nil)
     #expect(stopped.lastStatus == "cancelled")
     #expect(stopped.lastRun != nil)
@@ -47,17 +45,17 @@ private func missed(finishedAt: String) -> [String: Any] {
     #expect(stopped.result.text == "Stopped")
     #expect(stopped.result.symbol == "stop.circle")
 
-    let scheduled = try job(recordedJSON("jobs.scheduled"))
+    let scheduled = try job(listing("jobs.scheduled"))
     #expect(scheduled.liveRunID != nil)
     #expect(scheduled.latestRun?.scheduledInstant != nil)
 
-    let pausedWhileRunning = try job(recordedJSON("jobs.paused-running"))
+    let pausedWhileRunning = try job(listing("jobs.paused-running"))
     #expect(pausedWhileRunning.isPaused)
     #expect(pausedWhileRunning.liveRunID != nil)
 }
 
 @Test func aMissNewerThanTheLastRunIsTheResult() throws {
-    let routine = try job(missed(finishedAt: "2026-11-10T20:30:00+00:00"))
+    let routine = try job(missed(finishedAt: "2026-11-10T21:30:00+00:00"))
     #expect(routine.lastStatus == "missed")
     #expect(routine.missedRuns == 3)
     #expect(routine.lastRun == (try Date("2026-11-10T17:00:00+00:00", strategy: .iso8601)))
@@ -66,29 +64,30 @@ private func missed(finishedAt: String) -> [String: Any] {
 }
 
 @Test func aMissBookedDuringTheLastRunDoesNotHideItsResult() throws {
-    let routine = try job(missed(finishedAt: "2026-11-10T19:58:50+00:00"))
+    let routine = try job(missed(finishedAt: "2026-11-10T20:32:10+00:00"))
     #expect(routine.lastStatus == "cancelled")
     #expect(routine.missedRuns == nil)
 }
 
-@Test func aServerWithoutTheLedgerNeverShowsRunning() throws {
-    var object = recordedJSON("jobs.idle")
-    object["live_execution"] = nil
-    object["latest_execution"] = nil
-    #expect(try job(object).tracksRuns == false)
+@Test func aServerWithoutTheLedgerHasNoStop() throws {
+    let routine = try job(listing("jobs.idle") {
+        $0["live_execution"] = nil
+        $0["latest_execution"] = nil
+    })
+    #expect(routine.tracksRuns == false)
 }
 
 @Test func theRestFireErrorObjectIsTheIssue() throws {
-    var object = recordedJSON("jobs.idle")
-    object["last_fire_error"] = ["at": "2026-11-10T19:00:00+00:00", "detail": "scheduled fire could not be forwarded"]
-    #expect(try job(object).issue == "scheduled fire could not be forwarded")
+    let routine = try job(listing("jobs.idle") { $0["last_fire_error"] = ["at": "2026-11-10T19:00:00+00:00", "detail": "scheduled fire could not be forwarded"] })
+    #expect(routine.issue == "scheduled fire could not be forwarded")
 }
 
 nonisolated private struct CronStub: Sendable {
-    var list = listing(recordedJSON("jobs.idle"))
-    var afterCancel = listing(recordedJSON("jobs.stopped"))
-    var cancelReply = Data(#"{"cancelled": true, "execution_id": "4ea12cffbe6d4962a7d57412fb1d22a4", "success": true}"#.utf8)
+    var list = listing("jobs.idle")
+    var afterCancel = listing("jobs.stopped")
+    var cancels = true
     var triggerFails = false
+    var triggerDelay = 0.5
 }
 
 nonisolated private final class CronServer: URLProtocol {
@@ -106,15 +105,14 @@ nonisolated private final class CronServer: URLProtocol {
     override func startLoading() {
         let url = request.url!
         let path = url.path()
-        let (body, fails): (Data, Bool) = CronServer.state.withLock { stub in
+        let (body, fails, delay): (Data, Bool, Double) = CronServer.state.withLock { stub in
             if path.hasSuffix("/cancel") {
-                if String(decoding: stub.cancelReply, as: UTF8.self).contains(#""cancelled": true"#) { stub.list = stub.afterCancel }
-                return (stub.cancelReply, false)
+                if stub.cancels { stub.list = stub.afterCancel }
+                return (Data(#"{"cancelled": \#(stub.cancels), "execution_id": "ae927ca4089b4a0d8025937ce75192a5", "success": true}"#.utf8), false, 0)
             }
-            if path.hasSuffix("/trigger") { return (Data("{}".utf8), stub.triggerFails) }
-            return (stub.list, false)
+            if path.hasSuffix("/trigger") { return (Data("{}".utf8), stub.triggerFails, stub.triggerDelay) }
+            return (stub.list, false, 0)
         }
-        let delay = path.hasSuffix("/trigger") ? 0.5 : 0
         DispatchQueue.global().asyncAfter(deadline: .now() + delay) { [self] in
             if fails {
                 client?.urlProtocol(self, didFailWithError: URLError(.timedOut))
@@ -128,10 +126,10 @@ nonisolated private final class CronServer: URLProtocol {
 }
 
 @Suite(.serialized) struct RoutineStopStoreTests {
+    private let gateway = Gateway(server: URL(string: "https://hermes.example.com")!, urlSession: CronServer.session) { "" }
+
     private func connectedStore(_ stub: CronStub) async throws -> RoutineStore {
         CronServer.state.withLock { $0 = stub }
-        let server = try #require(URL(string: "https://hermes.example.com"))
-        let gateway = Gateway(server: server, urlSession: CronServer.session) { "" }
         let store = RoutineStore()
         Task { await store.run(profile: "crew-test", gateway: gateway, urlSession: CronServer.session) }
         for _ in 0..<100 where !store.isLoaded { try await Task.sleep(for: .milliseconds(20)) }
@@ -147,11 +145,25 @@ nonisolated private final class CronServer: URLProtocol {
         let trigger = Task { await store.trigger(idle) }
         try await Task.sleep(for: .milliseconds(100))
         #expect(store.isRunning(idle))
-        CronServer.state.withLock { $0.list = listing(recordedJSON("jobs.running")) }
+        #expect(!store.inFlight.contains(idle.id))
+        CronServer.state.withLock { $0.list = listing("jobs.running") }
         await trigger.value
 
         #expect(store.alert == nil)
         #expect(store.isRunning(store.jobs[0]))
+    }
+
+    @Test func stopReachesARunWhileRunNowIsStillOpen() async throws {
+        let store = try await connectedStore(CronStub(triggerDelay: 3))
+        let trigger = Task { await store.trigger(store.jobs[0]) }
+        try await Task.sleep(for: .milliseconds(100))
+        CronServer.state.withLock { $0.list = listing("jobs.running") }
+
+        await store.stop(store.jobs[0])
+        #expect(store.alert == nil)
+        #expect(store.jobs[0].result.text == "Stopped")
+        await trigger.value
+        #expect(!store.isRunning(store.jobs[0]))
     }
 
     @Test func aRunNowThatFailsWithNothingRunningShowsTheFailure() async throws {
@@ -161,8 +173,29 @@ nonisolated private final class CronServer: URLProtocol {
         #expect(!store.isRunning(store.jobs[0]))
     }
 
+    @Test func aRunNowLeftBehindByABotSwitchStaysSilent() async throws {
+        let store = try await connectedStore(CronStub(triggerFails: true))
+        let trigger = Task { await store.trigger(store.jobs[0]) }
+        try await Task.sleep(for: .milliseconds(100))
+        Task { await store.run(profile: "crew-test-other", gateway: gateway, urlSession: CronServer.session) }
+        await trigger.value
+        #expect(store.alert == nil)
+    }
+
+    @Test func runNowOnAServerWithoutTheLedgerStillShowsRunning() async throws {
+        let store = try await connectedStore(CronStub(list: listing("jobs.idle") {
+            $0["live_execution"] = nil
+            $0["latest_execution"] = nil
+        }))
+        let trigger = Task { await store.trigger(store.jobs[0]) }
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(store.isRunning(store.jobs[0]))
+        await trigger.value
+        #expect(!store.isRunning(store.jobs[0]))
+    }
+
     @Test func stopSettlesOnTheStoppedRunThenSaysNothingWasRunning() async throws {
-        let store = try await connectedStore(CronStub(list: listing(recordedJSON("jobs.running"))))
+        let store = try await connectedStore(CronStub(list: listing("jobs.running")))
         #expect(store.isRunning(store.jobs[0]))
 
         await store.stop(store.jobs[0])
@@ -171,15 +204,14 @@ nonisolated private final class CronServer: URLProtocol {
         #expect(!store.isRunning(store.jobs[0]))
         #expect(store.stopping.isEmpty && store.inFlight.isEmpty)
 
-        CronServer.state.withLock { $0.cancelReply = (try? Data(contentsOf: scenario.appending(path: "cancel.idle.json"))) ?? Data() }
+        CronServer.state.withLock { $0.cancels = false }
         await store.stop(store.jobs[0])
         #expect(store.alert?.title == "Nothing Was Running")
     }
 
     @Test func stopDoesNotWaitForARunThatStartsRightAfter() async throws {
-        var next = recordedJSON("jobs.running")
-        next["live_execution"] = ["id": "next-run", "status": "running", "claimed_at": "2026-11-10T19:59:01+00:00"]
-        let store = try await connectedStore(CronStub(list: listing(recordedJSON("jobs.running")), afterCancel: listing(next)))
+        let next = listing("jobs.running") { $0["live_execution"] = ["id": "next-run", "status": "running", "claimed_at": "2026-11-10T19:59:01+00:00"] }
+        let store = try await connectedStore(CronStub(list: listing("jobs.running"), afterCancel: next))
         let started = Date.now
         await store.stop(store.jobs[0])
         #expect(Date.now.timeIntervalSince(started) < 5)

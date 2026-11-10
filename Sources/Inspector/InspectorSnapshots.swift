@@ -35,6 +35,11 @@ struct InspectorFixtureScreen: View {
             lastStatus: "ok", issue: nil, isPaused: false, liveRunID: "e4", tracksRuns: true
         ),
         RoutineJob(
+            id: "a7", name: "[bot:ada] Dataset refresh", title: "Dataset refresh", prompt: "Refresh the datasets.",
+            schedule: "every 360m", nextRun: .now.addingTimeInterval(5 * 3600), lastRun: .now.addingTimeInterval(-6 * 3600),
+            lastStatus: "ok", issue: nil, isPaused: false, liveRunID: "e7", tracksRuns: true
+        ),
+        RoutineJob(
             id: "a2", name: "[bot:ada] Inbox sweep", title: "Inbox sweep", prompt: "Triage the inbox.",
             schedule: "every 120m", nextRun: .now.addingTimeInterval(40 * 60), lastRun: .now.addingTimeInterval(-80 * 60),
             lastStatus: "error", issue: "Model provider returned 429 Too Many Requests.", isPaused: false
@@ -170,7 +175,7 @@ struct InspectorFixtureScreen: View {
 
     private var botInspector: some View {
         BotInspector(
-            bot: ada, tab: tab, routines: RoutineStore(fixture: snapshot == .inspectorRoutinesEmpty ? [] : routines), draft: Snapshot.profileDraft, conversations: conversations, shops: shops, vault: vault, connections: connections, models: Snapshot.profileModels,
+            bot: ada, tab: tab, routines: RoutineStore(fixture: snapshot == .inspectorRoutinesEmpty ? [] : routines, stopping: ["a7"]), draft: Snapshot.profileDraft, conversations: conversations, shops: shops, vault: vault, connections: connections, models: Snapshot.profileModels,
             isPresented: .constant(true)
         )
             .environment(ChatSessions(fixture: [ada.id: ChatSession(fixture: ada, transcript: Transcript(), todos: adaTodos)]))

@@ -139,7 +139,7 @@ if !cleanupOnly {
         if let stopped { await store.stop(stopped) }
         check(store.alert?.title == "Nothing Was Running", "second Stop says Nothing Was Running")
         store.alert = nil
-        try save("cancel.idle", try await fetch(cron("/\(id)/cancel", method: "POST"), with: urlSession, as: JSONValue.self).asTrimmed)
+        try save("cancel.idle", trimmed(try await fetch(cron("/\(id)/cancel", method: "POST"), with: urlSession, as: JSONValue.self), to: ["cancelled", "detail", "execution_id", "job_id", "success", "status"]))
     } catch {
         check(false, "run and stop flow threw \(error)")
     }
@@ -180,9 +180,3 @@ for session in (try? await probeRunSessions()) ?? [] {
 }
 log(failures.isEmpty ? "ALL OK" : "FAILURES: \(failures.joined(separator: "; "))")
 exit(failures.isEmpty ? 0 : 1)
-
-extension JSONValue {
-    var asTrimmed: JSONValue {
-        trimmed(self, to: ["cancelled", "detail", "execution_id", "job_id", "success", "status"])
-    }
-}

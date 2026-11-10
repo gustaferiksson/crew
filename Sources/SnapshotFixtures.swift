@@ -154,7 +154,7 @@ extension Snapshot {
             return ChatSessions(fixture: ["scout": ChatSession(fixture: scout, transcript: Transcript(turns: [turn]), todos: [])])
         }
         guard let id = selectedBot ?? (self == .sidebarSearch ? "default" : nil), let bot = bots.bots.first(where: { $0.id == id }) else { return ChatSessions() }
-        return ChatSessions(fixture: [id: ChatSession(fixture: bot, transcript: ChatFixture.history.transcript, todos: [])])
+        return ChatSessions(fixture: [id: ChatSession(fixture: bot, transcript: ChatFixture.history.transcript, todos: [], context: ContextUsage(used: 277_700, window: 1_000_000))])
     }
 
     static var samplePhoto: Image? {

@@ -47,6 +47,7 @@ final class ChatSession {
     private(set) var failure: String?
     private(set) var slashCommands: [SlashCommand] = []
     private(set) var earlier = EarlierHistory.complete
+    private(set) var context: ContextUsage?
 
     let profile: String
     private let gateway: Gateway
@@ -75,9 +76,10 @@ final class ChatSession {
         self.urlSession = urlSession
     }
 
-    convenience init(fixture bot: Bot, transcript: Transcript, todos: [TodoItem], urlSession: URLSession = .shared, requests: [ServerRequest] = [], payments: [ServerRequest.ID: PaymentCardState] = [:]) {
+    convenience init(fixture bot: Bot, transcript: Transcript, todos: [TodoItem], urlSession: URLSession = .shared, requests: [ServerRequest] = [], payments: [ServerRequest.ID: PaymentCardState] = [:], context: ContextUsage? = nil) {
         self.init(bot: bot, gateway: Gateway(server: URL(filePath: "/"), urlSession: urlSession) { throw CancellationError() }, urlSession: urlSession)
         self.transcript = transcript
+        self.context = context
         self.todos = todos
         self.openRequests = requests
         self.payments = payments
@@ -201,6 +203,7 @@ final class ChatSession {
         reloaded.keepCommands(from: shown)
         reloaded.adoptIDs(from: shown)
         transcript = reloaded
+        context = (try? await gateway.call("session.usage", ["session_id": runtime.rawValue], as: ContextUsage.self)) ?? context
         return reply.summary?.headline
     }
 
@@ -212,6 +215,7 @@ final class ChatSession {
         }
         stored = nil
         self.runtime = nil
+        context = nil
         let waiting = transcript.waiting
         transcript = Transcript()
         transcript.waiting = waiting
@@ -222,6 +226,11 @@ final class ChatSession {
         failure = nil
         await attach()
         if let failure { throw GatewayError.rpc(code: 0, message: failure) }
+    }
+
+    func contextBreakdown() async throws -> [ContextCategory] {
+        guard let runtime else { return [] }
+        return try await gateway.call("session.context_breakdown", ["session_id": runtime.rawValue], as: ContextBreakdown.self).categories
     }
 
     func respond(to id: ApprovalRequest.ID, with choice: ApprovalChoice) {
@@ -482,6 +491,7 @@ final class ChatSession {
         self.transcript = transcript
         showsSeed = false
         runtime = snapshot.sessionID
+        context = snapshot.info?.usage ?? context
         epoch = replay.epoch
         appliedSeq = 0
         todos = snapshot.todoState?.todos ?? []
@@ -583,6 +593,7 @@ final class ChatSession {
             self.todos = todos
             todoRevision = payload.revision ?? todoRevision
         }
+        if let usage = payload.usage { context = usage }
         let type = event.type
         if type == "message.start" {
             statusLine = nil
@@ -827,6 +838,10 @@ nonisolated func botChatRetirement(of runtime: RuntimeSessionID, at date: Date =
     ]
 }
 
+nonisolated private struct ContextBreakdown: Decodable, Sendable {
+    let categories: [ContextCategory]
+}
+
 nonisolated private struct CompressReply: Decodable, Sendable {
     struct Summary: Decodable, Sendable {
         let headline: String?
@@ -865,6 +880,18 @@ nonisolated struct LiveSnapshot: Decodable, Sendable {
         let revision: Int
     }
 
+    struct Info: Decodable, Sendable {
+        let usage: ContextUsage?
+
+        private enum CodingKeys: String, CodingKey {
+            case usage
+        }
+
+        init(from decoder: any Decoder) throws {
+            usage = try? decoder.container(keyedBy: CodingKeys.self).decodeIfPresent(ContextUsage.self, forKey: .usage)
+        }
+    }
+
     let sessionID: RuntimeSessionID
     let storedSessionID: StoredSessionID?
     let messageCount: Int?
@@ -873,9 +900,10 @@ nonisolated struct LiveSnapshot: Decodable, Sendable {
     let inflight: Inflight?
     let todoState: TodoState?
     let openRequests: [ServerRequest]?
+    let info: Info?
 
     private enum CodingKeys: String, CodingKey {
-        case running, inflight
+        case running, inflight, info
         case sessionID = "session_id"
         case storedSessionID = "stored_session_id"
         case messageCount = "message_count"
@@ -907,11 +935,12 @@ nonisolated private struct EventPayload: Sendable {
     var reasoning: String?
     var id: String?
     var requestIDs: [String]?
+    var usage: ContextUsage?
 }
 
 nonisolated extension EventPayload: Decodable {
     private enum CodingKeys: String, CodingKey {
-        case text, message, name, context, args, result, summary, percent, todos, revision, status, error, reasoning, id, partial
+        case text, message, name, context, args, result, summary, percent, todos, revision, status, error, reasoning, id, partial, usage
         case toolID = "tool_id"
         case argsText = "args_text"
         case resultText = "result_text"
@@ -955,5 +984,6 @@ nonisolated extension EventPayload: Decodable {
         reasoning = try? container.decodeIfPresent(String.self, forKey: .reasoning)
         id = try? container.decodeIfPresent(String.self, forKey: .id)
         requestIDs = try? container.decodeIfPresent([String].self, forKey: .requestIDs)
+        usage = try? container.decodeIfPresent(ContextUsage.self, forKey: .usage)
     }
 }

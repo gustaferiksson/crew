@@ -15,6 +15,8 @@ struct ChatScreen: View {
     @State private var addingShop: String?
     @State private var confirming: ChatManagement?
     @State private var outcome: ChatManagementOutcome?
+    @State private var showsContext = false
+    @State private var compactsAfterContext = false
 
     private var session: ChatSession? {
         chats.sessions[bot.id]
@@ -129,12 +131,31 @@ struct ChatScreen: View {
             bots.markSeen(live)
         }
         .toolbar {
+            if let context = session?.context {
+                ToolbarItem(placement: .primaryAction) {
+                    Button { showsContext = true } label: {
+                        ContextRing(fraction: context.fraction)
+                    }
+                    .help(Text("Context: \(context.percentUsed)"))
+                    .accessibilityLabel("Context")
+                    .accessibilityValue(context.percentUsed)
+                }
+            }
             ToolbarItem(placement: .primaryAction) {
                 Menu("Chat Options", systemImage: "ellipsis") {
                     Button("Compact Chat…", systemImage: "arrow.down.right.and.arrow.up.left") { confirming = .compact }
                     Button("Start New Chat…", systemImage: "square.and.pencil") { confirming = .newChat }
                 }
                 .disabled(connection.state != .connected || session?.canManage != true)
+            }
+        }
+        .sheet(isPresented: $showsContext, onDismiss: compactAfterContext) {
+            if let context = session?.context {
+                ContextSheet(
+                    usage: context,
+                    loadBreakdown: { try await session?.contextBreakdown() ?? [] },
+                    compact: connection.state == .connected && session?.canManage == true ? { compactsAfterContext = true; showsContext = false } : nil
+                )
             }
         }
         .confirmationDialog(confirming?.title ?? "", isPresented: Binding(get: { confirming != nil }, set: { if !$0 { confirming = nil } }), titleVisibility: .visible, presenting: confirming) { action in
@@ -149,6 +170,12 @@ struct ChatScreen: View {
             Text(outcome.message)
         }
         .id(bot.id)
+    }
+
+    private func compactAfterContext() {
+        guard compactsAfterContext else { return }
+        compactsAfterContext = false
+        confirming = .compact
     }
 
     private func manage(_ action: ChatManagement) {

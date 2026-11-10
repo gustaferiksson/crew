@@ -504,6 +504,33 @@ if phases.contains("slash") {
     exit(0)
 }
 
+if phases.contains("usage") {
+    let pretty = JSONEncoder()
+    pretty.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+    let folder = URL(fileURLWithPath: #filePath).appending(path: "../../fixtures/usage").standardized
+    try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+    let bot = try await crewTest()
+    let (_, snapshot) = try await openBotChat(bot.canonicalSession?.resolvedID, profile: "crew-test", via: gateway)
+    let session = ["session_id": snapshot.sessionID.rawValue]
+    if let stored = bot.canonicalSession?.resolvedID {
+        let resumed = try await gateway.call("session.resume", ["session_id": .string(stored.rawValue), "profile": .string("crew-test"), "omit_messages": .bool(true)] as [String: JSONValue], as: JSONValue.self)
+        guard case .object(var reply) = resumed, case .object(let info) = reply["info"] else { exit(1) }
+        reply = reply.filter { ["session_id", "message_count", "running"].contains($0.key) }
+        reply["info"] = .object(info.filter { ["usage", "stored_session_id"].contains($0.key) })
+        try (pretty.encode(JSONValue.object(reply)) + Data("\n".utf8)).write(to: folder.appending(path: "session.resume.v0.23.0.json"))
+    }
+    for method in ["session.usage", "session.context_breakdown"] {
+        let reply = try await gateway.call(method, session, as: JSONValue.self)
+        try (pretty.encode(reply) + Data("\n".utf8)).write(to: folder.appending(path: "\(method).v0.23.0.json"))
+        print("RECORDED", method, String(decoding: try pretty.encode(reply), as: UTF8.self).prefix(1500))
+    }
+    record("usage-turn")
+    let chat = try await attached(bot)
+    chat.send("Reply with just: ok", mode: .send)
+    try await waitIdle(chat)
+    exit(0)
+}
+
 if phases.contains("other") {
     nonisolated struct Row: Decodable, Sendable { let id: StoredSessionID; let title: String?; let source: String? }
     nonisolated struct Page: Decodable, Sendable { let sessions: [Row] }

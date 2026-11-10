@@ -13,6 +13,18 @@ struct RootView: View {
                 ShopsFixtureScreen(snapshot: snapshot)
             } else if Snapshot.requested == .botPage || Snapshot.requested == .chatOptions {
                 BotPageFixtureScreen()
+            } else if Snapshot.requested == .chatContext {
+                ContextSheet(usage: ContextUsage(used: 462_300, window: 1_000_000), loadBreakdown: { [
+                    ContextCategory(id: "system_prompt", label: "System prompt", tokens: 4_657),
+                    ContextCategory(id: "tool_definitions", label: "Tool definitions", tokens: 6_022),
+                    ContextCategory(id: "memory", label: "Memory", tokens: 1_840),
+                    ContextCategory(id: "conversation", label: "Conversation", tokens: 449_781),
+                ] }, compact: {})
+            } else if Snapshot.requested == .contextRings {
+                HStack(spacing: 24) {
+                    ForEach([0.04, 0.28, 0.46, 0.75, 1], id: \.self) { ContextRing(fraction: $0) }
+                }
+                .padding(40)
             } else if Snapshot.requested == .notifications {
                 NotificationSettings()
                     .environment(Snapshot.fixturePush)

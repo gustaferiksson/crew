@@ -149,6 +149,7 @@ targets:
       - Sources/Chat/Attachments.swift
       - Sources/Chat/AttachmentViews.swift
       - Sources/Chat/ChatSession.swift
+      - Sources/Chat/ContextUsage.swift
       - Sources/Chat/HistoryPages.swift
       - Sources/Chat/ChatSessions.swift
       - Sources/Chat/ChatDrafts.swift

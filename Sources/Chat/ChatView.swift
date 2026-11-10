@@ -92,7 +92,11 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
     @Binding var draft: String
     let tray: AttachmentTray
     @State private var position = ScrollPosition(idType: Turn.ID.self)
+    #if os(iOS)
     @State private var barRoom = CGFloat.infinity
+    #else
+    private let barRoom = CGFloat.infinity
+    #endif
     @State private var barHeight: CGFloat = 0
     @State private var expansion: TranscriptExpansion
     @State private var latestActions = LatestChatActions()
@@ -285,8 +289,8 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
         #if os(iOS)
         .scrollDismissesKeyboard(.interactively)
         .simultaneousGesture(TapGesture().onEnded { transcriptTaps += 1 })
-        #endif
         .onGeometryChange(for: CGFloat.self) { $0.size.height + $0.safeAreaInsets.bottom } action: { barRoom = $0 }
+        #endif
         .simultaneousGesture(
             DragGesture(minimumDistance: 16, inputKinds: [.directTouch, .indirectTouch])
                 .updating($dragTravel) { value, state, _ in

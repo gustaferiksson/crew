@@ -93,7 +93,7 @@ nonisolated private func loadAttachment(_ photo: UIImage) async throws -> Attach
 #endif
 
 @concurrent
-nonisolated private func thumbnail(of data: Data, side: CGFloat) async -> CGImage? {
+nonisolated func thumbnail(of data: Data, side: CGFloat) async -> CGImage? {
     guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
     let options = [
         kCGImageSourceCreateThumbnailFromImageAlways: true,

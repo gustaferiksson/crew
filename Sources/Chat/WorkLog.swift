@@ -1,3 +1,4 @@
+import QuickLook
 import SwiftUI
 
 private let toolStyles: [String: (verb: String, icon: String)] = [
@@ -5,6 +6,7 @@ private let toolStyles: [String: (verb: String, icon: String)] = [
     "shell": ("Ran", "terminal"),
     "execute_code": ("Ran", "chevron.left.forwardslash.chevron.right"),
     "process": ("Checked", "gearshape.2"),
+    "process_manage": ("Checked", "gearshape.2"),
     "read_file": ("Read", "doc.text"),
     "write_file": ("Updated", "square.and.pencil"),
     "patch": ("Updated", "square.and.pencil"),
@@ -13,14 +15,19 @@ private let toolStyles: [String: (verb: String, icon: String)] = [
     "web_search": ("Searched", "globe"),
     "web_extract": ("Read", "globe"),
     "browser_navigate": ("Opened", "safari"),
+    "browser_exec": ("Browsed", "safari"),
     "vision_analyze": ("Looked at", "eye"),
+    "image_generate": ("Generated", "photo"),
+    "computer_use": ("Used", "desktopcomputer"),
     "skill_view": ("Checked", "book.closed"),
     "skills_list": ("Checked", "book.closed"),
     "skill_manage": ("Updated", "book.closed"),
     "memory": ("Remembered", "brain.head.profile"),
     "session_search": ("Checked", "clock.arrow.trianglehead.counterclockwise.rotate.90"),
     "todo": ("Planned", "checklist"),
+    "todo_list": ("Planned", "checklist"),
     "cronjob": ("Scheduled", "calendar.badge.clock"),
+    "cronjob_manage": ("Scheduled", "calendar.badge.clock"),
     "delegate_task": ("Delegated", "person.2"),
     "clarify": ("Asked", "questionmark.bubble"),
 ]
@@ -254,6 +261,9 @@ private struct WorkRow: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityValue(isExpanded ? String(localized: "Expanded") : String(localized: "Collapsed"))
+                if case .tool(let call) = item.kind, let image = call.image {
+                    ToolImage(attachment: image)
+                }
                 if isExpanded {
                     details
                         .padding(.leading, 28)
@@ -271,11 +281,24 @@ private struct WorkRow: View {
             Image(systemName: appearance.icon)
                 .foregroundStyle(.secondary)
                 .frame(width: 20)
-            (subject.isEmpty ? verb : Text("\(verb) \(Text(subject).foregroundStyle(.secondary))"))
-                .lineLimit(1)
-                .truncationMode(.tail)
+            VStack(alignment: .leading, spacing: 2) {
+                (subject.isEmpty ? verb : Text("\(verb) \(Text(subject).foregroundStyle(.secondary))"))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                if let progress = runningCall?.progressMessage {
+                    Text(progress)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
             Spacer(minLength: 8)
-            if let duration = item.duration, duration >= 1 {
+            if let percent = runningCall?.percent {
+                Text(Double(percent) / 100, format: .percent)
+                    .font(.caption)
+                    .monospacedDigit()
+                    .foregroundStyle(.tertiary)
+            } else if let duration = item.duration, duration >= 1 {
                 Text(Duration.seconds(Int(duration)).formatted(elapsedStyle))
                     .font(.caption)
                     .monospacedDigit()
@@ -332,6 +355,11 @@ private struct WorkRow: View {
         }
     }
 
+    private var runningCall: ToolCall? {
+        guard case .tool(let call) = item.kind, call.status == .running else { return nil }
+        return call
+    }
+
     private var deliveryFailureNote: String? {
         guard case .tool(let call) = item.kind, let failure = call.deliveryFailure else { return nil }
         return failure.explanation(for: bots.bots.first { $0.name == failure.target }?.title ?? failure.target ?? call.subject)
@@ -367,6 +395,58 @@ private struct WorkRow: View {
         guard vaultAction(call) == "fill" else { return "" }
         let host = call.result.flatMap(VaultResult.init)?.origin.flatMap { URLComponents(string: $0)?.encodedHost }
         return host.map { String(localized: "at \($0)") } ?? ""
+    }
+}
+
+private struct ToolImage: View {
+    let attachment: Attachment
+
+    @Environment(\.chatSession) private var session
+    @State private var loaded: (data: Data, image: CGImage)?
+    @State private var isGone = false
+    @State private var preview: URL?
+
+    var body: some View {
+        if !isGone {
+            Button(action: open) {
+                Group {
+                    if let loaded {
+                        Image(decorative: loaded.image, scale: 1)
+                            .resizable()
+                            .scaledToFill()
+                    } else {
+                        Rectangle()
+                            .fill(.fill.tertiary)
+                    }
+                }
+                .frame(width: 200, height: 200)
+                .clipShape(.rect(cornerRadius: 12))
+                .contentShape(.rect(cornerRadius: 12))
+            }
+            .buttonStyle(.plain)
+            .disabled(loaded == nil)
+            .accessibilityLabel(attachment.name)
+            .padding(.leading, 28)
+            .padding(.bottom, 6)
+            .quickLookPreview($preview)
+            .task(id: attachment.id) {
+                guard let data = try? await session?.download(attachment) ?? attachment.data,
+                      let image = await thumbnail(of: data, side: 200)
+                else {
+                    isGone = true
+                    return
+                }
+                loaded = (data, image)
+            }
+        }
+    }
+
+    private func open() {
+        guard let loaded else { return }
+        let url = URL.temporaryDirectory.appending(path: "Attachments/\(UUID().uuidString)/\(attachment.name)")
+        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        guard (try? loaded.data.write(to: url)) != nil else { return }
+        preview = url
     }
 }
 

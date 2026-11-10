@@ -101,6 +101,9 @@ nonisolated struct ToolCall: Codable, Sendable, Equatable {
     var result: String?
     var outcome: String?
     var status: Status
+    var percent: Int?
+    var progressMessage: String?
+    var image: Attachment?
 }
 
 nonisolated enum TurnEvent: Sendable {
@@ -110,7 +113,8 @@ nonisolated enum TurnEvent: Sendable {
     case reasoningAvailable(String)
     case interim(String)
     case toolStart(id: String, name: String, context: String?, arguments: String)
-    case toolComplete(id: String, duration: TimeInterval?, summary: String?, result: String)
+    case toolProgress(id: String, percent: Int?, message: String?)
+    case toolComplete(id: String, duration: TimeInterval?, summary: String?, result: String, imagePath: String? = nil)
     case messageComplete(text: String, status: Turn.Status, error: String?)
 }
 
@@ -484,7 +488,7 @@ extension Transcript {
             }
             return
         }
-        let isTool = if case .toolStart = event { true } else if case .toolComplete = event { true } else { false }
+        let isTool = if case .toolStart = event { true } else if case .toolProgress = event { true } else if case .toolComplete = event { true } else { false }
         if !isTool { takeSteers(at: date) }
         guard let index = turns.indices.last, turns[index].status == .streaming else { return }
         if case .messageDelta(let text) = event {
@@ -518,8 +522,18 @@ extension Transcript {
             appendWork(.tool(call), id: id, at: date)
             return
         }
-        if case .toolComplete(let id, let duration, let summary, let result) = event {
-            completeTool(id: id, result: result, summary: summary, duration: duration, at: date)
+        if case .toolProgress(let id, let percent, let message) = event {
+            guard let workIndex = turns[index].work.lastIndex(where: { $0.id == id }),
+                  case .tool(var call) = turns[index].work[workIndex].kind,
+                  call.status == .running
+            else { return }
+            call.percent = percent
+            call.progressMessage = message
+            turns[index].work[workIndex].kind = .tool(call)
+            return
+        }
+        if case .toolComplete(let id, let duration, let summary, let result, let imagePath) = event {
+            completeTool(id: id, result: result, summary: summary, duration: duration, imagePath: imagePath, at: date)
             let batchDone = !turns[index].work.contains { if case .tool(let call) = $0.kind { call.status == .running } else { false } }
             for item in waiting.indices where batchDone && waiting[item].pending == .steer { waiting[item].pending = .taken }
             return
@@ -567,7 +581,7 @@ extension Transcript {
         turns[index].finishedAt = date
     }
 
-    private mutating func completeTool(id: String, result: String, summary: String?, duration: TimeInterval?, at date: Date) {
+    private mutating func completeTool(id: String, result: String, summary: String?, duration: TimeInterval?, imagePath: String? = nil, at date: Date) {
         guard let index = turns.indices.last,
               let workIndex = turns[index].work.lastIndex(where: { $0.id == id }),
               case .tool(var call) = turns[index].work[workIndex].kind
@@ -584,6 +598,10 @@ extension Transcript {
         call.result = body
         call.outcome = summary
         call.status = toolStatus(result: body)
+        call.percent = nil
+        call.progressMessage = nil
+        let storedImagePath = call.status == .success ? body.firstMatch(of: /"(?:image_path|screenshot_path)": "([^"]+)"/).map { String($0.1) } : nil
+        call.image = (imagePath ?? storedImagePath).map { Attachment(kind: .image, name: URL(filePath: $0).lastPathComponent, path: $0) }
         turns[index].work[workIndex].kind = .tool(call)
         turns[index].work[workIndex].duration = duration ?? date.timeIntervalSince(turns[index].work[workIndex].startedAt)
     }

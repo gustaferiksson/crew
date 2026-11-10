@@ -22,6 +22,7 @@ enum Snapshot: String {
     case chatSelection = "chat-selection"
     case chatTimestamps = "chat-timestamps"
     case chatWorkLog = "chat-worklog"
+    case chatWorkLogTools = "chat-worklog-tools"
     case chatQuestion = "chat-question"
     case chatQuestions = "chat-questions"
     case chatQuestionsSnacks = "chat-questions-snacks"

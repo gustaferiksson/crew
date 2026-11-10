@@ -65,7 +65,7 @@ Two independent pull requests.
 - **Keyboard:** raising or lowering it while at the bottom keeps the latest row right above the composer; while scrolled up it leaves the reading position alone and the arrow stays usable above the bar.
 - **Composer bar grows (multi-line draft, attachment tray, mention picker, dictation, offline line, approval, question, payment, offer or notice card, up to `HeightCap`):** at the bottom the latest row stays above the bar.
 - **Search hit (`SearchFocus`):** the matched turn scrolls into view near the centre and is tinted for 2 s, even 500 rows up.
-- **Work log or reply expanded mid-transcript:** it grows downward from the tapped header. At the very end the transcript keeps following the end instead (the same hold that follows a streaming reply), so a long log opened there pushes its header up.
+- **Work log or reply expanded mid-transcript:** it grows downward from the tapped header. At the very end the transcript keeps following the end instead (the same hold that follows a streaming reply), so a long log opened there pushes its header up. While the transcript holds the end its changes are not animated: an animated open (`withAnimation(.snappy)`) left the log under the composer on iOS until the next layout, which during a live turn is the next event (the laggy "Working" accordion, 2026-11-09 recording), and on the Mac re-ran the end hold on each of about 96 animation frames.
 - **Bot list (preview, time, status, unread), push, inspector:** untouched; no model, request or network change.
 - **Light and dark:** the arrow keeps its glass look; no other visual change.
 
@@ -85,6 +85,7 @@ Host unit tests (macOS):
 
 - `ReplyParseTests` (#151): redrawing the six recorded long replies 20 times takes under a quarter of parsing them 20 times, for the blocks and for the Mac segments; fails with the cache bypassed.
 - `TranscriptScrollTests` (the real `TranscriptScroll`, 300 rows of mixed height, a `safeAreaBar`): cold open at the end; at the end a growing last row, an appended row and a growing or shrinking bar keep the end in view; scrolled up, growth, appends and an expansion inside the viewport move the reading position by under 1 pt; scrolled back down by hand, an appended row stays in view; the animated edge jump from 20 000 pt up lands at the end, hands over to the held end and follows streaming and appends; a search jump into rows that arrive in the same update brings the row into view; a click on Jump to Latest from 20 000 pt up lands at the end without drawing any row in an animated transaction.
+- `DisclosureScrollTests` (the real `ChatView`, 200 turns then two collapsed bot-to-bot exchanges): opening and closing the last exchange at the end never leaves the end and changes the scroll geometry under 10 times. Before: 96 to 97 geometry changes per toggle and 97 pt from the end during the open.
 - `ComposerResizeTests` hosts `TranscriptScroll` instead of its copy and gains #145's check: through the resize steps with the inspector attached (main window and chat window, empty and seven-line draft) the transcript never leaves the end by 40 pt (the arrow's threshold) and is at the end at rest. Fails on the v0.1.29 composition: 707 pt from the end at rest in the main window, 16 to 32 pt in the chat window.
 
 UI tests (iOS), `ChatTranscriptUITests`, on `composer-line` loading the recorded long replies after the chat appears, and on `chat-question`:
@@ -93,6 +94,7 @@ UI tests (iOS), `ChatTranscriptUITests`, on `composer-line` loading the recorded
 - Send from far up with the keyboard up: the new reply sits right above the composer (since #153 a non-strict expected failure on iOS, it can still go blank: #162). v0.1.29: fails intermittently (#123); the rebuild before the edge hand-over sent into a blank transcript.
 - A reply from another client while scrolled up: the row being read moves by under 1 pt, an expanded "Worked for" header stays put, and the arrow then lands on the reply.
 - A reply after scrolling back down by hand ends right above the composer (4 of 4 runs).
+- `DisclosureUITests`: the live work log opened at the end (`composer-running`) ends right above the composer with the keyboard up and down and no arrow. Before: 79 pt under the composer with the keyboard up, 45 pt with it down, and the arrow showed.
 - A question card in the bar (`chat-question`): the running turn stays above the card and no arrow shows. v0.1.29: fails.
 - `ChatInspectorUITests` and `InAppBrowserUITests` (`layout` snapshot) failed on an earlier cut of the rebuild until the first-size hold (blank cached open); the whole suite (15 tests) passes.
 - `TranscriptScrollTests.aSearchJumpFromTheEndStaysWhereItLanded` (host) covers search hits and fixture targets from the end; it fails on the cut without the "no target held" check (the reviewer's blocking finding: `chat-history` rendered at the end instead of its first turn).

@@ -142,7 +142,7 @@ enum ChatFixture {
             let followUp = Turn(id: "t8", delivery: "proc_7f3a", deliveryFailure: DeliveryFailure(notice: notice), reply: "Scout is busy in another chat right now, so the flight request didn't reach it.", status: .complete, startedAt: now.addingTimeInterval(-4 * 60), finishedAt: now.addingTimeInterval(-4 * 60 + 3))
             return Transcript(turns: [greeting(now.addingTimeInterval(-26 * 3600)), handoff(now.addingTimeInterval(-6 * 60)), followUp]).visible
         }
-        if self == .agentMessage { return Transcript(turns: [greeting(now.addingTimeInterval(-26 * 3600)), message("m1", "Flights for Saturday are booked.", reply: "Thanks, Scout!", at: now.addingTimeInterval(-40 * 60)), message("m2", "Can you add the Lofoten ferry to the trip notes?", reply: "Added the 08:15 ferry to the trip notes.", at: now.addingTimeInterval(-5 * 60))]).visible }
+        if self == .agentMessage { return Transcript(turns: [greeting(now.addingTimeInterval(-26 * 3600)), message("m1", "Flights for Saturday are booked.", reply: "Thanks, Scout!", result: #"{"reason": "runtime_offline", "error": "Scout is offline."}"#, at: now.addingTimeInterval(-40 * 60)), message("m2", "Can you add the Lofoten ferry to the trip notes?", reply: "Added the 08:15 ferry to the trip notes.", at: now.addingTimeInterval(-5 * 60))]).visible }
         if self == .slashOutput {
             var transcript = Transcript(turns: [greeting(now.addingTimeInterval(-26 * 3600))])
             transcript.beginCommand("/status", id: "c1", at: now.addingTimeInterval(-6 * 60))
@@ -181,11 +181,11 @@ enum ChatFixture {
         )
     }
 
-    private func message(_ id: String, _ text: String, reply: String, at start: Date) -> Turn {
+    private func message(_ id: String, _ text: String, reply: String, result: String = #"{"status": "queued", "process_id": "proc_7f3b"}"#, at start: Date) -> Turn {
         Turn(
             id: id,
             agentMessage: AgentMessage("Message from 🤖 Scout (@scout): \(text)"),
-            work: [WorkItem(id: "\(id)-w0", kind: .tool(ToolCall(name: "message_agent", subject: "scout", arguments: #"{"target": "scout", "message": "\#(reply)"}"#, result: #"{"status": "queued", "process_id": "proc_\#(id)"}"#, status: .success)), startedAt: start.addingTimeInterval(2), duration: 1)],
+            work: [WorkItem(id: "\(id)-w0", kind: .tool(ToolCall(name: "message_agent", subject: "scout", arguments: #"{"target": "scout", "message": "\#(reply)"}"#, result: result, status: toolStatus(result: result))), startedAt: start.addingTimeInterval(2), duration: 1)],
             reply: reply,
             status: .complete,
             startedAt: start,

@@ -1,6 +1,6 @@
 [
   {
-    "content": "Or you try and learn how to transcribe?",
+    "content": "Can you get the transcript yourself?",
     "display_kind": null,
     "id": 121,
     "reasoning": null,
@@ -203,7 +203,7 @@
     "tool_calls": null
   },
   {
-    "content": "Which version do we run our instance on?",
+    "content": "Which Hermes version are we on?",
     "display_kind": null,
     "id": 238,
     "reasoning": null,

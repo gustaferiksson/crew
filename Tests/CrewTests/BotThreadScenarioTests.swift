@@ -25,7 +25,7 @@ private func rows(_ turns: [Turn]) -> [String] {
         "you: Can you restart it? Sure.",
         "from scout",
         "to scout",
-        "you: You shouldn't do Scout's work. You should just make sure Scout can do his work",
+        "you: Let Scout do that himself; just make sure he can.",
         "from scout",
         "to scout",
         "from scout",
@@ -52,14 +52,14 @@ private func rows(_ turns: [Turn]) -> [String] {
 @Test func senderShowsMessageToAfterUserStartedRoutineAndRelayTurns() throws {
     let shown = Transcript(history: try recorded("scout")).visible.turns
     #expect(rows(shown) == [
-        "you: Or you try and learn how to transcribe?",
+        "you: Can you get the transcript yourself?",
         "to default",
         "reply: Hermes found the original captions; the transcript is saved.",
         "routine",
         "to default",
         "reply: Understood. The summary stays my job. May Hermes add paging to the file tool?",
         "to default",
-        "you: Which version do we run our instance on?",
+        "you: Which Hermes version are we on?",
         "to default",
         "reply: We're running Hermes Agent v0.23.0.",
     ])

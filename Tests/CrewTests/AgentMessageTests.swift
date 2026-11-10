@@ -95,3 +95,16 @@ func notes(_ turn: Turn) -> [String?] {
     #expect(AgentMessage("Message from the team was great") == nil)
     #expect(AgentMessage("Hey, are you up?") == nil)
 }
+
+@Test func messageToRowWaitsForTheRunningTurnToEnd() {
+    var transcript = Transcript()
+    transcript.begin(prompt: "Ask @scout for flights", at: .now)
+    transcript.apply(.toolStart(id: "c1", name: "message_agent", context: nil, arguments: #"{"target": "scout", "message": "Find flights."}"#))
+    transcript.apply(.toolComplete(id: "c1", duration: nil, summary: nil, result: #"{"status": "queued", "process_id": "proc_1"}"#))
+    transcript.apply(.messageDelta("Asked"))
+    #expect(transcript.visible.turns.map(\.id) == [transcript.turns[0].id])
+    #expect(transcript.visible.turns.last?.status == .streaming)
+    transcript.apply(.messageComplete(text: "Asked Scout.", status: .complete, error: nil))
+    #expect(transcript.visible.turns.last?.id == "c1-to")
+    #expect(transcript.visible.turns.last?.outgoingMessage?.body == "Find flights.")
+}

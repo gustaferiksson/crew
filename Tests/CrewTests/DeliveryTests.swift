@@ -33,10 +33,10 @@ private func transcript(_ json: String) throws -> Transcript {
 
 @Test func senderShowsTheReplyRelayAndHidesItsDelivery() throws {
     let visible = try transcript(senderRows).visible
-    #expect(visible.turns.map(\.id) == ["316", "320"])
-    #expect(visible.turns[1].prompt == nil)
-    #expect(visible.turns[1].agentMessage == nil)
-    #expect(visible.turns[1].reply == "@test-bot replied: “Hello again! 👋”")
+    #expect(visible.turns.map { $0.outgoingMessage.map { "to \($0.handle)" } ?? $0.id } == ["316", "to test-bot", "320"])
+    #expect(visible.turns[2].prompt == nil)
+    #expect(visible.turns[2].agentMessage == nil)
+    #expect(visible.turns[2].reply == "@test-bot replied: “Hello again! 👋”")
     #expect(try transcript(senderRows).visible.lastMessage?.text == "@test-bot replied: “Hello again! 👋”")
 }
 
@@ -58,9 +58,9 @@ private let peerRows = #"""
 
 @Test func senderRunWithAnUnpromptedSecondMessageAndAnEmptyDeliveryReply() throws {
     let visible = try transcript(peerRows).visible
-    #expect(visible.turns.map(\.id) == ["360", "364", "366"])
-    #expect(visible.turns[1].reply == "@crew-test-f0ab5f: “Hello to you and the user!”")
-    #expect(visible.turns[2].agentMessage?.sender == "Crew Peer")
+    #expect(visible.turns.map(\.id) == ["360", "call_cc3a7b7662b447deaa178d7a23724ee9-to", "364", "366"])
+    #expect(visible.turns[2].reply == "@crew-test-f0ab5f: “Hello to you and the user!”")
+    #expect(visible.turns[3].agentMessage?.sender == "Crew Peer")
     #expect(try transcript(peerRows).visible.lastMessage?.text == "Message from Crew Peer")
 }
 
@@ -68,7 +68,7 @@ private let peerRows = #"""
     let target = try transcript(targetRows)
     #expect(target.turns.map(\.delivery) == [nil, "proc_747c697fd2e6"])
     #expect(target.turns[1].prompt == nil)
-    #expect(target.visible.turns.map(\.id) == ["5"])
+    #expect(target.visible.turns.map { $0.outgoingMessage.map { "to \($0.handle)" } ?? $0.id } == ["5", "to crew-test"])
     #expect(notes(target.visible.turns[0]) == ["> The user sends another greeting; please say hello back.", nil, "Hello again! 👋", "Crew Test confirmed receipt of my greeting."])
     #expect(target.visible.turns[0].finishedAt == Date(timeIntervalSince1970: 1792127292.1401896))
     #expect(target.visible.lastMessage?.text == "Message from Crew Test")
@@ -99,10 +99,11 @@ private let peerRows = #"""
     transcript.apply(.messageComplete(text: "Sent.", status: .complete, error: nil))
     transcript.begin(remote: notice, displayKind: "process_complete", at: .now)
     transcript.apply(.messageDelta("@test-bot replied: Hello!"))
-    #expect(transcript.visible.turns.map(\.reply) == ["Sent.", "@test-bot replied: Hello!"])
+    #expect(transcript.visible.turns.map(\.reply) == ["Sent.", "", "@test-bot replied: Hello!"])
+    #expect(transcript.visible.turns[1].outgoingMessage != nil)
     #expect(transcript.visible.turns.last?.notice == nil)
     transcript.turns[0].agentMessage = AgentMessage("Message from Scout (@scout): hi")
-    #expect(transcript.visible.turns.count == 1)
+    #expect(transcript.visible.turns.count == 2)
     #expect(transcript.visible.turns[0].status == .streaming)
     #expect(notes(transcript.visible.turns[0]).last == "@test-bot replied: Hello!")
 }
@@ -138,7 +139,7 @@ private let peerRows = #"""
      {"id": 16, "role": "assistant", "content": "Crew Test received my greeting.", "timestamp": 1792128789.9351559, "display_kind": null}
     ]
     """#
-    #expect(try transcript(rows).visible.turns.map(\.id) == ["11"])
+    #expect(try transcript(rows).visible.turns.map(\.id) == ["11", "call_4abd74874a61445388e0d82da3dd3da7-to"])
     #expect(try transcript(rows).visible.lastMessage?.text == "Message from Crew Test")
 }
 

@@ -136,6 +136,13 @@ struct WorkLog: View {
                         } animation: { _ in
                             .easeInOut(duration: 1)
                         }
+                } else if let message = turn.outgoingMessage {
+                    let bot = bots.bots.first { $0.name == message.handle }
+                    if let bot {
+                        BotAvatar(bot: bot, status: nil, photo: bots.photos[bot.id], size: 16)
+                            .padding(.trailing, 4)
+                    }
+                    Text("Message to \(bot?.title ?? message.sender)")
                 } else if isLive {
                     TimelineView(.periodic(from: turn.startedAt, by: 1)) { context in
                         Text("Working for \(Duration.seconds(Int(context.date.timeIntervalSince(turn.startedAt))).formatted(elapsedStyle))")

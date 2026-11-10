@@ -34,7 +34,7 @@ nonisolated struct MentionExchange: Equatable, Sendable {
     let outcome: Outcome
 }
 
-nonisolated private struct MessageAgentCall {
+nonisolated struct MessageAgentCall {
     let target: String
     let message: String
     let call: ToolCall

@@ -29,11 +29,13 @@ func notes(_ turn: Turn) -> [String?] {
     #expect(transcript.turns[0].agentMessage?.body == "The user is greeting you—please say hello back.")
     #expect(transcript.turns[0].reply == "Hello!")
     let visible = transcript.visible
-    #expect(visible.turns.map(\.id) == ["1", "5"])
+    #expect(visible.turns.map(\.id) == ["1", "call_220ec837e8ef4d44898d5cd62dfb2dd1-to", "5"])
+    #expect(visible.turns[1].outgoingMessage?.body == "Hello! Please pass my greeting along to the user.")
+    #expect(notes(visible.turns[1]) == ["> Hello! Please pass my greeting along to the user."])
     #expect(visible.turns[0].prompt == nil)
     #expect(visible.turns[0].reply.isEmpty)
     #expect(notes(visible.turns[0]) == ["> The user is greeting you—please say hello back.", nil, "Hello!"])
-    #expect(visible.turns[1].reply == "Just hello.")
+    #expect(visible.turns[2].reply == "Just hello.")
 }
 
 @Test func liveTurnFromAnotherBotShowsCollapsed() {
@@ -62,8 +64,9 @@ func notes(_ turn: Turn) -> [String?] {
     transcript.apply(.messageComplete(text: "@scout replied: Two options.", status: .complete, error: nil))
     transcript.begin(remote: "Message from 🤖 Scout (@scout): Prices dropped.", displayKind: nil, at: .now)
     transcript.apply(.messageComplete(text: "Noted.", status: .complete, error: nil))
-    #expect(transcript.visible.turns.map(\.agentMessage?.body) == [nil, nil, "Prices dropped."])
-    #expect(transcript.visible.turns[1].reply == "@scout replied: Two options.")
+    #expect(transcript.visible.turns.map(\.agentMessage?.body) == [nil, nil, nil, "Prices dropped."])
+    #expect(transcript.visible.turns[1].outgoingMessage?.handle == "scout")
+    #expect(transcript.visible.turns[2].reply == "@scout replied: Two options.")
 }
 
 @Test func failedCallDoesNotSwallowTheNextMessage() {
@@ -74,7 +77,8 @@ func notes(_ turn: Turn) -> [String?] {
     transcript.apply(.messageComplete(text: "Which Scout?", status: .complete, error: nil))
     transcript.begin(remote: "Message from 🤖 Scout (@scout): Prices dropped.", displayKind: nil, at: .now)
     transcript.apply(.messageComplete(text: "", status: .error, error: "Provider down"))
-    #expect(transcript.visible.turns.map(\.agentMessage?.body) == [nil, "Prices dropped."])
+    #expect(transcript.visible.turns.map(\.agentMessage?.body) == [nil, nil, "Prices dropped."])
+    #expect(transcript.visible.turns[1].outgoingMessage?.handle == "scout")
     #expect(transcript.visible.turns.last?.failure == "Provider down")
 }
 

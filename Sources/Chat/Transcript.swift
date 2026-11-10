@@ -23,6 +23,7 @@ nonisolated struct Turn: Identifiable, Codable, Sendable, Equatable {
     var prompt: Prompt?
     var notice: String?
     var agentMessage: AgentMessage?
+    var outgoingMessage: AgentMessage?
     var delivery: String?
     var deliveryFailure: DeliveryFailure?
     var hiddenText: String?
@@ -55,7 +56,9 @@ nonisolated struct AgentMessage: Codable, Sendable, Equatable {
     var sender: String
     var handle: String
     var body: String
+}
 
+nonisolated extension AgentMessage {
     init?(_ text: String) {
         let pattern = /(?s)(?:Message from (?:🤖\s*)?([^:\n(]{1,64}?)(?:\s*\(@([a-z0-9][a-z0-9_-]{0,63})(?:@[a-zA-Z0-9][a-zA-Z0-9_-]{0,63})?\))?:\s*|\[Message from agent '([^']{1,64})'\]\s*)(.*)/
         guard let match = text.trimmingCharacters(in: .whitespacesAndNewlines).wholeMatch(of: pattern) else { return nil }
@@ -253,11 +256,19 @@ extension Transcript {
         let log = { (turn: Turn) in
             turn.work + (turn.reply.isEmpty ? [] : [WorkItem(id: "\(turn.id)-reply", kind: .note(turn.reply), startedAt: turn.finishedAt ?? turn.startedAt)])
         }
+        let quote = { (text: String) in text.split(separator: "\n", omittingEmptySubsequences: false).map { "> \($0)" }.joined(separator: "\n") }
         var shown: [Turn] = []
         var awaited: [(handle: String, origin: Turn.ID)] = []
         var answered: [(handle: String, at: Int)] = []
         var exchanges: [Turn.ID: Int] = [:]
         for (position, turn) in turns.enumerated() {
+            defer {
+                shown += turn.work.compactMap { item in
+                    guard case .tool(let call) = item.kind, call.result != nil, let sent = MessageAgentCall(call) else { return nil }
+                    let note = WorkItem(id: "\(item.id)-message", kind: .note(quote(sent.message)), startedAt: item.startedAt)
+                    return Turn(id: "\(item.id)-to", outgoingMessage: AgentMessage(sender: sent.target, handle: sent.target, body: sent.message), deliveryFailure: call.deliveryFailure, work: [note], status: .complete, startedAt: item.startedAt, finishedAt: item.startedAt)
+                }
+            }
             if let message = turn.agentMessage {
                 if let index = awaited.firstIndex(where: { $0.handle == message.handle }) {
                     answered.append((awaited.remove(at: index).handle, position))
@@ -271,7 +282,7 @@ extension Transcript {
                 var exchange = turn
                 exchange.prompt = nil
                 exchange.reply = ""
-                exchange.work = [WorkItem(id: "\(turn.id)-message", kind: .note(message.body.split(separator: "\n", omittingEmptySubsequences: false).map { "> \($0)" }.joined(separator: "\n")), startedAt: turn.startedAt)] + log(turn)
+                exchange.work = [WorkItem(id: "\(turn.id)-message", kind: .note(quote(message.body)), startedAt: turn.startedAt)] + log(turn)
                 shown.append(exchange)
                 continue
             }

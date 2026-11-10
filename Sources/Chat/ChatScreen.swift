@@ -35,8 +35,13 @@ struct ChatScreen: View {
         return String(localized: "Can't reach \(connection.session?.server.host() ?? String(localized: "the server"))")
     }
 
+    private func seedLoadedCache() {
+        guard let seed = bots.cachedTranscript(of: live) else { return }
+        session?.seed(seed)
+    }
+
     private var shopOffer: String? {
-        guard connection.supportsPayments, let session, let turn = session.transcript.turns.last, turn.id != session.dismissedOffer else { return nil }
+        guard connection.supportsPayments, let session, !session.showsSeed, let turn = session.transcript.turns.last, turn.id != session.dismissedOffer else { return nil }
         return turn.missingShop
     }
 
@@ -45,7 +50,7 @@ struct ChatScreen: View {
             botName: live.title,
             profile: bot.name,
             avatar: BotAvatar(bot: live, status: status, photo: bots.photos[bot.id], size: 28),
-            transcript: session?.visible ?? Transcript(),
+            transcript: session?.visible ?? bots.cachedTranscript(of: live)?.visible ?? Transcript(),
             emptyState: EmptyView(),
             mentionable: bots.bots.filter { $0.id != bot.id },
             slashCommands: session?.slashCommands ?? [],
@@ -93,7 +98,7 @@ struct ChatScreen: View {
         #endif
         .task(id: connection.gateway.map(ObjectIdentifier.init)) {
             guard let gateway = connection.gateway else { return }
-            chats.open(bot, on: gateway, urlSession: connection.urlSession)
+            chats.open(bot, seed: bots.cachedTranscript(of: live), on: gateway, urlSession: connection.urlSession)
         }
         .task(id: connection.state == .connected) {
             showsOffline = false
@@ -117,6 +122,7 @@ struct ChatScreen: View {
             session?.returned = []
             drafts.update(bot.id, to: ([drafts.text(for: bot.id)] + returned).filter { !$0.isEmpty }.joined(separator: "\n"))
         }
+        .onChange(of: bots.cachedChats[bot.id] == nil, seedLoadedCache)
         .onChange(of: live.canonicalSession?.position, initial: true) {
             bots.markSeen(live)
         }

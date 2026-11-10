@@ -48,6 +48,6 @@ Both directions show the same way: a message another bot sent this bot is a coll
 - Refused or unconfirmed outgoing message: the row with its footnote, as in Outgoing messages.
 - Failed or interrupted exchange: the row keeps its title; the failure shows under the turn as for any turn.
 - Offline: rows render from the loaded transcript; nothing new.
-- Window cut (the 20-row preview fetch starts mid-exchange): a delivery follow-up without its origin is hidden unless a user-started turn is loaded, as before; the preview then falls back to the last visible turn. Only the first rows of a 20-row window can be such an orphan, so a newer exchange in the window still sets the preview.
+- Window cut (the 20-row preview fetch or a cached 100-row page starts mid-exchange): the window starts at its first user row that starts a turn (a prompt or a routine notice), so a `Message from` reply or delivery follow-up whose origin was cut off is left out (`Transcript(window:)`, spec `docs/flows/instant-open.md`); a window with no such row starts at its first user row, where a delivery follow-up without its origin is hidden unless a user-started turn is loaded, as before; the preview then falls back to the last visible turn. Only the first rows of a 20-row window can be such an orphan, so a newer exchange in the window still sets the preview.
 - Light and dark: system secondary styles only, both directions.
 - iPhone and Mac: the same rows; nothing platform specific.

@@ -252,6 +252,23 @@ nonisolated struct ActiveList: Decodable {
     let sessions: [LiveSession]
 }
 
+nonisolated struct CachedChat: Codable, Sendable {
+    let position: ReadPosition
+    let transcript: Transcript
+}
+
+extension Transcript {
+    init(window rows: [HistoryRow]) {
+        let sorted = rows.sorted { $0.id < $1.id }
+        let startsTurn = { (row: HistoryRow) in
+            let text = row.displayContent ?? row.content ?? ""
+            return row.role == "user" && AgentMessage(text) == nil && deliveryProcess(in: text) == nil
+        }
+        let start = sorted.firstIndex(where: startsTurn) ?? sorted.firstIndex { $0.role == "user" } ?? sorted.endIndex
+        self.init(history: Array(sorted[start...]))
+    }
+}
+
 nonisolated private struct ProfileAsset: Decodable {
     let found: Bool
     let data: String?
@@ -276,10 +293,15 @@ final class BotStore {
     private(set) var isLoaded: Bool
     private(set) var photos: [Bot.ID: Image]
     private(set) var previews: [Bot.ID: LastMessage] = [:]
+    private(set) var cachedChats: [Bot.ID: CachedChat] = [:]
     var isForeground = true
+
+    static let cachedChatLimit = 10
+    static let pageRows = 100
 
     private let cacheURL: URL?
     private let photoDirectory: URL?
+    private let chatDirectory: URL?
     private var photoRevisions: [Bot.ID: Int] = [:]
     private var previewPositions: [Bot.ID: ReadPosition] = [:]
     private var liveSessions: [LiveSession] = []
@@ -290,6 +312,7 @@ final class BotStore {
     private var clearingUnread: Set<Bot.ID> = []
     private(set) var clearedUnread: [Bot] = []
     private var gateway: Gateway?
+    private var generation = 0
     #if os(iOS)
     @ObservationIgnored private var siriBots: [BotEntity]?
     #endif
@@ -307,23 +330,29 @@ final class BotStore {
         #else
         let photoDirectory = URL.cachesDirectory.appending(path: "avatars")
         #endif
+        let chatDirectory = URL.cachesDirectory.appending(path: Bundle.main.bundleIdentifier ?? "dev.gustaf.crew").appending(path: "transcripts")
         self.cacheURL = cacheURL
         self.photoDirectory = photoDirectory
+        self.chatDirectory = chatDirectory
         self.bots = cached ?? []
         self.statuses = [:]
         self.isLoaded = cached != nil
         self.photos = Dictionary(uniqueKeysWithValues: (cached ?? []).compactMap { bot in
             (try? Data(contentsOf: photoDirectory.appending(path: bot.id))).flatMap(Self.photo).map { (bot.id, $0) }
         })
+        Task { adopt(await Self.readCachedChats(in: chatDirectory)) }
     }
 
-    init(fixture bots: [Bot], statuses: [Bot.ID: BotStatus], photos: [Bot.ID: Image] = [:]) {
+    init(fixture bots: [Bot], statuses: [Bot.ID: BotStatus], photos: [Bot.ID: Image] = [:], chatDirectory: URL? = nil) {
         self.cacheURL = nil
         self.photoDirectory = nil
+        self.chatDirectory = chatDirectory
         self.bots = bots
         self.statuses = statuses
         self.isLoaded = true
         self.photos = photos
+        guard let chatDirectory else { return }
+        Task { adopt(await Self.readCachedChats(in: chatDirectory)) }
     }
 
     var favourites: [Bot] {
@@ -535,6 +564,7 @@ final class BotStore {
         photoRevisions = [:]
         previews = [:]
         previewPositions = [:]
+        cachedChats = [:]
         liveSessions = []
         waitingKinds = [:]
         for write in readWrites.values { write.cancel() }
@@ -544,8 +574,10 @@ final class BotStore {
         seenActivity = [:]
         firstSeenActivity = [:]
         gateway = nil
+        generation += 1
         urlSession = nil
         isLoaded = false
+        chatDirectory.map { try? FileManager.default.removeItem(at: $0) }
         guard let cacheURL, let photoDirectory else { return }
         try? FileManager.default.removeItem(at: cacheURL)
         try? FileManager.default.removeItem(at: photoDirectory)
@@ -569,7 +601,8 @@ final class BotStore {
         apply(roster: roster.profiles)
         await poll(gateway)
         await refreshPhotos(gateway)
-        await refreshPreviews(gateway)
+        guard let urlSession else { return }
+        await refreshPreviews(from: gateway.server, with: urlSession)
     }
 
     func apply(roster: [Bot]) {
@@ -651,21 +684,87 @@ final class BotStore {
         }
     }
 
-    private func refreshPreviews(_ gateway: Gateway) async {
-        guard let urlSession else { return }
-        for bot in bots {
-            guard let session = bot.canonicalSession, let position = session.position, previewPositions[bot.id] != position else { continue }
+    func refreshPreviews(from server: URL, with urlSession: URLSession) async {
+        let generation = self.generation
+        let listed = favourites + sections.flatMap(\.bots)
+        let cached = Set(listed.prefix(Self.cachedChatLimit).map(\.id))
+        for bot in listed.filter({ cached.contains($0.id) }) + bots.filter({ !cached.contains($0.id) }) {
+            guard let session = bot.canonicalSession, let position = session.position else { continue }
+            let isBusy = if case .waiting = statuses[bot.id] { true } else { statuses[bot.id] == .working }
+            let caches = cached.contains(bot.id) && !isBusy
+            guard previewPositions[bot.id] != position || caches && cachedChats[bot.id]?.position != position else { continue }
             previewPositions[bot.id] = position
-            guard let rows = try? await history(of: session.resolvedID, profile: bot.name, on: gateway.server, with: urlSession, limit: 20) else {
+            guard let rows = try? await history(of: session.resolvedID, profile: bot.name, on: server, with: urlSession, limit: caches ? Self.pageRows : 20) else {
                 previewPositions[bot.id] = nil
                 continue
             }
-            showPreview(of: bot.id, from: rows)
+            guard self.generation == generation else { return }
+            guard bots.first(where: { $0.id == bot.id })?.canonicalSession?.position == position else { continue }
+            guard caches else {
+                showPreview(of: bot.id, from: rows)
+                continue
+            }
+            let chat = CachedChat(position: position, transcript: Transcript(window: rows))
+            previews[bot.id] = chat.transcript.visible.lastMessage
+            cachedChats[bot.id] = chat
+            save(chat, of: bot.id)
         }
+        trimCachedChats(keeping: cached)
     }
 
     func showPreview(of id: Bot.ID, from rows: [HistoryRow]) {
-        previews[id] = Transcript(history: Array(rows.sorted { $0.id < $1.id }.drop { $0.role != "user" })).visible.lastMessage
+        previews[id] = Transcript(window: rows).visible.lastMessage
+    }
+
+    func cachedTranscript(of bot: Bot) -> Transcript? {
+        guard let chat = cachedChats[bot.id], chat.position.session == bot.canonicalSession?.resolvedID.rawValue, !chat.transcript.turns.isEmpty else { return nil }
+        return chat.transcript
+    }
+
+    private func save(_ chat: CachedChat, of id: Bot.ID) {
+        guard let chatDirectory else { return }
+        let file = chatDirectory.appending(path: "\(id).json")
+        guard !chat.transcript.turns.isEmpty, let data = try? JSONEncoder().encode(chat), data.count <= 1_000_000 else {
+            try? FileManager.default.removeItem(at: file)
+            return
+        }
+        try? FileManager.default.createDirectory(at: chatDirectory, withIntermediateDirectories: true)
+        try? data.write(to: file, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+    }
+
+    private func trimCachedChats(keeping wanted: Set<Bot.ID>) {
+        let listed = Set(bots.filter { $0.meta.hidden != true }.map(\.id))
+        let gone = cachedChats.keys.filter { !listed.contains($0) }
+        let surplus = cachedChats.keys.filter { listed.contains($0) && !wanted.contains($0) }.prefix(max(cachedChats.count - gone.count - Self.cachedChatLimit, 0))
+        for id in gone + surplus {
+            cachedChats[id] = nil
+            chatDirectory.map { try? FileManager.default.removeItem(at: $0.appending(path: "\(id).json")) }
+        }
+    }
+
+    private func adopt(_ files: [Bot.ID: CachedChat]) {
+        for (id, chat) in files {
+            guard cachedChats[id] == nil, bots.contains(where: { $0.id == id && $0.meta.hidden != true && $0.canonicalSession?.resolvedID.rawValue == chat.position.session }) else {
+                if cachedChats[id] == nil { chatDirectory.map { try? FileManager.default.removeItem(at: $0.appending(path: "\(id).json")) } }
+                continue
+            }
+            cachedChats[id] = chat
+            guard bots.first(where: { $0.id == id })?.canonicalSession?.position == chat.position else { continue }
+            previews[id] = previews[id] ?? chat.transcript.visible.lastMessage
+            previewPositions[id] = previewPositions[id] ?? chat.position
+        }
+    }
+
+    @concurrent nonisolated private static func readCachedChats(in directory: URL) async -> [Bot.ID: CachedChat] {
+        let files = (try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)) ?? []
+        return Dictionary(uniqueKeysWithValues: files.compactMap { file in
+            guard let data = try? Data(contentsOf: file) else { return nil }
+            guard let chat = try? JSONDecoder().decode(CachedChat.self, from: data) else {
+                try? FileManager.default.removeItem(at: file)
+                return nil
+            }
+            return (file.deletingPathExtension().lastPathComponent, chat)
+        })
     }
 
     private static func photo(from data: Data) -> Image? {

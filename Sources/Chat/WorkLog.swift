@@ -99,7 +99,7 @@ struct WorkLog: View {
                             WorkRow(item: item, isExpanded: Binding {
                                 expandedWork.contains(item.id)
                             } set: { _ in
-                                withAnimation(.snappy) { expansion?.work.formSymmetricDifference([item.id]) }
+                                withTransaction(.disclosure(.snappy)) { expansion?.work.formSymmetricDifference([item.id]) }
                             })
                         case .hiddenTools(let runID, let count):
                             runToggle("+\(count) previous tool calls", systemImage: "ellipsis", runID: runID)
@@ -122,7 +122,7 @@ struct WorkLog: View {
 
     private var header: some View {
         Button {
-            withAnimation(.snappy) { expansion?.turns.formSymmetricDifference([turn.id]) }
+            withTransaction(.disclosure(.snappy)) { expansion?.turns.formSymmetricDifference([turn.id]) }
         } label: {
             HStack(spacing: 4) {
                 if let message = turn.agentMessage {
@@ -173,7 +173,7 @@ struct WorkLog: View {
 
     private func runToggle(_ title: String, systemImage: String, runID: String) -> some View {
         Button {
-            withAnimation(.snappy) { expansion?.runs.formSymmetricDifference([runID]) }
+            withTransaction(.disclosure(.snappy)) { expansion?.runs.formSymmetricDifference([runID]) }
         } label: {
             Label(title, systemImage: systemImage)
                 .font(.subheadline)

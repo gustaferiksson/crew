@@ -8,8 +8,9 @@ import pytest
 from conftest import PLUGIN_ROOT
 from crew_push.hooks import HOOK_NAMES
 
-HERMES = Path(os.environ.get("CREW_PUSH_HERMES_PINNED", ""))
-NOT_HERMES = {"crew_push", "fastapi", "httpx", "jwt", "pydantic", "starlette"}
+HERMES_SRC = os.environ.get("CREW_PUSH_HERMES_PINNED", "")
+HERMES = Path(HERMES_SRC)
+NOT_HERMES = {"crew_push", "fastapi", "httpx", "jwt", "pydantic", "starlette", *sys.stdlib_module_names}
 RETURNED = [
     ("hermes_cli.plugins", "PluginManager", "invoke_hook"),
     ("hermes_cli.plugins", "PluginManager", "has_hook"),
@@ -26,8 +27,7 @@ RETURNED = [
     ("tools.browser_supervisor_capture", "CapturedCDP", "task_id"),
 ]
 
-pytestmark = pytest.mark.skipif(not os.environ.get("CREW_PUSH_HERMES_PINNED"),
-                                reason="set CREW_PUSH_HERMES_PINNED to a Hermes source tree")
+pytestmark = pytest.mark.skipif(not HERMES_SRC, reason="set CREW_PUSH_HERMES_PINNED to a Hermes source tree")
 
 
 def plugin_uses() -> list[tuple[str, str, str, str]]:
@@ -37,26 +37,22 @@ def plugin_uses() -> list[tuple[str, str, str, str]]:
             continue
         where = str(path.relative_to(PLUGIN_ROOT))
         imported: dict[str, tuple[str, str]] = {}
-        for node in ast.walk(ast.parse(path.read_text())):
-            if isinstance(node, ast.ImportFrom) and node.level == 0 and is_hermes(node.module or ""):
+        tree = ast.parse(path.read_text())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom) and node.level == 0 and node.module.split(".")[0] not in NOT_HERMES:
                 for alias in node.names:
                     uses.append((where, node.module, alias.name, ""))
                     imported[alias.asname or alias.name] = (node.module, alias.name)
             if isinstance(node, ast.Import):
                 for alias in node.names:
-                    if is_hermes(alias.name):
+                    if alias.name.split(".")[0] not in NOT_HERMES:
                         module, _, name = alias.name.rpartition(".")
                         uses.append((where, module, name, ""))
                         imported[alias.asname or alias.name] = (module, name)
-        for node in ast.walk(ast.parse(path.read_text())):
+        for node in ast.walk(tree):
             if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name) and node.value.id in imported:
                 uses.append((where, *imported[node.value.id], node.attr))
     return sorted(set(uses))
-
-
-def is_hermes(module: str) -> bool:
-    root = module.split(".")[0]
-    return bool(root) and root not in sys.stdlib_module_names and root not in NOT_HERMES
 
 
 def source(module: str) -> Path | None:

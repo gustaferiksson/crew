@@ -7,6 +7,9 @@ class OffscreenWindow: NSWindow {
         setFrameOrigin(NSPoint(x: -20000, y: -20000))
     }
 
+    // SwiftUI's ScrollView never leaves the idle scroll phase in a window without a screen.
+    override var screen: NSScreen? { NSScreen.main }
+
     override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect {
         frameRect
     }

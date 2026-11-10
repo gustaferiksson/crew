@@ -76,7 +76,7 @@ private struct ResizingWindow: View {
 
     @Test(arguments: ResizedWindow.allCases, ["", "Line one\nLine two\nLine three\nLine four\nLine five\nLine six\nLine seven"])
     func theComposerStaysOnTheBottomEdgeWhileTheWindowResizes(in layout: ResizedWindow, draft: String) throws {
-        let window = NSWindow(contentRect: NSRect(x: -20000, y: -20000, width: 1000, height: 600), styleMask: [.titled, .resizable, .closable, .miniaturizable, .fullSizeContentView], backing: .buffered, defer: false)
+        let window = OffscreenWindow(size: NSSize(width: 1000, height: 600), styleMask: [.titled, .resizable, .closable, .miniaturizable, .fullSizeContentView])
         window.isRestorable = false
         let probe = ResizeProbe()
         window.contentViewController = NSHostingController(rootView: ResizingWindow(window: layout, draft: draft, probe: probe))

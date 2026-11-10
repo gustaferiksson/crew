@@ -121,7 +121,7 @@ private struct CountingClock: Clock {
     .environment(\.scenePhase, phase)
     .environment(\.appearsActive, true)
     .frame(width: 300, height: 400)
-    let window = NSWindow(contentRect: CGRect(x: -20000, y: 0, width: 300, height: 400), styleMask: [.borderless], backing: .buffered, defer: false)
+    let window = OffscreenWindow(size: NSSize(width: 300, height: 400), styleMask: [.borderless])
     window.contentView = NSHostingView(rootView: list)
     window.contentView?.layoutSubtreeIfNeeded()
     try await Task.sleep(for: .seconds(1.5))

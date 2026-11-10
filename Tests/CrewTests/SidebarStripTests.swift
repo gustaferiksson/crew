@@ -35,7 +35,7 @@ private func peer(_ store: BotStore) throws -> Bot {
     }
     .listStyle(.sidebar)
     .frame(width: listWidth, height: 600)
-    let window = NSWindow(contentRect: CGRect(x: -4000, y: 0, width: listWidth, height: 600), styleMask: [.borderless], backing: .buffered, defer: false)
+    let window = OffscreenWindow(size: NSSize(width: listWidth, height: 600), styleMask: [.borderless])
     window.contentView = NSHostingView(rootView: list)
     window.contentView?.layoutSubtreeIfNeeded()
     RunLoop.main.run(until: .now.addingTimeInterval(0.3))
@@ -86,7 +86,7 @@ private func peer(_ store: BotStore) throws -> Bot {
     }
     .listStyle(.sidebar)
     .frame(width: stripWidth, height: 600)
-    let window = NSWindow(contentRect: CGRect(x: -4000, y: 0, width: stripWidth, height: 600), styleMask: [.borderless], backing: .buffered, defer: false)
+    let window = OffscreenWindow(size: NSSize(width: stripWidth, height: 600), styleMask: [.borderless])
     window.contentView = NSHostingView(rootView: list)
     window.contentView?.layoutSubtreeIfNeeded()
     RunLoop.main.run(until: .now.addingTimeInterval(0.3))

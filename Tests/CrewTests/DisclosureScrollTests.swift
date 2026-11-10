@@ -52,7 +52,7 @@ private func botThread(endingWith last: String) throws -> [Turn] {
         let model = DisclosureModel()
         model.turns = try botThread(endingWith: last)
         let row = try #require(model.turns.last?.id)
-        let window = NSWindow(contentRect: NSRect(x: -20000, y: -20000, width: 600, height: 500), styleMask: [.titled, .resizable], backing: .buffered, defer: false)
+        let window = OffscreenWindow(size: NSSize(width: 600, height: 500), styleMask: [.titled, .resizable])
         window.isRestorable = false
         window.contentViewController = NSHostingController(rootView: DisclosureColumn(model: model).environment(BotStore(fixture: [scout], statuses: [:])))
         window.setContentSize(NSSize(width: 600, height: 500))

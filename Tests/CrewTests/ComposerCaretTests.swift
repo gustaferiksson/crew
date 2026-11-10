@@ -35,7 +35,7 @@ private struct RunningChatHost: View {
 
     @Test func theCaretStaysPutWhenTheFinishedReplyArrives() throws {
         let chat = RunningChat()
-        let window = NSWindow(contentRect: NSRect(x: -20000, y: -20000, width: 480, height: 240), styleMask: [.borderless], backing: .buffered, defer: false)
+        let window = OffscreenWindow(size: NSSize(width: 480, height: 240), styleMask: [.borderless])
         window.contentView = NSHostingView(rootView: RunningChatHost(chat: chat))
         window.orderBack(nil)
         defer { window.orderOut(nil) }

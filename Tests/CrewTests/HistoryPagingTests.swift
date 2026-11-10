@@ -6,7 +6,7 @@ nonisolated private let fixtures = URL(filePath: #filePath).deletingLastPathComp
 
 nonisolated private final class ChatStub: URLProtocol {
     static let requests = Mutex<[(limit: Int, offset: Int)]>([])
-    static let rows = Mutex<[[String: Any]]>([])
+    static let rows = Mutex(Data())
     static let fails = Mutex(false)
     static let session: URLSession = {
         let configuration = URLSessionConfiguration.ephemeral
@@ -24,7 +24,7 @@ nonisolated private final class ChatStub: URLProtocol {
         let limit = items.first { $0.name == "limit" }?.value.flatMap(Int.init) ?? 500
         let offset = items.first { $0.name == "offset" }?.value.flatMap(Int.init) ?? 0
         ChatStub.requests.withLock { $0.append((limit, offset)) }
-        let rows = ChatStub.rows.withLock { $0 }
+        let rows = (try? JSONSerialization.jsonObject(with: ChatStub.rows.withLock { $0 })) as? [[String: Any]] ?? []
         let page = Array(rows.dropLast(offset).suffix(limit))
         let status = ChatStub.fails.withLock { $0 } ? 500 : 200
         client?.urlProtocol(self, didReceive: HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: nil)!, cacheStoragePolicy: .notAllowed)
@@ -59,7 +59,8 @@ nonisolated private func recordedRows(copies: Int) throws -> [[String: Any]] {
     }
 
     @Test func anOpenChatFetchesOnlyTheLatestPageAndLoadsOlderPagesOnRequest() async throws {
-        ChatStub.rows.withLock { $0 = (try? recordedRows(copies: 14)) ?? [] }
+        let rows = try recordedRows(copies: 14)
+        ChatStub.rows.withLock { $0 = (try? JSONSerialization.data(withJSONObject: rows)) ?? Data() }
         ChatStub.requests.withLock { $0 = [] }
         ChatStub.fails.withLock { $0 = false }
         let gateway = Gateway(server: URL(string: "https://hermes.invalid")!, urlSession: ChatStub.session) { throw CancellationError() }
@@ -77,7 +78,8 @@ nonisolated private func recordedRows(copies: Int) throws -> [[String: Any]] {
         let paged = chat.visible.turns.map(\.id)
         #expect(paged.count > latest.count && Array(paged.suffix(latest.count)) == latest, "the older page did not land above the shown turns")
 
-        ChatStub.rows.withLock { $0 += (try? recordedRows(copies: 15).suffix(35).map { $0 }) ?? [] }
+        let grown = try rows + recordedRows(copies: 15).suffix(35)
+        ChatStub.rows.withLock { $0 = (try? JSONSerialization.data(withJSONObject: grown)) ?? Data() }
         chat.sync(to: ReadPosition(session: "s", messages: 525))
         try await settled(chat) { chat.visible.turns.count > paged.count }
         #expect(ChatStub.requests.withLock { $0.last.map { [$0.limit, $0.offset] } } == [100, 0], "the catch-up fetched more than the latest page")
@@ -95,7 +97,7 @@ nonisolated private func recordedRows(copies: Int) throws -> [[String: Any]] {
         #expect(chat.earlier == .complete)
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
-        let whole = Transcript(history: try decoder.decode([HistoryRow].self, from: JSONSerialization.data(withJSONObject: ChatStub.rows.withLock { $0 }))).visible.turns.map(\.id)
+        let whole = Transcript(history: try decoder.decode([HistoryRow].self, from: ChatStub.rows.withLock { $0 })).visible.turns.map(\.id)
         #expect(chat.visible.turns.map(\.id) == whole, "the start of the chat differs from the whole history")
     }
 }

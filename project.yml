@@ -145,6 +145,7 @@ targets:
       - Sources/Chat/Attachments.swift
       - Sources/Chat/AttachmentViews.swift
       - Sources/Chat/ChatSession.swift
+      - Sources/Chat/HistoryPages.swift
       - Sources/Chat/ChatSessions.swift
       - Sources/Chat/ChatDrafts.swift
       - Sources/Chat/ChatPins.swift
@@ -155,6 +156,7 @@ targets:
       - Sources/Chat/PaymentCard.swift
       - Sources/Chat/TranscriptScroll.swift
       - Sources/Chat/ChatView.swift
+      - Sources/Chat/EarlierHistoryRow.swift
       - Sources/Chat/WorkLog.swift
       - Sources/Chat/UserBubble.swift
       - Sources/Chat/MessageMenu.swift

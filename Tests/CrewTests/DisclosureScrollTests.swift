@@ -44,18 +44,19 @@ private func botThread(endingWith last: String) throws -> Transcript {
         window.setContentSize(NSSize(width: 700, height: 800))
         window.orderBack(nil)
         defer { window.orderOut(nil) }
-        settle(1)
+        settle(2)
 
         let scroll = try #require(window.contentView.flatMap(scrollView(in:)))
         let height = { scroll.documentView?.frame.height ?? 0 }
-        let collapsed = height()
-        let header = stride(from: CGFloat(40), to: 200, by: 4).first { y in
+        var growth: CGFloat = 0
+        let header = stride(from: CGFloat(40), to: 300, by: 4).first { y in
+            let before = height()
             click(window, at: NSPoint(x: 60, y: y))
             settle(0.5)
-            return height() - collapsed > 20
+            growth = height() - before
+            return growth > 20
         }
         let y = try #require(header, "no click opened the last row")
-        let growth = height() - collapsed
         for (step, point) in [("collapse", y + growth), ("expand", y), ("collapse", y + growth)] {
             let before = height()
             distances.values = []

@@ -52,9 +52,11 @@ private func botThread(endingWith last: String) throws -> Transcript {
         var growth: CGFloat = 0
         let header = stride(from: CGFloat(40), to: 300, by: 4).first { y in
             let before = height()
+            TurnView.bodies = 0
             click(window, at: NSPoint(x: 60, y: y))
             settle(0.5)
             growth = height() - before
+            if TurnView.bodies > 0 || growth != 0 { print("Disclosure \(last): click at \(y) ran \(TurnView.bodies) turn bodies and changed the height by \(growth)") }
             return growth > 20
         }
         let y = try #require(header, "no click opened the last row")

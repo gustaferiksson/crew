@@ -38,6 +38,9 @@ class CheckoutTab:
     def focus_page(self, origin: str, *, accept: str | None = None, timeout: float = 10.0) -> dict[str, object]:
         return {"ok": True, "url": f"{origin}/checkout"} if origin == "https://www.zalando.se" else {"ok": False}
 
+    def evaluate_runtime(self, expression: str) -> dict[str, object]:
+        return {"ok": True, "result": json.dumps([{"autocomplete": "cc-number", "index": 0, "type": "text"}])}
+
 
 def pay(home: Path, handle: str, sent: list[dict[str, object]]) -> dict[str, object]:
     from hermes_cli.plugins import _dispatch_pre_tool_call_hooks

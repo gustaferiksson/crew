@@ -35,7 +35,6 @@ class Hermes:
         "vault_3f9a1c2b7d4e": types.SimpleNamespace(kind="payment", label=LABEL, origin=ORIGIN, allowed_origins=()),
         "vault_login": types.SimpleNamespace(kind="login", label="Zalando", origin=ORIGIN, allowed_origins=())})
     pending: list[dict[str, Any]] = field(default_factory=list)
-    browser_use: bool = True
     registry: dict[str, Any] = field(default_factory=lambda: {"default": "browser_exec"})
     sessions: dict[str, Any] = field(default_factory=dict)
     attachable: bool = True
@@ -117,10 +116,9 @@ def hermes(monkeypatch: pytest.MonkeyPatch, hermes_root: Path, bot_chat: dict[st
             dict(entry) for entry in state.pending] if key == KEY else []),
         "tools.approval_context": types.SimpleNamespace(get_current_session_key=lambda default="default": KEY,
                                                         _get_approval_timeout=lambda: 300),
-        "tools.browser_tool": types.SimpleNamespace(_active_sessions=state.sessions, _last_session_key=lambda t: t),
+        "tools.browser_session": types.SimpleNamespace(session_for_task=lambda task_id: state.sessions.get(task_id, {})),
         "tools.browser_supervisor": types.SimpleNamespace(SUPERVISOR_REGISTRY=types.SimpleNamespace(
             get=lambda task_id: state.registry.get(task_id), capture=lambda task_id: state.cdp)),
-        "tools.browser_use_cli": types.SimpleNamespace(is_browser_use_cli_mode=lambda: state.browser_use),
         "tools.browser_vault_tool": types.SimpleNamespace(
             _TAB_PROBES={"payment": "!!document.querySelector('input[autocomplete^=cc-]')"},
             _ensure_supervisor=state.ensure,
@@ -642,11 +640,9 @@ def test_browser_use_page_on_the_shop_is_allowed(push: CrewPush, hermes: Hermes)
     assert hermes.ensured == ["default"] and "call_1" in push.claims
 
 
-def test_built_in_browser_reads_the_page_after_navigating(push: CrewPush, hermes: Hermes) -> None:
-    hermes.browser_use = False
+def test_a_session_without_a_supervisor_is_read_after_attaching(push: CrewPush, hermes: Hermes) -> None:
     hermes.registry.clear()
-    text = message(fill(push))
-    assert "browser_navigate first, then call browser_vault fill again" in text and hermes.ensured == []
+    assert "browser_exec" in message(fill(push)) and hermes.ensured == []
     hermes.sessions["default"] = {"session_name": "s"}
     assert fill(push) is None
     assert hermes.registry == {"default": "attached"}
@@ -662,10 +658,10 @@ def test_an_unreadable_browser_blocks(push: CrewPush, hermes: Hermes) -> None:
     hermes.raise_in = "browser"
     assert "browser_exec" in message(fill(push))
     hermes.raise_in = ""
-    hermes.browser_use, hermes.attachable = False, False
+    hermes.attachable = False
     hermes.registry.clear()
     hermes.sessions["default"] = {"session_name": "s"}
-    assert "browser_navigate" in message(fill(push))
+    assert "browser_exec" in message(fill(push))
 
 
 def test_block_messages_stay_under_hermes_cap(push: CrewPush, hermes: Hermes) -> None:

@@ -188,10 +188,10 @@ def is_bot_chat(profile: str, session_id: str) -> bool:
 
 
 def browser_open(task_id: str) -> bool:
+    from tools.browser_session import session_for_task
     from tools.browser_supervisor import SUPERVISOR_REGISTRY
-    from tools.browser_tool import _active_sessions, _last_session_key
 
-    return SUPERVISOR_REGISTRY.get(task_id) is not None or bool(_active_sessions.get(_last_session_key(task_id)))
+    return SUPERVISOR_REGISTRY.get(task_id) is not None or bool(session_for_task(task_id))
 
 
 def card_page_origin(task_id: str) -> str | None:
@@ -204,15 +204,9 @@ def card_page_origin(task_id: str) -> str | None:
 
 
 def no_page_block(origin: str) -> dict[str, str]:
-    try:
-        from tools.browser_use_cli import is_browser_use_cli_mode
-
-        browser_use = is_browser_use_cli_mode()
-    except Exception:
-        browser_use = False
-    how = 'browser_exec first (new_tab("<checkout URL>"))' if browser_use else "browser_navigate first"
-    return payments.block("crew_no_shop_page", f"No browser page is open on {origin}. Open the checkout with {how}, "
-                                               "then call browser_vault fill again.")
+    return payments.block("crew_no_shop_page", f"No browser page is open on {origin}. Open the checkout with "
+                                               'browser_exec first (new_tab("<checkout URL>")), then call '
+                                               "browser_vault fill again.")
 
 
 def card_field_block(task_id: str, origin: str) -> tuple[dict[str, str] | None, str]:

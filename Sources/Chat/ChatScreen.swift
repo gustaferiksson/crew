@@ -45,7 +45,7 @@ struct ChatScreen: View {
             botName: live.title,
             profile: bot.name,
             avatar: BotAvatar(bot: live, status: status, photo: bots.photos[bot.id], size: 28),
-            transcript: session?.visible ?? Transcript(),
+            transcript: session?.visible ?? bots.cachedTranscript(of: live)?.visible ?? Transcript(),
             emptyState: EmptyView(),
             mentionable: bots.bots.filter { $0.id != bot.id },
             slashCommands: session?.slashCommands ?? [],
@@ -93,7 +93,7 @@ struct ChatScreen: View {
         #endif
         .task(id: connection.gateway.map(ObjectIdentifier.init)) {
             guard let gateway = connection.gateway else { return }
-            chats.open(bot, on: gateway, urlSession: connection.urlSession)
+            chats.open(bot, seed: bots.cachedTranscript(of: live), on: gateway, urlSession: connection.urlSession)
         }
         .task(id: connection.state == .connected) {
             showsOffline = false

@@ -12,13 +12,13 @@ final class ChatSessions {
         self.sessions = sessions
     }
 
-    func open(_ bot: Bot, on gateway: Gateway, urlSession: URLSession) {
+    func open(_ bot: Bot, seed: @autoclosure () -> Transcript?, on gateway: Gateway, urlSession: URLSession) {
         if self.gateway !== gateway {
             reset()
             self.gateway = gateway
         }
         guard sessions[bot.id] == nil else { return }
-        let session = ChatSession(bot: bot, gateway: gateway, urlSession: urlSession)
+        let session = ChatSession(bot: bot, seed: seed() ?? Transcript(), gateway: gateway, urlSession: urlSession)
         sessions[bot.id] = session
         if let requestID = awaitedPayments.removeValue(forKey: bot.id) { session.expectPayment(requestID) }
         runs[bot.id] = Task { await session.run() }
@@ -43,7 +43,7 @@ final class ChatSessions {
     }
 
     func summary(of bot: Bot, in store: BotStore) -> BotSummary {
-        let last = sessions[bot.id]?.visible.lastMessage ?? store.previews[bot.id]
+        let last = sessions[bot.id].flatMap { $0.showsSeed ? nil : $0.visible.lastMessage } ?? store.previews[bot.id]
         let text = String((last?.text ?? bot.canonicalSession?.preview.map { noticeText(kind: nil, content: $0) ?? Prompt(raw: $0, sentAt: .now).text } ?? "").prefix(400))
         let plain = (try? AttributedString(markdown: text, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))).map { String($0.characters) } ?? text
         return BotSummary(status: status(of: bot.id, in: store), preview: plain, time: last?.date ?? bot.canonicalSession?.lastActive)

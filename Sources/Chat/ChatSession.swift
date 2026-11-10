@@ -32,6 +32,7 @@ final class ChatSession {
     private(set) var transcript = Transcript() {
         didSet { visible = transcript.visible }
     }
+    private(set) var showsSeed: Bool
     private(set) var visible = Transcript()
     private(set) var openRequests: [ServerRequest] = [] {
         didSet { payments = payments.filter { payment in openRequests.contains { $0.id == payment.key } } }
@@ -59,7 +60,10 @@ final class ChatSession {
     private var serverPosition: ReadPosition?
     private var isSyncing = false
 
-    init(bot: Bot, resuming session: StoredSessionID? = nil, gateway: Gateway, urlSession: URLSession) {
+    init(bot: Bot, resuming session: StoredSessionID? = nil, seed: Transcript = Transcript(), gateway: Gateway, urlSession: URLSession) {
+        self.transcript = seed
+        self.visible = seed.visible
+        self.showsSeed = !seed.turns.isEmpty
         self.profile = bot.name
         self.stored = session ?? bot.canonicalSession?.id
         self.syncedPosition = session == nil ? bot.canonicalSession?.position : nil
@@ -117,6 +121,7 @@ final class ChatSession {
                 reloaded.keepFailures(from: shown)
                 reloaded.waiting = shown.waiting
                 transcript = reloaded
+                showsSeed = false
             }
             isSyncing = false
         }
@@ -124,7 +129,8 @@ final class ChatSession {
 
     func send(_ text: String, attachments: [Attachment] = [], mentioning bots: [Bot] = [], mode: SendMode) {
         let prompt = Prompt(text: text.trimmingCharacters(in: .whitespacesAndNewlines), sentAt: .now, attachments: attachments, mentionNote: mentionNote(for: bots))
-        guard !prompt.text.isEmpty || !attachments.isEmpty, let runtime else { return }
+        guard !prompt.text.isEmpty || !attachments.isEmpty else { return }
+        guard let runtime else { return transcript.wait(prompt, as: .queued) }
         guard isRunning else { return submit(prompt) }
         if mode == .queue || attachments.isEmpty && slashInvocation(prompt.text, in: slashCommands) != nil || !attachments.isEmpty || transcript.turns.last.map({ $0.agentMessage != nil || $0.delivery != nil }) == true { return transcript.wait(prompt, as: .queued) }
         let id = UUID().uuidString
@@ -398,10 +404,11 @@ final class ChatSession {
         do {
             let (stored, snapshot) = try await openBotChat(stored, profile: profile, via: gateway)
             self.stored = stored
-            try await load(snapshot)
             slashCommands = (try? await gateway.call("commands.catalog", ["profile": profile], as: SlashCatalog.self).commands) ?? slashCommands
+            try await load(snapshot)
         } catch {
             failure = error.localizedDescription
+            if runtime == nil { returned += transcript.dropWaiting { $0.pending == .queued } }
         }
     }
 
@@ -443,6 +450,7 @@ final class ChatSession {
         }
         self.stored = stored
         self.transcript = transcript
+        showsSeed = false
         runtime = snapshot.sessionID
         epoch = replay.epoch
         appliedSeq = 0

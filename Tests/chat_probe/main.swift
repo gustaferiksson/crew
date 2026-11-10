@@ -1257,7 +1257,7 @@ if phases.contains("record") {
             print("peer model change:", try await gateway.call("profiles.configure", changes, as: JSONValue.self))
         }
         if scenario == "open-target" {
-            peerChats.open(peer, on: gateway, urlSession: urlSession)
+            peerChats.open(peer, seed: nil, on: gateway, urlSession: urlSession)
             try await Task.sleep(for: .seconds(3))
         }
         var peerState = ""
@@ -1350,6 +1350,77 @@ if phases.contains("long-chat") {
     let file = URL(fileURLWithPath: #filePath).appending(path: "../../fixtures/chat.long-replies.history.json").standardized
     try Data((text + "\n").utf8).write(to: file)
     print("RECORDED \(kept.count) rows to \(file.path)")
+}
+
+if phases.contains("open-timing") {
+    nonisolated struct Page: Decodable, Sendable { let messages: [HistoryRow] }
+    let clock = ContinuousClock()
+    let decoder = JSONDecoder()
+    decoder.keyDecodingStrategy = .convertFromSnakeCase
+    let bots = try await gateway.call("profiles.list", ["include_sessions": true], as: BotRoster.self).profiles
+    print("bot | rows | KB | GET 500 ms | decode ms | Transcript ms | visible ms | turns | GET 20 ms | page KB | GET page ms | page Transcript ms | page turns")
+    for bot in bots {
+        guard let session = bot.canonicalSession else { continue }
+        let start = clock.now
+        let (data, _) = try await urlSession.data(for: historyRequest(of: session.resolvedID, profile: bot.name, on: server, limit: 500))
+        let fetched = clock.now
+        let rows = try decoder.decode(Page.self, from: data).messages
+        let decoded = clock.now
+        let transcript = Transcript(history: rows)
+        let built = clock.now
+        let visible = transcript.visible
+        let shown = clock.now
+        _ = try await urlSession.data(for: historyRequest(of: session.resolvedID, profile: bot.name, on: server, limit: 20))
+        let preview = clock.now
+        let (pageData, _) = try await urlSession.data(for: historyRequest(of: session.resolvedID, profile: bot.name, on: server, limit: BotStore.pageRows))
+        let paged = clock.now
+        let page = Transcript(window: try decoder.decode(Page.self, from: pageData).messages)
+        let pageBuilt = clock.now
+        let ms = { (duration: Duration) in String(format: "%.0f", Double(duration.components.attoseconds) / 1e15 + Double(duration.components.seconds) * 1000) }
+        print("\(bot.title) | \(rows.count) | \(data.count / 1024) | \(ms(fetched - start)) | \(ms(decoded - fetched)) | \(ms(built - decoded)) | \(ms(shown - built)) | \(visible.turns.count) | \(ms(preview - shown)) | \(pageData.count / 1024) | \(ms(paged - preview)) | \(ms(pageBuilt - paged)) | \(page.visible.turns.count)")
+    }
+    for bot in bots {
+        guard let session = bot.canonicalSession else { continue }
+        func page(_ limit: Int, _ offset: Int) async throws -> [Int] {
+            var request = historyRequest(of: session.resolvedID, profile: bot.name, on: server, limit: limit)
+            request.url?.append(queryItems: [URLQueryItem(name: "offset", value: String(offset))])
+            return try await fetch(request, with: urlSession, as: Page.self).messages.map(\.id)
+        }
+        let whole = try await page(500, 0)
+        var paged: [Int] = []
+        for offset in stride(from: 0, to: 600, by: 100) { paged += try await page(100, offset) }
+        let first = try await page(100, 0)
+        print("paging \(bot.title): whole \(whole.count), paged \(paged.count), same set \(Set(whole) == Set(paged.prefix(500))), page order \(first.first ?? 0)...\(first.last ?? 0), whole order \(whole.first ?? 0)...\(whole.last ?? 0), unique \(Set(paged).count)")
+    }
+    let bot = try await crewTest()
+    for attempt in 1...3 {
+        let start = clock.now
+        let (_, snapshot) = try await openBotChat(bot.canonicalSession?.id, profile: bot.name, via: gateway)
+        let resumed = clock.now
+        _ = try await gateway.eventsSince(snapshot.sessionID, after: 0)
+        let replayed = clock.now
+        print("crew-test attach \(attempt): session.resume \(resumed - start), events.since \(replayed - resumed)")
+        _ = try? await gateway.call("session.close", ["session_id": snapshot.sessionID.rawValue], as: JSONValue.self)
+        let closed = clock.now
+        let (_, cold) = try await openBotChat(bot.canonicalSession?.id, profile: bot.name, via: gateway)
+        print("crew-test cold attach \(attempt): session.resume after close \(clock.now - closed), running \(cold.running ?? false)")
+    }
+    let chat = ChatSession(bot: bot, gateway: gateway, urlSession: urlSession)
+    let start = clock.now
+    Task { await chat.run() }
+    while chat.transcript.turns.isEmpty, chat.failure == nil, clock.now - start < .seconds(20) { try await Task.sleep(for: .milliseconds(5)) }
+    print("crew-test ChatSession first transcript after \(clock.now - start) (\(chat.visible.turns.count) turns)")
+    let (pageData, _) = try await urlSession.data(for: historyRequest(of: bot.canonicalSession!.resolvedID, profile: bot.name, on: server, limit: BotStore.pageRows))
+    let seed = Transcript(window: try decoder.decode(Page.self, from: pageData).messages)
+    let seededStart = clock.now
+    let seeded = ChatSession(bot: bot, seed: seed, gateway: gateway, urlSession: urlSession)
+    print("crew-test seeded ChatSession shows \(seeded.visible.turns.count) turns after \(clock.now - seededStart)")
+    Task { await seeded.run() }
+    seeded.send("Reply with just: early", mode: .send)
+    print("sent before attach: waiting \(seeded.transcript.waiting.map { $0.pending.map { "\($0)" } ?? "-" })")
+    try await Task.sleep(for: .seconds(2))
+    try await waitIdle(seeded)
+    show("seeded, sent before attach", seeded)
 }
 
 if phases.contains("history") {

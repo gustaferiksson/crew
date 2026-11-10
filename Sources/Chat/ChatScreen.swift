@@ -64,6 +64,7 @@ struct ChatScreen: View {
             activity: session?.statusLine ?? session?.generatingTool.map { String(localized: "Preparing \($0.replacing("_", with: " "))") },
             models: models,
             focus: focus,
+            earlier: session?.earlier ?? .complete,
             pinKey: bot.id,
             presentation: Snapshot.requested == .layoutInspector ? ChatPresentation(scrollTarget: "t1") : ChatPresentation(),
             actions: ChatActions(
@@ -81,7 +82,8 @@ struct ChatScreen: View {
                 expirePayment: { session?.expirePayment($0) },
                 dismissPaymentNotice: { session?.dismissEndedPayment() },
                 addShop: { addingShop = $0 },
-                dismissShopOffer: { session?.dismissedOffer = session?.transcript.turns.last?.id }
+                dismissShopOffer: { session?.dismissedOffer = session?.transcript.turns.last?.id },
+                loadEarlier: { session?.loadEarlier() }
             )
         )
         .environment(\.chatSession, session)

@@ -18,6 +18,7 @@ struct ChatActions {
     var dismissPaymentNotice: () -> Void = {}
     var addShop: (String) -> Void = { _ in }
     var dismissShopOffer: () -> Void = {}
+    var loadEarlier: () -> Void = {}
 }
 
 struct ChatPresentation {
@@ -60,6 +61,8 @@ private struct TranscriptRevision: Equatable {
 }
 
 private let separatorGap: TimeInterval = 60 * 60
+private let earlierLead = 5
+private let focusPageLimit = 4
 
 private let separatorFormatter = {
     let formatter = DateFormatter()
@@ -87,6 +90,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
     var activity: String?
     var models: ModelSwitcher?
     var focus: SearchFocus?
+    var earlier = EarlierHistory.complete
     var pinKey: String?
     var actions = ChatActions()
 
@@ -107,6 +111,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
     @State private var surfaces = SurfaceStore()
     @State private var highlighted: Turn.ID?
     @State private var handledFocus: UUID?
+    @State private var focusPages: (focus: UUID, count: Int)?
     @State private var responses: [SensoryFeedback] = []
     @State private var openedCard: OpenedCard?
     @State private var expandedCards: Set<String>
@@ -126,7 +131,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
     @FocusState private var isComposerFocused: Bool
     private let presentation: ChatPresentation
 
-    init(botName: String, profile: String? = nil, title: String? = nil, avatar: Avatar, transcript: Transcript, emptyState: EmptyState, mentionable: [Bot], slashCommands: [SlashCommand] = [], draft: Binding<String>, tray: AttachmentTray, features: ComposerFeatures = .all, request: PendingRequest? = nil, payment: PaymentCardState? = nil, paymentNotice: String? = nil, shopOffer: String? = nil, offlineReason: String? = nil, activity: String? = nil, models: ModelSwitcher? = nil, focus: SearchFocus? = nil, pinKey: String? = nil, presentation: ChatPresentation = ChatPresentation(), actions: ChatActions = ChatActions()) {
+    init(botName: String, profile: String? = nil, title: String? = nil, avatar: Avatar, transcript: Transcript, emptyState: EmptyState, mentionable: [Bot], slashCommands: [SlashCommand] = [], draft: Binding<String>, tray: AttachmentTray, features: ComposerFeatures = .all, request: PendingRequest? = nil, payment: PaymentCardState? = nil, paymentNotice: String? = nil, shopOffer: String? = nil, offlineReason: String? = nil, activity: String? = nil, models: ModelSwitcher? = nil, focus: SearchFocus? = nil, earlier: EarlierHistory = .complete, pinKey: String? = nil, presentation: ChatPresentation = ChatPresentation(), actions: ChatActions = ChatActions()) {
         self.botName = botName
         self.profile = profile
         self.title = title
@@ -144,6 +149,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
         self.activity = activity
         self.models = models
         self.focus = focus
+        self.earlier = earlier
         self.pinKey = pinKey
         self.actions = actions
         self.presentation = presentation
@@ -236,6 +242,10 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
     private var chat: some View {
         latestActions.actions = actions
         return TranscriptScroll(position: $position, revision: TranscriptRevision(count: transcript.turns.count, last: transcript.turns.last), barHeight: barHeight) {
+            if earlier == .loading || earlier == .failed {
+                EarlierHistoryRow(state: earlier, retry: actions.loadEarlier)
+                    .padding([.horizontal, .top], 16)
+            }
             LazyVStack(alignment: .leading, spacing: 28) {
                 ForEach(Array(transcript.turns.enumerated()), id: \.element.id) { index, turn in
                     VStack(alignment: .leading, spacing: 12) {
@@ -286,6 +296,10 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
             .environment(\.transcriptTaps, transcriptTaps)
             .animation(.interactiveSpring, value: reveal)
             .padding(16)
+        }
+        .onScrollTargetVisibilityChange(idType: Turn.ID.self, threshold: 0.01) { ids in
+            guard earlier == .more, transcript.turns.prefix(earlierLead).contains(where: { ids.contains($0.id) }) else { return }
+            actions.loadEarlier()
         }
         #if os(iOS)
         .scrollDismissesKeyboard(.interactively)
@@ -377,8 +391,14 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
         #else
         .toolbar(removing: title == nil ? .title : nil)
         #endif
-        .onChange(of: [focus?.id.uuidString, "\(transcript.turns.count)"], initial: true) {
-            guard let focus, focus.id != handledFocus, let target = transcript.turn(matching: focus.snippet) else { return }
+        .onChange(of: [focus?.id.uuidString, "\(transcript.turns.count)", "\(earlier)"], initial: true) {
+            guard let focus, focus.id != handledFocus else { return }
+            guard let target = transcript.turn(matching: focus.snippet) else {
+                let pages = focusPages?.focus == focus.id ? focusPages?.count ?? 0 : 0
+                guard earlier == .more, pages < focusPageLimit else { return }
+                focusPages = (focus.id, pages + 1)
+                return actions.loadEarlier()
+            }
             position.scrollTo(id: target.id, anchor: .center)
             handledFocus = focus.id
             highlighted = target.id

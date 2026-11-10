@@ -17,6 +17,8 @@ enum Snapshot: String {
     case avatarEyes = "avatar-eyes"
     case chat
     case chatHistory = "chat-history"
+    case chatEarlierLoading = "chat-earlier-loading"
+    case chatEarlierFailed = "chat-earlier-failed"
     case chatSelection = "chat-selection"
     case chatTimestamps = "chat-timestamps"
     case chatWorkLog = "chat-worklog"

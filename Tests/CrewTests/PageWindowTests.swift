@@ -36,3 +36,48 @@ private func shape(_ turn: Turn) -> String {
     }
     #expect(mismatches.isEmpty)
 }
+
+@MainActor @Test(arguments: [7, 12, 25, 40]) func pagingARecordedChatShowsTheWholeChatsLastTurnsAndKeepsTheShownOnes(size: Int) throws {
+    var mismatches: [String] = []
+    for (name, recorded) in try recordedHistories() {
+        let rows = recorded.sorted { $0.id < $1.id }
+        let whole = Transcript(history: rows).visible.turns
+        var pages = HistoryPages(size: size)
+        pages.merge(latest: Array(rows.suffix(size)))
+        var shown: [Turn] = []
+        while true {
+            let window = pages.transcript.visible.turns
+            let startsTurn = pages.rows.contains { $0.role == "user" && AgentMessage($0.displayContent ?? $0.content ?? "") == nil && deliveryProcess(in: $0.displayContent ?? $0.content ?? "") == nil }
+            if startsTurn || pages.reachedStart {
+                if whole.suffix(window.count).map(shape) != window.map(shape) { mismatches.append("\(name) at \(pages.rows.count) rows: not the whole chat's last turns") }
+                if window.suffix(shown.count).map(\.id) != shown.map(\.id) { mismatches.append("\(name) at \(pages.rows.count) rows: a shown turn changed") }
+                shown = window
+            }
+            if pages.reachedStart { break }
+            pages.prepend(older: Array(rows.dropLast(pages.rows.count).suffix(size)))
+        }
+        if pages.transcript.visible.turns.map(\.id) != whole.map(\.id) { mismatches.append("\(name): the start differs from the whole chat") }
+    }
+    #expect(mismatches.isEmpty, "\(mismatches.prefix(10))")
+}
+
+@MainActor @Test func aRefetchedLatestPageKeepsTheOlderPagesUnlessItLeavesAGap() throws {
+    let rows = try #require(try recordedHistories().map(\.rows).max { $0.count < $1.count }).sorted { $0.id < $1.id }
+    try #require(rows.count >= 20)
+    var pages = HistoryPages(size: 5)
+    pages.merge(latest: Array(rows.dropLast(3).suffix(5)))
+    pages.prepend(older: Array(rows.dropLast(8).suffix(5)))
+    #expect(pages.rows.map(\.id) == rows.dropLast(3).suffix(10).map(\.id))
+    pages.merge(latest: Array(rows.suffix(5)))
+    #expect(pages.rows.map(\.id) == rows.suffix(13).map(\.id), "three new rows join the loaded ones")
+    #expect(!pages.reachedStart)
+
+    var gapped = HistoryPages(size: 5)
+    gapped.merge(latest: Array(rows.prefix(5)))
+    gapped.merge(latest: Array(rows.suffix(5)))
+    #expect(gapped.rows.map(\.id) == rows.suffix(5).map(\.id), "a page that does not reach the loaded rows replaces them")
+
+    var short = HistoryPages(size: 5)
+    short.merge(latest: Array(rows.suffix(4)))
+    #expect(short.reachedStart)
+}

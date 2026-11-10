@@ -2,7 +2,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 enum ChatFixture {
-    case conversation, history, timestamps, workLog, question, questions, questionsSnacks, questionLong, offline, attachments, dictation, mentions, slash, slashOutput, agentMessage, routine, deliveryFailure, a2ui, a2uiCards, a2uiForm, a2uiTable, a2uiChart, a2uiMap, a2uiCarousel, a2uiCarouselStates, a2uiPinned, a2uiExpanded, a2uiProducts, a2uiUpdates, a2uiStreaming
+    case conversation, history, earlierLoading, earlierFailed, timestamps, workLog, question, questions, questionsSnacks, questionLong, offline, attachments, dictation, mentions, slash, slashOutput, agentMessage, routine, deliveryFailure, a2ui, a2uiCards, a2uiForm, a2uiTable, a2uiChart, a2uiMap, a2uiCarousel, a2uiCarouselStates, a2uiPinned, a2uiExpanded, a2uiProducts, a2uiUpdates, a2uiStreaming
     case composerLine, composerLines, composerRunning, composerRunningText, steer, steerTaken, waiting
     case payment, paymentHolding, paymentApproved, paymentLoading, paymentFailed, paymentUnverified, paymentPunycode, paymentCountdown, paymentNotice, paymentOffer, paymentOfferHistory, paymentReceipts
 
@@ -89,6 +89,7 @@ enum ChatFixture {
             return Transcript(turns: earlier.reversed() + turns)
         }
         if [.offline, .history, .dictation, .composerLines].contains(self) { return Transcript(turns: turns) }
+        if [.earlierLoading, .earlierFailed].contains(self) { return Transcript(turns: [turns[0]]) }
         if self == .a2uiUpdates { return Transcript(turns: Self.a2uiUpdateTurns(now)) }
         if self == .a2uiStreaming { return Transcript(turns: Self.a2uiStreamingTurns(now)) }
         if self == .a2uiProducts { return Transcript(turns: Self.productTurns(now, count: max(UserDefaults.standard.integer(forKey: "productTurns"), 1))) }
@@ -386,11 +387,14 @@ struct ChatFixtureScreen: View {
     @State private var addingShop = false
     @State private var draft: String
     @State private var transcript: Transcript
+    @State private var pages: HistoryPages?
+    @State private var earlier = EarlierHistory.complete
     @State private var tray: AttachmentTray
 
     private static let requestAfterDraft = UserDefaults.standard.string(forKey: "requestAfterDraft")
     private static let finishTurnAfterDraft = UserDefaults.standard.string(forKey: "finishTurnAfterDraft")
     private static let replyAfterDraft = UserDefaults.standard.string(forKey: "replyAfterDraft")
+    private static let pagesHistory = UserDefaults.standard.bool(forKey: "historyPages")
 
     private static let hermes = Bot(
         name: "default", displayName: "Hermes", description: nil, model: nil, isDefault: true, hasAvatar: false, canonicalSession: nil,
@@ -417,6 +421,7 @@ struct ChatFixtureScreen: View {
         _draft = State(initialValue: fixture.presentation.draft)
         _transcript = State(initialValue: fixture.transcript)
         _tray = State(initialValue: AttachmentTray(items: fixture.presentation.attachments))
+        _earlier = State(initialValue: [.earlierLoading: .loading, .earlierFailed: .failed][fixture] ?? .complete)
     }
 
     var body: some View {
@@ -453,6 +458,7 @@ struct ChatFixtureScreen: View {
             shopOffer: shopOffer,
             offlineReason: fixture == .offline ? "Can't reach hermes.example.com" : nil,
             activity: fixture == .conversation ? "Preparing terminal" : nil,
+            earlier: earlier,
             pinKey: fixture == .a2uiPinned ? "default" : nil,
             presentation: fixture.presentation,
             actions: ChatActions(
@@ -463,7 +469,8 @@ struct ChatFixtureScreen: View {
                 answer: { _, answers in answer(answers) },
                 dismissPaymentNotice: { paymentNotice = nil },
                 addShop: { _ in addingShop = true },
-                dismissShopOffer: { shopOffer = nil }
+                dismissShopOffer: { shopOffer = nil },
+                loadEarlier: loadEarlier
             )
         )
         .environment(\.chatSession, session)
@@ -477,9 +484,14 @@ struct ChatFixtureScreen: View {
             }
         }
         .task {
-            guard fixture == .composerLine, let recorded = ChatFixture.recordedHistory() else { return }
+            guard fixture == .composerLine, let rows = ChatFixture.recordedRows() else { return }
             try? await Task.sleep(for: .milliseconds(500))
-            transcript = recorded
+            guard Self.pagesHistory else { return transcript = Transcript(history: rows).visible }
+            var pages = HistoryPages()
+            pages.merge(latest: Array(rows.suffix(BotStore.pageRows)))
+            self.pages = pages
+            transcript = pages.transcript
+            earlier = pages.reachedStart ? .complete : .more
         }
         .onChange(of: draft) { old, new in
             if new == Self.requestAfterDraft { request = fixture.request }
@@ -506,6 +518,14 @@ struct ChatFixtureScreen: View {
                     .accessibilityLabel("Stream state")
                     .accessibilityValue(transcript.turns.last?.status == .streaming ? "streaming" : "idle")
             }
+            if Self.pagesHistory {
+                Color.clear
+                    .frame(width: 1, height: 1)
+                    .accessibilityElement()
+                    .accessibilityIdentifier("history-state")
+                    .accessibilityLabel("History state")
+                    .accessibilityValue(String(describing: earlier))
+            }
         }
     }
 
@@ -531,6 +551,18 @@ struct ChatFixtureScreen: View {
             }
             transcript.apply(.messageComplete(text: "Applied to staging.", status: .complete, error: nil))
             if let next = transcript.dequeue() { transcript.begin(prompt: next.text) }
+        }
+    }
+
+    private func loadEarlier() {
+        guard earlier == .more, var pages, let rows = ChatFixture.recordedRows() else { return }
+        earlier = .loading
+        Task {
+            try? await Task.sleep(for: .milliseconds(UserDefaults.standard.integer(forKey: "pageDelay")))
+            pages.prepend(older: Array(rows.dropLast(pages.rows.count).suffix(BotStore.pageRows)))
+            self.pages = pages
+            transcript = pages.transcript
+            earlier = pages.reachedStart ? .complete : .more
         }
     }
 
@@ -576,6 +608,10 @@ struct ChatFixtureScreen: View {
 
 extension ChatFixture {
     static func recordedHistory() -> Transcript? {
+        recordedRows().map { Transcript(history: $0).visible }
+    }
+
+    static func recordedRows() -> [HistoryRow]? {
         guard let path = UserDefaults.standard.string(forKey: "historyFile"),
               let data = FileManager.default.contents(atPath: path),
               let page = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
@@ -596,9 +632,7 @@ extension ChatFixture {
         }
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
-        guard let encoded = try? JSONSerialization.data(withJSONObject: repeated),
-              let decoded = try? decoder.decode([HistoryRow].self, from: encoded)
-        else { return nil }
-        return Transcript(history: decoded).visible
+        guard let encoded = try? JSONSerialization.data(withJSONObject: repeated) else { return nil }
+        return try? decoder.decode([HistoryRow].self, from: encoded)
     }
 }

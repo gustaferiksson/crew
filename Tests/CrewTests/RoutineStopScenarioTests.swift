@@ -117,14 +117,15 @@ nonisolated private final class CronServer: URLProtocol {
             if path.hasSuffix("/trigger") { return (Data("{}".utf8), stub.triggerFails, stub.triggerDelay) }
             return (stub.list, false, 0)
         }
-        DispatchQueue.global().asyncAfter(deadline: .now() + delay) { [self] in
+        nonisolated(unsafe) let loading = self
+        DispatchQueue.global().asyncAfter(deadline: .now() + delay) {
             if fails {
-                client?.urlProtocol(self, didFailWithError: URLError(.timedOut))
+                loading.client?.urlProtocol(loading, didFailWithError: URLError(.timedOut))
                 return
             }
-            client?.urlProtocol(self, didReceive: HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)!, cacheStoragePolicy: .notAllowed)
-            client?.urlProtocol(self, didLoad: body)
-            client?.urlProtocolDidFinishLoading(self)
+            loading.client?.urlProtocol(loading, didReceive: HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)!, cacheStoragePolicy: .notAllowed)
+            loading.client?.urlProtocol(loading, didLoad: body)
+            loading.client?.urlProtocolDidFinishLoading(loading)
         }
     }
 }

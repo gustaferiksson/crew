@@ -59,6 +59,10 @@ struct TranscriptScroll<Revision: Equatable, Content: View>: View {
                 position.scrollTo(id: transcriptEnd, anchor: .bottom)
                 #endif
             }
+            #if os(macOS)
+            // AppKit fits a window taller than the screen after SwiftUI placed the end; the clip view stays short while the distance still reads 0.
+            if followsEnd, old.distance < 1, new.height < old.height, phase == .idle { position.scrollTo(id: transcriptEnd, anchor: .bottom) }
+            #endif
         }
         .onScrollPhaseChange { old, new in
             phase = new

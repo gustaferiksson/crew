@@ -54,6 +54,7 @@ private func botThread(endingWith last: String) throws -> Transcript {
             click(window, at: NSPoint(x: 60, y: y))
             settle(0.5)
             growth = height() - before
+            if growth != 0 { print("Disclosure \(last): a click at \(y) changed the height by \(growth)") }
             return growth > 20
         }
         let y = try #require(header, "no click opened the last row")

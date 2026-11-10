@@ -76,6 +76,10 @@ nonisolated private struct RenameRoomParams: Encodable, Sendable {
     }
 }
 
+nonisolated private struct ContextReply: Decodable, Sendable {
+    let context: RoomContext?
+}
+
 nonisolated private struct DisbandRoomParams: Encodable, Sendable {
     let roomID: String
 
@@ -126,6 +130,13 @@ final class GroupStore {
         let params = RenameRoomParams(roomID: room.id, eventID: "crew-rename-\(UUID().uuidString.lowercased())", name: name)
         let renamed = try await gateway.call("groups.rename", params, as: RoomReply.self).room
         if let index = rooms.firstIndex(where: { $0.id == renamed.id }) { rooms[index] = renamed }
+    }
+
+    func save(_ edit: RoomContextEdit, of room: Room, via gateway: Gateway) async throws -> RoomContext? {
+        guard let current = try await gateway.call("groups.state", ["room_id": room.id], as: RoomState.self).context else { return nil }
+        guard current.applying(edit) != current else { return current }
+        let params = RoomContextParams(roomID: room.id, eventID: "crew-context-\(UUID().uuidString.lowercased())", saving: edit, onto: current)
+        return try await gateway.call("groups.context", params, as: ContextReply.self).context
     }
 
     func disband(_ room: Room, via gateway: Gateway) async throws {

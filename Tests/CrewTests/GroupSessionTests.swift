@@ -189,3 +189,96 @@ private let wake = RoomAction(kind: "retry", memberID: "ada, scout", taskID: "pr
     #expect(sent == ["room_id": "room-test", "task_id": "prepare:room-test", "member_id": "ada, scout", "execution_generation": 1])
     #expect(bare == ["room_id": "room-test", "task_id": "t-unlisted"])
 }
+
+@Test func roomSettingsShowAsNoticesOfWhatChangedInEveryThread() throws {
+    let session = try recordedRoom("context.log.json", state: "context.state.json")
+    session.threadID = "crew-probe-lead"
+    let notices = session.transcript.turns.compactMap(\.notice)
+
+    #expect(notices == [
+        "Crew Test and Crew Peer are in this group.",
+        "Purpose: Plan the team offsite in Lisbon\nShared notes updated",
+        "Crew Test decides who answers",
+        "Purpose: Plan the team offsite in Lisbon, 12 to 14 May",
+        "Crew Test is taking this",
+        "Hermes picks who answers",
+        "Purpose removed\nShared notes removed\nEveryone answers",
+    ])
+}
+
+@Test func theLeadsRoutingTurnLeavesNoBubbleOnlyItsPick() throws {
+    let session = try recordedRoom("context.log.json", state: "context.state.json")
+    session.threadID = "crew-probe-lead"
+    let replies = session.transcript.turns.filter { !$0.reply.isEmpty }
+
+    #expect(replies.count == 2)
+    #expect(replies.allSatisfy { $0.speaker == "crew-test" && !$0.reply.contains("assign") })
+}
+
+@Test func automaticRoutingSaysWhoTheRouterPicked() throws {
+    let session = try recordedRoom("context.log.json", state: "context.state.json")
+    session.threadID = "crew-probe-auto"
+    let turns = session.transcript.turns
+    let routed = try #require(turns.firstIndex { $0.notice == "Assigned to Crew Peer" })
+
+    #expect(turns[routed - 1].prompt?.text == "What is the weather like in Lisbon in May?")
+    #expect(turns[routed + 1].speaker == "crew-test-peer")
+}
+
+@Test func aRoutinePostIsANoticeAndTheOwnersOutputNeverTheUsersBubble() throws {
+    let session = try recordedRoom("context.routine.log.json", state: "context.routine.state.json")
+    let turns = session.transcript.turns.filter { $0.id != "welcome" }
+
+    #expect(session.threads.map(\.title).allSatisfy { $0.hasPrefix("Routine: Daily fares, ") })
+    #expect(turns.allSatisfy { $0.prompt == nil })
+    #expect(turns.map(\.notice) == ["Routine: Daily fares", nil, nil])
+    #expect(turns[1].speaker == "crew-test-peer")
+    #expect(turns[1].reply.hasPrefix("Fares to Lisbon dropped to 129 EUR on TAP."))
+    #expect(turns[2].speaker == "crew-test")
+    #expect(!session.isAwaitingReply)
+}
+
+@Test func aRoutinePostDoesntMoveAFollowedThread() {
+    let post = RoomEvent(seq: 6, eventID: "cron-post:1", kind: "message.user", actor: RoomEvent.Actor(profile: nil, id: "cron:job1", displayName: "[bot:ada] Daily fares"), payload: RoomEvent.Payload(text: "Fares dropped.", threadID: "cron-1"), createdAt: .now)
+    let session = GroupSession(fixture: room, events: events + [post], driver: RoomState.Driver())
+    let onlyRoutine = GroupSession(fixture: room, events: [post], driver: RoomState.Driver())
+
+    #expect(session.threadID == "t2")
+    #expect(session.threads.map(\.id) == ["cron-1", "t2", "main"])
+    #expect(onlyRoutine.threadID == "cron-1")
+}
+
+@Test func settingsSavedBeforeTheFirstMessageLeaveTheEmptyRoom() throws {
+    let log = try recorded("context.log.json", as: [RoomEvent].self)
+    let session = GroupSession(fixture: room, events: log.filter { $0.kind == "room.context_set" }, driver: RoomState.Driver())
+
+    #expect(session.transcript.turns.isEmpty)
+}
+
+@Test func aLongPurposeIsShortenedInItsNotice() {
+    let notice = RoomContext(purpose: String(repeating: "word ", count: 40)).changes(since: RoomContext()) { $0 }
+    #expect(notice.first?.count == "Purpose: ".count + 80)
+    #expect(notice.first?.hasSuffix("…") == true)
+}
+
+@Test func aFailedRoutineRunIsAnErrorUnderItsNotice() {
+    let failed = RoomEvent(seq: 1, eventID: "cron-post:1", kind: "message.user", actor: RoomEvent.Actor(profile: nil, id: "cron-notice:job1", displayName: "[bot:ada] Daily fares"), payload: RoomEvent.Payload(text: "The job failed: model timeout", threadID: "cron-1"), createdAt: .now)
+    let session = GroupSession(fixture: room, events: [failed], driver: RoomState.Driver())
+    let turns = session.transcript.turns.filter { $0.id != "welcome" }
+
+    #expect(turns.map(\.notice) == ["Routine: Daily fares", nil])
+    #expect(turns[1].status == .error)
+    #expect(turns[1].failure == "The job failed: model timeout")
+}
+
+@Test func aSentMessageKeepsTheRoomPollingUntilItsFirstEventLands() throws {
+    let state = try recorded("context.state.json", as: RecordedState.self)
+    let log = try recorded("context.log.json", as: [RoomEvent].self)
+    let sent = try #require(log.firstIndex { $0.payload.threadID == "crew-probe-auto" })
+    let routing = GroupSession(fixture: state.room, events: Array(log[...sent]), driver: state.driverStatus)
+    let settled = GroupSession(fixture: state.room, events: log, driver: state.driverStatus)
+
+    #expect(!state.driverStatus.working)
+    #expect(routing.isAwaitingReply)
+    #expect(!settled.isAwaitingReply)
+}

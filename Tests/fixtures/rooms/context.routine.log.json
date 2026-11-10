@@ -1,0 +1,114 @@
+[
+  {
+    "actor" : {
+      "display_name" : "[bot:crew-test-peer] Daily fares",
+      "id" : "cron:c4d9656bf9df",
+      "kind" : "user"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794343599.869809,
+    "event_id" : "cron-post:77305260cd02b9e8a036762e7ea4ee66ce3c3f13",
+    "idempotent" : false,
+    "kind" : "message.user",
+    "payload" : {
+      "text" : "Fares to Lisbon dropped to 129 EUR on TAP. @crew-test can you check they fit the dates?",
+      "thread_id" : "cron-77305260cd02b9e8a036762e"
+    },
+    "room_id" : "room-context-probe",
+    "seq" : 1
+  },
+  {
+    "actor" : {
+      "display_name" : "Crew Test",
+      "id" : "crew-test",
+      "kind" : "member",
+      "profile" : "crew-test"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794343609.9638684,
+    "event_id" : "dmessage:d6a2552c93425d53916c5033a400214aec7c2f2f29b5fffb",
+    "idempotent" : false,
+    "kind" : "message.member",
+    "payload" : {
+      "discussion_event_id" : "cron-post:77305260cd02b9e8a036762e7ea4ee66ce3c3f13",
+      "member_id" : "crew-test",
+      "member_index" : 0,
+      "round_index" : 0,
+      "task_id" : "dtask:d6a2552c93425d53916c5033a400214aec7c2f2f29b5fffb",
+      "text" : "@crew-test-peer Please share the fare link, departure airport, and intended travel dates in this thread. I need those to check whether the 129 EUR TAP fare fits.",
+      "thread_id" : "cron-77305260cd02b9e8a036762e",
+      "turn_id" : "d1.r0.p0.s1.m46eb3c289a3ef56e56dcf71a"
+    },
+    "room_id" : "room-context-probe",
+    "seq" : 2
+  },
+  {
+    "actor" : {
+      "id" : "install:f990dea42fbd4536a995a0e6678730fb",
+      "kind" : "gateway"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794343609.9680798,
+    "event_id" : "dterminal:d6a2552c93425d53916c5033a400214aec7c2f2f29b5fffb",
+    "idempotent" : false,
+    "kind" : "turn.settled",
+    "payload" : {
+      "discussion_event_id" : "cron-post:77305260cd02b9e8a036762e7ea4ee66ce3c3f13",
+      "member_id" : "crew-test",
+      "member_index" : 0,
+      "message_event_id" : "dmessage:d6a2552c93425d53916c5033a400214aec7c2f2f29b5fffb",
+      "passed" : false,
+      "round_index" : 0,
+      "seen_through_seq" : 1,
+      "task_id" : "dtask:d6a2552c93425d53916c5033a400214aec7c2f2f29b5fffb",
+      "thread_id" : "cron-77305260cd02b9e8a036762e",
+      "turn_id" : "d1.r0.p0.s1.m46eb3c289a3ef56e56dcf71a"
+    },
+    "room_id" : "room-context-probe",
+    "seq" : 3
+  },
+  {
+    "actor" : {
+      "id" : "install:f990dea42fbd4536a995a0e6678730fb",
+      "kind" : "gateway"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794343616.1158814,
+    "event_id" : "dterminal:9f0d7a511beb34218fc119bfc7b46df7790521b21373ca96",
+    "idempotent" : false,
+    "kind" : "turn.settled",
+    "payload" : {
+      "discussion_event_id" : "cron-post:77305260cd02b9e8a036762e7ea4ee66ce3c3f13",
+      "member_id" : "crew-test-peer",
+      "member_index" : 0,
+      "message_event_id" : null,
+      "passed" : true,
+      "round_index" : 1,
+      "seen_through_seq" : 2,
+      "task_id" : "dtask:9f0d7a511beb34218fc119bfc7b46df7790521b21373ca96",
+      "thread_id" : "cron-77305260cd02b9e8a036762e",
+      "turn_id" : "d1.r1.p0.s2.m3c866235226b728522073a15"
+    },
+    "room_id" : "room-context-probe",
+    "seq" : 4
+  },
+  {
+    "actor" : {
+      "id" : "install:f990dea42fbd4536a995a0e6678730fb",
+      "kind" : "gateway"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794343616.161071,
+    "event_id" : "dactivity:cron-post:77305260cd02b9e8a036762e7ea4ee66ce3c3f13:silent_round",
+    "idempotent" : false,
+    "kind" : "room.activity",
+    "payload" : {
+      "discussion_event_id" : "cron-post:77305260cd02b9e8a036762e7ea4ee66ce3c3f13",
+      "reason_code" : "silent_round",
+      "status" : "settled",
+      "thread_id" : "cron-77305260cd02b9e8a036762e"
+    },
+    "room_id" : "room-context-probe",
+    "seq" : 5
+  }
+]

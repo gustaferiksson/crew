@@ -19,15 +19,31 @@ struct GroupInspector: View {
     @State private var compressing: String?
     @State private var confirmingCompress: RoomMember?
     @State private var compressResult: (title: String, message: String)?
+    @State private var context: RoomContext?
+    @State private var routingModes: [String]?
+    @State private var purpose = ""
+    @State private var notes = ""
+    @State private var answerer = "everyone"
+    @State private var contextSave: Task<Void, Never>?
+    @State private var isSavingContext = false
+    @State private var contextFailure: String?
+    @State private var failedEdit: RoomContextEdit?
     @FocusState private var isEditingName: Bool
+    @FocusState private var isEditingPurpose: Bool
+    @FocusState private var isEditingNotes: Bool
 
-    init(room: Room, isPresented: Binding<Bool>, histories: [String: RoomHistory?]? = nil, select: @escaping (Bot.ID) -> Void) {
+    init(room: Room, isPresented: Binding<Bool>, histories: [String: RoomHistory?]? = nil, context: RoomContext? = nil, routingModes: [String]? = nil, select: @escaping (Bot.ID) -> Void) {
         self.room = room
         _isPresented = isPresented
         self.select = select
         _name = State(initialValue: room.name)
         _histories = State(initialValue: histories ?? [:])
         _historiesLoaded = State(initialValue: histories != nil)
+        _context = State(initialValue: context)
+        _routingModes = State(initialValue: routingModes)
+        _purpose = State(initialValue: context?.purpose ?? "")
+        _notes = State(initialValue: context?.notes ?? "")
+        _answerer = State(initialValue: context?.answerer ?? "everyone")
     }
 
     private var members: [Bot] {
@@ -39,6 +55,9 @@ struct GroupInspector: View {
             Section {
             } header: {
                 header
+            }
+            if let context {
+                settings(context)
             }
             Section("Members") {
                 ForEach(room.members, id: \.memberID) { memberRow($0) }
@@ -65,12 +84,25 @@ struct GroupInspector: View {
             }
         }
         #endif
-        .task(id: connection.state == .connected) { await loadHistories() }
+        .task(id: connection.state == .connected) { await load() }
         .onChange(of: room.name) {
             if !isEditingName { name = room.name }
         }
         .onChange(of: isEditingName) {
             if !isEditingName { rename() }
+        }
+        .onChange(of: isEditingPurpose) {
+            if !isEditingPurpose { save(.purpose(purpose)) }
+        }
+        .onChange(of: isEditingNotes) {
+            if !isEditingNotes { save(.notes(notes)) }
+        }
+        .onChange(of: answerer) {
+            save(.answerer(answerer))
+        }
+        .onDisappear {
+            save(.purpose(purpose))
+            save(.notes(notes))
         }
         .confirmationDialog(
             "Disband \(disbanding?.name ?? "")?",
@@ -134,16 +166,21 @@ struct GroupInspector: View {
 
     @ViewBuilder
     private var renameStatus: some View {
-        if isRenaming {
+        if isRenaming || isSavingContext {
             HStack(spacing: 4) {
                 ProgressView()
                     .controlSize(.mini)
                 Text("Saving…")
             }
-        } else if let renameFailure {
-            Label(renameFailure, systemImage: "exclamationmark.triangle.fill")
+        } else if let failure = renameFailure ?? contextFailure {
+            Label(failure, systemImage: "exclamationmark.triangle.fill")
                 .symbolRenderingMode(.multicolor)
                 .multilineTextAlignment(.center)
+            if renameFailure == nil, let failedEdit {
+                Button("Try Again") { save(failedEdit) }
+                    .font(.subheadline)
+                    .disabled(connection.state != .connected)
+            }
         } else {
             Text("\(room.members.count) members")
         }
@@ -168,8 +205,10 @@ struct GroupInspector: View {
                 }
                 VStack(alignment: .leading, spacing: 0) {
                     Text(bot?.title ?? member.displayName ?? member.memberID)
-                    if let role = bot?.role {
-                        Text(role)
+                    let isLead = context?.routing == "lead" && context?.leadMemberID == member.memberID
+                    let detail = [isLead ? String(localized: "Lead") : nil, bot?.role].compactMap(\.self).joined(separator: " · ")
+                    if !detail.isEmpty {
+                        Text(detail)
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
@@ -210,6 +249,99 @@ struct GroupInspector: View {
         }
     }
 
+    @ViewBuilder
+    private func settings(_ context: RoomContext) -> some View {
+        let isOffline = connection.state != .connected
+        Section {
+            TextField("Purpose", text: $purpose, prompt: Text("What this room is for"))
+                .labelsHidden()
+                .focused($isEditingPurpose)
+                .onSubmit { isEditingPurpose = false }
+                .disabled(isOffline)
+        } header: {
+            Text("Purpose")
+        } footer: {
+            if context.applying(.purpose(purpose)).purposeIsTooLong {
+                Text("Purpose is limited to \(RoomContext.purposeLimit) characters.")
+                    .foregroundStyle(.red)
+            }
+        }
+        Section {
+            TextField("Shared Notes", text: $notes, prompt: Text("Facts every member should keep in mind"), axis: .vertical)
+                .labelsHidden()
+                .lineLimit(3...12)
+                .focused($isEditingNotes)
+                .disabled(isOffline)
+        } header: {
+            Text("Shared Notes")
+        } footer: {
+            if context.applying(.notes(notes)).notesAreTooLong {
+                Text("Shared notes are too long to save. Shorten them a little.")
+                    .foregroundStyle(.red)
+            } else {
+                Text("Every member reads the purpose and notes before answering. Changes apply from the next message.")
+            }
+        }
+        Section {
+            Picker("Who Answers", selection: $answerer) {
+                Text("Everyone").tag("everyone")
+                if routingModes?.contains("auto") == true || context.routing == "auto" {
+                    Text("Automatic").tag("auto")
+                }
+                ForEach(room.members, id: \.memberID) { member in
+                    Text("Lead: \(memberName(member))").tag("lead:\(member.memberID)")
+                }
+            }
+            .disabled(isOffline)
+        } footer: {
+            Text(answererFooter)
+        }
+    }
+
+    private var answererFooter: String {
+        let lead = room.members.first { "lead:\($0.memberID)" == answerer }
+        let rule = if let lead {
+            String(localized: "\(memberName(lead)) decides who takes a message that names nobody.")
+        } else if answerer == "auto" {
+            String(localized: "Hermes picks who a message is for.")
+        } else {
+            String(localized: "Every member answers a message that names nobody.")
+        }
+        return rule + " " + String(localized: "Only the first message of a new thread is routed; later ones go to everyone. @mentions always reach the members you name.")
+    }
+
+    private func adopt(_ saved: RoomContext) {
+        context = saved
+        if !isEditingPurpose { purpose = saved.purpose }
+        if !isEditingNotes { notes = saved.notes }
+        answerer = saved.answerer
+    }
+
+    private func save(_ edit: RoomContextEdit) {
+        guard let context, let gateway = connection.gateway else { return }
+        let next = context.applying(edit)
+        guard next != context, !next.purposeIsTooLong, !next.notesAreTooLong else { return }
+        let previous = contextSave
+        contextSave = Task {
+            await previous?.value
+            isSavingContext = true
+            defer { isSavingContext = false }
+            do {
+                if let saved = try await groups.save(edit, of: room, via: gateway) { adopt(saved) }
+                contextFailure = nil
+                failedEdit = nil
+            } catch {
+                contextFailure = if case GatewayError.rpc(_, let message) = error {
+                    message == "invalid_params" ? String(localized: "Hermes refused these settings.") : message
+                } else {
+                    error.localizedDescription
+                }
+                failedEdit = edit
+                answerer = self.context?.answerer ?? answerer
+            }
+        }
+    }
+
     private func memberName(_ member: RoomMember) -> String {
         bots.bots.first { $0.name == member.profile }?.title ?? member.displayName ?? member.memberID
     }
@@ -219,9 +351,12 @@ struct GroupInspector: View {
         return history != nil && !member.isPeer && !isWorking && compressing == nil && connection.state == .connected
     }
 
-    private func loadHistories() async {
+    private func load() async {
         guard let gateway = connection.gateway, connection.state == .connected else { return }
-        isWorking = (try? await gateway.call("groups.state", ["room_id": room.id], as: RoomState.self))?.driverStatus?.working ?? false
+        let state = try? await gateway.call("groups.state", ["room_id": room.id], as: RoomState.self)
+        isWorking = state?.driverStatus?.working ?? false
+        routingModes = state?.driverStatus?.routingModes
+        if let saved = state?.context { adopt(saved) }
         var loaded: [String: RoomHistory?] = [:]
         for member in room.members where !member.isPeer && bots.bots.contains(where: { $0.name == member.profile }) {
             do {
@@ -252,7 +387,7 @@ struct GroupInspector: View {
             let message = if case GatewayError.rpc(_, let message) = error { message } else { error.localizedDescription }
             compressResult = (failed, message)
         }
-        await loadHistories()
+        await load()
     }
 
     private func rename() {

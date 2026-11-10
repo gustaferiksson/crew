@@ -4,6 +4,13 @@ import Observation
 nonisolated struct RoomEvent: Decodable, Sendable, Equatable {
     struct Actor: Decodable, Sendable, Equatable {
         let profile: String?
+        var id: String?
+        var displayName: String?
+
+        private enum CodingKeys: String, CodingKey {
+            case profile, id
+            case displayName = "display_name"
+        }
     }
 
     struct Payload: Decodable, Sendable, Equatable {
@@ -15,13 +22,26 @@ nonisolated struct RoomEvent: Decodable, Sendable, Equatable {
         var taskID: String?
         var status: String?
         var discussionEventID: String?
+        var purpose: String?
+        var notes: String?
+        var routing: String?
+        var leadMemberID: String?
+        var memberIDs: [String]?
+        var everyone: Bool?
+        var fallback: Bool?
+
+        var context: RoomContext {
+            RoomContext(purpose: purpose ?? "", notes: notes ?? "", routing: routing ?? "everyone", leadMemberID: leadMemberID ?? "")
+        }
 
         private enum CodingKeys: String, CodingKey {
-            case text, error, name, status
+            case text, error, name, status, purpose, notes, routing, everyone, fallback
             case memberID = "member_id"
             case threadID = "thread_id"
             case taskID = "task_id"
             case discussionEventID = "discussion_event_id"
+            case leadMemberID = "lead_member_id"
+            case memberIDs = "member_ids"
         }
     }
 
@@ -31,6 +51,16 @@ nonisolated struct RoomEvent: Decodable, Sendable, Equatable {
     let actor: Actor
     let payload: Payload
     let createdAt: Date
+
+    var routineTitle: String? {
+        guard kind == "message.user", let id = actor.id, id.hasPrefix("cron:") || id.hasPrefix("cron-notice:") else { return nil }
+        let name = actor.displayName ?? String(id.drop { $0 != ":" }.dropFirst())
+        return name.wholeMatch(of: /\[bot:[A-Za-z0-9][A-Za-z0-9_-]*\]\s*(.*)/).map { String($0.1) } ?? name
+    }
+
+    var routineOwner: String? {
+        actor.displayName?.firstMatch(of: /^\[bot:([A-Za-z0-9][A-Za-z0-9_-]*)\]/).map { String($0.1).lowercased() }
+    }
 
     private enum CodingKeys: String, CodingKey {
         case seq, kind, actor, payload
@@ -76,6 +106,7 @@ nonisolated struct RoomState: Decodable, Sendable {
         var memberActivity: [Activity]?
         var lastError: String?
         var maxContinues: Int?
+        var routingModes: [String]?
 
         private enum CodingKeys: String, CodingKey {
             case working
@@ -83,12 +114,15 @@ nonisolated struct RoomState: Decodable, Sendable {
             case memberActivity = "member_activity"
             case lastError = "last_error"
             case maxContinues = "max_continues"
+            case routingModes = "routing_modes"
         }
     }
 
     let driverStatus: Driver?
+    var context: RoomContext?
 
     private enum CodingKeys: String, CodingKey {
+        case context
         case driverStatus = "driver_status"
     }
 }
@@ -179,6 +213,7 @@ final class GroupSession {
     var failure: String?
     private(set) var events: [RoomEvent] = []
     private(set) var driver = RoomState.Driver()
+    private(set) var context: RoomContext?
     private(set) var unsent: [(thread: String, turn: Turn)] = []
     private var chosenThread: String?
     private var answered: Set<String> = []
@@ -192,13 +227,18 @@ final class GroupSession {
         self.gateway = gateway
     }
 
-    convenience init(fixture room: Room, events: [RoomEvent], driver: RoomState.Driver) {
+    convenience init(fixture room: Room, events: [RoomEvent], driver: RoomState.Driver, context: RoomContext? = nil) {
         self.init(room: room, gateway: Gateway(server: URL(filePath: "/"), urlSession: .shared) { throw CancellationError() })
         self.events = events
         self.driver = driver
+        self.context = context
     }
 
     var isWorking: Bool { driver.working }
+
+    var isAwaitingReply: Bool {
+        isWorking || events.last.map { $0.kind == "message.user" && $0.routineTitle == nil } ?? false
+    }
 
     var activity: String? {
         let running = (driver.memberActivity ?? []).filter { $0.status != "queued" }
@@ -211,7 +251,10 @@ final class GroupSession {
     }
 
     var threadID: String {
-        get { chosenThread ?? events.last { $0.kind == "message.user" }?.payload.threadID ?? "main" }
+        get {
+            let human = events.last { $0.kind == "message.user" && $0.routineTitle == nil }
+            return chosenThread ?? (human ?? events.last { $0.kind == "message.user" })?.payload.threadID ?? "main"
+        }
         set { chosenThread = newValue }
     }
 
@@ -222,7 +265,9 @@ final class GroupSession {
         }
         let ids = recent.contains(threadID) ? recent : [threadID] + recent
         return ids.map { id in
-            let opener = prompts.first { $0.payload.threadID == id }?.payload.text ?? unsent.first { $0.thread == id }?.turn.prompt?.text
+            let first = prompts.first { $0.payload.threadID == id }
+            let routine = first.flatMap { post in post.routineTitle.map { String(localized: "Routine: \($0), \(post.createdAt.formatted(.dateTime.day().month()))") } }
+            let opener = routine ?? first?.payload.text ?? unsent.first { $0.thread == id }?.turn.prompt?.text
             let title = opener?.split(whereSeparator: \.isNewline).first.map { String($0.prefix(40)) }
             return RoomThread(id: id, title: title ?? String(localized: "New Thread"))
         }
@@ -239,10 +284,10 @@ final class GroupSession {
         let names = room.members.map { $0.displayName ?? $0.memberID }.formatted(.list(type: .and))
         let welcome = hasMessages ? [Turn(id: "welcome", notice: String(localized: "\(names) are in this group."), status: .complete, startedAt: room.createdAt, finishedAt: room.createdAt)] : []
         let resumable = resumablePauses
-        let replies = shown.indices.compactMap { index -> Turn? in
+        let replies = shown.indices.flatMap { index -> [Turn] in
             let event = shown[index]
             let isSuperseded = event.kind == "turn.deferred" && shown[(index + 1)...].contains { $0.payload.taskID == event.payload.taskID }
-            return isSuperseded ? nil : turn(for: event, retryable: retryable, resumable: resumable)
+            return isSuperseded ? [] : turns(for: event, retryable: retryable, resumable: resumable)
         }
         let logged = Set(events.compactMap(\.payload.taskID))
         let stalled = retryable.subtracting(logged).sorted().map { id in
@@ -253,7 +298,7 @@ final class GroupSession {
         let pending = unsent.filter { item in item.thread == thread && !events.contains { $0.eventID == item.turn.id } }.map(\.turn)
         let started = (driver.memberActivity ?? []).filter { $0.status != "queued" }.compactMap(\.startedAt).min()
         let working = isWorking ? [Turn(id: "working", status: .streaming, startedAt: started ?? events.last?.createdAt ?? .now)] : []
-        return Transcript(turns: welcome + replies + stalled + pending + working)
+        return Transcript(turns: welcome + (hasMessages ? replies : []) + stalled + pending + working)
     }
 
     private var resumablePauses: Set<String> {
@@ -290,7 +335,7 @@ final class GroupSession {
     func run() async {
         var tick = 0
         while !Task.isCancelled {
-            if isWorking || tick % 5 == 0 { await refresh() }
+            if isAwaitingReply || tick % 5 == 0 { await refresh() }
             tick += 1
             try? await Task.sleep(for: .seconds(2))
         }
@@ -397,7 +442,47 @@ final class GroupSession {
                 guard page.hasMore else { break }
             }
             driver = state.driverStatus ?? RoomState.Driver()
+            context = state.context
         } catch {}
+    }
+
+    private func turns(for event: RoomEvent, retryable: Set<String>, resumable: Set<String>) -> [Turn] {
+        let date = event.createdAt
+        if let title = event.routineTitle {
+            let notice = Turn(id: "\(event.eventID)-routine", notice: String(localized: "Routine: \(title)"), status: .complete, startedAt: date, finishedAt: date)
+            let text = event.payload.text ?? ""
+            let output = event.actor.id?.hasPrefix("cron-notice:") == true
+                ? Turn(id: event.eventID, status: .error, startedAt: date, finishedAt: date, failure: text)
+                : Turn(id: event.eventID, reply: text, status: .complete, startedAt: date, finishedAt: date, speaker: event.routineOwner)
+            return [notice, output]
+        }
+        if let notice = notice(for: event) {
+            return [Turn(id: event.eventID, notice: notice, status: .complete, startedAt: date, finishedAt: date)]
+        }
+        return turn(for: event, retryable: retryable, resumable: resumable).map { [$0] } ?? []
+    }
+
+    private func notice(for event: RoomEvent) -> String? {
+        let name = { (id: String) in self.room.members.first { $0.memberID == id }.map { $0.displayName ?? $0.memberID } }
+        let payload = event.payload
+        if event.kind == "room.context_set" {
+            let previous = events.last { $0.kind == "room.context_set" && $0.seq < event.seq }.map(\.payload.context) ?? RoomContext()
+            let lines = payload.context.changes(since: previous) { name($0) ?? $0 }
+            return lines.isEmpty ? nil : lines.joined(separator: "\n")
+        }
+        if event.kind == "room.assignment", let leadID = payload.leadMemberID, let lead = name(leadID) {
+            let chosen = payload.memberIDs ?? []
+            let names = chosen.compactMap(name).formatted(.list(type: .and))
+            let isTaking = payload.fallback == true || chosen == [leadID] || names.isEmpty
+            return isTaking ? String(localized: "\(lead) is taking this") : String(localized: "\(lead) gave this to \(names)")
+        }
+        if event.kind == "room.routed" {
+            if payload.fallback == true { return String(localized: "Couldn't choose who answers, so everyone will") }
+            if payload.everyone == true { return String(localized: "Assigned to everyone") }
+            let names = (payload.memberIDs ?? []).compactMap(name)
+            return names.isEmpty ? nil : String(localized: "Assigned to \(names.formatted(.list(type: .and)))")
+        }
+        return nil
     }
 
     private func turn(for event: RoomEvent, retryable: Set<String>, resumable: Set<String>) -> Turn? {

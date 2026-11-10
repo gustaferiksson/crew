@@ -1,0 +1,475 @@
+[
+  {
+    "actor" : {
+      "id" : "room-control",
+      "kind" : "system"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794343030.569614,
+    "event_id" : "crew-probe-context-58a018f3-2f1a-4755-95aa-66108f141bae",
+    "idempotent" : false,
+    "kind" : "room.context_set",
+    "payload" : {
+      "lead_member_id" : "",
+      "notes" : "Budget is 900 EUR per person.\nNobody flies before 08:00.",
+      "purpose" : "Plan the team offsite in Lisbon",
+      "routing" : "everyone"
+    },
+    "room_id" : "room-context-probe",
+    "seq" : 1
+  },
+  {
+    "actor" : {
+      "id" : "room-control",
+      "kind" : "system"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794343030.5939324,
+    "event_id" : "crew-probe-context-e090ec96-9789-43b7-a18f-25d294dfe033",
+    "idempotent" : false,
+    "kind" : "room.context_set",
+    "payload" : {
+      "lead_member_id" : "crew-test",
+      "notes" : "Budget is 900 EUR per person.\nNobody flies before 08:00.",
+      "purpose" : "Plan the team offsite in Lisbon",
+      "routing" : "lead"
+    },
+    "room_id" : "room-context-probe",
+    "seq" : 2
+  },
+  {
+    "actor" : {
+      "id" : "room-control",
+      "kind" : "system"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794343030.6183517,
+    "event_id" : "crew-probe-context-3b177417-2690-4120-8260-c0093d4b8b58",
+    "idempotent" : false,
+    "kind" : "room.context_set",
+    "payload" : {
+      "lead_member_id" : "crew-test",
+      "notes" : "Budget is 900 EUR per person.\nNobody flies before 08:00.",
+      "purpose" : "Plan the team offsite in Lisbon, 12 to 14 May",
+      "routing" : "lead"
+    },
+    "room_id" : "room-context-probe",
+    "seq" : 3
+  },
+  {
+    "actor" : {
+      "id" : "desktop",
+      "kind" : "user"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794343030.8309555,
+    "event_id" : "user:3b2ec15094fb59012727f9516bee85ee58111673a3e05d42a2b5ae6e0b1ef6a9",
+    "idempotent" : false,
+    "kind" : "message.user",
+    "payload" : {
+      "text" : "Which day should we fly out?",
+      "thread_id" : "crew-probe-lead"
+    },
+    "room_id" : "room-context-probe",
+    "seq" : 4
+  },
+  {
+    "actor" : {
+      "id" : "install:f990dea42fbd4536a995a0e6678730fb",
+      "kind" : "gateway"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794343033.4248111,
+    "event_id" : "dassign:c84d89a68950647cdf98a375fbe39adcac04c296533f612f",
+    "idempotent" : false,
+    "kind" : "room.assignment",
+    "payload" : {
+      "discussion_event_id" : "user:3b2ec15094fb59012727f9516bee85ee58111673a3e05d42a2b5ae6e0b1ef6a9",
+      "fallback" : false,
+      "lead_member_id" : "crew-test",
+      "member_ids" : [
+        "crew-test"
+      ],
+      "task_id" : "dtask:c84d89a68950647cdf98a375fbe39adcac04c296533f612f",
+      "thread_id" : "crew-probe-lead"
+    },
+    "room_id" : "room-context-probe",
+    "seq" : 5
+  },
+  {
+    "actor" : {
+      "id" : "install:f990dea42fbd4536a995a0e6678730fb",
+      "kind" : "gateway"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794343033.4290562,
+    "event_id" : "dterminal:c84d89a68950647cdf98a375fbe39adcac04c296533f612f",
+    "idempotent" : false,
+    "kind" : "turn.settled",
+    "payload" : {
+      "discussion_event_id" : "user:3b2ec15094fb59012727f9516bee85ee58111673a3e05d42a2b5ae6e0b1ef6a9",
+      "member_id" : "crew-test",
+      "member_index" : 0,
+      "message_event_id" : null,
+      "passed" : true,
+      "round_index" : 0,
+      "seen_through_seq" : 3,
+      "task_id" : "dtask:c84d89a68950647cdf98a375fbe39adcac04c296533f612f",
+      "thread_id" : "crew-probe-lead",
+      "turn_id" : "d4.r0.p0.s3.m46eb3c289a3ef56e56dcf71a"
+    },
+    "room_id" : "room-context-probe",
+    "seq" : 6
+  },
+  {
+    "actor" : {
+      "display_name" : "Crew Test",
+      "id" : "crew-test",
+      "kind" : "member",
+      "profile" : "crew-test"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794343037.3048458,
+    "event_id" : "dmessage:f5a554264504a53c8f078de334bc5611d33e7539cb162234",
+    "idempotent" : false,
+    "kind" : "message.member",
+    "payload" : {
+      "discussion_event_id" : "user:3b2ec15094fb59012727f9516bee85ee58111673a3e05d42a2b5ae6e0b1ef6a9",
+      "member_id" : "crew-test",
+      "member_index" : 0,
+      "round_index" : 0,
+      "task_id" : "dtask:f5a554264504a53c8f078de334bc5611d33e7539cb162234",
+      "text" : "I’d fly out on 11 May so we’re in Lisbon before the offsite starts on 12 May. We should choose a departure at or after 08:00 and check that the extra night fits within the €900-per-person budget.",
+      "thread_id" : "crew-probe-lead",
+      "turn_id" : "d4.r0.p0.s4.m46eb3c289a3ef56e56dcf71a"
+    },
+    "room_id" : "room-context-probe",
+    "seq" : 7
+  },
+  {
+    "actor" : {
+      "id" : "install:f990dea42fbd4536a995a0e6678730fb",
+      "kind" : "gateway"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794343037.309388,
+    "event_id" : "dterminal:f5a554264504a53c8f078de334bc5611d33e7539cb162234",
+    "idempotent" : false,
+    "kind" : "turn.settled",
+    "payload" : {
+      "discussion_event_id" : "user:3b2ec15094fb59012727f9516bee85ee58111673a3e05d42a2b5ae6e0b1ef6a9",
+      "member_id" : "crew-test",
+      "member_index" : 0,
+      "message_event_id" : "dmessage:f5a554264504a53c8f078de334bc5611d33e7539cb162234",
+      "passed" : false,
+      "round_index" : 0,
+      "seen_through_seq" : 4,
+      "task_id" : "dtask:f5a554264504a53c8f078de334bc5611d33e7539cb162234",
+      "thread_id" : "crew-probe-lead",
+      "turn_id" : "d4.r0.p0.s4.m46eb3c289a3ef56e56dcf71a"
+    },
+    "room_id" : "room-context-probe",
+    "seq" : 8
+  },
+  {
+    "actor" : {
+      "id" : "install:f990dea42fbd4536a995a0e6678730fb",
+      "kind" : "gateway"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794343037.36057,
+    "event_id" : "dactivity:user:3b2ec15094fb59012727f9516bee85ee58111673a3e05d42a2b5ae6e0b1ef6a9:silent_round",
+    "idempotent" : false,
+    "kind" : "room.activity",
+    "payload" : {
+      "discussion_event_id" : "user:3b2ec15094fb59012727f9516bee85ee58111673a3e05d42a2b5ae6e0b1ef6a9",
+      "reason_code" : "silent_round",
+      "status" : "settled",
+      "thread_id" : "crew-probe-lead"
+    },
+    "room_id" : "room-context-probe",
+    "seq" : 9
+  },
+  {
+    "actor" : {
+      "id" : "desktop",
+      "kind" : "user"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794343038.919068,
+    "event_id" : "user:235c0f27e314952d897e9caa2d6bf642272e6922001d160f3a97d6fec98486cc",
+    "idempotent" : false,
+    "kind" : "message.user",
+    "payload" : {
+      "text" : "And which airline is cheapest?",
+      "thread_id" : "crew-probe-lead"
+    },
+    "room_id" : "room-context-probe",
+    "seq" : 10
+  },
+  {
+    "actor" : {
+      "display_name" : "Crew Test",
+      "id" : "crew-test",
+      "kind" : "member",
+      "profile" : "crew-test"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794343042.103053,
+    "event_id" : "dmessage:ad95c5805801ead7767bbed92a82caf5027fb7ead091c34a",
+    "idempotent" : false,
+    "kind" : "message.member",
+    "payload" : {
+      "discussion_event_id" : "user:235c0f27e314952d897e9caa2d6bf642272e6922001d160f3a97d6fec98486cc",
+      "member_id" : "crew-test",
+      "member_index" : 0,
+      "round_index" : 0,
+      "task_id" : "dtask:ad95c5805801ead7767bbed92a82caf5027fb7ead091c34a",
+      "text" : "Which airport are we flying from, and is this for May 2027? We’ll need live fares to find the cheapest airline, including baggage and departures no earlier than 08:00.",
+      "thread_id" : "crew-probe-lead",
+      "turn_id" : "d10.r0.p0.s10.m46eb3c289a3ef56e56dcf71a"
+    },
+    "room_id" : "room-context-probe",
+    "seq" : 11
+  },
+  {
+    "actor" : {
+      "id" : "install:f990dea42fbd4536a995a0e6678730fb",
+      "kind" : "gateway"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794343042.1074402,
+    "event_id" : "dterminal:ad95c5805801ead7767bbed92a82caf5027fb7ead091c34a",
+    "idempotent" : false,
+    "kind" : "turn.settled",
+    "payload" : {
+      "discussion_event_id" : "user:235c0f27e314952d897e9caa2d6bf642272e6922001d160f3a97d6fec98486cc",
+      "member_id" : "crew-test",
+      "member_index" : 0,
+      "message_event_id" : "dmessage:ad95c5805801ead7767bbed92a82caf5027fb7ead091c34a",
+      "passed" : false,
+      "round_index" : 0,
+      "seen_through_seq" : 10,
+      "task_id" : "dtask:ad95c5805801ead7767bbed92a82caf5027fb7ead091c34a",
+      "thread_id" : "crew-probe-lead",
+      "turn_id" : "d10.r0.p0.s10.m46eb3c289a3ef56e56dcf71a"
+    },
+    "room_id" : "room-context-probe",
+    "seq" : 12
+  },
+  {
+    "actor" : {
+      "id" : "install:f990dea42fbd4536a995a0e6678730fb",
+      "kind" : "gateway"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794343044.6287894,
+    "event_id" : "dterminal:9264ab794b9e1e9ae8403dd146570c9d436d1665b95de5dc",
+    "idempotent" : false,
+    "kind" : "turn.settled",
+    "payload" : {
+      "discussion_event_id" : "user:235c0f27e314952d897e9caa2d6bf642272e6922001d160f3a97d6fec98486cc",
+      "member_id" : "crew-test-peer",
+      "member_index" : 1,
+      "message_event_id" : null,
+      "passed" : true,
+      "round_index" : 0,
+      "seen_through_seq" : 11,
+      "task_id" : "dtask:9264ab794b9e1e9ae8403dd146570c9d436d1665b95de5dc",
+      "thread_id" : "crew-probe-lead",
+      "turn_id" : "d10.r0.p1.s11.mc489d6b1759e8730b3b7876f"
+    },
+    "room_id" : "room-context-probe",
+    "seq" : 13
+  },
+  {
+    "actor" : {
+      "id" : "install:f990dea42fbd4536a995a0e6678730fb",
+      "kind" : "gateway"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794343044.6748905,
+    "event_id" : "dactivity:user:235c0f27e314952d897e9caa2d6bf642272e6922001d160f3a97d6fec98486cc:silent_round",
+    "idempotent" : false,
+    "kind" : "room.activity",
+    "payload" : {
+      "discussion_event_id" : "user:235c0f27e314952d897e9caa2d6bf642272e6922001d160f3a97d6fec98486cc",
+      "reason_code" : "silent_round",
+      "status" : "settled",
+      "thread_id" : "crew-probe-lead"
+    },
+    "room_id" : "room-context-probe",
+    "seq" : 14
+  },
+  {
+    "actor" : {
+      "id" : "room-control",
+      "kind" : "system"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794343045.0056746,
+    "event_id" : "crew-probe-context-28e78394-0674-4c06-bdf3-0628b7a72361",
+    "idempotent" : false,
+    "kind" : "room.context_set",
+    "payload" : {
+      "lead_member_id" : "",
+      "notes" : "Budget is 900 EUR per person.\nNobody flies before 08:00.",
+      "purpose" : "Plan the team offsite in Lisbon, 12 to 14 May",
+      "routing" : "auto"
+    },
+    "room_id" : "room-context-probe",
+    "seq" : 15
+  },
+  {
+    "actor" : {
+      "id" : "desktop",
+      "kind" : "user"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794343045.0779626,
+    "event_id" : "user:51aa82ebb7e512a780e5ddee6d2921874121ce8fa4e9334c0b6cca2ad20c9c1e",
+    "idempotent" : false,
+    "kind" : "message.user",
+    "payload" : {
+      "text" : "What is the weather like in Lisbon in May?",
+      "thread_id" : "crew-probe-auto"
+    },
+    "room_id" : "room-context-probe",
+    "seq" : 16
+  },
+  {
+    "actor" : {
+      "id" : "install:f990dea42fbd4536a995a0e6678730fb",
+      "kind" : "gateway"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794343047.7870038,
+    "event_id" : "droute:user:51aa82ebb7e512a780e5ddee6d2921874121ce8fa4e9334c0b6cca2ad20c9c1e",
+    "idempotent" : false,
+    "kind" : "room.routed",
+    "payload" : {
+      "discussion_event_id" : "user:51aa82ebb7e512a780e5ddee6d2921874121ce8fa4e9334c0b6cca2ad20c9c1e",
+      "everyone" : false,
+      "fallback" : false,
+      "member_ids" : [
+        "crew-test-peer"
+      ],
+      "thread_id" : "crew-probe-auto"
+    },
+    "room_id" : "room-context-probe",
+    "seq" : 17
+  },
+  {
+    "actor" : {
+      "display_name" : "Crew Peer",
+      "id" : "crew-test-peer",
+      "kind" : "member",
+      "profile" : "crew-test-peer"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794343056.9480557,
+    "event_id" : "dmessage:0028c5df24ae2721a0451fde01a4e2afcc2146542dc1f50d",
+    "idempotent" : false,
+    "kind" : "message.member",
+    "payload" : {
+      "discussion_event_id" : "user:51aa82ebb7e512a780e5ddee6d2921874121ce8fa4e9334c0b6cca2ad20c9c1e",
+      "member_id" : "crew-test-peer",
+      "member_index" : 0,
+      "round_index" : 0,
+      "task_id" : "dtask:0028c5df24ae2721a0451fde01a4e2afcc2146542dc1f50d",
+      "text" : "Lisbon in May is usually mild to warm: **21–23°C during the day and 14–15°C at night**, with plenty of sunshine and occasional rain. These are [historical averages](https://en.climate-data.org/europe/portugal/lisbon/lisbon-3308/t/may-5/), not a forecast for 12–14 May.\n\nPack light layers, a jacket for evenings, sunscreen and a compact umbrella. @crew-test, outdoor activities look sensible, with an indoor backup for showers.",
+      "thread_id" : "crew-probe-auto",
+      "turn_id" : "d16.r0.p0.s16.mc489d6b1759e8730b3b7876f"
+    },
+    "room_id" : "room-context-probe",
+    "seq" : 18
+  },
+  {
+    "actor" : {
+      "id" : "install:f990dea42fbd4536a995a0e6678730fb",
+      "kind" : "gateway"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794343056.9523034,
+    "event_id" : "dterminal:0028c5df24ae2721a0451fde01a4e2afcc2146542dc1f50d",
+    "idempotent" : false,
+    "kind" : "turn.settled",
+    "payload" : {
+      "discussion_event_id" : "user:51aa82ebb7e512a780e5ddee6d2921874121ce8fa4e9334c0b6cca2ad20c9c1e",
+      "member_id" : "crew-test-peer",
+      "member_index" : 0,
+      "message_event_id" : "dmessage:0028c5df24ae2721a0451fde01a4e2afcc2146542dc1f50d",
+      "passed" : false,
+      "round_index" : 0,
+      "seen_through_seq" : 16,
+      "task_id" : "dtask:0028c5df24ae2721a0451fde01a4e2afcc2146542dc1f50d",
+      "thread_id" : "crew-probe-auto",
+      "turn_id" : "d16.r0.p0.s16.mc489d6b1759e8730b3b7876f"
+    },
+    "room_id" : "room-context-probe",
+    "seq" : 19
+  },
+  {
+    "actor" : {
+      "id" : "install:f990dea42fbd4536a995a0e6678730fb",
+      "kind" : "gateway"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794343059.5861778,
+    "event_id" : "dterminal:9a39d7bb83ecfb37991ca09ee14a116cd846f4cc8f68b332",
+    "idempotent" : false,
+    "kind" : "turn.settled",
+    "payload" : {
+      "discussion_event_id" : "user:51aa82ebb7e512a780e5ddee6d2921874121ce8fa4e9334c0b6cca2ad20c9c1e",
+      "member_id" : "crew-test",
+      "member_index" : 0,
+      "message_event_id" : null,
+      "passed" : true,
+      "round_index" : 1,
+      "seen_through_seq" : 18,
+      "task_id" : "dtask:9a39d7bb83ecfb37991ca09ee14a116cd846f4cc8f68b332",
+      "thread_id" : "crew-probe-auto",
+      "turn_id" : "d16.r1.p0.s18.m46eb3c289a3ef56e56dcf71a"
+    },
+    "room_id" : "room-context-probe",
+    "seq" : 20
+  },
+  {
+    "actor" : {
+      "id" : "install:f990dea42fbd4536a995a0e6678730fb",
+      "kind" : "gateway"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794343059.6547837,
+    "event_id" : "dactivity:user:51aa82ebb7e512a780e5ddee6d2921874121ce8fa4e9334c0b6cca2ad20c9c1e:silent_round",
+    "idempotent" : false,
+    "kind" : "room.activity",
+    "payload" : {
+      "discussion_event_id" : "user:51aa82ebb7e512a780e5ddee6d2921874121ce8fa4e9334c0b6cca2ad20c9c1e",
+      "reason_code" : "silent_round",
+      "status" : "settled",
+      "thread_id" : "crew-probe-auto"
+    },
+    "room_id" : "room-context-probe",
+    "seq" : 21
+  },
+  {
+    "actor" : {
+      "id" : "room-control",
+      "kind" : "system"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794343061.6360245,
+    "event_id" : "crew-probe-context-9ff84169-f515-457c-9fa4-8014e8ccb394",
+    "idempotent" : false,
+    "kind" : "room.context_set",
+    "payload" : {
+      "lead_member_id" : "",
+      "notes" : "",
+      "purpose" : "",
+      "routing" : "everyone"
+    },
+    "room_id" : "room-context-probe",
+    "seq" : 22
+  }
+]

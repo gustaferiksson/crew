@@ -92,7 +92,7 @@ struct GroupChatScreen: View {
         }
         #if os(iOS)
         .navigationDestination(isPresented: $showsInspector) {
-            GroupInspector(room: room, isPresented: $showsInspector, select: select)
+            GroupInspector(room: room, isPresented: $showsInspector, context: session?.context, routingModes: session?.driver.routingModes, select: select)
         }
         #endif
         .task(id: connection.gateway.map(ObjectIdentifier.init)) {
@@ -136,10 +136,11 @@ struct GroupChatScreen: View {
                     .frame(width: 52)
                 }
             }
+            let purpose = session?.context?.purpose ?? ""
             VStack(spacing: 4) {
                 Text(room.name)
                     .font(.title3.bold())
-                Text("Say hello to start the conversation.")
+                Text(purpose.isEmpty ? String(localized: "Say hello to start the conversation.") : purpose)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }

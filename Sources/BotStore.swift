@@ -259,7 +259,13 @@ nonisolated struct CachedChat: Codable, Sendable {
 
 extension Transcript {
     init(window rows: [HistoryRow]) {
-        self.init(history: Array(rows.sorted { $0.id < $1.id }.drop { $0.role != "user" }))
+        let sorted = rows.sorted { $0.id < $1.id }
+        let startsTurn = { (row: HistoryRow) in
+            let text = row.displayContent ?? row.content ?? ""
+            return row.role == "user" && AgentMessage(text) == nil && deliveryProcess(in: text) == nil
+        }
+        let start = sorted.firstIndex(where: startsTurn) ?? sorted.firstIndex { $0.role == "user" } ?? sorted.endIndex
+        self.init(history: Array(sorted[start...]))
     }
 }
 

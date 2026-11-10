@@ -38,7 +38,7 @@ final class BotShops {
 
 struct ShopsCard: View {
     let bot: Bot
-    let isBrowserOff: Bool
+    let canBrowse: Bool?
     let shops: BotShops
     @Binding var isAdding: Bool
     @Binding var isEditingCard: Bool
@@ -49,9 +49,9 @@ struct ShopsCard: View {
     @State private var isUpdating = false
     @State private var updateFailure: String?
 
-    init(bot: Bot, isBrowserOff: Bool, shops: BotShops, isAdding: Binding<Bool>, isEditingCard: Binding<Bool>, updateFailure: String? = nil) {
+    init(bot: Bot, canBrowse: Bool?, shops: BotShops, isAdding: Binding<Bool>, isEditingCard: Binding<Bool>, updateFailure: String? = nil) {
         self.bot = bot
-        self.isBrowserOff = isBrowserOff
+        self.canBrowse = canBrowse
         self.shops = shops
         _isAdding = isAdding
         _isEditingCard = isEditingCard
@@ -208,8 +208,8 @@ struct ShopsCard: View {
         guard let list = shops.list else { return [] }
         var footers: [(text: String, isAlert: Bool)] = []
         if !list.shops.isEmpty { footers.append((String(localized: "\(bot.title) pays only on these sites, and asks you every time."), false)) }
-        if isBrowserOff { footers.append((String(localized: "Turn on Browser in Capabilities so \(bot.title) can shop."), false)) }
-        if (list.terminalBackend ?? "local") == "local" {
+        if canBrowse == false { footers.append((String(localized: "Turn on Browser and Terminal in Capabilities so \(bot.title) can shop."), false)) }
+        if (list.terminalBackend ?? "local") == "local" || canBrowse == true {
             footers.append((String(localized: "Bots on this server run commands next to the card, so a misbehaving bot could read it. Keep the card's limit low."), false))
         }
         if bot.isDefault, let leftover = list.legacyCards, leftover > 0 {

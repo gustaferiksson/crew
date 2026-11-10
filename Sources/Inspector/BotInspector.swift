@@ -81,7 +81,7 @@ struct BotInspector: View {
             } else if tab == .tasks {
                 TaskList(bot: bot, todos: chats.sessions[bot.id]?.todos ?? [])
             } else if tab == .passwords {
-                PasswordsTab(bot: bot, vault: vault, isBrowserOff: isBrowserOff, shops: shops, highlighted: highlightedLogins, editing: $editingLogin, isConnecting: $isConnectingOnePassword, isAddingShop: $isAddingShop, isEditingCard: $isEditingCard)
+                PasswordsTab(bot: bot, vault: vault, canBrowse: draft.canBrowse, shops: shops, highlighted: highlightedLogins, editing: $editingLogin, isConnecting: $isConnectingOnePassword, isAddingShop: $isAddingShop, isEditingCard: $isEditingCard)
             } else {
                 RoutineList(bot: bot, store: routines) { isCreatingRoutine = true }
             }
@@ -330,10 +330,6 @@ struct BotInspector: View {
         } else {
             Text(bot.name)
         }
-    }
-
-    private var isBrowserOff: Bool {
-        isEditable && !draft.fields.toolsets.contains { $0.name == "browser" && $0.enabled }
     }
 
     @ViewBuilder

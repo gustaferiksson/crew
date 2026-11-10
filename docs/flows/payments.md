@@ -41,8 +41,8 @@ A **Shops** card in the Passwords tab after Logins and 1Password (in Info before
 - **Remove:** swipe to delete on iPhone, context menu Delete and the Delete key on Mac. No alert: it is undone by adding the host again. The row leaves when the route answers; on failure it stays and an inline error shows.
 - **Footers**, each only when true:
   - "Scout pays only on these sites, and asks you every time." (when there is a shop)
-  - Browser toolset off: "Turn on Browser in Capabilities so Scout can shop."
-  - `terminal.backend` is `local`: "Bots on this server run commands next to the card, so a misbehaving bot could read it. Keep the card's limit low."
+  - Browser or Terminal toolset off (Hermes 0.23 has no browser without Terminal): "Turn on Browser and Terminal in Capabilities so Scout can shop."
+  - `terminal.backend` is `local`, or Browser and Terminal are on (`browser_exec` runs in the Hermes environment whatever the backend): "Bots on this server run commands next to the card, so a misbehaving bot could read it. Keep the card's limit low."
   - Dashboard login off (`gate: false`): "Payments are off: this server has no dashboard login." in red.
 - Offline: the last list stays; Add and Remove are disabled. Loading: a small `ProgressView`, as other cards do.
 

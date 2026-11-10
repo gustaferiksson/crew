@@ -3,7 +3,7 @@ import SwiftUI
 struct PasswordsTab: View {
     let bot: Bot
     let vault: BotVault
-    let isBrowserOff: Bool
+    let canBrowse: Bool?
     let shops: BotShops
     let highlighted: Set<Login.ID>
     @Binding var editing: LoginTarget?
@@ -14,10 +14,10 @@ struct PasswordsTab: View {
     @Environment(Connection.self) private var connection
 
     var body: some View {
-        LoginsCard(bot: bot, vault: vault, isBrowserOff: isBrowserOff, highlighted: highlighted, editing: $editing)
+        LoginsCard(bot: bot, vault: vault, canBrowse: canBrowse, highlighted: highlighted, editing: $editing)
         OnePasswordCard(bot: bot, vault: vault, isConnecting: $isConnecting)
         if connection.supportsPayments {
-            ShopsCard(bot: bot, isBrowserOff: isBrowserOff, shops: shops, isAdding: $isAddingShop, isEditingCard: $isEditingCard)
+            ShopsCard(bot: bot, canBrowse: canBrowse, shops: shops, isAdding: $isAddingShop, isEditingCard: $isEditingCard)
         }
     }
 }
@@ -32,7 +32,7 @@ extension Connection {
 private struct LoginsCard: View {
     let bot: Bot
     let vault: BotVault
-    let isBrowserOff: Bool
+    let canBrowse: Bool?
     let highlighted: Set<Login.ID>
     @Binding var editing: LoginTarget?
 
@@ -145,8 +145,8 @@ private struct LoginsCard: View {
         guard vault.items != nil else { return [] }
         var footers: [String] = []
         if !vault.logins.isEmpty { footers.append(String(localized: "\(bot.title) fills these only on their sites, and the passwords never enter the chat.")) }
-        if isBrowserOff { footers.append(String(localized: "Turn on Browser in Capabilities so \(bot.title) can sign in.")) }
-        if vault.isTerminalLocal { footers.append(String(localized: "Bots on this server run commands next to the vault, so a misbehaving bot could read these passwords.")) }
+        if canBrowse == false { footers.append(String(localized: "Turn on Browser and Terminal in Capabilities so \(bot.title) can sign in.")) }
+        if vault.isTerminalLocal || canBrowse == true { footers.append(String(localized: "Bots on this server run commands next to the vault, so a misbehaving bot could read these passwords.")) }
         return footers
     }
 

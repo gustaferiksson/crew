@@ -145,7 +145,7 @@ struct ShopsFixtureScreen: View {
         NavigationStack {
             Form {
                 ShopsCard(
-                    bot: scout, isBrowserOff: snapshot == .inspectorShopsEmpty, shops: BotShops(profile: "scout", fixture: list), isAdding: .constant(false), isEditingCard: .constant(false),
+                    bot: scout, canBrowse: snapshot != .inspectorShopsEmpty, shops: BotShops(profile: "scout", fixture: list), isAdding: .constant(false), isEditingCard: .constant(false),
                     updateFailure: snapshot == .inspectorShopsUpdateError ? String(localized: "Couldn't update shops. Try again.") : nil
                 )
             }

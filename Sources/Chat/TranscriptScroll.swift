@@ -4,6 +4,13 @@ let transcriptEnd = "transcript-end"
 
 extension Transaction {
     @Entry fileprivate var jumpsToLatest = false
+    @Entry fileprivate var isDisclosure = false
+
+    static func disclosure(_ animation: Animation) -> Transaction {
+        var transaction = Transaction(animation: animation)
+        transaction.isDisclosure = true
+        return transaction
+    }
 }
 
 private struct BottomEdge: Equatable {
@@ -38,8 +45,8 @@ struct TranscriptScroll<Revision: Equatable, Content: View>: View {
             // An animated jump otherwise fades and slides the rows it leaves over the rows it lands on.
             .transaction { if $0.jumpsToLatest { $0.animation = nil } }
         }
-        // At the end an animated resize (a disclosure) left iOS unscrolled until the next layout and re-ran the Mac end hold every frame.
-        .transaction { if followsEnd, isAtBottom { $0.animation = nil } }
+        // An animated disclosure at the end left iOS unscrolled until the next layout and re-ran the Mac end hold every frame.
+        .transaction { if $0.isDisclosure, followsEnd, isAtBottom { $0.animation = nil } }
         #if os(iOS)
         // iOS 27 applies the size-change anchor to LazyVStack height estimates and parks the viewport past the drawn rows (#153).
         .defaultScrollAnchor(.bottom, for: .initialOffset)

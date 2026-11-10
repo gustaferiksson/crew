@@ -27,7 +27,7 @@ struct CardPreview: View {
             openButton(summary)
             if let expanded {
                 Button(expanded.wrappedValue ? "Collapse" : "Expand", systemImage: "chevron.down") {
-                    withAnimation(.smooth) { expanded.wrappedValue.toggle() }
+                    withTransaction(.disclosure(.smooth)) { expanded.wrappedValue.toggle() }
                 }
                 .labelStyle(.iconOnly)
                 .font(.footnote.weight(.semibold))

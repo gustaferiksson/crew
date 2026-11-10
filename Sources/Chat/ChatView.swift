@@ -242,7 +242,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
     private var chat: some View {
         latestActions.actions = actions
         return TranscriptScroll(position: $position, revision: TranscriptRevision(count: transcript.turns.count, last: transcript.turns.last), barHeight: barHeight) {
-            if earlier != .complete {
+            if earlier == .loading || earlier == .failed {
                 EarlierHistoryRow(state: earlier, retry: actions.loadEarlier)
                     .padding([.horizontal, .top], 16)
             }

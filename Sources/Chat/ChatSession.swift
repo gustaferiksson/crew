@@ -115,12 +115,16 @@ final class ChatSession {
                 syncedPosition = position
                 let shown = transcript
                 let session = StoredSessionID(rawValue: position.session)
-                guard let rows = try? await history(of: session, profile: profile, on: gateway.server, with: urlSession, limit: BotStore.pageRows) else {
+                guard let rows = try? await history(of: session, profile: profile, on: gateway.server, with: urlSession, limit: BotStore.pageRows),
+                      var reloaded = try? await merge(latest: rows, of: session)
+                else {
                     syncedPosition = nil
                     break
                 }
-                guard transcript == shown else { continue }
-                var reloaded = merge(latest: rows, of: session)
+                guard transcript == shown else {
+                    syncedPosition = nil
+                    continue
+                }
                 reloaded.keepCommands(from: shown)
                 reloaded.adoptIDs(from: shown)
                 reloaded.keepFailures(from: shown)
@@ -193,7 +197,7 @@ final class ChatSession {
         let reply = try await gateway.call("session.compress", ["session_id": runtime.rawValue], as: CompressReply.self, timeout: .seconds(300))
         let shown = transcript
         pagedSession = nil
-        var reloaded = merge(latest: try await history(of: stored, profile: profile, on: gateway.server, with: urlSession, limit: BotStore.pageRows), of: stored)
+        var reloaded = try await merge(latest: try await history(of: stored, profile: profile, on: gateway.server, with: urlSession, limit: BotStore.pageRows), of: stored)
         reloaded.keepCommands(from: shown)
         reloaded.adoptIDs(from: shown)
         transcript = reloaded
@@ -460,7 +464,7 @@ final class ChatSession {
             [HistoryRow]()
         }
         let replay = try await gateway.eventsSince(snapshot.sessionID, after: 0)
-        var transcript = merge(latest: rows, of: stored)
+        var transcript = try await merge(latest: rows, of: stored)
         transcript.keepCommands(from: self.transcript)
         if snapshot.running == true {
             let startedAt = snapshot.turnStartedAt.map(Date.init(timeIntervalSince1970:)) ?? .now
@@ -514,8 +518,10 @@ final class ChatSession {
                     return
                 }
                 guard pagedSession == session, pages.rows.first?.id == oldest else { return }
+                let held = pages.rows.count
                 pages.prepend(older: rows)
                 older = pages.transcript
+                if pages.rows.count == held { break }
             } while !pages.reachedStart && older.turns.first.map { first in transcript.turns.contains { $0.id == first.id } } != false
             let shown = Set(transcript.turns.map(\.id))
             transcript.turns.insert(contentsOf: older.turns.prefix { !shown.contains($0.id) }, at: 0)
@@ -523,12 +529,19 @@ final class ChatSession {
         }
     }
 
-    private func merge(latest rows: [HistoryRow], of session: StoredSessionID?) -> Transcript {
+    private func merge(latest rows: [HistoryRow], of session: StoredSessionID?) async throws -> Transcript {
         if pagedSession != session { pages = HistoryPages() }
         pagedSession = session
         pages.merge(latest: rows)
+        var merged = pages.transcript
+        while let session, merged.turns.isEmpty, !pages.reachedStart {
+            let held = pages.rows.count
+            pages.prepend(older: try await history(of: session, profile: profile, on: gateway.server, with: urlSession, limit: BotStore.pageRows, offset: held))
+            merged = pages.transcript
+            if pages.rows.count == held { break }
+        }
         earlier = pages.reachedStart ? .complete : .more
-        return pages.transcript
+        return merged
     }
 
     private func receive(_ request: ServerRequest) async {

@@ -92,15 +92,18 @@ private func peekOutcome(_ transcript: Transcript) throws -> MentionExchange.Out
     #expect(shown.first?.deliveryFailure == nil)
 }
 
-@Test func targetExchangeRowCarriesItsOwnFailedReplyBack() throws {
+@Test func targetsFailedReplyBackShowsUnderItsMessageToRow() throws {
     let decoder = JSONDecoder()
     decoder.keyDecodingStrategy = .convertFromSnakeCase
     let text = try String(contentsOf: scenario.deletingLastPathComponent().appending(path: "bot-mention/crew-test-peer.history.json"), encoding: .utf8)
     let failed = Data(text.replacingOccurrences(of: "completed normally (exit code 0)", with: "exited (exit code 1)").utf8)
-    let row = try #require(Transcript(history: try decoder.decode([HistoryRow].self, from: failed)).visible.turns.first)
-    #expect(row.agentMessage != nil)
-    #expect(row.deliveryFailure?.target == "crew-test")
-    #expect(row.deliveryFailure?.headline(for: "Crew Test") == "Message to Crew Test failed.")
+    let shown = Transcript(history: try decoder.decode([HistoryRow].self, from: failed)).visible.turns
+    try #require(shown.count == 2)
+    #expect(shown[0].agentMessage != nil)
+    #expect(shown[0].deliveryFailure == nil)
+    #expect(shown[1].outgoingMessage?.handle == "crew-test")
+    #expect(shown[1].deliveryFailure?.target == "crew-test")
+    #expect(shown[1].deliveryFailure?.headline(for: "Crew Test") == "Message to Crew Test failed.")
 }
 
 @Test func recordedAmbiguousAdmissionIsUnconfirmedNotFailed() throws {

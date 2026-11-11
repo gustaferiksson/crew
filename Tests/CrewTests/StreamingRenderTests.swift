@@ -11,11 +11,11 @@ nonisolated private struct HistoryFile: Decodable {
 
 private struct LiveChat: View {
     let session: ChatSession
-    @State private var draft = ""
+    @State private var draft = Draft()
     @State private var tray = AttachmentTray()
 
     var body: some View {
-        ChatView(botName: "crew-test", avatar: EmptyView(), transcript: session.transcript.visible, emptyState: EmptyView(), mentionable: [], draft: $draft, tray: tray, actions: ChatActions(stop: { session.stop() }, retry: { _ in session.stop() }, unqueue: { _ in session.stop() }))
+        ChatView(botName: "crew-test", avatar: EmptyView(), transcript: session.transcript.visible, emptyState: EmptyView(), mentionable: [], draft: draft, tray: tray, actions: ChatActions(stop: { session.stop() }, retry: { _ in session.stop() }, unqueue: { _ in session.stop() }))
     }
 }
 

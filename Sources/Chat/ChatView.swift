@@ -72,6 +72,10 @@ private let separatorFormatter = {
     return formatter
 }()
 
+#if DEBUG
+@MainActor var chatViewBodies = 0
+#endif
+
 struct ChatView<Avatar: View, EmptyState: View>: View {
     let botName: String
     var profile: String?
@@ -94,7 +98,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
     var pinKey: String?
     var actions = ChatActions()
 
-    @Binding var draft: String
+    let draft: Draft
     let tray: AttachmentTray
     @State private var position = ScrollPosition(idType: Turn.ID.self)
     #if os(iOS)
@@ -131,7 +135,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
     @FocusState private var isComposerFocused: Bool
     private let presentation: ChatPresentation
 
-    init(botName: String, profile: String? = nil, title: String? = nil, avatar: Avatar, transcript: Transcript, emptyState: EmptyState, mentionable: [Bot], slashCommands: [SlashCommand] = [], draft: Binding<String>, tray: AttachmentTray, features: ComposerFeatures = .all, request: PendingRequest? = nil, payment: PaymentCardState? = nil, paymentNotice: String? = nil, shopOffer: String? = nil, offlineReason: String? = nil, activity: String? = nil, models: ModelSwitcher? = nil, focus: SearchFocus? = nil, earlier: EarlierHistory = .complete, pinKey: String? = nil, presentation: ChatPresentation = ChatPresentation(), actions: ChatActions = ChatActions()) {
+    init(botName: String, profile: String? = nil, title: String? = nil, avatar: Avatar, transcript: Transcript, emptyState: EmptyState, mentionable: [Bot], slashCommands: [SlashCommand] = [], draft: Draft, tray: AttachmentTray, features: ComposerFeatures = .all, request: PendingRequest? = nil, payment: PaymentCardState? = nil, paymentNotice: String? = nil, shopOffer: String? = nil, offlineReason: String? = nil, activity: String? = nil, models: ModelSwitcher? = nil, focus: SearchFocus? = nil, earlier: EarlierHistory = .complete, pinKey: String? = nil, presentation: ChatPresentation = ChatPresentation(), actions: ChatActions = ChatActions()) {
         self.botName = botName
         self.profile = profile
         self.title = title
@@ -155,16 +159,16 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
         self.presentation = presentation
         _expansion = State(initialValue: TranscriptExpansion(turns: presentation.expandedTurns, work: presentation.expandedWork))
         _expandedCards = State(initialValue: presentation.expandedCards)
-        _draft = draft
+        self.draft = draft
         self.tray = tray
     }
 
     private var composer: some View {
-        Composer(botName: botName, phase: composerPhase, draft: $draft, isFocused: $isComposerFocused, tray: tray, mentionable: mentionable, slashCommands: slashCommands, features: features, completePath: actions.completePath, dictation: presentation.dictation, transcribe: actions.transcribe) { mode in
+        Composer(botName: botName, phase: composerPhase, draft: draft, isFocused: $isComposerFocused, tray: tray, mentionable: mentionable, slashCommands: slashCommands, features: features, completePath: actions.completePath, dictation: presentation.dictation, transcribe: actions.transcribe) { mode in
             position.scrollTo(id: transcriptEnd, anchor: .bottom)
             Speaker.shared.stop()
-            actions.send(draft, tray.take(), mentionedBots(in: draft, among: mentionable), mode)
-            draft = ""
+            actions.send(draft.text, tray.take(), mentionedBots(in: draft.text, among: mentionable), mode)
+            draft.text = ""
         } stop: {
             actions.stop()
         }
@@ -220,6 +224,9 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
     }
 
     var body: some View {
+        #if DEBUG
+        let _ = chatViewBodies += 1
+        #endif
         chat
         .onChange(of: surfaces.present) {
             if let openedCard, !surfaces.present.contains(openedCard.id) { self.openedCard = nil }

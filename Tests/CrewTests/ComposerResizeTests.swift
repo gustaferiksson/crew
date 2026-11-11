@@ -11,7 +11,7 @@ nonisolated enum ResizedWindow: CaseIterable, Sendable {
 }
 
 private struct ChatColumn: View {
-    @State var draft: String
+    @State var draft: Draft
     let probe: ResizeProbe
     @State private var position = ScrollPosition()
     @FocusState private var isFocused: Bool
@@ -28,7 +28,7 @@ private struct ChatColumn: View {
         }
         .onScrollGeometryChange(for: CGFloat.self) { $0.contentSize.height - $0.visibleRect.maxY + $0.contentInsets.bottom } action: { probe.distance = $1 }
         .safeAreaBar(edge: .bottom) {
-            Composer(botName: "Hermes", phase: .idle, draft: $draft, isFocused: $isFocused, tray: AttachmentTray(), mentionable: [], completePath: { _ in [] }, transcribe: { _ in "" }, send: { _ in }, stop: {})
+            Composer(botName: "Hermes", phase: .idle, draft: draft, isFocused: $isFocused, tray: AttachmentTray(), mentionable: [], completePath: { _ in [] }, transcribe: { _ in "" }, send: { _ in }, stop: {})
         }
     }
 }
@@ -41,7 +41,7 @@ private struct ResizingWindow: View {
 
     var body: some View {
         if window == .chat {
-            NavigationStack { ChatColumn(draft: draft, probe: probe) }
+            NavigationStack { ChatColumn(draft: Draft(draft), probe: probe) }
                 .frame(minWidth: 320)
                 .inspector(isPresented: .constant(false)) {
                     Text("Inspector")
@@ -59,7 +59,7 @@ private struct ResizingWindow: View {
             }
             .navigationSplitViewColumnWidth(min: 240, ideal: 320, max: 400)
         } detail: {
-            NavigationStack { ChatColumn(draft: draft, probe: probe) }
+            NavigationStack { ChatColumn(draft: Draft(draft), probe: probe) }
                 .navigationSplitViewColumnWidth(min: 320, ideal: 640)
         }
         .inspector(isPresented: .constant(false)) {

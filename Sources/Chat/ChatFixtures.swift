@@ -408,7 +408,7 @@ struct ChatFixtureScreen: View {
     @State private var paymentNotice: String?
     @State private var shopOffer: String?
     @State private var addingShop = false
-    @State private var draft: String
+    @State private var draft: Draft
     @State private var transcript: Transcript
     @State private var pages: HistoryPages?
     @State private var earlier = EarlierHistory.complete
@@ -441,7 +441,7 @@ struct ChatFixtureScreen: View {
         _payment = State(initialValue: fixture.paymentState)
         _paymentNotice = State(initialValue: fixture.paymentNotice)
         _shopOffer = State(initialValue: fixture.shopOffer)
-        _draft = State(initialValue: fixture.presentation.draft)
+        _draft = State(initialValue: Draft(fixture.presentation.draft))
         _transcript = State(initialValue: fixture.transcript)
         _tray = State(initialValue: AttachmentTray(items: fixture.presentation.attachments))
         _earlier = State(initialValue: [.earlierLoading: .loading, .earlierFailed: .failed][fixture] ?? .complete)
@@ -473,7 +473,7 @@ struct ChatFixtureScreen: View {
             emptyState: EmptyView(),
             mentionable: bots.bots.filter { $0.id != "default" },
             slashCommands: fixture == .slash ? Self.slashCommands : [],
-            draft: $draft,
+            draft: draft,
             tray: tray,
             request: request,
             payment: payment,
@@ -517,7 +517,7 @@ struct ChatFixtureScreen: View {
             transcript = pages.transcript
             earlier = pages.reachedStart ? .complete : .more
         }
-        .onChange(of: draft) { old, new in
+        .onChange(of: draft.text) { old, new in
             if new == Self.requestAfterDraft { request = fixture.request }
             if new == Self.finishTurnAfterDraft { transcript.apply(.messageComplete(text: "Deployed to staging.", status: .complete, error: nil)) }
             if let trigger = Self.replyAfterDraft, new.components(separatedBy: trigger).count > old.components(separatedBy: trigger).count { replyFromAnotherClient() }
@@ -608,7 +608,7 @@ struct ChatFixtureScreen: View {
     }
 
     private func returnToDraft(_ texts: [String]) {
-        draft = ([draft] + texts).filter { !$0.isEmpty }.joined(separator: "\n")
+        draft.text = ([draft.text] + texts).filter { !$0.isEmpty }.joined(separator: "\n")
     }
 
     private func answer(_ reply: [String: String]) {

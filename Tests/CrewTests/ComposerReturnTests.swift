@@ -4,7 +4,7 @@ import Testing
 
 @MainActor @Observable private final class ReturnChat {
     var phase = Composer.Phase.idle
-    var draft = ""
+    let draft = Draft()
     var sends: [String] = []
 }
 
@@ -14,11 +14,11 @@ private struct ReturnChatHost: View {
 
     var body: some View {
         Composer(
-            botName: "Marlow", phase: chat.phase, draft: Binding(get: { chat.draft }, set: { chat.draft = $0 }), isFocused: $isFocused,
+            botName: "Marlow", phase: chat.phase, draft: chat.draft, isFocused: $isFocused,
             tray: AttachmentTray(), mentionable: [], completePath: { _ in [] }, transcribe: { _ in "" },
             send: { _ in
-                chat.sends.append(chat.draft)
-                chat.draft = ""
+                chat.sends.append(chat.draft.text)
+                chat.draft.text = ""
             },
             stop: {}
         )
@@ -99,7 +99,7 @@ private final class KeyLoopWindow: OffscreenWindow {
         #expect(window.responderChanges == 0, "held Shift+Return")
 
         #expect(chat.sends == ["Summarise the plan"])
-        #expect(chat.draft.hasPrefix("Then post it"))
+        #expect(chat.draft.text.hasPrefix("Then post it"))
         #expect(window.keyLoopRebuilds == 0)
         #expect(window.firstResponder === editor)
     }

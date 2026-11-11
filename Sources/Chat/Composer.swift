@@ -38,7 +38,7 @@ struct Composer: View {
 
     let botName: String
     let phase: Phase
-    @Binding var draft: String
+    @Bindable var draft: Draft
     let tray: AttachmentTray
     let mentionable: [Bot]
     let slashCommands: [SlashCommand]
@@ -61,10 +61,10 @@ struct Composer: View {
     @GestureState private var hold: Hold?
     let isFocused: FocusState<Bool>.Binding
 
-    init(botName: String, phase: Phase, draft: Binding<String>, isFocused: FocusState<Bool>.Binding, tray: AttachmentTray, mentionable: [Bot], slashCommands: [SlashCommand] = [], features: ComposerFeatures = .all, completePath: @escaping (String) async -> [PathCompletion], dictation: Dictation? = nil, transcribe: @escaping (Data) async throws -> String, send: @escaping (SendMode) -> Void, stop: @escaping () -> Void) {
+    init(botName: String, phase: Phase, draft: Draft, isFocused: FocusState<Bool>.Binding, tray: AttachmentTray, mentionable: [Bot], slashCommands: [SlashCommand] = [], features: ComposerFeatures = .all, completePath: @escaping (String) async -> [PathCompletion], dictation: Dictation? = nil, transcribe: @escaping (Data) async throws -> String, send: @escaping (SendMode) -> Void, stop: @escaping () -> Void) {
         self.botName = botName
         self.phase = phase
-        _draft = draft
+        self.draft = draft
         self.isFocused = isFocused
         self.tray = tray
         self.mentionable = mentionable
@@ -77,10 +77,10 @@ struct Composer: View {
         _dictation = State(initialValue: dictation ?? Dictation())
     }
 
-    private var canSend: Bool { !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !tray.items.isEmpty }
+    private var canSend: Bool { !draft.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !tray.items.isEmpty }
     private var isOffline: Bool { if case .offline = phase { true } else { false } }
-    private var mentionQuery: String? { draft.firstMatch(of: /(?:^|\s)@([^\s@]*)$/).map { String($0.1) } }
-    private var slashQuery: String? { draft.wholeMatch(of: /\/(\S*)/).map { String($0.1) } }
+    private var mentionQuery: String? { draft.text.firstMatch(of: /(?:^|\s)@([^\s@]*)$/).map { String($0.1) } }
+    private var slashQuery: String? { draft.text.wholeMatch(of: /\/(\S*)/).map { String($0.1) } }
 
     var body: some View {
         VStack(spacing: 8) {
@@ -100,13 +100,13 @@ struct Composer: View {
             }
             if let mentionQuery {
                 MentionPicker(query: mentionQuery, bots: mentionable, completePath: completePath) { tag in
-                    draft = String(draft.dropLast(mentionQuery.count + 1)) + tag + " "
+                    draft.text = String(draft.text.dropLast(mentionQuery.count + 1)) + tag + " "
                     isFocused.wrappedValue = true
                 }
             }
             if let slashQuery {
                 SlashPicker(query: slashQuery, commands: slashCommands) { command in
-                    draft = command + " "
+                    draft.text = command + " "
                     isFocused.wrappedValue = true
                 }
             }
@@ -185,7 +185,7 @@ struct Composer: View {
             Text(tray.failure ?? "")
         }
         .onChange(of: dictation.text) { _, text in
-            if !text.isEmpty { draft = text }
+            if !text.isEmpty { draft.text = text }
         }
         .onDisappear {
             Task { await dictation.stop() }
@@ -207,9 +207,9 @@ struct Composer: View {
     private var textField: TextField<Text> {
         #if os(macOS)
         // On macOS a `selection:` binding follows every NSTextView's selection change, so a reply arriving moved the caret (#106).
-        TextField("Message \(botName)", text: $draft, axis: .vertical)
+        TextField("Message \(botName)", text: $draft.text, axis: .vertical)
         #else
-        TextField("Message \(botName)", text: $draft, selection: $selection, axis: .vertical)
+        TextField("Message \(botName)", text: $draft.text, selection: $selection, axis: .vertical)
         #endif
     }
 
@@ -270,7 +270,7 @@ struct Composer: View {
                             #if os(macOS)
                             NSApp.sendAction(#selector(NSResponder.insertNewlineIgnoringFieldEditor(_:)), to: nil, from: nil)
                             #else
-                            selection = draft.insertNewLine(at: selection)
+                            selection = draft.text.insertNewLine(at: selection)
                             #endif
                             return .handled
                         }
@@ -338,7 +338,7 @@ struct Composer: View {
             await dictation.start(fallback: transcribe)
             guard self.hold == nil else { return }
             await dictation.cancel()
-            draft = ""
+            draft.text = ""
         }
     }
 
@@ -350,7 +350,7 @@ struct Composer: View {
         Task {
             if released.cancels {
                 await dictation.cancel()
-                draft = ""
+                draft.text = ""
                 return
             }
             await dictation.stop()

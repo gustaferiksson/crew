@@ -72,3 +72,15 @@ import Testing
     #expect(changed.withLock { $0 })
     #expect(drafts.text(for: "scout").isEmpty)
 }
+
+@MainActor @Test func typingIntoTheComposerSavesTheDraft() {
+    let file = scratchFile()
+    let drafts = ChatDrafts(fileURL: file)
+    drafts.draft(for: "scout").text = "Book it"
+    drafts.draft(for: "forge").text = "  "
+    #expect(ChatDrafts(fileURL: file).texts == ["scout": "Book it"])
+
+    let relaunched = ChatDrafts(fileURL: file)
+    relaunched.draft(for: "scout").text = ""
+    #expect(ChatDrafts(fileURL: file).texts.isEmpty)
+}

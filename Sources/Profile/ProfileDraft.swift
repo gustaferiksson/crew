@@ -97,6 +97,12 @@ final class ProfileDraft {
         fields != baseline || photoChange != .unchanged
     }
 
+    // Hermes 0.23 drops `browser_exec` from any session without the `terminal` tool.
+    var canBrowse: Bool? {
+        guard phase == .loaded else { return nil }
+        return ["browser", "terminal"].allSatisfy { name in fields.toolsets.contains { $0.name == name && $0.enabled } }
+    }
+
     var title: String {
         let title = fields.identity.title.trimmingCharacters(in: .whitespacesAndNewlines)
         return title.isEmpty ? fallbackTitle : title

@@ -19,7 +19,7 @@ extension Snapshot {
         let toolsets = [
             toolset("web", "🔍 Web Search & Scraping", "web_search, web_extract", true),
             toolset("browser", "🌐 Browser Automation", "navigate, click, type, scroll", true),
-            toolset("terminal", "💻 Terminal & Processes", "terminal, process", true),
+            toolset("terminal", "💻 Terminal & Processes", "terminal, process", requested != .inspectorPasswordsEmpty),
             toolset("file", "📁 File Operations", "read, write, patch, search", true),
             toolset("vision", "👁️ Vision / Image Analysis", "vision_analyze", false),
             toolset("image_gen", "🎨 Image Generation", "image_generate", false),

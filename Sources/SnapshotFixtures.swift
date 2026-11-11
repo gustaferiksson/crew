@@ -249,6 +249,13 @@ extension Snapshot {
             let value = Double(step.split(separator: ":").last ?? "") ?? 0
             if step == "open" || step == "close" { NotificationCenter.default.post(name: .measureInspector, object: step == "open") }
             if step.hasPrefix("sidebar:") { controllers.last?.splitView.setPosition(value, ofDividerAt: 0) }
+            if step == "toggle" { controllers.last?.toggleSidebar(nil) }
+            if step == "show", let view = window.toolbar?.items.last(where: { $0.label == "Show Sidebar" })?.view {
+                let point = view.convert(NSPoint(x: view.bounds.midX, y: view.bounds.midY), to: nil)
+                for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
+                    NSEvent.mouseEvent(with: type, location: point, modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1).map(window.sendEvent)
+                }
+            }
             if step.hasPrefix("width:") { window.setContentSize(NSSize(width: value > 0 ? value : window.contentMinSize.width, height: 640)) }
             try? await Task.sleep(for: .seconds(2))
             let columns = controllers.map { $0.splitViewItems.map { $0.isCollapsed ? "-" : "\(Int($0.viewController.view.frame.width))" }.joined(separator: "|") }

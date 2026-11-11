@@ -41,6 +41,7 @@ struct BotsView: View {
     @State private var modelsBot: Bot.ID?
     @State private var isNarrow = false
     @State private var showsHidden = Snapshot.requested == .sidebarHidden
+    @State private var columns = NavigationSplitViewVisibility.all
 
     var body: some View {
         let selected = store.bots.first { $0.id == selection }
@@ -48,7 +49,7 @@ struct BotsView: View {
         #if os(macOS)
         let inspector: Binding<Bool>? = selected == nil && selectedRoom == nil ? nil : $showsBot
         #endif
-        NavigationSplitView {
+        NavigationSplitView(columnVisibility: $columns) {
             sidebar
         } detail: {
             NavigationStack {
@@ -63,6 +64,11 @@ struct BotsView: View {
                 }
                 #if os(macOS)
                 .toolbar {
+                    if columns == .detailOnly {
+                        ToolbarItem(placement: .navigation) {
+                            Button("Show Sidebar", systemImage: "sidebar.left") { columns = .all }
+                        }
+                    }
                     ToolbarItem(placement: .navigation) { newChatButton }
                 }
                 #endif
@@ -207,6 +213,8 @@ struct BotsView: View {
         }
         .navigationTitle("Crew")
         #if os(macOS)
+        // macOS 27 moves the system toggle into the toolbar overflow while the sidebar is hidden (#303).
+        .toolbar(removing: columns == .detailOnly ? .sidebarToggle : nil)
         .navigationSplitViewColumnWidth(min: showsBot ? 240 : stripWidth, ideal: 320, max: 400)
         #else
         .navigationSplitViewColumnWidth(min: 240, ideal: 320, max: 400)

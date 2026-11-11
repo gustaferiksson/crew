@@ -50,7 +50,7 @@ struct RootView: View {
                 NewGroupSheet { _ in }
             } else if [.groupChat, .groupChatPaused, .groupChatContext, .groupChatRoutine, .groupChatReply, .groupChatReplyPinned, .groupWelcome].contains(Snapshot.requested) {
                 GroupChatFixtureScreen()
-            } else if Snapshot.requested == .groupInspector {
+            } else if [.groupInspector, .groupInspectorMembers].contains(Snapshot.requested) {
                 GroupInspectorFixtureScreen()
             } else if let snapshot = Snapshot.requested, [.chatWindow, .chatWindowInspector, .chatWindowMissing].contains(snapshot) {
                 #if os(macOS)

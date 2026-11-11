@@ -79,7 +79,7 @@ struct BotsView: View {
         .inspector(isPresented: Binding(get: { showsBot && (selected != nil || selectedRoom != nil) }, set: { showsBot = $0 })) {
             Group {
                 if let selected {
-                    BotInspector(bot: selected, models: models, isPresented: $showsBot)
+                    BotInspector(bot: selected, models: models, isPresented: $showsBot) { selection = $0 }
                         .id(selected.id)
                 } else if let selectedRoom {
                     GroupInspector(room: selectedRoom, isPresented: $showsBot) { selection = $0 }

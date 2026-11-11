@@ -1,0 +1,47 @@
+{
+  "authority_gateway_id" : "install:f990dea42fbd4536a995a0e6678730fb",
+  "driver" : true,
+  "features" : [
+    "room_identity",
+    "monotonic_log",
+    "replayable_disband",
+    "peer_renewal_horizon"
+  ],
+  "max_log_limit" : 500,
+  "methods" : [
+    "groups.capabilities",
+    "groups.list",
+    "groups.state",
+    "groups.log",
+    "groups.create",
+    "groups.rename",
+    "groups.context",
+    "groups.disband",
+    "groups.send",
+    "groups.attachment.upload",
+    "groups.attachment.download",
+    "groups.stop",
+    "groups.continue",
+    "groups.retry",
+    "groups.discard",
+    "groups.approve",
+    "groups.peer.register",
+    "groups.peer.invite",
+    "groups.peer.revoke"
+  ],
+  "persistent_process" : true,
+  "protocol_version" : 2,
+  "room_link" : {
+    "enabled" : false,
+    "reason" : "endpoint_required"
+  },
+  "seatable_profiles" : [
+    "alfred",
+    "astrid",
+    "crew-test",
+    "default",
+    "emil",
+    "vera",
+    "victoria"
+  ]
+}

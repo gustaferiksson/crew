@@ -59,8 +59,12 @@ struct GroupInspector: View {
             if let context {
                 settings(context)
             }
-            Section("Members") {
+            Section {
                 ForEach(room.members, id: \.memberID) { memberRow($0) }
+            } header: {
+                Text("Members")
+            } footer: {
+                Text("Members can't change after the room is created.")
             }
             Section {
                 Button("Disband Room", role: .destructive) { disbanding = room }

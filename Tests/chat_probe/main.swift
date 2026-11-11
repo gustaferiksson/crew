@@ -95,6 +95,46 @@ func show(_ label: String, _ chat: ChatSession) {
     for line in summary(chat.transcript).suffix(4) { print("  ", line) }
 }
 
+if phases.contains("room-list") {
+    let store = BotStore(fixture: [], statuses: [:])
+    Task { await store.run(gateway, urlSession: urlSession) }
+    try await Task.sleep(for: .seconds(3))
+    let pretty = JSONEncoder()
+    pretty.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+    func save(_ method: String, _ file: String) async throws {
+        let value = try await gateway.call(method, [String: String](), as: JSONValue.self)
+        let url = URL(fileURLWithPath: #filePath).appending(path: "../../fixtures/rooms/\(file)").standardized
+        try (pretty.encode(value) + Data("\n".utf8)).write(to: url)
+        print("RECORDED", file)
+    }
+    let names = (0..<2).map { _ in "crew-test-\(UUID().uuidString.prefix(6).lowercased())" }
+    var roomIDs: [String] = []
+    do {
+        try await save("groups.capabilities", "capabilities.json")
+        for (index, name) in names.enumerated() {
+            try await store.create(NewProfile(name: name, description: "Crew room list probe", soul: nil, cloneFrom: nil), via: gateway) { $0.title = "Crew Peer \(index + 1)" }
+        }
+        await store.reload(gateway)
+        let bots = try ["crew-test", names[0], names[1]].map { name in try store.bots.first { $0.name == name } ?? { throw HermesError.invalidResponse }() }
+        for (title, pair) in [("Crew list one", [bots[0], bots[1]]), ("Crew list two", [bots[0], bots[2]]), ("Crew list peers", [bots[1], bots[2]])] {
+            let roomID = "room-\(UUID().uuidString.lowercased())"
+            let members: [JSONValue] = pair.map { .object(["member_id": .string($0.name), "profile": .string($0.name), "handle": .string($0.handle), "display_name": .string($0.title)]) }
+            _ = try await gateway.call("groups.create", ["room_id": .string(roomID), "name": .string(title), "members": .array(members)] as [String: JSONValue], as: JSONValue.self)
+            roomIDs.append(roomID)
+        }
+        try await save("groups.list", "list.json")
+    } catch {
+        print("ROOM LIST FAILED", error)
+    }
+    for roomID in roomIDs { _ = try? await gateway.call("groups.disband", ["room_id": roomID], as: JSONValue.self) }
+    for name in names {
+        if let bot = store.bots.first(where: { $0.name == name }) { try? await store.delete(bot, via: gateway, urlSession: urlSession) }
+    }
+    await store.reload(gateway)
+    print(store.bots.contains { names.contains($0.name) } ? "THROWAWAY NOT DELETED" : "throwaways deleted")
+    exit(0)
+}
+
 if phases.contains("fresh") {
     let name = "crew-test-\(UUID().uuidString.prefix(6).lowercased())"
     let folder = URL(fileURLWithPath: #filePath).appending(path: "../../fixtures/scenarios/new-bot-chat").standardized

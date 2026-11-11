@@ -12,6 +12,17 @@ extension Snapshot {
         createdAt: .now.addingTimeInterval(-3 * 24 * 60 * 60),
         updatedAt: .now.addingTimeInterval(-20 * 60)
     )
+
+    static let fixtureRoomPair = Room(
+        id: "room-docs",
+        name: "Docs Review",
+        members: [
+            RoomMember(memberID: "ada", profile: "ada", handle: "ada", displayName: "Ada"),
+            RoomMember(memberID: "scout", profile: "scout", handle: "scout", displayName: "Scout"),
+        ],
+        createdAt: .now.addingTimeInterval(-6 * 24 * 60 * 60),
+        updatedAt: .now.addingTimeInterval(-2 * 60 * 60)
+    )
 }
 
 struct GroupChatFixtureScreen: View {
@@ -113,6 +124,6 @@ struct GroupInspectorFixtureScreen: View {
     }
 
     private var inspector: some View {
-        GroupInspector(room: Snapshot.fixtureRoom, isPresented: .constant(true), histories: ["ada": RoomHistory(sessionID: "s-ada", messages: 1284), "forge": RoomHistory(sessionID: "s-forge", messages: 96), "scout": RoomHistory?.none], context: RoomContext(purpose: "Ship 0.4.2 this week", notes: "Release notes go in CHANGELOG.md.\nNobody publishes before the dry run passes.", routing: "lead", leadMemberID: "ada"), routingModes: ["everyone", "lead", "auto"]) { _ in }
+        GroupInspector(room: Snapshot.fixtureRoom, isPresented: .constant(true), histories: ["ada": RoomHistory(sessionID: "s-ada", messages: 1284), "forge": RoomHistory(sessionID: "s-forge", messages: 96), "scout": RoomHistory?.none], context: Snapshot.requested == .groupInspectorMembers ? nil : RoomContext(purpose: "Ship 0.4.2 this week", notes: "Release notes go in CHANGELOG.md.\nNobody publishes before the dry run passes.", routing: "lead", leadMemberID: "ada"), routingModes: ["everyone", "lead", "auto"]) { _ in }
     }
 }

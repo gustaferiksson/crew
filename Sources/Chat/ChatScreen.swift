@@ -97,7 +97,7 @@ struct ChatScreen: View {
         }
         #if os(iOS)
         .navigationDestination(isPresented: $showsBot) {
-            BotInspector(bot: live, models: models, isPresented: $showsBot)
+            BotInspector(bot: live, models: models, isPresented: $showsBot, select: select)
         }
         #endif
         .task(id: connection.gateway.map(ObjectIdentifier.init)) {

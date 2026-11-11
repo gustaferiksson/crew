@@ -235,6 +235,7 @@ nonisolated final class ReplyRuleBlock: NSTextBlock {
 
 final class ReplyTextView: NSTextView {
     var source = ""
+    var reply: (() -> Void)?
 
     static func make() -> ReplyTextView {
         let view = ReplyTextView(usingTextLayoutManager: false)
@@ -301,7 +302,17 @@ final class ReplyTextView: NSTextView {
         menu.insertItem(copy, at: 0)
         menu.insertItem(share, at: 1)
         menu.insertItem(.separator(), at: 2)
+        if reply != nil {
+            let item = NSMenuItem(title: String(localized: "Reply"), action: #selector(replyToMessage), keyEquivalent: "")
+            item.target = self
+            item.image = NSImage(systemSymbolName: "arrowshape.turn.up.left", accessibilityDescription: nil)
+            menu.insertItem(item, at: 0)
+        }
         return menu
+    }
+
+    @objc private func replyToMessage() {
+        reply?()
     }
 
     @objc private func copyMessage() {
@@ -336,6 +347,9 @@ struct ReplySegmentText: NSViewRepresentable {
     let source: String
     let offset: Int
 
+    @Environment(\.replyTarget) private var replyTarget
+    @Environment(\.chatActions) private var latest
+
     final class Coordinator {
         var source: String?
         var offset: Int?
@@ -349,6 +363,7 @@ struct ReplySegmentText: NSViewRepresentable {
     }
 
     func updateNSView(_ view: ReplyTextView, context: Context) {
+        view.reply = replyTarget.flatMap { id in latest?.actions.reply == nil ? nil : { [latest] in latest?.actions.reply?(id) } }
         let coordinator = context.coordinator
         guard coordinator.source != source || coordinator.offset != offset else { return }
         view.show(text)

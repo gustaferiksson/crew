@@ -869,6 +869,113 @@ if phases.contains("room-routing") {
     exit(0)
 }
 
+if phases.contains("room-reply") {
+    let store = BotStore(fixture: [], statuses: [:])
+    Task { await store.run(gateway, urlSession: urlSession) }
+    try await Task.sleep(for: .seconds(3))
+    let name = "crew-test-\(UUID().uuidString.prefix(6).lowercased())"
+    let roomID = "room-\(UUID().uuidString.lowercased())"
+    let pretty = JSONEncoder()
+    pretty.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+    func save(_ value: JSONValue, _ file: String) throws {
+        let url = URL(fileURLWithPath: #filePath).appending(path: "../../fixtures/rooms/\(file)").standardized
+        try (pretty.encode(value) + Data("\n".utf8)).write(to: url)
+        print("RECORDED", file)
+    }
+    func log() async throws -> [JSONValue] {
+        var events: [JSONValue] = []
+        var cursor = 0
+        while true {
+            guard case .object(let page) = try await gateway.call("groups.log", ["room_id": .string(roomID), "since_seq": .number(Double(cursor))] as [String: JSONValue], as: JSONValue.self),
+                  case .array(let rows) = page["events"] ?? .null, case .number(let next) = page["cursor"] ?? .null else { throw HermesError.invalidResponse }
+            events += rows
+            cursor = Int(next)
+            guard page["has_more"] == .bool(true) else { return events }
+        }
+    }
+    var created = false
+    var failures: [String] = []
+    func check(_ ok: Bool, _ label: String) {
+        print(ok ? "PASS" : "FAIL", label)
+        if !ok { failures.append(label) }
+    }
+    do {
+        try await store.create(NewProfile(name: name, description: "Crew room probe: answers questions about travel", soul: nil, cloneFrom: nil), via: gateway) { $0.title = "Crew Peer" }
+        await store.reload(gateway)
+        guard let peer = store.bots.first(where: { $0.name == name }), let test = store.bots.first(where: { $0.name == "crew-test" }) else { throw HermesError.invalidResponse }
+        let members: [JSONValue] = [test, peer].map { .object(["member_id": .string($0.name), "profile": .string($0.name), "handle": .string($0.handle), "display_name": .string($0.title)]) }
+        _ = try await gateway.call("groups.create", ["room_id": .string(roomID), "name": .string("Crew reply room"), "members": .array(members)] as [String: JSONValue], as: JSONValue.self)
+        created = true
+        _ = try await gateway.call("groups.context", ["room_id": roomID, "event_id": "crew-probe-context-\(UUID().uuidString.lowercased())", "purpose": "", "notes": "", "routing": "lead", "lead_member_id": test.name], as: JSONValue.self)
+        let roster = [test, peer].map { RoomMember(memberID: $0.name, profile: $0.name, handle: $0.handle, displayName: $0.title) }
+        let room = Room(id: roomID, name: "Crew reply room", members: roster, createdAt: .now, updatedAt: .now)
+        let session = GroupSession(room: room, gateway: gateway)
+        Task { await session.run() }
+        func settle() async throws {
+            for tick in 0..<150 {
+                try await Task.sleep(for: .seconds(2))
+                if tick > 3, !session.isAwaitingReply { break }
+            }
+        }
+        func latestPrompt() -> RoomEvent? { session.events.last { $0.kind == "message.user" } }
+        func answered(_ discussion: String) -> Set<String> {
+            Set(session.events.filter { ["message.member", "turn.settled"].contains($0.kind) && $0.payload.discussionEventID == discussion }.compactMap(\.payload.memberID))
+        }
+        func assigned(_ discussion: String) -> Bool { session.events.contains { $0.kind == "room.assignment" && $0.payload.discussionEventID == discussion } }
+
+        session.send("@\(peer.handle) Name one city in Portugal, in one short sentence.")
+        try await settle()
+        let opener = try latestPrompt() ?? { throw HermesError.invalidResponse }()
+        let thread = opener.payload.threadID ?? ""
+        let answer = try session.events.last { $0.kind == "message.member" && $0.payload.memberID == peer.name } ?? { throw HermesError.invalidResponse }()
+        let toPeer = try session.reply(to: answer.eventID) ?? { throw HermesError.invalidResponse }()
+        check(toPeer.handle == peer.handle && toPeer.thread == thread, "reply target is the peer in the opener's thread")
+        session.send(toPeer.addressing("And one more city, in one short sentence?", replacing: nil), thread: toPeer.thread)
+        try await settle()
+        let handleReply = try latestPrompt() ?? { throw HermesError.invalidResponse }()
+        check(handleReply.payload.threadID == thread, "@handle reply logged in the opener's thread")
+        check(!assigned(handleReply.eventID), "@handle reply got no room.assignment")
+        check(answered(handleReply.eventID) == [peer.name], "only the peer answered the @handle reply")
+        check(session.events.contains { $0.kind == "message.member" && $0.payload.discussionEventID == handleReply.eventID && $0.payload.threadID == thread }, "the peer's answer is in the same thread")
+
+        let toSelf = try session.reply(to: opener.eventID) ?? { throw HermesError.invalidResponse }()
+        check(toSelf.handle == nil && toSelf.thread == thread, "reply to own message has no handle")
+        session.send(toSelf.addressing("Each of you, answer with one word: sunny or rainy?", replacing: nil), thread: toSelf.thread)
+        try await settle()
+        let ownReply = try latestPrompt() ?? { throw HermesError.invalidResponse }()
+        check(ownReply.payload.threadID == thread, "own reply logged in the opener's thread")
+        check(!assigned(ownReply.eventID), "own reply got no room.assignment in a Lead room")
+        check(answered(ownReply.eventID) == [test.name, peer.name], "both members took the own reply")
+
+        let toTest = try session.reply(to: session.events.last { $0.kind == "message.member" && $0.payload.memberID == test.name }?.eventID ?? "") ?? toPeer
+        session.send(toTest.addressing("Write a 250-word story about a lighthouse keeper in Porto.", replacing: nil), thread: thread)
+        var running = false
+        for _ in 0..<60 where !running {
+            try await Task.sleep(for: .seconds(1))
+            let state = try await gateway.call("groups.state", RoomParams(roomID: roomID), as: RoomState.self)
+            running = state.driverStatus?.memberActivity?.contains { $0.status == "running" } == true
+        }
+        print("RUNNING before the superseding reply", running)
+        session.send(toPeer.addressing("Never mind the story. Say hi in one word.", replacing: nil), thread: thread)
+        try await settle()
+        check(session.events.contains { $0.kind == "turn.cancelled" && $0.payload.reason == "superseded_by_newer_user_event" }, "a reply into a working thread supersedes the turn in flight")
+
+        let final = try await log()
+        try save(.array(final), "reply.log.json")
+        try save(try await gateway.call("groups.state", ["room_id": roomID], as: JSONValue.self), "reply.state.json")
+        for event in session.events { print(event.seq, event.kind, event.actor.id ?? "-", event.payload.threadID ?? "-", event.payload.reason ?? "", (event.payload.text ?? "").prefix(50)) }
+        print(failures.isEmpty ? "PASS room-reply" : "FAIL room-reply \(failures)")
+    } catch {
+        print("ROOM REPLY FAILED", error)
+    }
+    if created { _ = try? await gateway.call("groups.disband", ["room_id": roomID], as: JSONValue.self) }
+    await store.reload(gateway)
+    if let bot = store.bots.first(where: { $0.name == name }) { try? await store.delete(bot, via: gateway, urlSession: urlSession) }
+    await store.reload(gateway)
+    print(store.bots.contains { $0.name == name } ? "THROWAWAY NOT DELETED: \(name)" : "throwaway deleted")
+    exit(0)
+}
+
 if phases.contains("room-history") {
     let store = BotStore(fixture: [], statuses: [:])
     Task { await store.run(gateway, urlSession: urlSession) }

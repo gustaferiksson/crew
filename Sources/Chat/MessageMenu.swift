@@ -3,6 +3,7 @@ import SwiftUI
 extension EnvironmentValues {
     @Entry var messageSelection: Binding<Bool>?
     @Entry var transcriptTaps = 0
+    @Entry var replyTarget: Turn.ID?
 }
 
 struct MessageMenu<PreviewShape: Shape>: ViewModifier {
@@ -13,6 +14,13 @@ struct MessageMenu<PreviewShape: Shape>: ViewModifier {
 
     @State private var isSelecting = false
     @Environment(\.transcriptTaps) private var transcriptTaps
+    @Environment(\.replyTarget) private var replyTarget
+    @Environment(\.chatActions) private var latest
+
+    private var reply: (() -> Void)? {
+        guard let replyTarget, let reply = latest?.actions.reply else { return nil }
+        return { reply(replyTarget) }
+    }
 
     func body(content: Content) -> some View {
         content
@@ -26,8 +34,16 @@ struct MessageMenu<PreviewShape: Shape>: ViewModifier {
             }
             .contentShape(.contextMenuPreview, shape)
             #endif
+            .accessibilityActions {
+                if let reply {
+                    Button("Reply", action: reply)
+                }
+            }
             .contextMenu {
                 if !isSelecting {
+                    if let reply {
+                        Button("Reply", systemImage: "arrowshape.turn.up.left", action: reply)
+                    }
                     Button("Copy", systemImage: "doc.on.doc") {
                         #if os(iOS)
                         UIPasteboard.general.string = text

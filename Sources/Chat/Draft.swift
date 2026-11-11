@@ -9,6 +9,8 @@ final class Draft {
         }
     }
 
+    var reply: ReplyTarget?
+
     @ObservationIgnored private let save: () -> Void
 
     init(_ text: String = "", save: @escaping () -> Void = {}) {

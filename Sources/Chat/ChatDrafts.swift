@@ -53,12 +53,16 @@ final class ChatDrafts {
 
     func clear(_ chat: String) {
         trays[chat] = nil
+        drafts[chat]?.reply = nil
         update(chat, to: "")
     }
 
     func reset() {
         trays = [:]
-        drafts.values.forEach { $0.text = "" }
+        drafts.values.forEach {
+            $0.text = ""
+            $0.reply = nil
+        }
         guard let fileURL else { return }
         try? FileManager.default.removeItem(at: fileURL)
     }

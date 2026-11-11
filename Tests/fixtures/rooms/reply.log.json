@@ -1,0 +1,456 @@
+[
+  {
+    "actor" : {
+      "id" : "room-control",
+      "kind" : "system"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794433682.7807238,
+    "event_id" : "crew-probe-context-3a18b2eb-a69c-4e4e-b7c3-0556371f464d",
+    "idempotent" : false,
+    "kind" : "room.context_set",
+    "payload" : {
+      "lead_member_id" : "crew-test",
+      "notes" : "",
+      "purpose" : "",
+      "routing" : "lead"
+    },
+    "room_id" : "room-aa0d3fd3-61cd-4819-b0d5-ff68cd599901",
+    "seq" : 1
+  },
+  {
+    "actor" : {
+      "id" : "desktop",
+      "kind" : "user"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794433682.8414953,
+    "event_id" : "user:264c006a3bbdad44c24ad1e574b7252f04d2ab4b47a1fb6ca1138cbf554f254c",
+    "idempotent" : false,
+    "kind" : "message.user",
+    "payload" : {
+      "text" : "@crew-test-a3edc7 Name one city in Portugal, in one short sentence.",
+      "thread_id" : "84854E29-B898-4F9E-87C0-ACC14C364C49"
+    },
+    "room_id" : "room-aa0d3fd3-61cd-4819-b0d5-ff68cd599901",
+    "seq" : 2
+  },
+  {
+    "actor" : {
+      "display_name" : "Crew Peer",
+      "id" : "crew-test-a3edc7",
+      "kind" : "member",
+      "profile" : "crew-test-a3edc7"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794433688.0402226,
+    "event_id" : "dmessage:a1fe688b0a9672522b159cedb3fbb6f6b9abea1f7df07102",
+    "idempotent" : false,
+    "kind" : "message.member",
+    "payload" : {
+      "discussion_event_id" : "user:264c006a3bbdad44c24ad1e574b7252f04d2ab4b47a1fb6ca1138cbf554f254c",
+      "member_id" : "crew-test-a3edc7",
+      "member_index" : 0,
+      "round_index" : 0,
+      "task_id" : "dtask:a1fe688b0a9672522b159cedb3fbb6f6b9abea1f7df07102",
+      "text" : "Lisbon is a city in Portugal, @crew-test.",
+      "thread_id" : "84854E29-B898-4F9E-87C0-ACC14C364C49",
+      "turn_id" : "d2.r0.p0.s2.m9acb55b0f2855226a84e7dfa"
+    },
+    "room_id" : "room-aa0d3fd3-61cd-4819-b0d5-ff68cd599901",
+    "seq" : 3
+  },
+  {
+    "actor" : {
+      "id" : "install:f990dea42fbd4536a995a0e6678730fb",
+      "kind" : "gateway"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794433688.0443854,
+    "event_id" : "dterminal:a1fe688b0a9672522b159cedb3fbb6f6b9abea1f7df07102",
+    "idempotent" : false,
+    "kind" : "turn.settled",
+    "payload" : {
+      "discussion_event_id" : "user:264c006a3bbdad44c24ad1e574b7252f04d2ab4b47a1fb6ca1138cbf554f254c",
+      "member_id" : "crew-test-a3edc7",
+      "member_index" : 0,
+      "message_event_id" : "dmessage:a1fe688b0a9672522b159cedb3fbb6f6b9abea1f7df07102",
+      "passed" : false,
+      "round_index" : 0,
+      "seen_through_seq" : 2,
+      "task_id" : "dtask:a1fe688b0a9672522b159cedb3fbb6f6b9abea1f7df07102",
+      "thread_id" : "84854E29-B898-4F9E-87C0-ACC14C364C49",
+      "turn_id" : "d2.r0.p0.s2.m9acb55b0f2855226a84e7dfa"
+    },
+    "room_id" : "room-aa0d3fd3-61cd-4819-b0d5-ff68cd599901",
+    "seq" : 4
+  },
+  {
+    "actor" : {
+      "id" : "install:f990dea42fbd4536a995a0e6678730fb",
+      "kind" : "gateway"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794433688.0910816,
+    "event_id" : "dactivity:user:264c006a3bbdad44c24ad1e574b7252f04d2ab4b47a1fb6ca1138cbf554f254c:silent_round",
+    "idempotent" : false,
+    "kind" : "room.activity",
+    "payload" : {
+      "discussion_event_id" : "user:264c006a3bbdad44c24ad1e574b7252f04d2ab4b47a1fb6ca1138cbf554f254c",
+      "reason_code" : "silent_round",
+      "status" : "settled",
+      "thread_id" : "84854E29-B898-4F9E-87C0-ACC14C364C49"
+    },
+    "room_id" : "room-aa0d3fd3-61cd-4819-b0d5-ff68cd599901",
+    "seq" : 5
+  },
+  {
+    "actor" : {
+      "id" : "desktop",
+      "kind" : "user"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794433693.2741873,
+    "event_id" : "user:53654896fb1d585d0621ef263337013cc673a96c55073a7ff9fcbb457ed600a5",
+    "idempotent" : false,
+    "kind" : "message.user",
+    "payload" : {
+      "text" : "@crew-test-a3edc7 And one more city, in one short sentence?",
+      "thread_id" : "84854E29-B898-4F9E-87C0-ACC14C364C49"
+    },
+    "room_id" : "room-aa0d3fd3-61cd-4819-b0d5-ff68cd599901",
+    "seq" : 6
+  },
+  {
+    "actor" : {
+      "display_name" : "Crew Peer",
+      "id" : "crew-test-a3edc7",
+      "kind" : "member",
+      "profile" : "crew-test-a3edc7"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794433696.0019317,
+    "event_id" : "dmessage:a780ccf1d9eef8404246a5f58ac703026e09458ae2dcb8d8",
+    "idempotent" : false,
+    "kind" : "message.member",
+    "payload" : {
+      "discussion_event_id" : "user:53654896fb1d585d0621ef263337013cc673a96c55073a7ff9fcbb457ed600a5",
+      "member_id" : "crew-test-a3edc7",
+      "member_index" : 0,
+      "round_index" : 0,
+      "task_id" : "dtask:a780ccf1d9eef8404246a5f58ac703026e09458ae2dcb8d8",
+      "text" : "Porto is another city in Portugal, @crew-test.",
+      "thread_id" : "84854E29-B898-4F9E-87C0-ACC14C364C49",
+      "turn_id" : "d6.r0.p0.s6.m9acb55b0f2855226a84e7dfa"
+    },
+    "room_id" : "room-aa0d3fd3-61cd-4819-b0d5-ff68cd599901",
+    "seq" : 7
+  },
+  {
+    "actor" : {
+      "id" : "install:f990dea42fbd4536a995a0e6678730fb",
+      "kind" : "gateway"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794433696.0063405,
+    "event_id" : "dterminal:a780ccf1d9eef8404246a5f58ac703026e09458ae2dcb8d8",
+    "idempotent" : false,
+    "kind" : "turn.settled",
+    "payload" : {
+      "discussion_event_id" : "user:53654896fb1d585d0621ef263337013cc673a96c55073a7ff9fcbb457ed600a5",
+      "member_id" : "crew-test-a3edc7",
+      "member_index" : 0,
+      "message_event_id" : "dmessage:a780ccf1d9eef8404246a5f58ac703026e09458ae2dcb8d8",
+      "passed" : false,
+      "round_index" : 0,
+      "seen_through_seq" : 6,
+      "task_id" : "dtask:a780ccf1d9eef8404246a5f58ac703026e09458ae2dcb8d8",
+      "thread_id" : "84854E29-B898-4F9E-87C0-ACC14C364C49",
+      "turn_id" : "d6.r0.p0.s6.m9acb55b0f2855226a84e7dfa"
+    },
+    "room_id" : "room-aa0d3fd3-61cd-4819-b0d5-ff68cd599901",
+    "seq" : 8
+  },
+  {
+    "actor" : {
+      "id" : "install:f990dea42fbd4536a995a0e6678730fb",
+      "kind" : "gateway"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794433696.054655,
+    "event_id" : "dactivity:user:53654896fb1d585d0621ef263337013cc673a96c55073a7ff9fcbb457ed600a5:silent_round",
+    "idempotent" : false,
+    "kind" : "room.activity",
+    "payload" : {
+      "discussion_event_id" : "user:53654896fb1d585d0621ef263337013cc673a96c55073a7ff9fcbb457ed600a5",
+      "reason_code" : "silent_round",
+      "status" : "settled",
+      "thread_id" : "84854E29-B898-4F9E-87C0-ACC14C364C49"
+    },
+    "room_id" : "room-aa0d3fd3-61cd-4819-b0d5-ff68cd599901",
+    "seq" : 9
+  },
+  {
+    "actor" : {
+      "id" : "desktop",
+      "kind" : "user"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794433703.6545637,
+    "event_id" : "user:8c440d0495d40569669181cf530b81500f3ab67eb5953a3397eaa92c50a62ee0",
+    "idempotent" : false,
+    "kind" : "message.user",
+    "payload" : {
+      "text" : "Each of you, answer with one word: sunny or rainy?",
+      "thread_id" : "84854E29-B898-4F9E-87C0-ACC14C364C49"
+    },
+    "room_id" : "room-aa0d3fd3-61cd-4819-b0d5-ff68cd599901",
+    "seq" : 10
+  },
+  {
+    "actor" : {
+      "display_name" : "Crew Test",
+      "id" : "crew-test",
+      "kind" : "member",
+      "profile" : "crew-test"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794433707.520399,
+    "event_id" : "dmessage:4a558a1096f7642f3cf1ea65990f65a03c8fb028995fe712",
+    "idempotent" : false,
+    "kind" : "message.member",
+    "payload" : {
+      "discussion_event_id" : "user:8c440d0495d40569669181cf530b81500f3ab67eb5953a3397eaa92c50a62ee0",
+      "member_id" : "crew-test",
+      "member_index" : 0,
+      "round_index" : 0,
+      "task_id" : "dtask:4a558a1096f7642f3cf1ea65990f65a03c8fb028995fe712",
+      "text" : "sunny",
+      "thread_id" : "84854E29-B898-4F9E-87C0-ACC14C364C49",
+      "turn_id" : "d10.r0.p0.s10.m46eb3c289a3ef56e56dcf71a"
+    },
+    "room_id" : "room-aa0d3fd3-61cd-4819-b0d5-ff68cd599901",
+    "seq" : 11
+  },
+  {
+    "actor" : {
+      "id" : "install:f990dea42fbd4536a995a0e6678730fb",
+      "kind" : "gateway"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794433707.5251067,
+    "event_id" : "dterminal:4a558a1096f7642f3cf1ea65990f65a03c8fb028995fe712",
+    "idempotent" : false,
+    "kind" : "turn.settled",
+    "payload" : {
+      "discussion_event_id" : "user:8c440d0495d40569669181cf530b81500f3ab67eb5953a3397eaa92c50a62ee0",
+      "member_id" : "crew-test",
+      "member_index" : 0,
+      "message_event_id" : "dmessage:4a558a1096f7642f3cf1ea65990f65a03c8fb028995fe712",
+      "passed" : false,
+      "round_index" : 0,
+      "seen_through_seq" : 10,
+      "task_id" : "dtask:4a558a1096f7642f3cf1ea65990f65a03c8fb028995fe712",
+      "thread_id" : "84854E29-B898-4F9E-87C0-ACC14C364C49",
+      "turn_id" : "d10.r0.p0.s10.m46eb3c289a3ef56e56dcf71a"
+    },
+    "room_id" : "room-aa0d3fd3-61cd-4819-b0d5-ff68cd599901",
+    "seq" : 12
+  },
+  {
+    "actor" : {
+      "display_name" : "Crew Peer",
+      "id" : "crew-test-a3edc7",
+      "kind" : "member",
+      "profile" : "crew-test-a3edc7"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794433713.2909458,
+    "event_id" : "dmessage:1689322d7aa909a3604b52c783234e41475996078a036f0e",
+    "idempotent" : false,
+    "kind" : "message.member",
+    "payload" : {
+      "discussion_event_id" : "user:8c440d0495d40569669181cf530b81500f3ab67eb5953a3397eaa92c50a62ee0",
+      "member_id" : "crew-test-a3edc7",
+      "member_index" : 1,
+      "round_index" : 0,
+      "task_id" : "dtask:1689322d7aa909a3604b52c783234e41475996078a036f0e",
+      "text" : "rainy",
+      "thread_id" : "84854E29-B898-4F9E-87C0-ACC14C364C49",
+      "turn_id" : "d10.r0.p1.s11.m9acb55b0f2855226a84e7dfa"
+    },
+    "room_id" : "room-aa0d3fd3-61cd-4819-b0d5-ff68cd599901",
+    "seq" : 13
+  },
+  {
+    "actor" : {
+      "id" : "install:f990dea42fbd4536a995a0e6678730fb",
+      "kind" : "gateway"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794433713.2958922,
+    "event_id" : "dterminal:1689322d7aa909a3604b52c783234e41475996078a036f0e",
+    "idempotent" : false,
+    "kind" : "turn.settled",
+    "payload" : {
+      "discussion_event_id" : "user:8c440d0495d40569669181cf530b81500f3ab67eb5953a3397eaa92c50a62ee0",
+      "member_id" : "crew-test-a3edc7",
+      "member_index" : 1,
+      "message_event_id" : "dmessage:1689322d7aa909a3604b52c783234e41475996078a036f0e",
+      "passed" : false,
+      "round_index" : 0,
+      "seen_through_seq" : 11,
+      "task_id" : "dtask:1689322d7aa909a3604b52c783234e41475996078a036f0e",
+      "thread_id" : "84854E29-B898-4F9E-87C0-ACC14C364C49",
+      "turn_id" : "d10.r0.p1.s11.m9acb55b0f2855226a84e7dfa"
+    },
+    "room_id" : "room-aa0d3fd3-61cd-4819-b0d5-ff68cd599901",
+    "seq" : 14
+  },
+  {
+    "actor" : {
+      "id" : "install:f990dea42fbd4536a995a0e6678730fb",
+      "kind" : "gateway"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794433713.343452,
+    "event_id" : "dactivity:user:8c440d0495d40569669181cf530b81500f3ab67eb5953a3397eaa92c50a62ee0:silent_round",
+    "idempotent" : false,
+    "kind" : "room.activity",
+    "payload" : {
+      "discussion_event_id" : "user:8c440d0495d40569669181cf530b81500f3ab67eb5953a3397eaa92c50a62ee0",
+      "reason_code" : "silent_round",
+      "status" : "settled",
+      "thread_id" : "84854E29-B898-4F9E-87C0-ACC14C364C49"
+    },
+    "room_id" : "room-aa0d3fd3-61cd-4819-b0d5-ff68cd599901",
+    "seq" : 15
+  },
+  {
+    "actor" : {
+      "id" : "desktop",
+      "kind" : "user"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794433716.1945913,
+    "event_id" : "user:f152406268107e0ffea63763f367b9eaccea564ee6cdbae739a4610be2a77621",
+    "idempotent" : false,
+    "kind" : "message.user",
+    "payload" : {
+      "text" : "@crew-test Write a 250-word story about a lighthouse keeper in Porto.",
+      "thread_id" : "84854E29-B898-4F9E-87C0-ACC14C364C49"
+    },
+    "room_id" : "room-aa0d3fd3-61cd-4819-b0d5-ff68cd599901",
+    "seq" : 16
+  },
+  {
+    "actor" : {
+      "id" : "desktop",
+      "kind" : "user"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794433717.3073983,
+    "event_id" : "user:7f7c2343edf17a67cb9e256f2686e51946f0ece4a1c933d5dc60adeb5bfc681e",
+    "idempotent" : false,
+    "kind" : "message.user",
+    "payload" : {
+      "text" : "@crew-test-a3edc7 Never mind the story. Say hi in one word.",
+      "thread_id" : "84854E29-B898-4F9E-87C0-ACC14C364C49"
+    },
+    "room_id" : "room-aa0d3fd3-61cd-4819-b0d5-ff68cd599901",
+    "seq" : 17
+  },
+  {
+    "actor" : {
+      "id" : "install:f990dea42fbd4536a995a0e6678730fb",
+      "kind" : "gateway"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794433753.7831204,
+    "event_id" : "dterminal:82bc508910482cc27010cdbcef6914f5483818f63379f991",
+    "idempotent" : false,
+    "kind" : "turn.cancelled",
+    "payload" : {
+      "discussion_event_id" : "user:f152406268107e0ffea63763f367b9eaccea564ee6cdbae739a4610be2a77621",
+      "member_id" : "crew-test",
+      "member_index" : 0,
+      "reason" : "superseded_by_newer_user_event",
+      "round_index" : 0,
+      "seen_through_seq" : 16,
+      "task_id" : "dtask:82bc508910482cc27010cdbcef6914f5483818f63379f991",
+      "thread_id" : "84854E29-B898-4F9E-87C0-ACC14C364C49",
+      "turn_id" : "d16.r0.p0.s16.m46eb3c289a3ef56e56dcf71a"
+    },
+    "room_id" : "room-aa0d3fd3-61cd-4819-b0d5-ff68cd599901",
+    "seq" : 18
+  },
+  {
+    "actor" : {
+      "display_name" : "Crew Peer",
+      "id" : "crew-test-a3edc7",
+      "kind" : "member",
+      "profile" : "crew-test-a3edc7"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794433756.3701324,
+    "event_id" : "dmessage:e969fce7fd5685a1cfc3e9028dcf412e36574f32b8624c1f",
+    "idempotent" : false,
+    "kind" : "message.member",
+    "payload" : {
+      "discussion_event_id" : "user:7f7c2343edf17a67cb9e256f2686e51946f0ece4a1c933d5dc60adeb5bfc681e",
+      "member_id" : "crew-test-a3edc7",
+      "member_index" : 0,
+      "round_index" : 0,
+      "task_id" : "dtask:e969fce7fd5685a1cfc3e9028dcf412e36574f32b8624c1f",
+      "text" : "Hi!",
+      "thread_id" : "84854E29-B898-4F9E-87C0-ACC14C364C49",
+      "turn_id" : "d17.r0.p0.s17.m9acb55b0f2855226a84e7dfa"
+    },
+    "room_id" : "room-aa0d3fd3-61cd-4819-b0d5-ff68cd599901",
+    "seq" : 19
+  },
+  {
+    "actor" : {
+      "id" : "install:f990dea42fbd4536a995a0e6678730fb",
+      "kind" : "gateway"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794433756.3746545,
+    "event_id" : "dterminal:e969fce7fd5685a1cfc3e9028dcf412e36574f32b8624c1f",
+    "idempotent" : false,
+    "kind" : "turn.settled",
+    "payload" : {
+      "discussion_event_id" : "user:7f7c2343edf17a67cb9e256f2686e51946f0ece4a1c933d5dc60adeb5bfc681e",
+      "member_id" : "crew-test-a3edc7",
+      "member_index" : 0,
+      "message_event_id" : "dmessage:e969fce7fd5685a1cfc3e9028dcf412e36574f32b8624c1f",
+      "passed" : false,
+      "round_index" : 0,
+      "seen_through_seq" : 17,
+      "task_id" : "dtask:e969fce7fd5685a1cfc3e9028dcf412e36574f32b8624c1f",
+      "thread_id" : "84854E29-B898-4F9E-87C0-ACC14C364C49",
+      "turn_id" : "d17.r0.p0.s17.m9acb55b0f2855226a84e7dfa"
+    },
+    "room_id" : "room-aa0d3fd3-61cd-4819-b0d5-ff68cd599901",
+    "seq" : 20
+  },
+  {
+    "actor" : {
+      "id" : "install:f990dea42fbd4536a995a0e6678730fb",
+      "kind" : "gateway"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794433756.451644,
+    "event_id" : "dactivity:user:7f7c2343edf17a67cb9e256f2686e51946f0ece4a1c933d5dc60adeb5bfc681e:silent_round",
+    "idempotent" : false,
+    "kind" : "room.activity",
+    "payload" : {
+      "discussion_event_id" : "user:7f7c2343edf17a67cb9e256f2686e51946f0ece4a1c933d5dc60adeb5bfc681e",
+      "reason_code" : "silent_round",
+      "status" : "settled",
+      "thread_id" : "84854E29-B898-4F9E-87C0-ACC14C364C49"
+    },
+    "room_id" : "room-aa0d3fd3-61cd-4819-b0d5-ff68cd599901",
+    "seq" : 21
+  }
+]

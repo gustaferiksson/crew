@@ -33,7 +33,7 @@ Since #300 every room send opens its own thread, so a follow-up to one member's 
 
 ### Changing or cancelling
 
-- **Reply on another message** replaces the chip (and adds the new member's `@handle` by the same rule).
+- **Reply on another message** replaces the chip. If the draft still starts with the `@handle ` Crew added for the previous target, it is swapped for the new one (or removed when the new target is your own message).
 - **Cancel** (the `xmark`, or the chip's "Cancel Reply" accessibility action) removes the chip; the draft text, including the `@handle`, stays, like Desktop. A send then opens a new thread.
 - **Lifetime.** The reply belongs to the room's draft: it is kept in `ChatDrafts` in memory only, like attachments, so it survives leaving the room and coming back within a run, and is gone after relaunch (the draft text stays) and on Sign Out. Removing the `@handle` from the text keeps the reply; the thread is what makes it a reply.
 - **Original gone or changed.** The chip holds its own name, quote and thread, so it never reads the original again. Room logs are append-only, so a message is never deleted while its room exists. A disbanded room leaves the room list and its screen closes; its stored reply is dropped with the room's draft. The handle comes from the room's roster, which the server freezes, so renaming the bot does not break it; a reply whose handle names no member (edited by hand) addresses nobody, so the server wakes every member.
@@ -59,7 +59,7 @@ Since #300 every room send opens its own thread, so a follow-up to one member's 
 
 ### Later layers (follow-ups, not in this change)
 
-Kept out so what ships is what was reviewed: swipe-to-reply; Reply on routine posts (after a probe); a tap on the chip that scrolls to the replied message; swapping the previous target's `@handle` when the target changes; Crew's Continue rule moving to 0.23.1's stricter fence (a `message.user` in the thread after the discussion's own message, not only after the pause); Escape to cancel on the Mac (Messages' behaviour unverified, and the Mac composer's key handling is fragile per PLAN.md).
+Kept out so what ships is what was reviewed: swipe-to-reply; Reply on routine posts (after a probe); a tap on the chip that scrolls to the replied message; Crew's Continue rule moving to 0.23.1's stricter fence (a `message.user` in the thread after the discussion's own message, not only after the pause); Escape to cancel on the Mac (Messages' behaviour unverified, and the Mac composer's key handling is fragile per PLAN.md).
 
 ## Decisions to record (PLAN.md)
 

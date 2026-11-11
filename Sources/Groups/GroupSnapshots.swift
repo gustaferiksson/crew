@@ -15,6 +15,8 @@ extension Snapshot {
 }
 
 struct GroupChatFixtureScreen: View {
+    @Environment(ChatDrafts.self) private var drafts
+
     var body: some View {
         #if os(iOS)
         NavigationStack(path: .constant([0])) {
@@ -60,6 +62,11 @@ struct GroupChatFixtureScreen: View {
             RoomEvent(seq: 1, eventID: "cron-post:1", kind: "message.user", actor: RoomEvent.Actor(profile: nil, id: "cron:0f3a", displayName: "[bot:forge] Nightly build"), payload: RoomEvent.Payload(text: "Nightly build 0.4.2-rc3 passed 412 tests in 6 min. @ada the migration step took 40 s longer than last night.", threadID: "cron-0f3a"), createdAt: start),
             event(2, "message.member", "ada", RoomEvent.Payload(text: "The extra 40 s is the new index on messages. Expected, and it only runs once.", memberID: "ada", threadID: "cron-0f3a")),
         ]
+        let reply = [
+            event(1, "message.user", nil, RoomEvent.Payload(text: "Which flight should we take to Bodø on Friday?", threadID: "main")),
+            event(2, "message.member", "scout", RoomEvent.Payload(text: "Three direct options, Widerøe is the cheapest.\n\n```a2ui\n\(ChatFixture.flightsBlock)\n```", memberID: "scout", threadID: "main")),
+            event(3, "message.member", "ada", RoomEvent.Payload(text: "The Widerøe flight at 07:40 lands in time for the 10:00 kickoff, and its Sunday evening return is the cheapest of the three.", memberID: "ada", threadID: "main")),
+        ]
         let working = RoomState.Driver(working: true, pendingActions: actions, memberActivity: [RoomState.Activity(memberID: "forge", status: "running", startedAt: start.addingTimeInterval(130), tool: "terminal")])
         let session = if Snapshot.requested == .groupWelcome {
             GroupSession(fixture: room, events: [], driver: RoomState.Driver(), context: RoomContext(purpose: "Ship 0.4.2 this week"))
@@ -67,12 +74,20 @@ struct GroupChatFixtureScreen: View {
             GroupSession(fixture: room, events: context, driver: RoomState.Driver())
         } else if Snapshot.requested == .groupChatRoutine {
             GroupSession(fixture: room, events: routine, driver: RoomState.Driver())
+        } else if Snapshot.requested == .groupChatReply {
+            GroupSession(fixture: room, events: reply, driver: RoomState.Driver(pendingActions: [actions[0]]))
         } else if Snapshot.requested == .groupChatPaused {
             GroupSession(fixture: room, events: paused, driver: RoomState.Driver(maxContinues: 5))
         } else {
             GroupSession(fixture: room, events: events, driver: working)
         }
         return GroupChatScreen(room: room, showsInspector: .constant(false), session: session) { _ in }
+            .task {
+                guard Snapshot.requested == .groupChatReply, let target = session.reply(to: "e3") else { return }
+                let draft = drafts.draft(for: room.selectionID)
+                draft.text = target.addressing("", replacing: nil)
+                draft.reply = target
+            }
     }
 }
 

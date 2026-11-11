@@ -19,6 +19,7 @@ struct ChatActions {
     var addShop: (String) -> Void = { _ in }
     var dismissShopOffer: () -> Void = {}
     var loadEarlier: () -> Void = {}
+    var reply: ((Turn.ID) -> Void)?
 }
 
 struct ChatPresentation {
@@ -174,6 +175,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
             Speaker.shared.stop()
             actions.send(draft.text, tray.take(), mentionedBots(in: draft.text, among: mentionable), mode)
             draft.text = ""
+            draft.reply = nil
         } stop: {
             actions.stop()
         }
@@ -300,6 +302,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
                             canStop: offlineReason == nil,
                             limitModel: turn.limit?.switchable(among: models?.providers ?? [], current: models?.current)
                         )
+                        .environment(\.replyTarget, turn.thread == nil ? nil : turn.id)
                         .background {
                             if highlighted == turn.id {
                                 RoundedRectangle(cornerRadius: 12)
@@ -489,7 +492,16 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
                         .frame(maxWidth: 560)
                         .padding(.horizontal, 16)
                 }
-                if let pinKey, let pinnedCard, let model = surfaces.processor.surfaceGroupModel[pinnedCard] {
+                if let reply = draft.reply {
+                    ReplyChip(reply: reply) { draft.reply = nil }
+                        .transition(.scale(0.5, anchor: .leading).combined(with: .opacity))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        #if os(iOS)
+                        .padding(.horizontal, isComposerFocused ? 16 : 28)
+                        #else
+                        .padding(.horizontal, 16)
+                        #endif
+                } else if let pinKey, let pinnedCard, let model = surfaces.processor.surfaceGroupModel[pinnedCard] {
                     PinnedCardChip(model: model, fallbackTitle: cardFallbackTitle) {
                         #if os(iOS)
                         showsPinnedCard.wrappedValue = true
@@ -527,6 +539,10 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
         }
         .animation(.smooth, value: request?.id)
         .animation(.smooth, value: pinnedCard)
+        .animation(.smooth, value: draft.reply)
+        .onChange(of: draft.reply?.messageID) { _, id in
+            if id != nil { isComposerFocused = true }
+        }
         .sensoryFeedback(.impact(weight: .light), trigger: unpins)
         .sensoryFeedback(.warning, trigger: request?.id) { _, id in id != nil }
         .sensoryFeedback(.selection, trigger: models?.current) { previous, _ in previous != nil }
@@ -702,7 +718,7 @@ struct TurnView: View {
                     .foregroundStyle(.secondary)
                 }
                 if turn.status == .interrupted {
-                    Label("Stopped", systemImage: "stop.circle")
+                    Label(turn.stopReason ?? String(localized: "Stopped"), systemImage: "stop.circle")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }

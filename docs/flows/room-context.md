@@ -17,8 +17,8 @@ Hermes 0.23.0 gives a room settings that every member's turn prompt carries (a p
 Hermes 0.23.0 threads are only the `thread_id` on each `message.user`; routing acts only on the message that opens one. Crew follows Hermes Desktop's hosted room (`canonical-group-workspace.tsx`): every send opens its own thread (`thread_id` = the `event_id` Crew sends; the gateway logs the message under its own `user:<hash>` id), the room is one chronological stream of every thread, and there is no thread menu or New Thread (Desktop's New Thread belongs to its older client-driven rooms).
 
 - **What a member sees.** A member's turn prompt holds only its thread's messages since that member's last turn there (`hosted_room_discussion._thread_messages`, watermark per thread and member). Its own earlier turns stay with it, since each member has one hidden session per room whatever the thread (`hosted_member_session`, title `Group: <room_id>`). So with a thread per message a member no longer sees peers' replies in earlier threads after its own turn, nor messages routed to someone else; Desktop has the same limit.
-- **Sending while the room works.** A second message no longer supersedes the first in the same thread; it opens its own discussion, which Hermes starts after the first settles (oldest pending thread first).
-- **Reply** (Desktop's hover Reply, which continues a message's thread and prefixes the author's @handle) is not in Crew yet.
+- **Sending while the room works.** A second message no longer supersedes the first, unless it is a Reply into that thread (`docs/flows/room-reply.md`: the answer in flight is dropped and shows "Stopped for your newer message"). Otherwise it opens its own discussion, which Hermes starts after the first settles (oldest pending thread first).
+- **Reply** (like Desktop's hover Reply) continues a message's thread and prefixes the author's @handle: `docs/flows/room-reply.md`.
 
 ## Flow
 
@@ -30,10 +30,11 @@ The settings sit between the header and Members, as standard grouped `Form` sect
 - **Shared Notes** section: a multi-line `TextField` (`axis: .vertical`, 3 to 12 lines, prompt "Facts every member should keep in mind"). Return inserts a new line; saved when the field loses focus, and flushed when the inspector goes away (iPhone Back, Mac close, another room selected), like the bot inspector. Footer: "Every member reads the purpose and notes before answering. Changes apply from the next message."
 - **Who Answers** section: a menu `Picker` "Who Answers" with "Everyone", "Automatic" (only when `routing_modes` contains `auto` or the room already uses it) and "Lead: <name>" for each member (roster title, like the member rows). Saved on change. Footer by choice:
   - Everyone: "Every member answers a message that names nobody."
-  - Automatic: "Hermes picks who a message is for."
-  - Lead: "<Name> decides who takes a message that names nobody."
+  - Automatic: "Hermes picks who a new message is for."
+  - Lead: "<Name> decides who takes a new message that names nobody."
   - then always: "@mentions always reach the members you name."
-  - Why: Hermes routes only a message that opens a thread, and every Crew send opens one (PLAN.md "Group threads"), so the rule holds for every message.
+  - and for Automatic and Lead: "A reply that names nobody reaches every member."
+  - Why: Hermes routes only a message that opens a thread. Every Crew send opens one except a Reply (`docs/flows/room-reply.md`), which continues a thread, is never routed and reaches the members it names, or every member.
 - **Lead in Members:** the lead's member row says "Lead" on its secondary line (before the role: "Lead · Engineer"), like Calendar's "Organizer" under an invitee.
 - **Saving.** Each save is a room event every member and app sees, so there is no autosave while typing, and a save that changes nothing is skipped. Before each save Crew re-reads `groups.state` and sends the server's current value for every field the user did not edit; a purpose or notes save omits `routing` and `lead_member_id`, so it can never undo a routing change made elsewhere. A fresh `event_id` per save. Saves are serialized: a picker change right after typing a purpose waits for the purpose save and re-reads after it. While saving, the header's status line reads "Saving…" (as for a rename); on success the fields show what the server stored (purpose with collapsed spaces, notes trimmed).
 - **Too long.** Purpose over 500 characters or notes over 4096 bytes: the section footer turns into a red line ("Purpose is limited to 500 characters." / "Shared notes are too long to save. Shorten them a little.", since bytes mean nothing to users and the limit falls earlier for non-Latin text) and nothing is sent until it fits; the typed text stays.

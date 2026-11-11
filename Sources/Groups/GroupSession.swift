@@ -29,13 +29,14 @@ nonisolated struct RoomEvent: Decodable, Sendable, Equatable {
         var memberIDs: [String]?
         var everyone: Bool?
         var fallback: Bool?
+        var reason: String?
 
         var context: RoomContext {
             RoomContext(purpose: purpose ?? "", notes: notes ?? "", routing: routing ?? "everyone", leadMemberID: leadMemberID ?? "")
         }
 
         private enum CodingKeys: String, CodingKey {
-            case text, error, name, status, purpose, notes, routing, everyone, fallback
+            case text, error, name, status, purpose, notes, routing, everyone, fallback, reason
             case memberID = "member_id"
             case threadID = "thread_id"
             case taskID = "task_id"
@@ -310,15 +311,15 @@ final class GroupSession {
         }
     }
 
-    func sendParams(_ text: String) -> SendParams {
+    func sendParams(_ text: String, thread: String? = nil) -> SendParams {
         let id = UUID().uuidString
-        return SendParams(roomID: room.id, eventID: id, payload: SendParams.Payload(text: text, threadID: id))
+        return SendParams(roomID: room.id, eventID: id, payload: SendParams.Payload(text: text, threadID: thread ?? id))
     }
 
-    func send(_ text: String) {
+    func send(_ text: String, thread: String? = nil) {
         let text = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
-        let params = sendParams(text)
+        let params = sendParams(text, thread: thread)
         let id = params.eventID
         unsent.append(Turn(id: id, prompt: Prompt(text: text, sentAt: .now), status: .complete, startedAt: .now, finishedAt: .now))
         Task {
@@ -333,6 +334,22 @@ final class GroupSession {
                 unsent[index].failure = String(localized: "Not sent: \(error.localizedDescription)")
             }
         }
+    }
+
+    func reply(to id: Turn.ID) -> ReplyTarget? {
+        guard let event = events.first(where: { $0.eventID == id }), let thread = event.payload.threadID, event.routineTitle == nil else { return nil }
+        let text = event.payload.text ?? ""
+        let quote = markdownBlocks(from: a2uiFenced(text)).lazy.compactMap { block -> String? in
+            if case .code = block.kind { return nil }
+            return String(block.content.characters).split(whereSeparator: \.isNewline).map { $0.trimmingCharacters(in: .whitespaces) }.first { !$0.isEmpty }
+        }.first ?? ""
+        if event.kind == "message.user" {
+            return ReplyTarget(messageID: id, thread: thread, name: String(localized: "You"), handle: nil, quote: quote)
+        }
+        guard event.kind == "message.member" else { return nil }
+        let member = room.members.first { $0.memberID == (event.payload.memberID ?? event.actor.id) }
+        let name = member?.displayName ?? event.actor.displayName ?? event.payload.memberID ?? ""
+        return ReplyTarget(messageID: id, thread: thread, name: name, handle: member?.handle, quote: quote)
     }
 
     func stop() {
@@ -458,10 +475,10 @@ final class GroupSession {
         let date = event.createdAt
         let speaker = event.actor.profile ?? room.members.first { $0.memberID == event.payload.memberID }?.profile
         if event.kind == "message.user" {
-            return Turn(id: event.eventID, prompt: Prompt(text: event.payload.text ?? "", sentAt: date), status: .complete, startedAt: date, finishedAt: date)
+            return Turn(id: event.eventID, prompt: Prompt(text: event.payload.text ?? "", sentAt: date), status: .complete, startedAt: date, finishedAt: date, thread: event.payload.threadID)
         }
         if event.kind == "message.member" {
-            return Turn(id: event.eventID, reply: event.payload.text ?? "", status: .complete, startedAt: date, finishedAt: date, speaker: speaker)
+            return Turn(id: event.eventID, reply: event.payload.text ?? "", status: .complete, startedAt: date, finishedAt: date, speaker: speaker, thread: event.payload.threadID)
         }
         if event.kind == "turn.failed" {
             return Turn(id: event.eventID, status: .error, startedAt: date, finishedAt: date, failure: event.payload.error, speaker: speaker)
@@ -471,7 +488,8 @@ final class GroupSession {
             return Turn(id: event.eventID, status: .error, startedAt: date, finishedAt: date, failure: String(localized: "This reply didn't finish."), speaker: speaker, retryID: retryID)
         }
         if event.kind == "turn.cancelled" {
-            return Turn(id: event.eventID, status: .interrupted, startedAt: date, finishedAt: date, speaker: speaker)
+            let reason = event.payload.reason == "superseded_by_newer_user_event" ? String(localized: "Stopped for your newer message") : nil
+            return Turn(id: event.eventID, status: .interrupted, startedAt: date, finishedAt: date, speaker: speaker, stopReason: reason)
         }
         if event.kind == "room.activity", event.payload.status == "bounded" {
             let count = events.count { $0.kind == "message.member" && $0.payload.discussionEventID == event.payload.discussionEventID && $0.seq < event.seq }

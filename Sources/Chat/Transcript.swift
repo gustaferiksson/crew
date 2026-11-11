@@ -206,16 +206,14 @@ nonisolated func deliveryProcess(in content: String) -> String? {
 }
 
 nonisolated func mergedUserRows(in content: String) -> [String] {
-    guard let footer = content.firstMatch(of: /\n\n\[INTERNAL NOTIFICATION — [^\]\n]*\]/) else { return [content] }
+    guard let footer = content.firstMatch(of: /\n\n\[INTERNAL NOTIFICATION — [^\]\n]*\]\n\n(?=\S)/) else { return [content] }
     let head = String(content[..<footer.range.lowerBound])
-    let rest = content[footer.range.upperBound...]
-    let opener = head.ranges(of: "[IMPORTANT: ").count == 1 ? head.firstRange(of: /\n\n(?=\[IMPORTANT: Background process )/) : nil
-    let rows = deliveryProcess(in: head) != nil ? [head] : opener.map { [String(head[..<$0.lowerBound]), String(head[$0.upperBound...])] } ?? []
-    guard let notice = rows.last, deliveryProcess(in: notice) != nil, rows.first?.isEmpty == false else { return [content] }
+    let rest = mergedUserRows(in: String(content[footer.range.upperBound...]))
+    if deliveryProcess(in: head) != nil { return [head] + rest }
 
-    if rest.allSatisfy(\.isWhitespace) { return rows.count == 1 ? [content] : rows }
-    guard rest.hasPrefix("\n\n"), rest.dropFirst(2).first?.isWhitespace == false else { return [content] }
-    return rows + mergedUserRows(in: String(rest.dropFirst(2)))
+    let opener = head.ranges(of: "[IMPORTANT: ").count == 1 ? head.firstRange(of: /\n\n(?=\[IMPORTANT: Background process )/) : nil
+    guard let opener, opener.lowerBound > head.startIndex, deliveryProcess(in: String(head[opener.upperBound...])) != nil, rest.last.flatMap({ deliveryProcess(in: $0) }) == nil else { return [content] }
+    return [String(head[..<opener.lowerBound]), String(head[opener.upperBound...])] + rest
 }
 
 nonisolated struct DeliveryFailure: Codable, Sendable, Equatable {

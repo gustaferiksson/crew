@@ -151,18 +151,19 @@ private func rows(_ turns: [Turn]) -> [String] {
     let stored: [[String: Any]] = [
         ["id": 1, "role": "user", "content": "Message from 🤖 Scout (@scout): Thanks.\n\nOne more thing." + "\n\n" + notice + "\n\nWhich version are we on?", "timestamp": 100.0],
         ["id": 2, "role": "assistant", "content": "Hermes Agent v0.23.0.", "timestamp": 160.0],
-        ["id": 3, "role": "user", "content": "Can you check?\n\nThanks." + "\n\n" + notice, "timestamp": 200.0],
+        ["id": 3, "role": "user", "content": "Can you check?\n\nThanks." + "\n\n" + notice + "\n\nAnd the date?", "timestamp": 200.0],
     ]
     let decoder = JSONDecoder()
     decoder.keyDecodingStrategy = .convertFromSnakeCase
     let turns = Transcript(history: try decoder.decode([HistoryRow].self, from: JSONSerialization.data(withJSONObject: stored))).turns
-    try #require(turns.count == 5)
-    #expect(turns.map(\.id) == ["1", "1-1", "1-2", "3", "3-1"])
+    try #require(turns.count == 6)
+    #expect(turns.map(\.id) == ["1", "1-1", "1-2", "3", "3-1", "3-2"])
     #expect(turns[0].agentMessage?.body == "Thanks.\n\nOne more thing.")
-    #expect(turns.map(\.delivery) == [nil, "proc_01789a0d57b0", nil, nil, "proc_01789a0d57b0"])
+    #expect(turns.map(\.delivery) == [nil, "proc_01789a0d57b0", nil, nil, "proc_01789a0d57b0", nil])
     #expect(turns[2].prompt?.text == "Which version are we on?")
+    #expect(turns[2].reply == "Hermes Agent v0.23.0.")
     #expect(turns[3].prompt?.text == "Can you check?\n\nThanks.")
-    #expect(turns[4].prompt == nil)
+    #expect(turns[5].prompt?.text == "And the date?")
 }
 
 @Test func mergedRowWithoutTheNotificationFooterStaysWhole() throws {
@@ -172,13 +173,14 @@ private func rows(_ turns: [Turn]) -> [String] {
     let texts = [
         "Look at this:\n\nMessage from 🤖 Scout (@scout): hi",
         "Did this arrive?\n\n" + body,
+        "Did this arrive?\n\n" + body + footer,
         "[IMPORTANT: 2 background process results arrived while this session was busy. Treat them as one batch and give one consolidated response; preserve failures and actionable results.]\n\n" + body + "\n\n" + body + footer,
     ]
     let stored: [[String: Any]] = texts.enumerated().map { ["id": $0.offset * 2 + 1, "role": "user", "content": $0.element, "timestamp": 100.0] }
     let decoder = JSONDecoder()
     decoder.keyDecodingStrategy = .convertFromSnakeCase
     let turns = Transcript(history: try decoder.decode([HistoryRow].self, from: JSONSerialization.data(withJSONObject: stored))).turns
-    #expect(turns.map(\.id) == ["1", "3", "5"])
+    #expect(turns.map(\.id) == ["1", "3", "5", "7"])
 }
 
 @Test func windowStartsAtAMergedRowsAppendedPrompt() throws {

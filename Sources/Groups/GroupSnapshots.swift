@@ -16,6 +16,7 @@ extension Snapshot {
 
 struct GroupChatFixtureScreen: View {
     @Environment(ChatDrafts.self) private var drafts
+    @Environment(BotStore.self) private var bots
 
     var body: some View {
         #if os(iOS)
@@ -76,6 +77,8 @@ struct GroupChatFixtureScreen: View {
             GroupSession(fixture: room, events: routine, driver: RoomState.Driver())
         } else if Snapshot.requested == .groupChatReply {
             GroupSession(fixture: room, events: reply, driver: RoomState.Driver(pendingActions: [actions[0]]))
+        } else if Snapshot.requested == .groupChatReplyPinned {
+            GroupSession(fixture: room, events: reply, driver: RoomState.Driver())
         } else if Snapshot.requested == .groupChatPaused {
             GroupSession(fixture: room, events: paused, driver: RoomState.Driver(maxContinues: 5))
         } else {
@@ -83,7 +86,7 @@ struct GroupChatFixtureScreen: View {
         }
         return GroupChatScreen(room: room, showsInspector: .constant(false), session: session) { _ in }
             .task {
-                guard Snapshot.requested == .groupChatReply, let target = session.reply(to: "e3") else { return }
+                guard [.groupChatReply, .groupChatReplyPinned].contains(Snapshot.requested), let target = session.reply(to: "e3", title: { profile in bots.bots.first { $0.name == profile }?.title }) else { return }
                 let draft = drafts.draft(for: room.selectionID)
                 draft.text = target.addressing("", replacing: nil)
                 draft.reply = target

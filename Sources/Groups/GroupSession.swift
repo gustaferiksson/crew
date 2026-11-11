@@ -336,7 +336,7 @@ final class GroupSession {
         }
     }
 
-    func reply(to id: Turn.ID) -> ReplyTarget? {
+    func reply(to id: Turn.ID, title: (String) -> String? = { _ in nil }) -> ReplyTarget? {
         guard let event = events.first(where: { $0.eventID == id }), let thread = event.payload.threadID, event.routineTitle == nil else { return nil }
         let text = event.payload.text ?? ""
         let quote = markdownBlocks(from: a2uiFenced(text)).lazy.compactMap { block -> String? in
@@ -348,7 +348,7 @@ final class GroupSession {
         }
         guard event.kind == "message.member" else { return nil }
         let member = room.members.first { $0.memberID == (event.payload.memberID ?? event.actor.id) }
-        let name = member?.displayName ?? event.actor.displayName ?? event.payload.memberID ?? ""
+        let name = member.flatMap { title($0.profile) } ?? member?.displayName ?? event.actor.displayName ?? event.payload.memberID ?? ""
         return ReplyTarget(messageID: id, thread: thread, name: name, handle: member?.handle, quote: quote)
     }
 

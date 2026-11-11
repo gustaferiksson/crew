@@ -280,6 +280,7 @@ private let wake = RoomAction(kind: "retry", memberID: "ada, scout", taskID: "pr
     #expect(target.thread == "crew-probe-lead")
     #expect(target.handle == "crew-test")
     #expect(target.name == "Crew Test")
+    #expect(session.reply(to: answer.eventID) { $0 == "crew-test" ? "Tess" : nil }?.name == "Tess")
     #expect(target.quote == answer.payload.text?.split(separator: "\n").first.map(String.init))
 
     let sent = try JSONSerialization.jsonObject(with: JSONEncoder().encode(session.sendParams("@crew-test And Sunday?", thread: target.thread))) as? NSDictionary

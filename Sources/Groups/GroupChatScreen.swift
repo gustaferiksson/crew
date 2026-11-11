@@ -104,7 +104,7 @@ struct GroupChatScreen: View {
     }
 
     private func reply(to id: Turn.ID) {
-        guard let target = session?.reply(to: id) else { return }
+        guard let target = session?.reply(to: id, title: { profile in bots.bots.first { $0.name == profile }?.title }) else { return }
         let draft = drafts.draft(for: room.selectionID)
         draft.text = target.addressing(draft.text, replacing: draft.reply)
         draft.reply = target

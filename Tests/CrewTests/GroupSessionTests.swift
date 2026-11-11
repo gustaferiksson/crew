@@ -314,7 +314,7 @@ private let wake = RoomAction(kind: "retry", memberID: "ada, scout", taskID: "pr
 }
 
 @Test func replyQuotesTheFirstPlainLine() {
-    let card = "```a2ui\n[]\n```\n\n**Widerøe** at _07:40_\nlands at 09:10"
+    let card = "```a2ui\n[]\n```\n\n**Widerøe** at _07:40_\n\nIt lands at 09:10."
     let rows = [
         event(1, "message.member", RoomEvent.Payload(text: card, memberID: "ada", threadID: "main")),
         event(2, "message.member", RoomEvent.Payload(text: "```a2ui\n[]\n```", memberID: "scout", threadID: "main")),

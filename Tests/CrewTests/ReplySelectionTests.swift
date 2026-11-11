@@ -172,7 +172,7 @@ struct ReplySelectionTests {
         let menu = try #require(view.menu(for: event))
         #expect(Array(menu.items.prefix(3).map(\.title)) == ["Reply", "Copy Message", "Share Message"])
         let reply = try #require(menu.items.first)
-        _ = reply.target?.perform(try #require(reply.action))
+        _ = reply.target?.perform(reply.action)
         #expect(replied == 1)
     }
 

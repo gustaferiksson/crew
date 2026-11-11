@@ -207,9 +207,13 @@ nonisolated func deliveryProcess(in content: String) -> String? {
 
 nonisolated func mergedUserRows(in content: String) -> [String] {
     guard let footer = content.firstMatch(of: /\n\n\[INTERNAL NOTIFICATION — [^\]\n]*\]\n\n(?=\S)/) else { return [content] }
-    let notice = String(content[..<footer.range.lowerBound])
-    guard deliveryProcess(in: notice) != nil else { return [content] }
-    return [notice] + mergedUserRows(in: String(content[footer.range.upperBound...]))
+    let head = String(content[..<footer.range.lowerBound])
+    let rest = mergedUserRows(in: String(content[footer.range.upperBound...]))
+    if deliveryProcess(in: head) != nil { return [head] + rest }
+
+    let opener = head.ranges(of: "[IMPORTANT: ").count == 1 ? head.firstRange(of: /\n\n(?=\[IMPORTANT: Background process )/) : nil
+    guard let opener, opener.lowerBound > head.startIndex, deliveryProcess(in: String(head[opener.upperBound...])) != nil, rest.last.flatMap({ deliveryProcess(in: $0) }) == nil else { return [content] }
+    return [String(head[..<opener.lowerBound]), String(head[opener.upperBound...])] + rest
 }
 
 nonisolated struct DeliveryFailure: Codable, Sendable, Equatable {
@@ -315,10 +319,11 @@ extension Transcript {
             if !repliedLater { awaited.removeAll { $0.origin == origin?.id } }
             var followUp = turn
             followUp.deliveryFailure?.target = handle
+            let sent = call.flatMap { call in shown.firstIndex { $0.id == "\(call.id)-to" } }
             if let origin, let index = exchanges[origin.id] {
                 shown[index].work += log(turn)
                 shown[index].finishedAt = turn.finishedAt
-                let failed = call.flatMap { call in shown.firstIndex { $0.id == "\(call.id)-to" } } ?? index
+                let failed = sent ?? index
                 shown[failed].deliveryFailure = shown[failed].deliveryFailure ?? followUp.deliveryFailure
                 if shown[index].status == .complete {
                     shown[index].status = turn.status
@@ -328,6 +333,8 @@ extension Transcript {
                 answered.remove(at: index)
             } else if !repliedLater, origin.map({ $0.agentMessage == nil }) ?? turns.contains(where: { $0.agentMessage == nil && ($0.prompt != nil || $0.isRoutine) }) {
                 shown.append(followUp)
+            } else if !repliedLater, let sent {
+                shown[sent].deliveryFailure = shown[sent].deliveryFailure ?? followUp.deliveryFailure
             }
         }
         return Transcript(turns: shown + waiting)

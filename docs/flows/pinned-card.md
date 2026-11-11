@@ -6,13 +6,13 @@ A bot's card (a recipe, a route, a comparison) scrolls away as soon as the user 
 
 - **v0.1.49, a full-width bar above the composer:** the bar and the message field were glass capsules of the same height, width and side margins, so the bottom read as two composers; its X sat where the thumb goes. The user: "something with that pinned row I don't like".
 - **v0.1.54, a navigation bar button (#253):** a monochrome toolbar symbol next to Chat Options. The user: "Pinned is way too subtle", "too subtle up there, come up with something else". A generic white symbol in a toolbar does not say "your recipe is here".
-- **Now, a chip:** it keeps what worked in v0.1.49 (close to where the user types, the card's own colour and title) and drops what didn't: it is content width, not full width; 36 pt high on iOS (30 pt on the Mac) next to the 48 pt composer row, not the same height; leading-aligned over the `+` button, not spanning the field; a small X inside the chip instead of one at the field's edge. It reads as an accessory of the composer, not a second composer. This is the content-hugging chip rendered as the alternative in #253.
+- **Now, a chip:** it keeps what worked in v0.1.49 (close to where the user types, the card's own colour and title) and drops what didn't: it is content width, not full width; 36 pt high on iOS (30 pt on the Mac) next to the 48 pt composer row, not the same height; leading-aligned over the `+` button, not spanning the field; a small X inside the chip that unpins (#264). It reads as an accessory of the composer, not a second composer. This is the content-hugging chip rendered as the alternative in #253.
 
 ## Apple's precedent
 
 - **iOS 26 bottom accessories:** a glass capsule floating just above the bottom bar that holds a live thing and opens it on tap (Music's and Podcasts' now-playing accessory over the tab bar). The chip is that, scaled down to its content because the composer, unlike a tab bar, is the primary control.
 - **Messages' reply and attachment context:** what the next message relates to sits right above the field, compact, and does not compete with the field itself.
-- **A small X (#264):** the chip first had no X, like Music's accessory, with Unpin only in its context menu; #264 added a trailing `xmark` button labelled Unpin, the same action as the context menu, so unpinning is visible without a long press. It sits inside the chip, away from the field's edge where v0.1.49's X was.
+- **A small X (#264):** the chip first had no X, like Music's accessory, with Unpin only in its context menu; #264 added a trailing `xmark` button labelled Unpin, the same action as the context menu.
 
 ## The pin rule
 

@@ -307,7 +307,7 @@ struct GroupInspector: View {
         } else {
             String(localized: "Every member answers a message that names nobody.")
         }
-        return rule + " " + String(localized: "Only the first message of a new thread is routed; later ones go to everyone. @mentions always reach the members you name.")
+        return rule + " " + String(localized: "@mentions always reach the members you name.")
     }
 
     private func adopt(_ saved: RoomContext) {

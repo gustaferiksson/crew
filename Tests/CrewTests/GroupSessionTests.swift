@@ -29,20 +29,23 @@ private let retry = RoomAction(kind: "retry", memberID: nil, taskID: "t3", execu
 @Test func emptyRoomHasNoTurnsSoTheWelcomeShows() {
     let session = GroupSession(fixture: room, events: [], driver: RoomState.Driver())
     #expect(session.transcript.turns.isEmpty)
-    #expect(session.threadID == "main")
-    #expect(session.threads.map(\.title) == ["New Thread"])
 }
 
-@Test func threadsListNewestFirstWithOpeningLineAsTitle() {
+@Test func everySendOpensItsOwnThreadLikeHermesDesktop() throws {
     let session = GroupSession(fixture: room, events: events, driver: RoomState.Driver())
-    #expect(session.threads == [RoomThread(id: "t2", title: "Weekend flights?"), RoomThread(id: "main", title: "Plan the launch")])
-    #expect(session.threadID == "t2")
+    let first = try JSONSerialization.jsonObject(with: JSONEncoder().encode(session.sendParams("Who can fix the build?"))) as? NSDictionary
+    let second = try JSONSerialization.jsonObject(with: JSONEncoder().encode(session.sendParams("And the docs?"))) as? NSDictionary
+    let firstID = try #require(first?["event_id"] as? String)
+    let secondID = try #require(second?["event_id"] as? String)
+
+    #expect(first == ["room_id": "room-test", "event_id": firstID, "payload": ["text": "Who can fix the build?", "thread_id": firstID]])
+    #expect(second == ["room_id": "room-test", "event_id": secondID, "payload": ["text": "And the docs?", "thread_id": secondID]])
+    #expect(firstID != secondID)
 }
 
-@Test func transcriptShowsOnlyTheSelectedThread() {
+@Test func transcriptIsOneStreamOfEveryThread() {
     let session = GroupSession(fixture: room, events: events, driver: RoomState.Driver())
-    session.threadID = "main"
-    #expect(session.transcript.turns.map(\.id) == ["welcome", "e1", "e2", "e5"])
+    #expect(session.transcript.turns.map(\.id) == ["welcome", "e1", "e2", "e3", "e4", "e5"])
 }
 
 @Test func deferredTurnOffersRetryOnlyWhileTheServerDoes() {
@@ -64,7 +67,7 @@ private let retry = RoomAction(kind: "retry", memberID: nil, taskID: "t3", execu
 @Test func laterEventForTheSameTaskHidesTheDeferredRow() {
     let resolved = events + [event(6, "message.member", RoomEvent.Payload(text: "Found two.", memberID: "scout", threadID: "t2", taskID: "t3"))]
     let session = GroupSession(fixture: room, events: resolved, driver: RoomState.Driver())
-    #expect(session.transcript.turns.map(\.id) == ["welcome", "e3", "e5", "e6"])
+    #expect(session.transcript.turns.map(\.id) == ["welcome", "e1", "e2", "e3", "e5", "e6"])
 }
 
 private let rooms = URL(filePath: #filePath).deletingLastPathComponent().deletingLastPathComponent().appending(path: "fixtures/rooms")
@@ -140,7 +143,6 @@ private let discussion = (try? recorded("paused.log.json", as: [RoomEvent].self)
     let sent = GroupSession(fixture: state.room, events: log + [later("message.user", RoomEvent.Payload(text: "New idea", threadID: "crew-probe"))], driver: state.driverStatus)
     let stopped = GroupSession(fixture: state.room, events: log + [later("room.stop_requested", RoomEvent.Payload())], driver: state.driverStatus)
     let otherThread = GroupSession(fixture: state.room, events: log + [later("message.user", RoomEvent.Payload(text: "Elsewhere", threadID: "other"))], driver: state.driverStatus)
-    otherThread.threadID = "crew-probe"
 
     #expect(sent.transcript.turns.first { $0.id == pauseID }?.continueID == nil)
     #expect(stopped.transcript.turns.first { $0.id == pauseID }?.continueID == nil)
@@ -190,9 +192,8 @@ private let wake = RoomAction(kind: "retry", memberID: "ada, scout", taskID: "pr
     #expect(bare == ["room_id": "room-test", "task_id": "t-unlisted"])
 }
 
-@Test func roomSettingsShowAsNoticesOfWhatChangedInEveryThread() throws {
+@Test func roomSettingsShowAsNoticesOfWhatChanged() throws {
     let session = try recordedRoom("context.log.json", state: "context.state.json")
-    session.threadID = "crew-probe-lead"
     let notices = session.transcript.turns.compactMap(\.notice)
 
     #expect(notices == [
@@ -202,22 +203,21 @@ private let wake = RoomAction(kind: "retry", memberID: "ada, scout", taskID: "pr
         "Purpose: Plan the team offsite in Lisbon, 12 to 14 May",
         "Crew Test is taking this",
         "Hermes picks who answers",
+        "Assigned to Crew Peer",
         "Purpose removed\nShared notes removed\nEveryone answers",
     ])
 }
 
 @Test func theLeadsRoutingTurnLeavesNoBubbleOnlyItsPick() throws {
     let session = try recordedRoom("context.log.json", state: "context.state.json")
-    session.threadID = "crew-probe-lead"
     let replies = session.transcript.turns.filter { !$0.reply.isEmpty }
 
-    #expect(replies.count == 2)
-    #expect(replies.allSatisfy { $0.speaker == "crew-test" && !$0.reply.contains("assign") })
+    #expect(replies.map(\.speaker) == ["crew-test", "crew-test", "crew-test-peer"])
+    #expect(replies.allSatisfy { !$0.reply.contains("assign") })
 }
 
 @Test func automaticRoutingSaysWhoTheRouterPicked() throws {
     let session = try recordedRoom("context.log.json", state: "context.state.json")
-    session.threadID = "crew-probe-auto"
     let turns = session.transcript.turns
     let routed = try #require(turns.firstIndex { $0.notice == "Assigned to Crew Peer" })
 
@@ -229,23 +229,12 @@ private let wake = RoomAction(kind: "retry", memberID: "ada, scout", taskID: "pr
     let session = try recordedRoom("context.routine.log.json", state: "context.routine.state.json")
     let turns = session.transcript.turns.filter { $0.id != "welcome" }
 
-    #expect(session.threads.map(\.title).allSatisfy { $0.hasPrefix("Routine: Daily fares, ") })
     #expect(turns.allSatisfy { $0.prompt == nil })
     #expect(turns.map(\.notice) == ["Routine: Daily fares", nil, nil])
     #expect(turns[1].speaker == "crew-test-peer")
     #expect(turns[1].reply.hasPrefix("Fares to Lisbon dropped to 129 EUR on TAP."))
     #expect(turns[2].speaker == "crew-test")
     #expect(!session.isAwaitingReply)
-}
-
-@Test func aRoutinePostDoesntMoveAFollowedThread() {
-    let post = RoomEvent(seq: 6, eventID: "cron-post:1", kind: "message.user", actor: RoomEvent.Actor(profile: nil, id: "cron:job1", displayName: "[bot:ada] Daily fares"), payload: RoomEvent.Payload(text: "Fares dropped.", threadID: "cron-1"), createdAt: .now)
-    let session = GroupSession(fixture: room, events: events + [post], driver: RoomState.Driver())
-    let onlyRoutine = GroupSession(fixture: room, events: [post], driver: RoomState.Driver())
-
-    #expect(session.threadID == "t2")
-    #expect(session.threads.map(\.id) == ["cron-1", "t2", "main"])
-    #expect(onlyRoutine.threadID == "cron-1")
 }
 
 @Test func settingsSavedBeforeTheFirstMessageLeaveTheEmptyRoom() throws {

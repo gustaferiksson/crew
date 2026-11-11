@@ -127,11 +127,6 @@ nonisolated struct RoomState: Decodable, Sendable {
     }
 }
 
-nonisolated struct RoomThread: Identifiable, Hashable, Sendable {
-    let id: String
-    let title: String
-}
-
 nonisolated private struct SentEvent: Decodable, Sendable {
     let event: RoomEvent
 }
@@ -167,7 +162,7 @@ nonisolated struct RoomParams: Encodable, Sendable {
     }
 }
 
-nonisolated private struct SendParams: Encodable, Sendable {
+nonisolated struct SendParams: Encodable, Sendable {
     struct Payload: Encodable, Sendable {
         let text: String
         let threadID: String
@@ -214,8 +209,7 @@ final class GroupSession {
     private(set) var events: [RoomEvent] = []
     private(set) var driver = RoomState.Driver()
     private(set) var context: RoomContext?
-    private(set) var unsent: [(thread: String, turn: Turn)] = []
-    private var chosenThread: String?
+    private(set) var unsent: [Turn] = []
     private var answered: Set<String> = []
     private var retrying: Set<String> = []
     private var continuing: Set<String> = []
@@ -250,43 +244,18 @@ final class GroupSession {
         .joined(separator: ", ")
     }
 
-    var threadID: String {
-        get {
-            let human = events.last { $0.kind == "message.user" && $0.routineTitle == nil }
-            return chosenThread ?? (human ?? events.last { $0.kind == "message.user" })?.payload.threadID ?? "main"
-        }
-        set { chosenThread = newValue }
-    }
-
-    var threads: [RoomThread] {
-        let prompts = events.filter { $0.kind == "message.user" }
-        let recent = prompts.reversed().compactMap(\.payload.threadID).reduce(into: [String]()) { ids, id in
-            if !ids.contains(id) { ids.append(id) }
-        }
-        let ids = recent.contains(threadID) ? recent : [threadID] + recent
-        return ids.map { id in
-            let first = prompts.first { $0.payload.threadID == id }
-            let routine = first.flatMap { post in post.routineTitle.map { String(localized: "Routine: \($0), \(post.createdAt.formatted(.dateTime.day().month()))") } }
-            let opener = routine ?? first?.payload.text ?? unsent.first { $0.thread == id }?.turn.prompt?.text
-            let title = opener?.split(whereSeparator: \.isNewline).first.map { String($0.prefix(40)) }
-            return RoomThread(id: id, title: title ?? String(localized: "New Thread"))
-        }
-    }
-
     var hasMessages: Bool {
         !unsent.isEmpty || events.contains { $0.kind == "message.user" || $0.kind == "message.member" }
     }
 
     var transcript: Transcript {
-        let thread = threadID
-        let shown = events.filter { $0.payload.threadID.map { $0 == thread } ?? true }
         let retryable = Set(driver.pendingActions.filter { $0.kind == "retry" }.compactMap(\.taskID)).subtracting(retrying)
         let names = room.members.map { $0.displayName ?? $0.memberID }.formatted(.list(type: .and))
         let welcome = hasMessages ? [Turn(id: "welcome", notice: String(localized: "\(names) are in this group."), status: .complete, startedAt: room.createdAt, finishedAt: room.createdAt)] : []
         let resumable = resumablePauses
-        let replies = shown.indices.flatMap { index -> [Turn] in
-            let event = shown[index]
-            let isSuperseded = event.kind == "turn.deferred" && shown[(index + 1)...].contains { $0.payload.taskID == event.payload.taskID }
+        let replies = events.indices.flatMap { index -> [Turn] in
+            let event = events[index]
+            let isSuperseded = event.kind == "turn.deferred" && events[(index + 1)...].contains { $0.payload.taskID == event.payload.taskID }
             return isSuperseded ? [] : turns(for: event, retryable: retryable, resumable: resumable)
         }
         let logged = Set(events.compactMap(\.payload.taskID))
@@ -295,7 +264,7 @@ final class GroupSession {
             let failure = id.hasPrefix("prepare:") ? wake : String(localized: "A reply may not have finished.")
             return Turn(id: "retry-\(id)", status: .error, startedAt: events.last?.createdAt ?? room.createdAt, failure: failure, retryID: id)
         }
-        let pending = unsent.filter { item in item.thread == thread && !events.contains { $0.eventID == item.turn.id } }.map(\.turn)
+        let pending = unsent.filter { turn in !events.contains { $0.eventID == turn.id } }
         let started = (driver.memberActivity ?? []).filter { $0.status != "queued" }.compactMap(\.startedAt).min()
         let working = isWorking ? [Turn(id: "working", status: .streaming, startedAt: started ?? events.last?.createdAt ?? .now)] : []
         return Transcript(turns: welcome + (hasMessages ? replies : []) + stalled + pending + working)
@@ -311,7 +280,7 @@ final class GroupSession {
             let isMovedOn = events[(index + 1)...].contains { event in
                 (["room.activity", "room.continued"].contains(event.kind) && event.payload.discussionEventID == discussion)
                     || (event.kind == "message.user" && event.payload.threadID == pause.payload.threadID)
-            } || unsent.contains { $0.thread == pause.payload.threadID && $0.turn.status != .error }
+            }
             let grants = events.count { $0.kind == "room.continued" && $0.payload.discussionEventID == discussion }
             return isMovedOn || lastStop > source || grants >= limit || continuing.contains(discussion) ? nil : pause.eventID
         })
@@ -341,27 +310,27 @@ final class GroupSession {
         }
     }
 
-    func startThread() {
-        chosenThread = "crew-\(UUID().uuidString.lowercased())"
+    func sendParams(_ text: String) -> SendParams {
+        let id = UUID().uuidString
+        return SendParams(roomID: room.id, eventID: id, payload: SendParams.Payload(text: text, threadID: id))
     }
 
     func send(_ text: String) {
         let text = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
-        let id = UUID().uuidString
-        let thread = threadID
-        unsent.append((thread, Turn(id: id, prompt: Prompt(text: text, sentAt: .now), status: .complete, startedAt: .now, finishedAt: .now)))
+        let params = sendParams(text)
+        let id = params.eventID
+        unsent.append(Turn(id: id, prompt: Prompt(text: text, sentAt: .now), status: .complete, startedAt: .now, finishedAt: .now))
         Task {
             do {
-                let params = SendParams(roomID: room.id, eventID: id, payload: SendParams.Payload(text: text, threadID: thread))
                 let sent = try await gateway.call("groups.send", params, as: SentEvent.self).event
-                if let index = unsent.firstIndex(where: { $0.turn.id == id }) { unsent[index].turn.id = sent.eventID }
+                if let index = unsent.firstIndex(where: { $0.id == id }) { unsent[index].id = sent.eventID }
                 driver.working = true
                 await refresh()
             } catch {
-                guard let index = unsent.firstIndex(where: { $0.turn.id == id }) else { return }
-                unsent[index].turn.status = .error
-                unsent[index].turn.failure = String(localized: "Not sent: \(error.localizedDescription)")
+                guard let index = unsent.firstIndex(where: { $0.id == id }) else { return }
+                unsent[index].status = .error
+                unsent[index].failure = String(localized: "Not sent: \(error.localizedDescription)")
             }
         }
     }
@@ -437,7 +406,7 @@ final class GroupSession {
                 let page = try await gateway.call("groups.log", RoomParams(roomID: room.id, sinceSeq: cursor), as: RoomLogPage.self)
                 let last = events.last?.seq ?? 0
                 events += page.events.filter { $0.seq > last }
-                unsent.removeAll { item in page.events.contains { $0.eventID == item.turn.id } }
+                unsent.removeAll { turn in page.events.contains { $0.eventID == turn.id } }
                 cursor = max(cursor, page.cursor)
                 guard page.hasMore else { break }
             }

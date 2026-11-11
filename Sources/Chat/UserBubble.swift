@@ -138,8 +138,10 @@ private struct SelectingBubbleText<Content: View>: View {
             content
         }
         #else
+        // Selectable text on macOS keeps its old colour when a waiting steer fills in place, leaving blue on blue (#87).
         content
             .textSelection(.enabled)
+            .id(isFilled)
         #endif
     }
 

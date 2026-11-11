@@ -80,7 +80,7 @@ struct ConversationTranscript: View {
     @Environment(\.dismiss) private var dismiss
     @State private var session: ChatSession?
     @State private var focus: SearchFocus?
-    @State private var draft = ""
+    @State private var draft = Draft()
     @State private var showsOffline = false
     @State private var tray = AttachmentTray()
 
@@ -106,7 +106,7 @@ struct ConversationTranscript: View {
                 emptyState: emptyState,
                 mentionable: bots.bots.filter { $0.id != bot.id },
                 slashCommands: session?.slashCommands ?? [],
-                draft: $draft,
+                draft: draft,
                 tray: tray,
                 request: session?.request,
                 payment: session?.request.flatMap { session?.payments[$0.id] },
@@ -156,7 +156,7 @@ struct ConversationTranscript: View {
         .onChange(of: session?.returned ?? [], initial: true) {
             guard let returned = session?.returned, !returned.isEmpty else { return }
             session?.returned = []
-            draft = ([draft] + returned).filter { !$0.isEmpty }.joined(separator: "\n")
+            draft.text = ([draft.text] + returned).filter { !$0.isEmpty }.joined(separator: "\n")
         }
     }
 

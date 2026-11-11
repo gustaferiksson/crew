@@ -3,13 +3,13 @@ import SwiftUI
 import Testing
 
 private struct ComposerOnly: View {
-    @State var draft = "Hi"
+    @State var draft = Draft("Hi")
     @FocusState private var isFocused: Bool
 
     var body: some View {
         VStack {
             Spacer()
-            Composer(botName: "Hermes", phase: .idle, draft: $draft, isFocused: $isFocused, tray: AttachmentTray(), mentionable: [], features: [], completePath: { _ in [] }, transcribe: { _ in "" }, send: { _ in }, stop: {})
+            Composer(botName: "Hermes", phase: .idle, draft: draft, isFocused: $isFocused, tray: AttachmentTray(), mentionable: [], features: [], completePath: { _ in [] }, transcribe: { _ in "" }, send: { _ in }, stop: {})
         }
     }
 }

@@ -14,7 +14,7 @@ private struct DraftedChat: View {
     let drafts: ChatDrafts
 
     var body: some View {
-        ChatView(botName: "crew-test", avatar: EmptyView(), transcript: transcript, emptyState: EmptyView(), mentionable: [], draft: Binding(get: { drafts.text(for: crewTest.id) }, set: { drafts.update(crewTest.id, to: $0) }), tray: drafts.tray(for: crewTest.id))
+        ChatView(botName: "crew-test", avatar: EmptyView(), transcript: transcript, emptyState: EmptyView(), mentionable: [], draft: drafts.draft(for: crewTest.id), tray: drafts.tray(for: crewTest.id))
     }
 }
 

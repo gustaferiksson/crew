@@ -56,7 +56,7 @@ struct ChatScreen: View {
             emptyState: EmptyView(),
             mentionable: bots.bots.filter { $0.id != bot.id },
             slashCommands: session?.slashCommands ?? [],
-            draft: Binding(get: { drafts.text(for: bot.id) }, set: { drafts.update(bot.id, to: $0) }),
+            draft: drafts.draft(for: bot.id),
             tray: drafts.tray(for: bot.id),
             request: session?.request,
             payment: session?.request.flatMap { session?.payments[$0.id] },

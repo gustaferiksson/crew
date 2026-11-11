@@ -153,6 +153,7 @@ targets:
       - Sources/Chat/HistoryPages.swift
       - Sources/Chat/ChatSessions.swift
       - Sources/Chat/ChatDrafts.swift
+      - Sources/Chat/Draft.swift
       - Sources/Chat/ChatPins.swift
       - Sources/Chat/Composer.swift
       - Sources/Chat/Dictation.swift

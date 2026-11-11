@@ -3,17 +3,9 @@ import Observation
 
 @Observable
 final class ChatDrafts {
-    @Observable fileprivate final class Draft {
-        var text: String
-
-        init(_ text: String = "") {
-            self.text = text
-        }
-    }
-
     static let shared = ChatDrafts()
 
-    @ObservationIgnored private var drafts: [String: Draft]
+    @ObservationIgnored private var drafts: [String: Draft] = [:]
     @ObservationIgnored private var trays: [String: AttachmentTray] = [:]
     private let fileURL: URL?
 
@@ -22,7 +14,7 @@ final class ChatDrafts {
     init(fileURL: URL? = URL.applicationSupportDirectory.appending(path: "drafts.json")) {
         self.fileURL = fileURL
         let stored = fileURL.flatMap { try? Data(contentsOf: $0) }.flatMap { try? JSONDecoder().decode([String: String].self, from: $0) } ?? [:]
-        drafts = stored.mapValues { Draft($0) }
+        drafts = stored.mapValues { Draft($0, save: { [weak self] in self?.save() }) }
     }
 
     init(fixture texts: [String: String]) {
@@ -30,9 +22,9 @@ final class ChatDrafts {
         drafts = texts.mapValues { Draft($0) }
     }
 
-    private func draft(for chat: String) -> Draft {
+    func draft(for chat: String) -> Draft {
         if let draft = drafts[chat] { return draft }
-        let draft = Draft()
+        let draft = Draft(save: { [weak self] in self?.save() })
         drafts[chat] = draft
         return draft
     }
@@ -49,10 +41,7 @@ final class ChatDrafts {
     }
 
     func update(_ chat: String, to text: String) {
-        let draft = draft(for: chat)
-        guard draft.text != text else { return }
-        draft.text = text
-        save()
+        draft(for: chat).text = text
     }
 
     func preview(for chat: String) -> String? {

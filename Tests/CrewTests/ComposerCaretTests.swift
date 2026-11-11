@@ -17,7 +17,7 @@ private struct RunningChatHost: View {
                 ReplySegmentText(text: NSAttributedString(string: "Deployed to staging."), source: "Deployed to staging.", offset: 0)
             }
             Composer(
-                botName: "Hermes", phase: chat.phase, draft: Binding(get: { chat.drafts.texts["ada", default: ""] }, set: { chat.drafts.update("ada", to: $0) }), isFocused: $isFocused,
+                botName: "Hermes", phase: chat.phase, draft: chat.drafts.draft(for: "ada"), isFocused: $isFocused,
                 tray: AttachmentTray(), mentionable: [], completePath: { _ in [] }, transcribe: { _ in "" }, send: { _ in }, stop: {}
             )
         }

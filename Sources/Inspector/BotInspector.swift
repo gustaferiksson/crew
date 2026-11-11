@@ -12,6 +12,7 @@ struct BotInspector: View {
     let bot: Bot
     let models: ModelSwitcher
     @Binding var isPresented: Bool
+    let select: ((String) -> Void)?
 
     @Environment(Connection.self) private var connection
     @Environment(BotStore.self) private var store
@@ -45,10 +46,11 @@ struct BotInspector: View {
         case name, role, description
     }
 
-    init(bot: Bot, tab: InspectorTab = .info, routines: RoutineStore = RoutineStore(), draft: ProfileDraft? = nil, conversations: [Conversation]? = nil, shops: ShopList? = nil, vault: BotVault? = nil, connections: BotConnections? = nil, models: ModelSwitcher, isPresented: Binding<Bool>) {
+    init(bot: Bot, tab: InspectorTab = .info, routines: RoutineStore = RoutineStore(), draft: ProfileDraft? = nil, conversations: [Conversation]? = nil, shops: ShopList? = nil, vault: BotVault? = nil, connections: BotConnections? = nil, models: ModelSwitcher, isPresented: Binding<Bool>, select: ((String) -> Void)? = nil) {
         self.bot = bot
         self.models = models
         _isPresented = isPresented
+        self.select = select
         _tab = State(initialValue: tab)
         _routines = State(initialValue: routines)
         _draft = State(initialValue: draft ?? ProfileDraft(bot: bot))
@@ -417,6 +419,7 @@ struct BotInspector: View {
             }
         }
         ConnectionsSection(bot: bot, store: connections, isAdding: $isAddingConnection)
+        BotRooms(bot: bot, isPresented: $isPresented, select: select)
         Section {
             ConversationList(conversations: conversations, failure: conversationFailure) { openedConversation = $0 }
         } header: {

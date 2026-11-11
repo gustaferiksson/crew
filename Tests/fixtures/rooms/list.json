@@ -1,0 +1,104 @@
+{
+  "next_offset" : null,
+  "rooms" : [
+    {
+      "authority_epoch" : 1,
+      "authority_gateway_id" : "install:f990dea42fbd4536a995a0e6678730fb",
+      "created_at" : 1794436478.4662075,
+      "idempotent" : false,
+      "latest_seq" : 0,
+      "members" : [
+        {
+          "display_name" : "Crew Peer 1",
+          "handle" : "crew-test-8bb2fc",
+          "member_id" : "crew-test-8bb2fc",
+          "profile" : "crew-test-8bb2fc",
+          "target" : {
+            "kind" : "local",
+            "profile" : "crew-test-8bb2fc"
+          }
+        },
+        {
+          "display_name" : "Crew Peer 2",
+          "handle" : "crew-test-ffa20a",
+          "member_id" : "crew-test-ffa20a",
+          "profile" : "crew-test-ffa20a",
+          "target" : {
+            "kind" : "local",
+            "profile" : "crew-test-ffa20a"
+          }
+        }
+      ],
+      "name" : "Crew list peers",
+      "revision" : 1,
+      "room_id" : "room-3f0be644-acb9-4b23-b72c-85dfa112f45f",
+      "updated_at" : 1794436478.4662075
+    },
+    {
+      "authority_epoch" : 1,
+      "authority_gateway_id" : "install:f990dea42fbd4536a995a0e6678730fb",
+      "created_at" : 1794436478.432367,
+      "idempotent" : false,
+      "latest_seq" : 0,
+      "members" : [
+        {
+          "display_name" : "Crew Test",
+          "handle" : "crew-test",
+          "member_id" : "crew-test",
+          "profile" : "crew-test",
+          "target" : {
+            "kind" : "local",
+            "profile" : "crew-test"
+          }
+        },
+        {
+          "display_name" : "Crew Peer 2",
+          "handle" : "crew-test-ffa20a",
+          "member_id" : "crew-test-ffa20a",
+          "profile" : "crew-test-ffa20a",
+          "target" : {
+            "kind" : "local",
+            "profile" : "crew-test-ffa20a"
+          }
+        }
+      ],
+      "name" : "Crew list two",
+      "revision" : 1,
+      "room_id" : "room-9b04759b-41ca-4a2a-83a2-3092a4fbc686",
+      "updated_at" : 1794436478.432367
+    },
+    {
+      "authority_epoch" : 1,
+      "authority_gateway_id" : "install:f990dea42fbd4536a995a0e6678730fb",
+      "created_at" : 1794436478.405435,
+      "idempotent" : false,
+      "latest_seq" : 0,
+      "members" : [
+        {
+          "display_name" : "Crew Test",
+          "handle" : "crew-test",
+          "member_id" : "crew-test",
+          "profile" : "crew-test",
+          "target" : {
+            "kind" : "local",
+            "profile" : "crew-test"
+          }
+        },
+        {
+          "display_name" : "Crew Peer 1",
+          "handle" : "crew-test-8bb2fc",
+          "member_id" : "crew-test-8bb2fc",
+          "profile" : "crew-test-8bb2fc",
+          "target" : {
+            "kind" : "local",
+            "profile" : "crew-test-8bb2fc"
+          }
+        }
+      ],
+      "name" : "Crew list one",
+      "revision" : 1,
+      "room_id" : "room-8d989842-8179-4971-8bd2-d2ca23416c55",
+      "updated_at" : 1794436478.405435
+    }
+  ]
+}

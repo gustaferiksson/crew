@@ -168,6 +168,9 @@ struct InspectorFixtureScreen: View {
         } else if snapshot == .inspectorVoice {
             Form { BotVoicePicker(bot: ada) }
                 .formStyle(.grouped)
+        } else if snapshot == .inspectorRooms {
+            Form { BotRooms(bot: ada, isPresented: .constant(true)) { _ in } }
+                .formStyle(.grouped)
         } else {
             botInspector
         }

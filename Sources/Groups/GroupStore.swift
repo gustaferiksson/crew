@@ -100,6 +100,10 @@ final class GroupStore {
         isSupported = true
     }
 
+    func rooms(with bot: Bot) -> [Room] {
+        rooms.filter { room in room.members.contains { !$0.isPeer && $0.profile == bot.name } }
+    }
+
     func run(_ gateway: Gateway) async {
         let events = gateway.events()
         if await gateway.status == .connected { await check(gateway) }

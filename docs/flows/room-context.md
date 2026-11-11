@@ -14,7 +14,7 @@ Hermes 0.23.0 gives a room settings that every member's turn prompt carries (a p
 
 ## Threads
 
-Hermes 0.23.0 threads are only the `thread_id` on each `message.user`; routing acts only on the message that opens one. Crew follows Hermes Desktop's hosted room (`canonical-group-workspace.tsx`): every send opens its own thread (`thread_id` = the send's `event_id`), the room is one chronological stream of every thread, and there is no thread menu or New Thread (Desktop's New Thread belongs to its older client-driven rooms).
+Hermes 0.23.0 threads are only the `thread_id` on each `message.user`; routing acts only on the message that opens one. Crew follows Hermes Desktop's hosted room (`canonical-group-workspace.tsx`): every send opens its own thread (`thread_id` = the `event_id` Crew sends; the gateway logs the message under its own `user:<hash>` id), the room is one chronological stream of every thread, and there is no thread menu or New Thread (Desktop's New Thread belongs to its older client-driven rooms).
 
 - **What a member sees.** A member's turn prompt holds only its thread's messages since that member's last turn there (`hosted_room_discussion._thread_messages`, watermark per thread and member). Its own earlier turns stay with it, since each member has one hidden session per room whatever the thread (`hosted_member_session`, title `Group: <room_id>`). So with a thread per message a member no longer sees peers' replies in earlier threads after its own turn, nor messages routed to someone else; Desktop has the same limit.
 - **Sending while the room works.** A second message no longer supersedes the first in the same thread; it opens its own discussion, which Hermes starts after the first settles (oldest pending thread first).

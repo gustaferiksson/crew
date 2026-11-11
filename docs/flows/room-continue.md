@@ -14,7 +14,7 @@ Hermes 0.23.0 stops a room discussion at its cap and waits for a client to conti
 
 ### The paused row (room transcript, iPhone and Mac)
 
-- A `bounded` event becomes a centred system row in its thread, in the transcript's notice style (caption, secondary, like "Renamed to …"): "Paused after 4 messages", where the count is the member messages of that discussion logged before the pause (inflected, "1 message").
+- A `bounded` event becomes a centred system row where it lands in the room, in the transcript's notice style (caption, secondary, like "Renamed to …"): "Paused after 4 messages", where the count is the member messages of that discussion logged before the pause (inflected, "1 message").
 - Under the text, while Continue can still act, a tinted borderless **Continue** button, centred, footnote semibold, with a 44 pt hit area (the room's other inline action, Retry, is borderless tinted text too; a bordered capsule is heavier than the transcript's notices). VoiceOver reads "Continue Discussion". One tap sends `groups.continue` with the row's `discussion_event_id`. This mirrors Messages' inline system notices that carry one action.
 - The count is every member message of the discussion before that pause, so it runs on across Continues ("Paused after 12 messages" the second time); a pause always follows at least one message.
 - Continue shows only when all of these hold, the same rules the server checks, computed over the whole log:
@@ -32,7 +32,7 @@ Hermes 0.23.0 stops a room discussion at its cap and waits for a client to conti
 ### The working row
 
 - While the room works, the existing live work-log row ("Working for 7s" with dots, and iOS Stop) starts its timer at the running member's `started_at` (0.23.0 runs one member at a time, so the timer restarts at each hand-off, as it does today), and its footnote line (`ChatView`'s `activity`, the line Bot Chats use for "Preparing …") reads "Scout · terminal": each running or stopping member's roster title, plus its current tool when Hermes reports one, comma-separated if several ever run. Queued members are not listed. Names come from the room roster's display name, like the approval card's requester. The footnote is one line and truncates at the tail, so a long MCP tool name is cut, never the member's name first.
-- Working stays room-wide (PLAN.md), so the footnote can name a member answering in another thread; the name says who it is.
+- Working stays room-wide (PLAN.md), so the footnote can name a member answering an earlier message; the name says who it is.
 - No running rows (older gateway, a just-admitted `queued` task, a task between frames): the row behaves as today, timer from the last event, no footnote.
 - The tool name is shown as Hermes reports it, with underscores as spaces (like "Preparing web search" in Bot Chats).
 
@@ -50,7 +50,7 @@ Hermes 0.23.0 stops a room discussion at its cap and waits for a client to conti
 
 - Bot list: rooms keep their row (time from `updated_at`, which moves on the pause); no preview, unread or status for rooms, as today. Push: rooms have none. Inspector, approvals: unchanged. Bot Chats: unchanged except that `TurnView`'s notice row can carry the Continue button (only rooms set it).
 - Light and dark: system styles only.
-- Known limitation: rooms have no unread or status in the list, so a pause in a thread you aren't reading, or in a room that isn't open, is only seen when you open it (as every room reply today).
+- Known limitation: rooms have no unread or status in the list, so a pause in a room that isn't open is only seen when you open it (as every room reply today).
 
 ## Evidence and tests
 

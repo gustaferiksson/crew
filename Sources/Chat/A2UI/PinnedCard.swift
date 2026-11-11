@@ -4,17 +4,21 @@ import SwiftUI
 
 extension EnvironmentValues {
     @Entry var pinKey: String?
+    #if os(iOS)
     @Entry var openedCard: Binding<OpenedCard?>?
+    #endif
     @Entry var expandedCards: Binding<Set<String>>?
     @Entry var hiddenHeader: String?
 }
 
 nonisolated let chatSpace = "chat"
 
+#if os(iOS)
 struct OpenedCard: Equatable {
     let id: String
     let anchor: CGRect?
 }
+#endif
 
 struct CardSummary {
     let header: String?
@@ -79,7 +83,11 @@ struct PinnedCardChip: View {
             }
             .help(summary.title ?? fallbackTitle)
             .accessibilityValue("Pinned card")
+            #if os(iOS)
             .accessibilityHint("Shows the card")
+            #else
+            .accessibilityHint("Shows the card in the conversation")
+            #endif
             .accessibilityAction(named: "Unpin", unpin)
             Button("Unpin", systemImage: "xmark", action: unpin)
                 .labelStyle(.iconOnly)
@@ -96,6 +104,7 @@ struct PinnedCardChip: View {
     }
 }
 
+#if os(iOS)
 struct PinnedCardContent: View {
     let surfaces: SurfaceStore
     let id: String
@@ -107,7 +116,6 @@ struct PinnedCardContent: View {
 
     var body: some View {
         if let model = surfaces.processor.surfaceGroupModel[id] {
-            #if os(iOS)
             NavigationStack {
                 card(model)
                     .navigationTitle(Text(CardSummary(model.rootNode).title ?? fallbackTitle))
@@ -127,21 +135,6 @@ struct PinnedCardContent: View {
             .presentationCompactAdaptation(.sheet)
             .presentationDetents([.medium, .large])
             .presentationBackgroundInteraction(.enabled(upThrough: .medium))
-            #else
-            VStack(alignment: .leading, spacing: 0) {
-                if let isPinned {
-                    HStack {
-                        Spacer()
-                        pinButton(isPinned)
-                            .buttonStyle(.borderless)
-                    }
-                    .padding([.horizontal, .top], 12)
-                }
-                card(model)
-            }
-            .frame(width: 440)
-            .frame(maxHeight: 560)
-            #endif
         }
     }
 
@@ -150,19 +143,14 @@ struct PinnedCardContent: View {
     }
 
     private func card(_ model: SurfaceViewModel) -> some View {
-        let content = Surface(viewModel: model, catalogs: crewCatalogs)
-            .id(surfaces.owners[id])
-            .environment(\.surfaceChoice, surfaces.choices[id])
-            .disabled(surfaces.isBusy)
-            .padding(20)
-            .frame(maxWidth: .infinity, alignment: .leading)
-        #if os(macOS)
-        return ViewThatFits(in: .vertical) {
-            content
-            ScrollView { content }
+        ScrollView {
+            Surface(viewModel: model, catalogs: crewCatalogs)
+                .id(surfaces.owners[id])
+                .environment(\.surfaceChoice, surfaces.choices[id])
+                .disabled(surfaces.isBusy)
+                .padding(20)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
-        #else
-        return ScrollView { content }
-        #endif
     }
 }
+#endif

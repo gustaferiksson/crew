@@ -11,7 +11,9 @@ struct SurfaceBlock: View {
 
     @Environment(\.surfaces) private var store
     @Environment(\.pinKey) private var pinKey
+    #if os(iOS)
     @Environment(\.openedCard) private var openedCard
+    #endif
     @Environment(\.expandedCards) private var expandedCards
     @Environment(ChatPins.self) private var pins
     @State private var pinTaps = 0
@@ -45,7 +47,7 @@ struct SurfaceBlock: View {
         } else if let preview {
             CardPreview(model: preview, fallbackTitle: String(localized: "Card")) { _ in }
                 .disabled(true)
-                .background { Color.clear.glassEffect(.regular, in: .rect(cornerRadius: 28)) }
+                .background { Color.clear.glassEffect(.regular, in: .rect(cornerRadius: cardCorner)) }
                 .frame(maxWidth: 560, alignment: .leading)
                 .task(id: previewStep(forLength: source.utf8.count)) { refreshPreview() }
         } else {
@@ -68,8 +70,12 @@ struct SurfaceBlock: View {
             }
             VStack(alignment: .leading, spacing: 0) {
                 CardPreview(model: model, fallbackTitle: String(localized: "Card"), expanded: expanded) { frame in
+                    #if os(iOS)
                     guard let openedCard else { return }
                     openedCard.wrappedValue = OpenedCard(id: id, anchor: openedCard.wrappedValue == nil ? frame : openedCard.wrappedValue?.anchor)
+                    #else
+                    withTransaction(.disclosure(.smooth)) { expanded?.wrappedValue.toggle() }
+                    #endif
                 }
                 .contextMenu {
                     if let expanded {
@@ -97,7 +103,7 @@ struct SurfaceBlock: View {
                         .transition(.opacity)
                 }
             }
-            .background { Color.clear.glassEffect(.regular, in: .rect(cornerRadius: 28)) }
+            .background { Color.clear.glassEffect(.regular, in: .rect(cornerRadius: cardCorner)) }
             .frame(maxWidth: 560, alignment: .leading)
             if revised {
                 Text("Updated")

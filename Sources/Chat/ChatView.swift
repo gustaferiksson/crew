@@ -117,9 +117,14 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
     @State private var handledFocus: UUID?
     @State private var focusPages: (focus: UUID, count: Int)?
     @State private var responses: [SensoryFeedback] = []
+    #if os(iOS)
     @State private var openedCard: OpenedCard?
-    @State private var expandedCards: Set<String>
     @State private var chipFrame = CGRect.zero
+    #endif
+    @State private var expandedCards: Set<String>
+    #if os(macOS)
+    @State private var pinnedCardJumps = 0
+    #endif
     @State private var unpins = 0
     @State private var isOnScreen = false
     @State private var liveTurn: Turn.ID?
@@ -200,6 +205,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
         return id
     }
 
+    #if os(iOS)
     private var showsPinnedCard: Binding<Bool> {
         Binding(get: { openedCard != nil && openedCard?.id == pinnedCard }, set: { openedCard = $0 ? pinnedCard.map { OpenedCard(id: $0, anchor: openedCard?.anchor) } : nil })
     }
@@ -213,6 +219,13 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
             }
         }
     }
+    #else
+    private func goToPinnedCard() {
+        guard let pinnedCard, let block = surfaces.owners[pinnedCard], let turn = transcript.turns.last(where: { $0.reply.contains(block) }) else { return }
+        expandedCards.insert(pinnedCard)
+        position.scrollTo(id: turn.id, anchor: .top)
+    }
+    #endif
 
     private var cardFallbackTitle: String {
         profile == nil ? String(localized: "Card") : String(localized: "Card from \(botName)")
@@ -228,6 +241,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
         let _ = chatViewBodies += 1
         #endif
         chat
+        #if os(iOS)
         .onChange(of: surfaces.present) {
             if let openedCard, !surfaces.present.contains(openedCard.id) { self.openedCard = nil }
         }
@@ -240,9 +254,11 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
         .popover(isPresented: Binding(get: { openedCard != nil }, set: { if !$0 { openedCard = nil } }), attachmentAnchor: .rect(.rect(openedCard?.anchor ?? chipFrame))) {
             cardSheet
         }
+        #endif
         .coordinateSpace(.named(chatSpace))
         #if os(macOS)
-        .focusedSceneValue(\.pinnedCard, pinnedCard == nil ? nil : showsPinnedCard)
+        .focusedSceneValue(\.pinnedCardJumps, pinnedCard == nil ? nil : $pinnedCardJumps)
+        .onChange(of: pinnedCardJumps, goToPinnedCard)
         #endif
     }
 
@@ -297,7 +313,9 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
             }
             .scrollTargetLayout()
             .environment(\.pinKey, pinKey)
+            #if os(iOS)
             .environment(\.openedCard, $openedCard)
+            #endif
             .environment(\.chatActions, latestActions)
             .environment(\.transcriptExpansion, expansion)
             .environment(\.expandedCards, $expandedCards)
@@ -473,12 +491,18 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
                 }
                 if let pinKey, let pinnedCard, let model = surfaces.processor.surfaceGroupModel[pinnedCard] {
                     PinnedCardChip(model: model, fallbackTitle: cardFallbackTitle) {
+                        #if os(iOS)
                         showsPinnedCard.wrappedValue = true
+                        #else
+                        goToPinnedCard()
+                        #endif
                     } unpin: {
                         unpins += 1
                         pins.pin(nil, in: pinKey)
                     }
+                    #if os(iOS)
                     .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(chatSpace)) } action: { chipFrame = $0 }
+                    #endif
                     .transition(.scale(0.5, anchor: .leading).combined(with: .opacity))
                     .frame(maxWidth: .infinity, alignment: .leading)
                     #if os(iOS)

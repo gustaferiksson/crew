@@ -251,7 +251,7 @@ final class GroupSession {
     var transcript: Transcript {
         let retryable = Set(driver.pendingActions.filter { $0.kind == "retry" }.compactMap(\.taskID)).subtracting(retrying)
         let names = room.members.map { $0.displayName ?? $0.memberID }.formatted(.list(type: .and))
-        let welcome = hasMessages ? [Turn(id: "welcome", notice: String(localized: "\(names) are in this group."), status: .complete, startedAt: room.createdAt, finishedAt: room.createdAt)] : []
+        let welcome = hasMessages ? [Turn(id: "welcome", notice: String(localized: "\(names) are in this room."), status: .complete, startedAt: room.createdAt, finishedAt: room.createdAt)] : []
         let resumable = resumablePauses
         let replies = events.indices.flatMap { index -> [Turn] in
             let event = events[index]

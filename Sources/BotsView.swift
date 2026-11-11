@@ -381,7 +381,7 @@ struct BotsView: View {
         if groups.isSupported {
             Menu("New Chat", systemImage: "square.and.pencil") {
                 Button("New Bot", systemImage: "person.crop.circle.badge.plus") { isCreating = true }
-                Button("New Group", systemImage: "person.2") { isCreatingGroup = true }
+                Button("New Room", systemImage: "person.2") { isCreatingGroup = true }
             }
             .disabled(connection.state != .connected)
         } else {

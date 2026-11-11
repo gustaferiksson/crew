@@ -47,7 +47,7 @@ struct NewGroupSheet: View {
                     }
                 }
                 Section("Name") {
-                    TextField("Name", text: $name, prompt: Text(resolvedName.isEmpty ? String(localized: "Group Name") : resolvedName))
+                    TextField("Name", text: $name, prompt: Text(resolvedName.isEmpty ? String(localized: "Room Name") : resolvedName))
                 }
                 Section {
                     ForEach(store.bots.filter { $0.meta.hidden != true }) { bot in
@@ -73,16 +73,16 @@ struct NewGroupSheet: View {
                     Text("Members")
                 } footer: {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Pick 2 to 6 bots. Members can't change after the group is created.")
+                        Text("Pick 2 to 6 bots. Members can't change after the room is created.")
                         if store.bots.contains(where: { $0.meta.hidden != true && $0.name.contains("_") }) {
-                            Text("Bots with “_” in their profile id can't join: group member ids don't allow it.")
+                            Text("Bots with “_” in their profile id can't join: room member ids don't allow it.")
                         }
                     }
                 }
             }
             .formStyle(.grouped)
             .disabled(isCreating)
-            .navigationTitle("New Group")
+            .navigationTitle("New Room")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif

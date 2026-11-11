@@ -63,7 +63,7 @@ struct GroupInspector: View {
                 ForEach(room.members, id: \.memberID) { memberRow($0) }
             }
             Section {
-                Button("Disband Group", role: .destructive) { disbanding = room }
+                Button("Disband Room", role: .destructive) { disbanding = room }
                     #if os(macOS)
                     .foregroundStyle(.red)
                     #endif
@@ -114,7 +114,7 @@ struct GroupInspector: View {
                 Task { await disband(target) }
             }
         } message: { _ in
-            Text("This permanently ends the group and its history for every app. The bots stay.")
+            Text("This permanently ends the room and its history for every app. The bots stay.")
         }
         .confirmationDialog(
             "Compress \(confirmingCompress.map(memberName) ?? "")'s Room History?",
@@ -131,7 +131,7 @@ struct GroupInspector: View {
         } message: {
             Text(compressResult?.message ?? "")
         }
-        .alert("Couldn't Disband Group", isPresented: Binding(get: { disbandFailure != nil }, set: { if !$0 { disbandFailure = nil } })) {
+        .alert("Couldn't Disband Room", isPresented: Binding(get: { disbandFailure != nil }, set: { if !$0 { disbandFailure = nil } })) {
             Button("OK", role: .cancel) {}
         } message: {
             Text(disbandFailure ?? "")

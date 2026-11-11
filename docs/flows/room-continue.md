@@ -17,18 +17,17 @@ Hermes 0.23.0 stops a room discussion at its cap and waits for a client to conti
 - A `bounded` event becomes a centred system row in its thread, in the transcript's notice style (caption, secondary, like "Renamed to …"): "Paused after 4 messages", where the count is the member messages of that discussion logged before the pause (inflected, "1 message").
 - Under the text, while Continue can still act, a tinted borderless **Continue** button, centred, footnote semibold, with a 44 pt hit area (the room's other inline action, Retry, is borderless tinted text too; a bordered capsule is heavier than the transcript's notices). VoiceOver reads "Continue Discussion". One tap sends `groups.continue` with the row's `discussion_event_id`. This mirrors Messages' inline system notices that carry one action.
 - The count is every member message of the discussion before that pause, so it runs on across Continues ("Paused after 12 messages" the second time); a pause always follows at least one message.
-- Continue shows only when all of these hold, the same rules the server checks, computed over the whole log (not just the shown thread):
+- Continue shows only when all of these hold, the same rules the server checks, computed over the whole log:
   - this pause is the discussion's latest `room.activity` or `room.continued`;
   - no `room.stop_requested` after the discussion's own message;
-  - no newer `message.user` in the same thread, and no send to that thread still in flight;
+  - no newer `message.user` in the same thread (Crew opens a new thread per send, so only Hermes Desktop's Reply retires a pause this way);
   - fewer `room.continued` for this discussion than `driver_status.max_continues`;
   - `max_continues` is present (older gateways get the plain row).
 - While the call runs the button is gone (a second tap would be refused; the call is one round trip, and the "Continued" notice replaces it). On success the room refreshes: `room.continued` shows as a centred "Continued" notice under the paused row, the working row appears and the members carry on (the server's `working` is already true, probed). If the server could not prepare the members, the wake-up row below shows instead. On failure the room's "Something Went Wrong" alert says "This discussion can't be continued anymore." for a server refusal (the transport error otherwise) and the room refreshes, so the button comes back only if the server still shows the pause (0.23.0's gateway-owned path answers a refused Continue with a bare `invalid_params`, probed).
 - **Superseded:** a new message in the thread, a Stop, or Continue elsewhere (Hermes Desktop on the same room): the row keeps its text and loses the button. A later pause of the same discussion gets its own row.
 - **Used up:** after 5 Continues the sixth pause shows the text only. Sending a new message starts a new discussion.
-- **Other thread selected:** the row lives in its thread like every room event; the thread menu is unchanged.
 - **Offline:** the button stays; a tap fails into the alert like Retry today. The offline banner already explains.
-- **Composer:** unchanged. A send while paused is a plain `groups.send`, which retires the pause (Hermes' rule), so the user can always just keep talking.
+- **Composer:** unchanged. A send while paused is a plain `groups.send` that opens its own thread and discussion, so the user can always just keep talking; the pause keeps its Continue.
 
 ### The working row
 
@@ -49,7 +48,7 @@ Hermes 0.23.0 stops a room discussion at its cap and waits for a client to conti
 
 ### Surfaces not touched
 
-- Bot list: rooms keep their row (time from `updated_at`, which moves on the pause); no preview, unread or status for rooms, as today. Push: rooms have none. Inspector, threads menu, approvals: unchanged. Bot Chats: unchanged except that `TurnView`'s notice row can carry the Continue button (only rooms set it).
+- Bot list: rooms keep their row (time from `updated_at`, which moves on the pause); no preview, unread or status for rooms, as today. Push: rooms have none. Inspector, approvals: unchanged. Bot Chats: unchanged except that `TurnView`'s notice row can carry the Continue button (only rooms set it).
 - Light and dark: system styles only.
 - Known limitation: rooms have no unread or status in the list, so a pause in a thread you aren't reading, or in a room that isn't open, is only seen when you open it (as every room reply today).
 

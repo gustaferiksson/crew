@@ -826,6 +826,49 @@ if phases.contains("room-context") {
     exit(0)
 }
 
+if phases.contains("room-routing") {
+    let store = BotStore(fixture: [], statuses: [:])
+    Task { await store.run(gateway, urlSession: urlSession) }
+    try await Task.sleep(for: .seconds(3))
+    let name = "crew-test-\(UUID().uuidString.prefix(6).lowercased())"
+    let roomID = "room-\(UUID().uuidString.lowercased())"
+    var created = false
+    do {
+        try await store.create(NewProfile(name: name, description: "Crew room probe: answers questions about travel", soul: nil, cloneFrom: nil), via: gateway) { $0.title = "Crew Peer" }
+        await store.reload(gateway)
+        guard let peer = store.bots.first(where: { $0.name == name }), let test = store.bots.first(where: { $0.name == "crew-test" }) else { throw HermesError.invalidResponse }
+        let members: [JSONValue] = [test, peer].map { .object(["member_id": .string($0.name), "profile": .string($0.name), "handle": .string($0.handle), "display_name": .string($0.title)]) }
+        _ = try await gateway.call("groups.create", ["room_id": .string(roomID), "name": .string("Crew routing room"), "members": .array(members)] as [String: JSONValue], as: JSONValue.self)
+        created = true
+        _ = try await gateway.call("groups.context", ["room_id": roomID, "event_id": "crew-probe-context-\(UUID().uuidString.lowercased())", "purpose": "", "notes": "", "routing": "lead", "lead_member_id": test.name], as: JSONValue.self)
+        let roster = [test, peer].map { RoomMember(memberID: $0.name, profile: $0.name, handle: $0.handle, displayName: $0.title) }
+        let room = Room(id: roomID, name: "Crew routing room", members: roster, createdAt: .now, updatedAt: .now)
+        let session = GroupSession(room: room, gateway: gateway)
+        Task { await session.run() }
+        for text in ["Which day should we fly out?", "And which airline is cheapest?"] {
+            session.send(text)
+            for tick in 0..<150 {
+                try await Task.sleep(for: .seconds(2))
+                if tick > 3, !session.isAwaitingReply { break }
+            }
+        }
+        let prompts = session.events.filter { $0.kind == "message.user" }
+        let assignments = session.events.filter { $0.kind == "room.assignment" }
+        print("PROMPT THREADS", prompts.map { $0.payload.threadID ?? "-" })
+        print("ASSIGNMENTS", assignments.map { "\($0.payload.discussionEventID ?? "-") -> \($0.payload.memberIDs ?? [])" })
+        let routedBoth = prompts.count == 2 && Set(assignments.compactMap(\.payload.discussionEventID)) == Set(prompts.map(\.eventID))
+        print(routedBoth ? "PASS both messages routed by the lead" : "FAIL")
+    } catch {
+        print("ROOM ROUTING FAILED", error)
+    }
+    if created { _ = try? await gateway.call("groups.disband", ["room_id": roomID], as: JSONValue.self) }
+    await store.reload(gateway)
+    if let bot = store.bots.first(where: { $0.name == name }) { try? await store.delete(bot, via: gateway, urlSession: urlSession) }
+    await store.reload(gateway)
+    print(store.bots.contains { $0.name == name } ? "THROWAWAY NOT DELETED: \(name)" : "throwaway deleted")
+    exit(0)
+}
+
 if phases.contains("room-history") {
     let store = BotStore(fixture: [], statuses: [:])
     Task { await store.run(gateway, urlSession: urlSession) }

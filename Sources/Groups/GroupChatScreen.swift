@@ -77,19 +77,6 @@ struct GroupChatScreen: View {
                 continueDiscussion: { session?.continueDiscussion($0) }
             )
         )
-        .toolbar {
-            if let session {
-                ToolbarItem(placement: .primaryAction) {
-                    Menu("Threads", systemImage: "bubble.left.and.text.bubble.right") {
-                        Picker("Thread", selection: Binding(get: { session.threadID }, set: { session.threadID = $0 })) {
-                            ForEach(session.threads) { Text($0.title).tag($0.id) }
-                        }
-                        .pickerStyle(.inline)
-                        Button("New Thread", systemImage: "plus") { session.startThread() }
-                    }
-                }
-            }
-        }
         #if os(iOS)
         .navigationDestination(isPresented: $showsInspector) {
             GroupInspector(room: room, isPresented: $showsInspector, context: session?.context, routingModes: session?.driver.routingModes, select: select)

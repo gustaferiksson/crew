@@ -1,6 +1,6 @@
 # Pinned card: the bot's latest A2UI card stays one tap away in a chip above the composer
 
-A bot's card (a recipe, a route, a comparison) scrolls away as soon as the user asks a follow-up, and they scroll back up to find it (user request 2026-11-01: "pinned until I dismiss it, like a sheet, or a better suggestion"). The newest card pins itself as a small chip just above the composer's `+` button: the card's coloured symbol tile and its title in a content-width glass capsule. Tapping it shows the whole, live card (a sheet on iPhone, a popover on iPad and Mac); Unpin lives in the chip's context menu, in that sheet and in the card's context menu. The card also stays where it was in the transcript, as its compact preview.
+A bot's card (a recipe, a route, a comparison) scrolls away as soon as the user asks a follow-up, and they scroll back up to find it (user request 2026-11-01: "pinned until I dismiss it, like a sheet, or a better suggestion"). The newest card pins itself as a small chip just above the composer's `+` button: the card's coloured symbol tile and its title in a content-width glass capsule. Tapping it shows the whole, live card (a sheet on iPhone, a popover on iPad; on the Mac it scrolls the transcript to the card and expands it in place); Unpin lives in the chip's context menu, in that sheet and in the card's context menu (on the Mac the chip's and the card row's context menus). The card also stays where it was in the transcript, as its compact preview.
 
 ## History: why a chip
 
@@ -46,14 +46,22 @@ The logic (newest card in, pinned card out) lives in `ChatPins` so `CrewTests` c
 
 ## The Mac menu bar
 
-View > Show Pinned Card / Hide Pinned Card, after Show/Hide Inspector, no shortcut, disabled when the front window's chat has no pinned card. It toggles the same popover, anchored at the chip, through a focused scene `Binding<Bool>`.
+View > Go to Pinned Card, after Show/Hide Inspector, no shortcut, disabled when the front window's chat has no pinned card (none, or hidden behind a request card). It does what clicking the chip does (below) through a focused scene action (`(() -> Void)?` instead of the old `Binding<Bool>`). It was Show / Hide Pinned Card, a toggle of the popover; with the card inline there is nothing to hide, and an expanded card scrolled out of view would read "Hide" while nothing shows, so the item is a one-way navigation named like the Mac's own "Go to" items (Finder's and Safari's Go menus, Xcode's Go to Line). Collapsing stays on the card row (click or context menu).
 
 ## Opening the card
 
-- **One open card per chat:** tapping the chip sets `openedCard` with the card id and no anchor, and `ChatView` presents the one card popover (`.presentationCompactAdaptation(.sheet)`) anchored at the chip's current frame (so on iPad the arrow follows the chip down when opening dismisses the keyboard), as for a transcript preview: a popover from the chip on Mac and iPad (a sheet in compact-width iPad windows), a sheet on iPhone. While a card is open, a tap on the chip or a preview changes only the card id and keeps the current anchor, so the iPhone sheet at medium swaps its card in place.
+- **One open card per chat:** tapping the chip sets `openedCard` with the card id and no anchor, and `ChatView` presents the one card popover (`.presentationCompactAdaptation(.sheet)`) anchored at the chip's current frame (so on iPad the arrow follows the chip down when opening dismisses the keyboard), as for a transcript preview: a popover from the chip on iPad (a sheet in compact-width iPad windows), a sheet on iPhone. The Mac has no card popover (below). While a card is open, a tap on the chip or a preview changes only the card id and keeps the current anchor, so the iPhone sheet at medium swaps its card in place.
 - **iPhone sheet:** opening dismisses the keyboard first. `.presentationDetents([.medium, .large])` starting at medium, `.presentationBackgroundInteraction(.enabled(upThrough: .medium))`. Content: the live surface on the sheet's own background, in a scroll view, with the card's title as the inline navigation title, close leading and Unpin trailing. Unchanged.
-- **Mac and iPad popover:** 440 pt wide, at most 560 pt tall with the card scrolling inside, arrow pointing at the chip; clicking elsewhere or Escape closes it and keeps the pin. Unchanged.
-- **Dismissing vs unpinning:** swiping the sheet down, close, Escape or clicking outside only closes it; the chip stays. Unpin in the chip's context menu, the sheet or the card's context menu unpins; the sheet stays open after Unpin, showing Pin, and the chip goes. The popover is presented by `ChatView`, not the chip, so it survives the chip leaving.
+- **iPad popover:** 440 pt wide, at most 560 pt tall with the card scrolling inside, arrow pointing at the chip; tapping elsewhere or Escape closes it and keeps the pin. Unchanged.
+- **Mac, go to the card in place** (user 2026-11-11, no popover; `docs/flows/compact-cards.md` > The Mac): clicking the chip (or View > Go to Pinned Card) adds the card to `ChatView`'s expanded set and scrolls the transcript to the card's turn, in one update, through the existing `ScrollPosition`: `position.scrollTo(id: turn, anchor: .top)`, the scroll a fixture's `scrollTarget` uses, not animated (an animated id scroll does not move on the Mac host, PLAN "Transcript scrolling"). Precedent: Messages' and Crew's own search, which take the reader to the message in the transcript; Slack's pinned items jump to the message the same way.
+  - **Target:** the turn whose block owns the surface (`SurfaceStore.owners[id]`). A re-created id ("make it vegan") draws at its newest block, so the jump goes to that newest turn, not the older turn with the "updated below" line. `SurfaceStore.sync` already walks every finished turn's blocks; it records owner block to turn id there (no parsing added), and `ChatView` looks the turn up when the chip is clicked.
+  - **Where it lands:** the turn's top at the top of the transcript, so its prompt, the reply's first lines and the card row read from the top; crew-ui replies put one short line before the card. When the reply's prose above the card is taller than the window, the card row lands below the fold and the reader scrolls down to it (accepted; only turns are scroll targets, `docs/flows/chat-transcript.md`).
+  - **The end hold stays out of it:** the position then holds the turn's id, so `TranscriptScroll` no longer follows the end (no end hold, no Mac size-change anchor) and the card grows downward from where it landed, also when the pinned card is the last turn and the jump clamps at the end. Jump to Latest shows once the end is out of view and brings the reader back; a send holds the end again.
+  - **Short chat** (shorter than the window): nothing scrolls; the card expands where it is.
+  - **Already expanded:** stays expanded and is scrolled to (going to the card never collapses it). **Already on screen:** still scrolled to the top, like a search hit.
+  - **Focus:** the composer keeps its focus (the popover took it; the inline card does not need it), so a follow-up can be typed right away; no tint, the expanding card is the feedback.
+  - **No haptics**, as before.
+- **Dismissing vs unpinning:** swiping the sheet down, close, Escape or clicking outside only closes it; the chip stays. On the Mac collapsing the card (row click or its context menu) keeps the pin and the chip. Unpin in the chip's context menu, the sheet or the card's context menu unpins; the sheet stays open after Unpin, showing Pin, and the chip goes. The popover is presented by `ChatView`, not the chip, so it survives the chip leaving.
 - **The card changes while open:** the sheet follows the surface id; it closes only when no surface with that id is left. A different newer card replaces the pin and the chip; the open sheet keeps the card the user opened.
 
 ## Surfaces and directions
@@ -61,7 +69,7 @@ View > Show Pinned Card / Hide Pinned Card, after Show/Hide Inspector, no shortc
 - **Bot Chat, iPhone, iPad and Mac, light and dark:** as above. Light and dark come from the glass and semantic colours; the tile keeps white on the tone gradient in both.
 - **Rooms:** same chip, keyed by the room; title fallback "Card".
 - **Other Conversations sheet:** no chip and no Pin action.
-- **Chat windows on Mac (`BotChatWindow`):** the same `ChatView`, so the chip shows there too; the pin is shared between windows.
+- **Chat windows on Mac (`BotChatWindow`):** the same `ChatView`, so the chip shows there too; the pin is shared between windows, and the chip and View > Go to Pinned Card (front window) expand the card in that window's transcript only.
 - **Bot list preview, time, status, unread, push, inspector:** unchanged; the pin is client-only.
 - **Sender, receiver, replies back:** unchanged; a button tapped in the sheet sends the same hidden action row as in the transcript.
 - **Haptics:** a light impact for Pin and Unpin by hand; nothing for an auto-pin or opening the sheet.
@@ -70,19 +78,19 @@ View > Show Pinned Card / Hide Pinned Card, after Show/Hide Inspector, no shortc
 
 - **No title:** first Text line, else "Card from <bot>" ("Card" in a room); no symbol falls back to `rectangle.on.rectangle`.
 - **Long title:** one line, tail truncation at the composer's trailing margin; VoiceOver reads it whole.
-- **Card updates while pinned:** the chip's tile and title and the open sheet follow the live surface.
+- **Card updates while pinned:** the chip's tile and title and the open sheet (the expanded card on the Mac) follow the live surface.
 - **Failed or unfinished card, streaming:** never pins (unchanged).
-- **Busy:** the chip stays tappable; the card is disabled in the sheet while a turn runs.
-- **Offline:** the chip and sheet still open (the card is local).
+- **Busy:** the chip stays tappable; the card is disabled in the sheet (inline on the Mac) while a turn runs.
+- **Offline:** the chip and sheet still open, and on the Mac the jump works (the card is local).
 - **Empty chat, no cards, Rich UI off:** no chip.
 - **Keyboard up (iOS, iPadOS):** the chip rides up with the composer and moves to the 16 pt margin with it; tapping it closes the keyboard and opens the sheet, or on iPad the popover, which follows the chip as it moves down.
 - **Large Dynamic Type:** the chip grows with the text (one line), the tile scales.
 
 ## VoiceOver and keyboard
 
-- The chip is one button: label "<title>", value "Pinned card", hint "Shows the card", and an "Unpin" action.
+- The chip is one button: label "<title>", value "Pinned card", hint "Shows the card" (Mac: "Shows the card in the conversation"), and an "Unpin" action.
 - The sheet's title is the card title; Close and Unpin are labelled.
-- Mac: View > Show Pinned Card from the keyboard; the chip is focusable with full keyboard navigation; Escape closes the popover.
+- Mac: View > Go to Pinned Card from the menu bar (keyboard menu navigation); the chip is focusable with full keyboard navigation and Space goes to the card; after the jump Tab reaches the card row, whose Space collapses it.
 
 ## Context menu on the card
 
@@ -95,3 +103,4 @@ The surface gets its own `.contextMenu` with Pin Card or Unpin Card, outside the
 - Renders: `chat-a2ui-pinned` on iOS and Mac, light and dark.
 - Mac offscreen probe with the pinned fixture at `width:0`: `PROBE survived`.
 - PLAN.md: the "Pinned card" Decisions line is rewritten for the chip.
+- Mac (this change): a unit test in `CrewTests` replays the recorded update fixture (`Tests/fixtures/chat.a2ui-update.history.json`) through `SurfaceStore.sync` and asserts the re-created card's jump target is its newest turn (fails on `main`: no target). An offscreen host test (like `DisclosureScrollTests`) scrolls a transcript of recorded card turns to the top, runs the go-to, and asserts the card's row is inside the viewport and still there 1 s later, also with the card as the last turn (no end hold pulls it away). Renders `chat-a2ui-pinned` on the Mac, light and dark. MenuCommands: the item reads "Go to Pinned Card" (checked by the build; Mac UI tests are disabled).

@@ -72,6 +72,10 @@ private let separatorFormatter = {
     return formatter
 }()
 
+#if DEBUG
+@MainActor var chatViewBodies = 0
+#endif
+
 struct ChatView<Avatar: View, EmptyState: View>: View {
     let botName: String
     var profile: String?
@@ -220,6 +224,9 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
     }
 
     var body: some View {
+        #if DEBUG
+        let _ = chatViewBodies += 1
+        #endif
         chat
         .onChange(of: surfaces.present) {
             if let openedCard, !surfaces.present.contains(openedCard.id) { self.openedCard = nil }

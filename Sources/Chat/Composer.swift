@@ -187,6 +187,11 @@ struct Composer: View {
         .onChange(of: dictation.text) { _, text in
             if !text.isEmpty { draft.text = text }
         }
+        #if os(iOS)
+        .onChange(of: draft.reply?.messageID) { _, id in
+            if id != nil { selection = TextSelection(insertionPoint: draft.text.endIndex) }
+        }
+        #endif
         .onDisappear {
             Task { await dictation.stop() }
         }

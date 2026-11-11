@@ -20,7 +20,7 @@ Hermes 0.23.0 stops a room discussion at its cap and waits for a client to conti
 - Continue shows only when all of these hold, the same rules the server checks, computed over the whole log:
   - this pause is the discussion's latest `room.activity` or `room.continued`;
   - no `room.stop_requested` after the discussion's own message;
-  - no newer `message.user` in the same thread (Crew opens a new thread per send, so only Hermes Desktop's Reply retires a pause this way);
+  - no newer `message.user` in the same thread (only a Reply, in Crew or Hermes Desktop, sends into an existing thread, `docs/flows/room-reply.md`);
   - fewer `room.continued` for this discussion than `driver_status.max_continues`;
   - `max_continues` is present (older gateways get the plain row).
 - While the call runs the button is gone (a second tap would be refused; the call is one round trip, and the "Continued" notice replaces it). On success the room refreshes: `room.continued` shows as a centred "Continued" notice under the paused row, the working row appears and the members carry on (the server's `working` is already true, probed). If the server could not prepare the members, the wake-up row below shows instead. On failure the room's "Something Went Wrong" alert says "This discussion can't be continued anymore." for a server refusal (the transport error otherwise) and the room refreshes, so the button comes back only if the server still shows the pause (0.23.0's gateway-owned path answers a refused Continue with a bare `invalid_params`, probed).

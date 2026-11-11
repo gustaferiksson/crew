@@ -123,7 +123,7 @@ extension ChatFixture {
         ```
         """#
 
-    private static let flightsBlock = """
+    static let flightsBlock = """
         [
           {"version": "v0.9", "createSurface": {"surfaceId": "flights-bodo", "catalogId": "https://crew.gustaf.dev/catalogs/crew/v1.json"}},
           {"version": "v0.9", "updateComponents": {"surfaceId": "flights-bodo", "components": [

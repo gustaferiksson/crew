@@ -44,6 +44,8 @@ nonisolated struct Turn: Identifiable, Codable, Sendable, Equatable {
     var answer: String?
     var isCommand = false
     var output: String?
+    var thread: String?
+    var stopReason: String?
 }
 
 nonisolated struct Prompt: Codable, Sendable, Equatable {

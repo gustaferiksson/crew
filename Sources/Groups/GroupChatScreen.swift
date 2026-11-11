@@ -69,12 +69,13 @@ struct GroupChatScreen: View {
             activity: session?.activity,
             pinKey: room.selectionID,
             actions: ChatActions(
-                send: { text, _, _, _ in session?.send(text) },
+                send: { text, _, _, _ in session?.send(text, thread: drafts.draft(for: room.selectionID).reply?.thread) },
                 stop: { session?.stop() },
                 openPersona: { showsInspector.toggle() },
                 respond: { session?.respond(to: $0, with: $1) },
                 retry: { session?.retry($0) },
-                continueDiscussion: { session?.continueDiscussion($0) }
+                continueDiscussion: { session?.continueDiscussion($0) },
+                reply: reply
             )
         )
         #if os(iOS)
@@ -100,6 +101,13 @@ struct GroupChatScreen: View {
             Text(session?.failure ?? "")
         }
         .id(room.id)
+    }
+
+    private func reply(to id: Turn.ID) {
+        guard let target = session?.reply(to: id, title: { profile in bots.bots.first { $0.name == profile }?.title }) else { return }
+        let draft = drafts.draft(for: room.selectionID)
+        draft.text = target.addressing(draft.text, replacing: draft.reply)
+        draft.reply = target
     }
 
     private var welcome: some View {

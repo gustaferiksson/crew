@@ -162,6 +162,7 @@ targets:
       - Sources/Chat/PaymentCard.swift
       - Sources/Chat/TranscriptScroll.swift
       - Sources/Chat/ChatView.swift
+      - Sources/Chat/ReplyChip.swift
       - Sources/Chat/EarlierHistoryRow.swift
       - Sources/Chat/WorkLog.swift
       - Sources/Chat/UserBubble.swift
@@ -206,6 +207,7 @@ targets:
       - Sources/Groups/GroupSession.swift
       - Sources/Groups/RoomHistory.swift
       - Sources/Groups/RoomContext.swift
+      - Sources/Groups/ReplyTarget.swift
       - Sources/Search/MessageSearch.swift
       - Sources/Links.swift
       - Sources/Scenes.swift

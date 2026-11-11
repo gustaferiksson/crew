@@ -164,6 +164,18 @@ struct ReplySelectionTests {
         #expect(!zip(titles, titles.dropFirst()).contains { $0 == "-" && $1 == "-" } && titles.last != "-")
     }
 
+    @Test func rightClickInARoomOffersReplyFirst() throws {
+        let view = try textView("Lisbon is a city in Portugal.")
+        let event = try #require(NSEvent.mouseEvent(with: .rightMouseDown, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: 0, context: nil, eventNumber: 0, clickCount: 1, pressure: 1))
+        var replied = 0
+        view.reply = { replied += 1 }
+        let menu = try #require(view.menu(for: event))
+        #expect(Array(menu.items.prefix(3).map(\.title)) == ["Reply", "Copy Message", "Share Message"])
+        let reply = try #require(menu.items.first)
+        _ = reply.target?.perform(reply.action)
+        #expect(replied == 1)
+    }
+
     @Test func heightFollowsTheColumnWidth() throws {
         let text = try onlyText(try checklistReply())
         func height(at width: CGFloat) -> CGFloat {

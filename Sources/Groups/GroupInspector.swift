@@ -301,13 +301,14 @@ struct GroupInspector: View {
     private var answererFooter: String {
         let lead = room.members.first { "lead:\($0.memberID)" == answerer }
         let rule = if let lead {
-            String(localized: "\(memberName(lead)) decides who takes a message that names nobody.")
+            String(localized: "\(memberName(lead)) decides who takes a new message that names nobody.")
         } else if answerer == "auto" {
-            String(localized: "Hermes picks who a message is for.")
+            String(localized: "Hermes picks who a new message is for.")
         } else {
             String(localized: "Every member answers a message that names nobody.")
         }
-        return rule + " " + String(localized: "@mentions always reach the members you name.")
+        let replies = answerer == "everyone" ? "" : " " + String(localized: "A reply that names nobody reaches every member.")
+        return rule + " " + String(localized: "@mentions always reach the members you name.") + replies
     }
 
     private func adopt(_ saved: RoomContext) {

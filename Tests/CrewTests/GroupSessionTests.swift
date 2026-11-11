@@ -271,3 +271,83 @@ private let wake = RoomAction(kind: "retry", memberID: "ada, scout", taskID: "pr
     #expect(routing.isAwaitingReply)
     #expect(!settled.isAwaitingReply)
 }
+
+@Test func replyContinuesTheMembersThreadAddressedToIt() throws {
+    let session = try recordedRoom("context.log.json", state: "context.state.json")
+    let answer = try #require(session.events.first { $0.kind == "message.member" })
+    let target = try #require(session.reply(to: answer.eventID))
+
+    #expect(target.thread == "crew-probe-lead")
+    #expect(target.handle == "crew-test")
+    #expect(target.name == "Crew Test")
+    #expect(session.reply(to: answer.eventID) { $0 == "crew-test" ? "Tess" : nil }?.name == "Tess")
+    #expect(target.quote == answer.payload.text?.split(separator: "\n").first.map(String.init))
+
+    let sent = try JSONSerialization.jsonObject(with: JSONEncoder().encode(session.sendParams("@crew-test And Sunday?", thread: target.thread))) as? NSDictionary
+    let id = try #require(sent?["event_id"] as? String)
+    #expect(sent == ["room_id": session.room.id, "event_id": id, "payload": ["text": "@crew-test And Sunday?", "thread_id": "crew-probe-lead"]])
+    #expect(id != target.thread)
+}
+
+@Test func replyToYourOwnMessageNamesNobody() throws {
+    let session = try recordedRoom("context.log.json", state: "context.state.json")
+    let prompt = try #require(session.events.first { $0.kind == "message.user" })
+    let target = try #require(session.reply(to: prompt.eventID))
+
+    #expect(target == ReplyTarget(messageID: prompt.eventID, thread: "crew-probe-lead", name: "You", handle: nil, quote: "Which day should we fly out?"))
+    #expect(target.addressing("Or Friday?", replacing: nil) == "Or Friday?")
+}
+
+@Test func onlyLoggedMessagesOfferReply() throws {
+    let session = try recordedRoom("context.log.json", state: "context.state.json")
+    let offered = session.transcript.turns.filter { $0.thread != nil }.map(\.id)
+    let messages = session.events.filter { ["message.user", "message.member"].contains($0.kind) }.map(\.eventID)
+    #expect(offered == messages)
+    #expect(session.transcript.turns.filter { $0.notice != nil }.allSatisfy { $0.thread == nil && session.reply(to: $0.id) == nil })
+
+    let routine = try recordedRoom("context.routine.log.json", state: "context.routine.state.json")
+    let post = try #require(routine.events.first { $0.routineTitle != nil })
+    #expect(routine.reply(to: post.eventID) == nil)
+    #expect(routine.transcript.turns.first { $0.id == post.eventID }?.thread == nil)
+
+    routine.send("Hello")
+    #expect(routine.transcript.turns.last { $0.prompt != nil }?.thread == nil)
+}
+
+@Test func replyQuotesTheFirstPlainLine() {
+    let card = "```a2ui\n[]\n```\n\n**Widerøe** at _07:40_\n\nIt lands at 09:10."
+    let rows = [
+        event(1, "message.member", RoomEvent.Payload(text: card, memberID: "ada", threadID: "main")),
+        event(2, "message.member", RoomEvent.Payload(text: "```a2ui\n[]\n```", memberID: "scout", threadID: "main")),
+    ]
+    let session = GroupSession(fixture: room, events: rows, driver: RoomState.Driver())
+
+    #expect(session.reply(to: "e1")?.quote == "Widerøe at 07:40")
+    #expect(session.reply(to: "e2")?.quote == "")
+    #expect(session.reply(to: "e2")?.name == "Scout")
+}
+
+@Test func replyPutsTheHandleFirstOnceAndSwapsItsOwnOldOne() {
+    let ada = ReplyTarget(messageID: "e1", thread: "main", name: "Ada", handle: "ada", quote: "")
+    let scout = ReplyTarget(messageID: "e2", thread: "main", name: "Scout", handle: "scout", quote: "")
+    let me = ReplyTarget(messageID: "e3", thread: "main", name: "You", handle: nil, quote: "")
+
+    #expect(ada.addressing("", replacing: nil) == "@ada ")
+    #expect(ada.addressing("Is it booked?", replacing: nil) == "@ada Is it booked?")
+    #expect(ada.addressing("@ada Is it booked?", replacing: nil) == "@ada Is it booked?")
+    #expect(scout.addressing("@ada Is it booked?", replacing: ada) == "@scout Is it booked?")
+    #expect(me.addressing("@ada Is it booked?", replacing: ada) == "Is it booked?")
+}
+
+@Test func aReplyIntoAWorkingThreadSaysWhyTheAnswerStopped() throws {
+    let session = try recordedRoom("reply.log.json", state: "reply.state.json")
+    let superseded = try #require(session.events.first { $0.kind == "turn.cancelled" && $0.payload.reason == "superseded_by_newer_user_event" })
+    let turn = try #require(session.transcript.turns.first { $0.id == superseded.eventID })
+    #expect(turn.status == .interrupted)
+    #expect(turn.stopReason == "Stopped for your newer message")
+
+    let stopped = RoomEvent(seq: 999, eventID: "stop", kind: "turn.cancelled", actor: superseded.actor, payload: RoomEvent.Payload(memberID: superseded.payload.memberID, threadID: superseded.payload.threadID, reason: "member turn cancelled"), createdAt: .now)
+    let plain = GroupSession(fixture: session.room, events: session.events + [stopped], driver: RoomState.Driver())
+    #expect(plain.transcript.turns.first { $0.id == "stop" }?.status == .interrupted)
+    #expect(plain.transcript.turns.first { $0.id == "stop" }?.stopReason == nil)
+}

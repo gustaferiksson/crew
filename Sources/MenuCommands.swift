@@ -11,7 +11,7 @@ struct NewChatCommands: View {
         Button("New Bot…") { open(.bot) }
             .keyboardShortcut("n")
             .disabled(connection.state != .connected)
-        Button("New Group…") { open(.group) }
+        Button("New Room…") { open(.group) }
             .keyboardShortcut("n", modifiers: [.command, .shift])
             .disabled(connection.state != .connected || !groups.isSupported)
     }

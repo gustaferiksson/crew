@@ -109,7 +109,7 @@ private let discussion = (try? recorded("paused.log.json", as: [RoomEvent].self)
     let session = try recordedRoom("continued.log.json")
     let notices = session.transcript.turns.compactMap { turn in turn.notice.map { ($0, turn.continueID) } }
 
-    #expect(notices.map(\.0) == ["Crew Test and Crew Peer are in this group.", "Paused after 6 messages", "Continued", "Paused after 12 messages"])
+    #expect(notices.map(\.0) == ["Crew Test and Crew Peer are in this room.", "Paused after 6 messages", "Continued", "Paused after 12 messages"])
     #expect(notices.map(\.1) == [nil, nil, nil, discussion])
 }
 
@@ -197,7 +197,7 @@ private let wake = RoomAction(kind: "retry", memberID: "ada, scout", taskID: "pr
     let notices = session.transcript.turns.compactMap(\.notice)
 
     #expect(notices == [
-        "Crew Test and Crew Peer are in this group.",
+        "Crew Test and Crew Peer are in this room.",
         "Purpose: Plan the team offsite in Lisbon\nShared notes updated",
         "Crew Test decides who answers",
         "Purpose: Plan the team offsite in Lisbon, 12 to 14 May",

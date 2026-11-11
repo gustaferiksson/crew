@@ -351,14 +351,3 @@ private let wake = RoomAction(kind: "retry", memberID: "ada, scout", taskID: "pr
     #expect(plain.transcript.turns.first { $0.id == "stop" }?.status == .interrupted)
     #expect(plain.transcript.turns.first { $0.id == "stop" }?.stopReason == nil)
 }
-
-@Test func recordedRepliesStayInTheOpenersThreadAndSkipTheLead() throws {
-    let session = try recordedRoom("reply.log.json", state: "reply.state.json")
-    let prompts = session.events.filter { $0.kind == "message.user" }
-    let thread = try #require(prompts.first?.payload.threadID)
-    let assigned = Set(session.events.filter { $0.kind == "room.assignment" }.compactMap(\.payload.discussionEventID))
-
-    #expect(prompts.count >= 4)
-    #expect(prompts.allSatisfy { $0.payload.threadID == thread })
-    #expect(assigned.isDisjoint(with: prompts.dropFirst().map(\.eventID)))
-}

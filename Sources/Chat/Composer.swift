@@ -188,8 +188,8 @@ struct Composer: View {
             if !text.isEmpty { draft.text = text }
         }
         #if os(iOS)
-        .onChange(of: draft.reply?.messageID) {
-            selection = TextSelection(insertionPoint: draft.text.endIndex)
+        .onChange(of: draft.reply?.messageID) { _, id in
+            if id != nil { selection = TextSelection(insertionPoint: draft.text.endIndex) }
         }
         #endif
         .onDisappear {

@@ -1,0 +1,8 @@
+{"at":1.295,"payload":{"turn_id":"a5c0c618293d4f04b8b12fabd186bd8c"},"seq":145,"session_id":"26c4b551","type":"message.start"}
+{"at":1.408,"payload":{},"type":"sessions.changed"}
+{"at":1.427,"payload":{"text":"ヽ(>∀<☆)☆ mulling..."},"seq":146,"session_id":"26c4b551","type":"thinking.delta"}
+{"at":1.915,"payload":{},"type":"platforms.changed"}
+{"at":3.369,"payload":{"text":""},"seq":147,"session_id":"26c4b551","type":"thinking.delta"}
+{"at":3.37,"payload":{"offset":0,"segment":0,"text":"ok","turn_id":"a5c0c618293d4f04b8b12fabd186bd8c"},"seq":148,"session_id":"26c4b551","type":"message.delta"}
+{"at":3.558,"payload":{"text":""},"seq":149,"session_id":"26c4b551","type":"thinking.delta"}
+{"at":3.59,"payload":{"persisted_turn":{"complete":true,"final_assistant_row_id":654,"row_ids":[653,654],"user_row_id":653,"user_row_ids":[653]},"status":"complete","text":"ok","usage":{"active_subagents":0,"avg_latency_s":3.1,"avg_tps":12,"cache_hit_pct":93,"calls":19,"completion":808,"compressions":0,"context_estimated":false,"context_max":500000,"context_percent":4,"context_source":"provider_usage","context_used":21987,"input":24121,"model":"gpt-6.1-sol","output":808,"prompt":369465,"reasoning":17,"total":370273}},"seq":150,"session_id":"26c4b551","type":"message.complete"}

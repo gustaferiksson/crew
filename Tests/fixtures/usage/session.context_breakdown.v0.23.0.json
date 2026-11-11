@@ -1,0 +1,39 @@
+{
+  "categories" : [
+    {
+      "color" : "var(--context-usage-system)",
+      "id" : "system_prompt",
+      "label" : "System prompt",
+      "tokens" : 4657
+    },
+    {
+      "color" : "var(--context-usage-tools)",
+      "id" : "tool_definitions",
+      "label" : "Tool definitions",
+      "tokens" : 6022
+    },
+    {
+      "color" : "var(--context-usage-conversation)",
+      "id" : "conversation",
+      "label" : "Conversation",
+      "tokens" : 20354
+    }
+  ],
+  "context_estimated" : false,
+  "context_files" : [
+    {
+      "chars" : 809,
+      "est_tokens" : 204,
+      "label" : "SOUL.md",
+      "loaded" : true,
+      "path" : "/opt/data/profiles/crew-test/SOUL.md",
+      "status" : "loaded"
+    }
+  ],
+  "context_max" : 500000,
+  "context_percent" : 4,
+  "context_source" : "provider_usage",
+  "context_used" : 21976,
+  "estimated_total" : 31033,
+  "model" : "gpt-6.1-sol"
+}

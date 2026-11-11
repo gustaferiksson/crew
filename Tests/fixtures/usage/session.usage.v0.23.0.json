@@ -1,0 +1,20 @@
+{
+  "active_subagents" : 0,
+  "avg_latency_s" : 3.1,
+  "avg_tps" : 12.6,
+  "cache_hit_pct" : 93,
+  "calls" : 18,
+  "completion" : 803,
+  "compressions" : 0,
+  "context_estimated" : false,
+  "context_max" : 500000,
+  "context_percent" : 4,
+  "context_source" : "provider_usage",
+  "context_used" : 21971,
+  "input" : 23894,
+  "model" : "gpt-6.1-sol",
+  "output" : 803,
+  "prompt" : 347478,
+  "reasoning" : 17,
+  "total" : 348281
+}

@@ -75,6 +75,8 @@ enum Snapshot: String {
     case profileSkills = "profile-skills"
     case botPage = "bot-page"
     case chatOptions = "chat-options"
+    case chatContext = "chat-context"
+    case contextRings = "context-rings"
     case notifications
     case newBot = "new-bot"
     case newBotAdvanced = "new-bot-advanced"

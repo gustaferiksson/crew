@@ -15,7 +15,10 @@ final class PinnedCardUITests: XCTestCase {
         XCTAssertTrue(button.frame.maxY <= attach.frame.minY && button.frame.maxY > attach.frame.minY - 40, "the chip sits just above the + button")
         XCTAssertEqual(button.frame.minX, attach.frame.minX, accuracy: 2, "the chip lines up with the + button")
         XCTAssertLessThan(button.frame.width, app.windows.firstMatch.frame.width * 0.8, "the chip hugs its content")
-        XCTAssertFalse(app.buttons.matching(NSPredicate(format: "label == %@", "Unpin")).firstMatch.exists, "the chip has no X")
+        let dismiss = app.buttons.matching(NSPredicate(format: "label == %@", "Unpin")).firstMatch
+        XCTAssertTrue(dismiss.exists, "the chip has an X labelled Unpin")
+        XCTAssertEqual(dismiss.frame.midY, button.frame.midY, accuracy: 2, "the X sits in the chip")
+        XCTAssertGreaterThanOrEqual(dismiss.frame.minX, button.frame.maxX - 1, "the X trails the chip's title")
 
         button.tap()
         let sheet = app.navigationBars[title]
@@ -53,17 +56,27 @@ final class PinnedCardUITests: XCTestCase {
         app.buttons["Close"].firstMatch.tap()
         XCTAssertTrue(sheet.waitForNonExistence(timeout: 5))
 
-        button.press(forDuration: 1.2)
-        let unpin = app.buttons["Unpin"].firstMatch
-        XCTAssertTrue(unpin.waitForExistence(timeout: 5), "the chip's context menu offers Unpin")
-        unpin.tap()
-        XCTAssertTrue(button.waitForNonExistence(timeout: 5), "Unpin from the chip's context menu removes it")
+        dismiss.tap()
+        XCTAssertTrue(button.waitForNonExistence(timeout: 5), "the chip's X unpins it")
 
         preview.press(forDuration: 1.2)
         let pin = app.buttons["Pin Card"]
         XCTAssertTrue(pin.waitForExistence(timeout: 5), "the preview's context menu should offer Pin Card")
         pin.tap()
         XCTAssertTrue(button.waitForExistence(timeout: 5), "Pin Card brings the chip back")
+
+        button.press(forDuration: 1.2)
+        let unpins = app.buttons.matching(NSPredicate(format: "label == %@", "Unpin"))
+        _ = unpins.element(boundBy: 1).waitForExistence(timeout: 5)
+        let menuUnpin = unpins.allElementsBoundByIndex.max { $0.frame.width < $1.frame.width }
+        XCTAssertGreaterThan(menuUnpin?.frame.width ?? 0, 100, "the chip's context menu offers Unpin")
+        menuUnpin?.tap()
+        XCTAssertTrue(button.waitForNonExistence(timeout: 5), "Unpin from the chip's context menu removes it")
+
+        preview.press(forDuration: 1.2)
+        XCTAssertTrue(pin.waitForExistence(timeout: 5))
+        pin.tap()
+        XCTAssertTrue(button.waitForExistence(timeout: 5))
 
         button.tap()
         XCTAssertTrue(sheet.waitForExistence(timeout: 5))

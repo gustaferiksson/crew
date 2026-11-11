@@ -174,7 +174,7 @@ struct MentionSheet: View {
         Group {
             if detent == .large {
                 NavigationStack {
-                    ChatScreen(bot: bot, models: models, showsBot: $showsBot) { _ in }
+                    ChatScreen(bot: bot, models: models, showsBot: $showsBot)
                         .toolbar {
                             ToolbarItem(placement: .cancellationAction) {
                                 Button("Done", systemImage: "xmark", role: .close) { dismiss() }

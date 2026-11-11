@@ -19,7 +19,7 @@ struct BotChatWindow: View {
         Group {
             if let bot {
                 NavigationStack {
-                    ChatScreen(bot: bot, models: models, showsBot: $showsBot) { _ in }
+                    ChatScreen(bot: bot, models: models, showsBot: $showsBot)
                 }
                 .frame(minWidth: 320)
                 .inspector(isPresented: $showsBot) {

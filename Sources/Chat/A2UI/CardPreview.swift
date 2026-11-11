@@ -2,17 +2,27 @@ import A2UICore
 import A2UISwiftUI
 import SwiftUI
 
+#if os(iOS)
+let cardCorner: CGFloat = 28
+private let tileCorner: CGFloat = 12
+private let previewPadding: CGFloat = 12
+#else
+let cardCorner: CGFloat = 18
+private let tileCorner: CGFloat = 8
+private let previewPadding: CGFloat = 10
+#endif
+
 struct CardPreview: View {
     @ObservedObject var model: SurfaceViewModel
     let fallbackTitle: String
     var expanded: Binding<Bool>?
     let open: (CGRect) -> Void
 
-    @ScaledMetric private var tile: CGFloat = 44
     #if os(iOS)
+    @ScaledMetric private var tile: CGFloat = 44
     @ScaledMetric private var chevronTarget: CGFloat = 44
     #else
-    @ScaledMetric private var chevronTarget: CGFloat = 28
+    @ScaledMetric private var tile: CGFloat = 32
     #endif
     @State private var frame = CGRect.zero
 
@@ -25,6 +35,7 @@ struct CardPreview: View {
     private func preview(_ summary: CardSummary) -> some View {
         HStack(spacing: 0) {
             openButton(summary)
+            #if os(iOS)
             if let expanded {
                 Button(expanded.wrappedValue ? "Collapse" : "Expand", systemImage: "chevron.down") {
                     withTransaction(.disclosure(.smooth)) { expanded.wrappedValue.toggle() }
@@ -39,6 +50,7 @@ struct CardPreview: View {
                 .accessibilityValue(summary.title ?? fallbackTitle)
                 .padding(.trailing, 4)
             }
+            #endif
         }
     }
 
@@ -49,7 +61,7 @@ struct CardPreview: View {
                     .font(.title3.weight(.medium))
                     .foregroundStyle(.white)
                     .frame(width: tile, height: tile)
-                    .background(summary.tint.gradient, in: .rect(cornerRadius: 12))
+                    .background(summary.tint.gradient, in: .rect(cornerRadius: tileCorner))
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(summary.title ?? fallbackTitle)
@@ -72,23 +84,36 @@ struct CardPreview: View {
                         }
                     }
                     .frame(width: tile, height: tile)
-                    .clipShape(.rect(cornerRadius: 12))
+                    .clipShape(.rect(cornerRadius: tileCorner))
                     .accessibilityHidden(true)
                 }
+                #if os(macOS)
+                if let expanded {
+                    Image(systemName: "chevron.down")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .rotationEffect(.degrees(expanded.wrappedValue ? 180 : 0))
+                        .accessibilityHidden(true)
+                }
+                #endif
             }
-            .padding(12)
+            .padding(previewPadding)
             .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(.rect)
         }
         .buttonStyle(.plain)
-        .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(chatSpace)) } action: { frame = $0 }
         .accessibilityLabel(summary.title ?? fallbackTitle)
         .accessibilityValue(summary.subtitle ?? String(localized: "Card"))
+        #if os(iOS)
+        .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(chatSpace)) } action: { frame = $0 }
         .accessibilityHint("Shows the card")
         .accessibilityActions {
             if let expanded {
                 Button(expanded.wrappedValue ? "Collapse Card" : "Expand Card") { expanded.wrappedValue.toggle() }
             }
         }
+        #else
+        .accessibilityHint(expanded?.wrappedValue == true ? "Collapses the card" : "Expands the card")
+        #endif
     }
 }

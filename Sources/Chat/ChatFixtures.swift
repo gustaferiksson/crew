@@ -16,7 +16,7 @@ enum ChatFixture {
         if self == .a2uiCards { return ChatPresentation(scrollTarget: "a2") }
         if self == .a2uiForm { return ChatPresentation(scrollTarget: "a6") }
         if self == .a2uiTable { return ChatPresentation(scrollTarget: "a5") }
-        if self == .a2uiTableExpanded { return ChatPresentation(expandedCards: ["party-list", "pancakes-checklist"]) }
+        if self == .a2uiTableExpanded { return ChatPresentation(expandedCards: ["party-list"]) }
         if self == .a2uiPinnedSheet { return ChatPresentation(showsPinnedCard: true) }
         if self == .a2uiChart { return ChatPresentation(scrollTarget: "a4") }
         if self == .a2uiMap { return ChatPresentation(scrollTarget: "a7") }
@@ -96,7 +96,7 @@ enum ChatFixture {
         if self == .a2uiUpdates { return Transcript(turns: Self.a2uiUpdateTurns(now)) }
         if self == .a2uiStreaming { return Transcript(turns: Self.a2uiStreamingTurns(now)) }
         if self == .a2uiProducts { return Transcript(turns: Self.productTurns(now, count: max(UserDefaults.standard.integer(forKey: "productTurns"), 1))) }
-        if self == .a2uiTableExpanded { return Transcript(turns: Self.a2uiTurns(now).filter { ["a10", "a1"].contains($0.id) }) }
+        if self == .a2uiTableExpanded { return Transcript(turns: Self.a2uiTurns(now).filter { $0.id == "a10" }) }
         if [.a2ui, .a2uiCards, .a2uiForm, .a2uiTable, .a2uiChart, .a2uiMap, .a2uiCarousel, .a2uiCarouselStates, .a2uiPinned, .a2uiPinnedSheet, .a2uiExpanded].contains(self) { return Transcript(turns: Self.a2uiTurns(now)) }
         if self == .paymentReceipts { return Transcript(turns: Self.receiptTurns(now)) }
         if self == .paymentOffer {

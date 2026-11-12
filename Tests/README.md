@@ -6,7 +6,7 @@
 | crew-push hooks | `server/crew-push/tests` | `cd server/crew-push && python -m pytest -q` |
 | UI interactions (iOS Simulator) | `Tests/CrewUITests` | `Tests/ui.sh` (`IOS_SIMULATOR=<name>` picks another iOS 27 device) |
 | Mac window interactions (never on the user's Mac) | `Tests/CrewMacUITests` | `xcodebuild test -scheme CrewMacUITests -destination 'platform=macOS,arch=arm64' CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual CODE_SIGN_ENTITLEMENTS=` on a CI runner |
-| Real-server probes | `Tests/chat_probe`, `Tests/bot_probe`, `Tests/routine_probe` | `Tests/chat_probe/run.sh <phase>`, `Tests/routine_probe/run.sh` |
+| Real-server probes | `Tests/chat_probe`, `Tests/bot_probe`, `Tests/routine_probe`, `Tests/connection_probe` | `Tests/chat_probe/run.sh <phase>`, `Tests/routine_probe/run.sh`, `Tests/connection_probe/run.sh` |
 
 CI runs all but the probes. The UI tests run in two parallel shards on simulators that boot while the app job builds, then reuse its build (`UI_DEVICE` in `Tests/ui.sh`). A change that touches only `docs/`, `server/crew-push/` or Markdown outside `Sources/` and `Tests/fixtures/` skips the app and UI jobs.
 

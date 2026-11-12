@@ -18,17 +18,35 @@ nonisolated struct MCPServer: Decodable, Equatable, Identifiable, Sendable {
         url ?? ([command ?? ""] + args).joined(separator: " ")
     }
 
+    static func names(_ value: JSONValue?) -> [String]? {
+        if case .string(let pattern) = value { return [pattern] }
+        guard case .array(let items) = value else { return nil }
+        return items.compactMap { if case .string(let pattern) = $0 { pattern } else { nil } }
+    }
+
     func offers(_ tool: String) -> Bool {
         guard case .object(let filter) = tools else { return true }
-        let patterns = { (key: String) -> [String]? in
-            if case .string(let pattern) = filter[key] { return [pattern] }
-            guard case .array(let items) = filter[key] else { return nil }
-            return items.compactMap { if case .string(let pattern) = $0 { pattern } else { nil } }
-        }
         let matches = { (patterns: [String]) in patterns.contains { $0 == tool || fnmatch($0, tool, 0) == 0 } }
-        if let include = patterns("include") { return matches(include) }
-        return !matches(patterns("exclude") ?? [])
+        if let include = Self.names(filter["include"]) { return matches(include) }
+        return !matches(Self.names(filter["exclude"]) ?? [])
     }
+
+    func canSwitch(_ tool: String) -> Bool {
+        guard case .object(let filter) = tools else { return true }
+        let patterns = Self.names(filter["include"]) ?? Self.names(filter["exclude"]) ?? []
+        return !patterns.contains { $0 != tool && fnmatch($0, tool, 0) == 0 }
+    }
+}
+
+nonisolated func settingTool(_ tool: String, on: Bool, in entry: [String: JSONValue]) -> [String: JSONValue] {
+    var entry = entry
+    var tools: [String: JSONValue] = if case .object(let tools) = entry["tools"] { tools } else { [:] }
+    let key = MCPServer.names(tools["include"]) == nil ? "exclude" : "include"
+    let current = MCPServer.names(tools[key]) ?? []
+    let names = on == (key == "include") ? current + (current.contains(tool) ? [] : [tool]) : current.filter { $0 != tool }
+    tools[key] = key == "exclude" && names.isEmpty ? nil : .array(names.map(JSONValue.string))
+    entry["tools"] = tools.isEmpty ? nil : .object(tools)
+    return entry
 }
 
 nonisolated struct MCPServerList: Decodable, Sendable {
@@ -116,7 +134,9 @@ nonisolated func mcpRequest(_ path: String, profile: String, method: String = "G
     guard var body else { return request }
     body["profile"] = .string(profile)
     request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-    request.httpBody = try? JSONEncoder().encode(body)
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = .sortedKeys
+    request.httpBody = try? encoder.encode(body)
     return request
 }
 
@@ -320,6 +340,80 @@ final class BotConnections {
         }
         servers?.removeAll { $0.name == name }
         tests[name] = nil
+    }
+
+    func setTool(_ tool: String, on: Bool, for name: String, on server: URL, with urlSession: URLSession) async {
+        guard let index = servers?.firstIndex(where: { $0.name == name }), let current = servers?[index] else { return }
+        servers?[index].tools = settingTool(tool, on: on, in: ["tools": current.tools ?? .null])["tools"]
+        if isFixture { return requests.append("tool \(name) \(tool) \(on)") }
+        guard await edit(name, on: server, with: urlSession, change: { settingTool(tool, on: on, in: $0) }) else {
+            return await load(on: server, with: urlSession)
+        }
+    }
+
+    func changeAddress(_ address: String, for name: String, on server: URL, with urlSession: URLSession) async {
+        if isFixture { return requests.append("address \(name) \(address)") }
+        let changed = await edit(name, on: server, with: urlSession) { entry in
+            var entry = entry
+            entry["url"] = .string(address)
+            return entry
+        }
+        await load(on: server, with: urlSession)
+        guard changed, servers?.first(where: { $0.name == name })?.enabled == true else { return }
+        tests[name] = nil
+        await test(name, on: server, with: urlSession)
+    }
+
+    func changeAPIKey(_ key: String, for name: String, on server: URL, with urlSession: URLSession, gateway: Gateway) async {
+        failures[name] = nil
+        if isFixture { return requests.append("api key \(name)") }
+        busy.insert(name)
+        defer { busy.remove(name) }
+        do {
+            guard case .object(let entry) = try await rawServers(on: server, with: urlSession)?[name] ?? .null else {
+                failures[name] = String(localized: "\(name) was removed on the server.")
+                return
+            }
+            guard case .object(let headers) = entry["headers"] ?? .null, headers.count == 1,
+                  case .string(let authorization) = headers["Authorization"] ?? .null,
+                  let variable = authorization.wholeMatch(of: /Bearer \$\{(\w+)\}/)?.1
+            else {
+                failures[name] = String(localized: "\(name)'s headers were written by hand. Change its key on the server.")
+                return
+            }
+            _ = try await gateway.call("mcp.servers.set_api_key", ["name": name, "value": key, "env_var": String(variable), "profile": profile], as: JSONValue.self)
+        } catch {
+            failures[name] = error.localizedDescription
+            return
+        }
+
+        tests[name] = nil
+        await test(name, on: server, with: urlSession)
+    }
+
+    private func edit(_ name: String, on server: URL, with urlSession: URLSession, change: ([String: JSONValue]) -> [String: JSONValue]) async -> Bool {
+        failures[name] = nil
+        busy.insert(name)
+        defer { busy.remove(name) }
+        do {
+            guard var all = try await rawServers(on: server, with: urlSession), case .object(let entry) = all[name] ?? .null else {
+                failures[name] = String(localized: "\(name) was removed on the server.")
+                return false
+            }
+            all[name] = .object(change(entry))
+            _ = try await fetch(mcpRequest("servers", profile: profile, method: "PUT", body: ["servers": .object(all)], on: server), with: urlSession, as: JSONValue.self)
+            return true
+        } catch {
+            failures[name] = error.localizedDescription
+            return false
+        }
+    }
+
+    private func rawServers(on server: URL, with urlSession: URLSession) async throws -> [String: JSONValue]? {
+        var read = hermesRequest("api/config", on: server)
+        read.url?.append(queryItems: [URLQueryItem(name: "profile", value: profile), URLQueryItem(name: "include_defaults", value: "false")])
+        guard case .object(let config) = try await fetch(read, with: urlSession, as: JSONValue.self), case .object(let all) = config["mcp_servers"] ?? .null else { return nil }
+        return all
     }
 
     func add(_ body: [String: JSONValue], catalog: Bool, on server: URL, with urlSession: URLSession) async throws {

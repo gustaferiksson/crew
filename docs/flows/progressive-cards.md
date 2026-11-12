@@ -7,7 +7,7 @@ A recipe card took about 29 s from send to visible, 22 s of it "Preparing card�
 - While the turn streams, the open ```` ```a2ui ```` fence is healed and drawn: keep every complete message and every complete object inside an array (a component, an ingredient, a carousel item), drop the half-written tail, close the open brackets (a minimal port of the A2UI Python SDK's partial-JSON reader, `PartialA2UI.swift`). The result goes to a scratch `MessageProcessor` (never the chat's live one), so half a card never replaces or moves a live card and never reaches `owners`, `present`, the pins or the bar.
 - The card appears once its root, Column and Header are complete: with skill v7's component-first order, after 602 of 3,662 bytes of the recorded köttbullar block (17%), instead of at the end. Sections fill in as their components complete; ingredient rows appear when the data model arrives last.
 - The preview is disabled (no taps, no checkbox state) and dimmed like any card while a turn runs, in the same glass card, so the finished card replaces it in place with the same look. When the turn finishes, the existing sync ingests the full block and the normal card (with its update caption or pointer lines) takes over.
-- Before the Header is complete, and for a block the healer can't parse yet, "Preparing card…" shows as today. If a later prefix fails to process (schema error in a half card), the last good preview stays.
+- Before the card has a root component, and for a block the healer can't parse yet, the row is the compact preview drawn as a placeholder (`.redacted(reason: .placeholder)`: a grey tile and a bar where the title goes, VoiceOver "Preparing card…") in the same glass card, so the row has its final height from the fence's first bytes and the transcript does not jump when the card draws or the turn finishes. On main before this, "Preparing card…" (16 pt on the Mac) gave way to an empty, 0 pt preview once `createSurface` parsed (byte 160 of the köttbullar block), and because an empty view never re-runs its `.task(id:)` the card stayed invisible until the turn finished, then appeared at 52 pt. If a later prefix fails to process (schema error in a half card), the last good preview stays.
 
 ## Cost
 
@@ -20,7 +20,7 @@ A recipe card took about 29 s from send to visible, 22 s of it "Preparing card�
 - **Bot Chat and rooms, iPhone (`MarkdownText`) and Mac (`ReplyText`), light and dark:** both route the open fence to `SurfaceBlock`; same glass card.
 - **Pinned bar, bot list preview, push, inspector:** unchanged. A streaming card never pins; it pins when the turn finishes (pinned-card spec).
 - **Refinement of a live card (same id):** the preview is separate, so the live card stays where it is until the reply finishes, then moves down with the "updated below" line (card-updates spec). For a moment both are visible; accepted, it is the same moment Messages shows a reply arriving under the message it edits.
-- **Update-only blocks:** no `createSurface`, so no preview; "Preparing card…" until the turn finishes, then the update line.
+- **Update-only blocks:** no `createSurface`, so no preview; the placeholder row until the turn finishes, then the update line (a one-line jump, accepted: update-only blocks are short).
 - **Stopped or failed turn:** the partial card stays as the preview until the turn's status changes; then the block is ingested whole and, being invalid JSON, shows the failure chip as today (unchanged; a softer stopped state is a follow-up).
 - **Long cards:** the card grows downward like text; the transcript's existing follow-bottom behaviour applies; refreshes thin out as the block grows (see Cost).
 - **`<a2ui-json>` tags:** they become a fence only once the closing tag arrives, so that form still streams as text and draws at the end, as today.
@@ -29,5 +29,7 @@ A recipe card took about 29 s from send to visible, 22 s of it "Preparing card�
 - **Offline mid-stream:** the stream stops; the preview stays until a reload replaces the turn.
 
 ## Tests
+
+`StreamingCardHeightTests` hosts `SurfaceBlock` offscreen on the Mac and streams the recorded köttbullar block into it at every refresh step from byte 30: every step is as tall as the finished card's row (52 pt). On main it fails: 16 pt, then 0 pt from byte 160 to the end. Renders of `chat-a2ui-streaming` (past the Header) on iPhone and Mac, light and dark, and the same fixture cut before the root component (placeholder), checked by eye, not committed as a fixture.
 
 `ProgressiveCardTests` replays the recorded köttbullar block (`Tests/fixtures/chat.a2ui-update.history.json`, skill v7) byte by byte: every healed prefix is valid JSON; the Header shows within the first quarter of the block (fails with previews off: no card before the fence closes); an unchanged prefix returns the same preview; previewing a whole stream costs under 60 full previews of the finished block for the recorded card and an 8x longer one (7x and 26x measured; relative, like the other perf tests, so slower CI runners do not flake it).

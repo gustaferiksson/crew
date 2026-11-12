@@ -5,6 +5,7 @@ struct ConnectionsSection: View {
     let bot: Bot
     let store: BotConnections
     @Binding var isAdding: Bool
+    @Binding var opened: MCPServer?
 
     @Environment(Connection.self) private var connection
     @Environment(\.webAuthenticationSession) private var webAuthenticationSession
@@ -67,11 +68,13 @@ struct ConnectionsSection: View {
             isOnline: isOnline,
             enabled: Binding(get: { server.enabled }, set: { value in run { url, urlSession in await store.setEnabled(value, for: server.name, on: url, with: urlSession) } }),
             signIn: { signIn(server) },
-            cancelSignIn: { run { url, urlSession in await store.cancelSignIn(server.name, on: url, with: urlSession) } }
+            cancelSignIn: { run { url, urlSession in await store.cancelSignIn(server.name, on: url, with: urlSession) } },
+            showDetails: { opened = server }
         )
         .help(error ?? "")
         .contextMenu {
             Section {
+                Button("Show Details", systemImage: "info.circle") { opened = server }
                 Button("Test", systemImage: "checkmark.circle") { test(server) }
                     .disabled(!isOnline || !server.enabled)
                 if server.auth == "oauth", isEditable {
@@ -95,6 +98,7 @@ struct ConnectionsSection: View {
             }
         }
         #endif
+        .accessibilityAction(named: "Show Details") { opened = server }
         .accessibilityAction(named: "Test") { test(server) }
     }
 
@@ -127,6 +131,7 @@ private struct ConnectionRow: View {
     @Binding var enabled: Bool
     let signIn: () -> Void
     let cancelSignIn: () -> Void
+    let showDetails: () -> Void
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -135,7 +140,7 @@ private struct ConnectionRow: View {
                 Text(server.name)
                     .lineLimit(1)
                     .truncationMode(.middle)
-                statusLine
+                ConnectionStatusLine(status: status, errorLines: 2)
                     .font(.subheadline)
                 if status == .signingIn {
                     Button("Cancel", action: cancelSignIn)
@@ -162,6 +167,10 @@ private struct ConnectionRow: View {
                 ProgressView()
                     .controlSize(.small)
             }
+            Button("Show Details", systemImage: "info.circle", action: showDetails)
+                .labelStyle(.iconOnly)
+                .buttonStyle(.borderless)
+                .foregroundStyle(.tint)
             if let plugin = server.plugin {
                 Text("From \(plugin)")
                     .font(.subheadline)
@@ -175,9 +184,13 @@ private struct ConnectionRow: View {
         }
         .padding(.vertical, 2)
     }
+}
 
-    @ViewBuilder
-    private var statusLine: some View {
+struct ConnectionStatusLine: View {
+    let status: ConnectionStatus
+    let errorLines: Int?
+
+    var body: some View {
         if status == .off {
             Text("Off").foregroundStyle(.secondary)
         } else if status == .checking {
@@ -191,7 +204,7 @@ private struct ConnectionRow: View {
         } else if case .failed(let message) = status {
             Text(message)
                 .foregroundStyle(.red)
-                .lineLimit(2)
+                .lineLimit(errorLines)
         }
     }
 }

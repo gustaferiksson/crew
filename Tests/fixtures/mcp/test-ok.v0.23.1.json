@@ -1,0 +1,22 @@
+{
+  "ok": true,
+  "tools": [
+    {
+      "name": "ask_wiki_question",
+      "description": "Ask any question about a GitHub repository's codebase and get an AI-powered a...",
+      "schema_chars": 539
+    },
+    {
+      "name": "read_wiki_contents",
+      "description": "View documentation about a GitHub repository.",
+      "schema_chars": 316
+    },
+    {
+      "name": "read_wiki_structure",
+      "description": "Get a list of documentation topics for a GitHub repository.",
+      "schema_chars": 331
+    }
+  ],
+  "prompts": 0,
+  "resources": 0
+}

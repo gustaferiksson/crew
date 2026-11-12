@@ -90,14 +90,23 @@ struct InspectorFixtureScreen: View {
         let server = { (name: String, url: String, auth: String?, enabled: Bool) in
             MCPServer(name: name, transport: "http", url: url, command: nil, args: [], auth: auth, enabled: enabled, source: "config", plugin: nil)
         }
-        let tools = (0..<9).map { MCPTool(name: "tool\($0)") }
+        let deepwikiTools = [
+            MCPTool(name: "ask_wiki_question", description: "Ask any question about a GitHub repository's codebase and get an AI-powered a...", schemaChars: 539),
+            MCPTool(name: "read_wiki_contents", description: "View documentation about a GitHub repository.", schemaChars: 316),
+            MCPTool(name: "read_wiki_structure", description: "Get a list of documentation topics for a GitHub repository.", schemaChars: 331),
+        ]
+        let fileTools = ["read", "write", "edit", "move", "copy", "delete", "list", "search", "stat", "watch", "zip", "unzip"].flatMap { verb in
+            [MCPTool(name: "\(verb)_file", description: "\(verb.capitalized) one file in the shared folder.", schemaChars: 240), MCPTool(name: "\(verb)_folder", description: "\(verb.capitalized) a folder and everything in it, following the folder's sharing rules.", schemaChars: 310)]
+        }
         let entry = { (name: String, description: String, auth: String, installed: Bool) in
             MCPCatalogEntry(name: name, description: description, transport: "http", authType: auth, requiredEnv: [], command: nil, args: [], url: "https://mcp.\(name).com/mcp", postInstall: "", installed: installed)
         }
+        var deepwiki = server("deepwiki", "https://mcp.deepwiki.com/mcp", nil, true)
+        deepwiki.tools = .object(["exclude": .array([.string("read_wiki_s*")])])
         return BotConnections(
             fixture: "ada",
             servers: [
-                server("deepwiki", "https://mcp.deepwiki.com/mcp", nil, true),
+                deepwiki,
                 server("files", "http://host.containers.internal:8766/mcp", "header", true),
                 server("linear", "https://mcp.linear.app/mcp", "oauth", true),
                 server("notion", "https://mcp.notion.com/mcp", "oauth", true),
@@ -105,8 +114,8 @@ struct InspectorFixtureScreen: View {
                 server("wolfram", "https://mcp.wolframalpha.com/mcp", nil, false),
             ],
             tests: [
-                "deepwiki": MCPTestResult(ok: true, error: nil, tools: Array(tools.prefix(3))),
-                "files": MCPTestResult(ok: true, error: nil, tools: tools),
+                "deepwiki": MCPTestResult(ok: true, error: nil, tools: deepwikiTools),
+                "files": MCPTestResult(ok: true, error: nil, tools: fileTools),
                 "linear": MCPTestResult(ok: false, error: "MCP OAuth for 'linear': no cached tokens found.", tools: []),
                 "research-archive-with-a-very-long-server-name": MCPTestResult(ok: false, error: "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate (_ssl.c:1082)", tools: []),
             ],
@@ -163,7 +172,7 @@ struct InspectorFixtureScreen: View {
     @ViewBuilder
     private var inspector: some View {
         if [.inspectorConnections, .addConnection, .customConnection].contains(snapshot) {
-            Form { ConnectionsSection(bot: ada, store: connections, isAdding: .constant(false)) }
+            Form { ConnectionsSection(bot: ada, store: connections, isAdding: .constant(false), opened: .constant(nil)) }
                 .formStyle(.grouped)
         } else if snapshot == .inspectorVoice {
             Form { BotVoicePicker(bot: ada) }
@@ -178,7 +187,9 @@ struct InspectorFixtureScreen: View {
 
     private var botInspector: some View {
         BotInspector(
-            bot: ada, tab: tab, routines: RoutineStore(fixture: snapshot == .inspectorRoutinesEmpty ? [] : routines, stopping: ["a7"]), draft: Snapshot.profileDraft, conversations: conversations, shops: shops, vault: vault, connections: connections, models: Snapshot.profileModels,
+            bot: ada, tab: tab, routines: RoutineStore(fixture: snapshot == .inspectorRoutinesEmpty ? [] : routines, stopping: ["a7"]), draft: Snapshot.profileDraft, conversations: conversations, shops: shops, vault: vault, connections: connections,
+            openedConnection: connections.servers?.first { $0.name == snapshot.flatMap { [.connectionPage: "deepwiki", .connectionPageMany: "files", .connectionPageSignIn: "linear"][$0] } },
+            models: Snapshot.profileModels,
             isPresented: .constant(true)
         )
             .environment(ChatSessions(fixture: [ada.id: ChatSession(fixture: ada, transcript: Transcript(), todos: adaTodos)]))

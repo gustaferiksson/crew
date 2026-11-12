@@ -1,7 +1,7 @@
 ---
 name: crew-ui
 description: Use for recipes, checklists, tables, charts, maps, forms.
-version: 7
+version: 8
 ---
 
 # Rich UI in Crew
@@ -16,7 +16,8 @@ Rules:
 - First message: {"version": "v0.9", "createSurface": {"surfaceId": "<id>", "catalogId": "https://crew.gustaf.dev/catalogs/crew/v1.json"}}. Name the id after the thing, e.g. "tomato-soup-recipe" or "lofoten-packing-list", not "recipe" or "list".
 - Then {"version": "v0.9", "updateComponents": {"surfaceId": "<id>", "components": [...]}}: a flat list where exactly one component has "id": "root" and children are referenced by id, never nested inline. Order it top to bottom (root, Column, Header, then the sections) and put long Steps last, so Crew can draw the card as it arrives.
 - Last, optional state for inputs: {"version": "v0.9", "updateDataModel": {"surfaceId": "<id>", "value": {...}}}.
-- When the user asks to change a card you made ("for 6 people", "make it vegan", "add a column", "fix step 3"), send the whole card again with the same surfaceId: createSurface, components and data. Crew replaces the old card and marks the new one as updated. Use a new surfaceId for a different thing, a side-by-side comparison, or when the user wants to keep the old card.
+- When the user asks to change a card you made ("for 6 people", "make it vegan", "add a column", "fix step 3"), send the whole card again with the same surfaceId: createSurface, components and data. Crew replaces the old card and marks the new one as updated. On a refinement, write the amounts for the new count and set both servings and baseServings to it. Use a new surfaceId for a different thing, a side-by-side comparison, or when the user wants to keep the old card.
+- A recipe card always follows the recipe example below: a servings Stepper under the Header and one CheckBox per ingredient whose label calls "scale", with each amount as a number and its unit separate in the data model ({"amount": 500, "unit": "g", "item": "blandfärs"}, never "500 g blandfärs" in one string or "amount": "500 g"). Never write ingredient amounts into Text, so the user can change the servings on the card without asking you.
 - The root is always a Card whose child is a Column that starts with a Header. Never use a bare Column as the root, and never skip the Header.
 - {"path": "/a/b"} binds a property to the data model. Inside a template ({"componentId": "<id>", "path": "/items"}) paths are relative to the item, like {"path": "name"}.
 
@@ -33,9 +34,12 @@ Components (exact property names):
 - ChoicePicker: "label", "options": [{"label": "...", "value": "..."}], "value" (bound array of strings), "variant": "mutuallyExclusive" | "multipleSelection", "displayStyle": "checkbox" | "chips"
 - DateTimeInput: "label", "value" (bound ISO 8601 string, "" when unset), "enableDate", "enableTime"
 - Slider: "label", "min", "max", "value" (bound number)
+- Stepper (Crew): "label", "min", "max", "value" (bound whole number). Use it for servings, people or portions.
 
-Crew-only components (plain values, no {"path"} bindings):
-- Header: "title", "subtitle" (meta line, e.g. "4 servings · 40 min"), "symbol" (an SF Symbol name such as "fork.knife", "airplane", "cloud.sun.fill", "cup.and.saucer.fill", "cart", "trash"; never an Icon name like "shoppingCart", and an unknown name shows no symbol), "image" (https hero photo), "tone": "accent" | "info" | "success" | "warning" | "critical". Start every card with one instead of a Text title.
+Function for amounts that follow a Stepper: {"call": "scale", "args": {"value": ..., "from": ..., "to": ..., "unit": ..., "item": ..., "one": ...}} returns text like "1½ dl grädde": value × to / from, rounded the way cookbooks write it. Use it as a CheckBox "label" or Text "text". Give "unit" and "item" in the plural ("eggs", "cups", "lökar") and "one" as the singular phrase for rows whose words change with the count ("egg", "cup milk", "lök"); leave out "one" when the words read right at any amount ("ägg", "dl grädde"). A row without "amount" ("salt och peppar") shows only its words.
+
+Crew-only components (plain values, no {"path"} bindings, except Stepper above):
+- Header: "title", "subtitle" (meta line, e.g. "40 min · easy"; for a recipe leave servings to the Stepper), "symbol" (an SF Symbol name such as "fork.knife", "airplane", "cloud.sun.fill", "cup.and.saucer.fill", "cart", "trash"; never an Icon name like "shoppingCart", and an unknown name shows no symbol), "image" (https hero photo), "tone": "accent" | "info" | "success" | "warning" | "critical". Start every card with one instead of a Text title.
 - Steps: "items": ["...", ...], numbered method steps (no "1." prefixes in the strings)
 - Badge: "text", "tone": "neutral" | "info" | "success" | "warning" | "critical", optional "symbol" (SF Symbol name). Short status like "Cheapest", "Idle 14 days"; put several in a Row.
 - Table: "columns": ["..."], "rows": [["...", ...], ...], every cell a string; columns whose cells start with a digit align right
@@ -69,25 +73,28 @@ Example, a decision:
 ]
 ```
 
-Example, a recipe with an ingredient checklist and method:
+Example, a recipe: a servings Stepper under the Header rescales every amount on the device. Put both "servings" and "baseServings" (the servings the amounts are written for) in the data, equal at first:
 ```a2ui
 [
-  {"version": "v0.9", "createSurface": {"surfaceId": "tomato-soup", "catalogId": "https://crew.gustaf.dev/catalogs/crew/v1.json"}},
-  {"version": "v0.9", "updateComponents": {"surfaceId": "tomato-soup", "components": [
+  {"version": "v0.9", "createSurface": {"surfaceId": "pancakes", "catalogId": "https://crew.gustaf.dev/catalogs/crew/v1.json"}},
+  {"version": "v0.9", "updateComponents": {"surfaceId": "pancakes", "components": [
     {"id": "root", "component": "Card", "child": "body"},
-    {"id": "body", "component": "Column", "children": ["header", "ingredients-title", "list", "method-title", "method"]},
-    {"id": "header", "component": "Header", "title": "Tomato Soup", "subtitle": "4 servings · 40 min", "symbol": "fork.knife"},
+    {"id": "body", "component": "Column", "children": ["header", "servings", "ingredients-title", "list", "method-title", "method"]},
+    {"id": "header", "component": "Header", "title": "Pancakes", "subtitle": "30 min", "symbol": "fork.knife"},
+    {"id": "servings", "component": "Stepper", "label": "Servings", "value": {"path": "/servings"}, "min": 1, "max": 12},
     {"id": "ingredients-title", "component": "Text", "text": "Ingredients", "variant": "h4"},
     {"id": "list", "component": "Column", "children": {"componentId": "ingredient", "path": "/ingredients"}},
-    {"id": "ingredient", "component": "CheckBox", "label": {"path": "name"}, "value": {"path": "done"}},
+    {"id": "ingredient", "component": "CheckBox", "value": {"path": "done"}, "label": {"call": "scale", "args": {"value": {"path": "amount"}, "unit": {"path": "unit"},
+      "item": {"path": "item"}, "one": {"path": "one"}, "from": {"path": "/baseServings"}, "to": {"path": "/servings"}}}},
     {"id": "method-title", "component": "Text", "text": "Method", "variant": "h4"},
-    {"id": "method", "component": "Steps", "items": ["Soften the onion and garlic in olive oil, 5 min.", "Add the tomatoes and stock, simmer 25 min.", "Blend smooth and season."]}
+    {"id": "method", "component": "Steps", "items": ["Whisk the flour with half the milk until smooth.", "Whisk in the rest of the milk, the eggs and the salt.", "Fry thin pancakes in butter, about 1 min a side."]}
   ]}},
-  {"version": "v0.9", "updateDataModel": {"surfaceId": "tomato-soup", "value": {"ingredients": [
-    {"name": "1 kg ripe tomatoes", "done": false},
-    {"name": "1 onion", "done": false},
-    {"name": "2 cloves garlic", "done": false},
-    {"name": "5 dl vegetable stock", "done": false}
+  {"version": "v0.9", "updateDataModel": {"surfaceId": "pancakes", "value": {"servings": 4, "baseServings": 4, "ingredients": [
+    {"amount": 2.5, "unit": "dl", "item": "vetemjöl", "done": false},
+    {"amount": 6, "unit": "dl", "item": "mjölk", "done": false},
+    {"amount": 3, "item": "ägg", "done": false},
+    {"amount": 0.5, "unit": "tsk", "item": "salt", "done": false},
+    {"item": "smör till stekning", "done": false}
   ]}}}
 ]
 ```

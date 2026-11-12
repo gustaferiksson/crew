@@ -64,6 +64,16 @@ extension ChatFixture {
         ]
     }
 
+    static func a2uiServingsTurns(_ now: Date, servings: Int) -> [Turn] {
+        let recipe = markdownBlocks(from: crewUISkill).map { String($0.content.characters) }.first { $0.contains(#""component": "Stepper""#) } ?? ""
+        let start = now.addingTimeInterval(-120)
+        return [Turn(
+            id: "s1", prompt: Prompt(text: "Pancakes for 4, please", sentAt: start),
+            reply: "Classic Swedish pancakes, about 30 minutes.\n\n```a2ui\n\(recipe.replacing(#""servings": 4,"#, with: #""servings": \#(servings),"#))\n```",
+            status: .complete, startedAt: start, finishedAt: start.addingTimeInterval(6)
+        )]
+    }
+
     static func a2uiStreamingTurns(_ now: Date) -> [Turn] {
         let partial = """
             Classic köttbullar for 4, about 45 minutes.

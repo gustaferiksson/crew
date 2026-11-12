@@ -28,6 +28,9 @@ struct TranscriptScroll<Revision: Equatable, Content: View>: View {
 
     @State private var isAtBottom = true
     @State private var phase = ScrollPhase.idle
+    #if os(macOS)
+    @State private var visibleHeight: CGFloat = 0
+    #endif
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var followsEnd: Bool {
@@ -42,6 +45,9 @@ struct TranscriptScroll<Revision: Equatable, Content: View>: View {
                     .frame(height: 0)
                     .id(transcriptEnd)
             }
+            #if os(macOS)
+            .frame(minHeight: visibleHeight, alignment: .bottom)
+            #endif
             // An animated jump otherwise fades and slides the rows it leaves over the rows it lands on.
             .transaction { if $0.jumpsToLatest { $0.animation = nil } }
         }
@@ -53,8 +59,8 @@ struct TranscriptScroll<Revision: Equatable, Content: View>: View {
         .defaultScrollAnchor(.bottom, for: .alignment)
         #else
         .defaultScrollAnchor(.bottom, for: .initialOffset)
-        .defaultScrollAnchor(.bottom, for: .alignment)
         .defaultScrollAnchor(followsEnd ? .bottom : nil, for: .sizeChanges)
+        .onScrollGeometryChange(for: CGFloat.self) { $0.containerSize.height } action: { visibleHeight = $1 }
         #endif
         .scrollPosition($position)
         .onScrollGeometryChange(for: BottomEdge.self) { BottomEdge(distance: $0.contentSize.height - $0.visibleRect.maxY + $0.contentInsets.bottom, height: $0.containerSize.height, inset: $0.contentInsets.bottom) } action: { old, new in

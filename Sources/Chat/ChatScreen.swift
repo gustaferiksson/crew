@@ -11,7 +11,6 @@ struct ChatScreen: View {
     @Environment(BotStore.self) private var bots
     @Environment(ChatSessions.self) private var chats
     @Environment(ChatDrafts.self) private var drafts
-    @Environment(CardState.self) private var cardState: CardState?
     @State private var showsOffline = false
     @State private var addingShop: String?
     @State private var confirming: ChatManagement?
@@ -185,12 +184,10 @@ struct ChatScreen: View {
             do {
                 if action == .compact {
                     let headline = try await session.compact()
-                    cardState?.clear(bot.id)
                     outcome = ChatManagementOutcome(title: String(localized: "Chat Compacted"), message: headline ?? "")
                     return
                 }
                 try await session.startNewChat()
-                cardState?.clear(bot.id)
                 if let gateway = connection.gateway { await bots.reload(gateway) }
             } catch {
                 outcome = ChatManagementOutcome(title: action == .compact ? String(localized: "Couldn't Compact Chat") : String(localized: "Couldn't Start New Chat"), message: error.localizedDescription)

@@ -82,7 +82,7 @@ What the user sets on a card (ticks, the Stepper, choice chips, text fields, sli
 
 ## Cleared
 
-- **Start New Chat and Compact Chat:** after the server confirms, the chat's entries go (the cards leave the transcript; `card-updates.md`). The open `ChatView` keeps its processor, so a card still on screen keeps what the user set until the chat closes. A compaction that changed nothing also clears, so such a card resets on the next relaunch; accepted (rare, and Compact is an explicit fresh start).
+- **Start New Chat and Compact Chat:** nothing is cleared, as for pins (`pinned-card.md` > Gone). Compact usually keeps the recent cards, so their ticks stay; entries for cards that left the transcript are never replayed and age out through the 200-card bound.
 - **Deleting the bot:** its entries go, with its draft and pin.
 - **Sign Out:** the whole file is reset, at both call sites that reset drafts and pins (`SettingsView`, `BotsView`); the Mac Sign Out text says Crew forgets "the unsent drafts, pinned cards and card choices on this Mac".
 

@@ -100,18 +100,36 @@ nonisolated func mcpRequest(_ path: String, profile: String, method: String = "G
     return request
 }
 
-nonisolated func copyConnections(_ names: Set<String>, from source: String, to profile: String, on server: URL, with session: URLSession) async throws {
+nonisolated func copyConnections(_ names: Set<String>, from source: String, to profile: String, on server: URL, with session: URLSession) async throws -> [String] {
     var read = hermesRequest("api/config", on: server)
-    read.url?.append(queryItems: [URLQueryItem(name: "profile", value: source)])
+    read.url?.append(queryItems: [URLQueryItem(name: "profile", value: source), URLQueryItem(name: "include_defaults", value: "false")])
     guard case .object(let config) = try await fetch(read, with: session, as: JSONValue.self), case .object(let all) = config["mcp_servers"] ?? .null else {
         throw ProfileError(errorDescription: String(localized: "Couldn't read the connections to copy."))
     }
+
+    var readEnv = hermesRequest("api/env", on: server)
+    readEnv.url?.append(queryItems: [URLQueryItem(name: "profile", value: profile)])
+    guard case .object(let rows) = try await fetch(readEnv, with: session, as: JSONValue.self) else {
+        throw ProfileError(errorDescription: String(localized: "Couldn't read the new bot's keys."))
+    }
+    let setVariables = Set(rows.compactMap { name, row in
+        if case .object(let fields) = row, fields["is_set"] == .bool(true) { name } else { nil }
+    })
+    let chosen = all.filter { names.contains($0.key) }
+    let keyless = try chosen.filter { _, entry in
+        let references = try String(decoding: JSONEncoder().encode(entry), as: UTF8.self).matches(of: /\$\{(\w+)\}/).map { String($0.1) }
+        return !setVariables.isSuperset(of: references)
+    }
+    let copied = chosen.filter { keyless[$0.key] == nil }
+    guard !copied.isEmpty else { return keyless.keys.sorted() }
+
     var write = hermesRequest("api/config", on: server)
     write.url?.append(queryItems: [URLQueryItem(name: "profile", value: profile)])
     write.httpMethod = "PUT"
     write.setValue("application/json", forHTTPHeaderField: "Content-Type")
-    write.httpBody = try JSONEncoder().encode(JSONValue.object(["config": .object(["mcp_servers": .object(all.filter { names.contains($0.key) })])]))
+    write.httpBody = try JSONEncoder().encode(JSONValue.object(["config": .object(["mcp_servers": .object(copied)])]))
     _ = try await fetch(write, with: session, as: JSONValue.self)
+    return keyless.keys.sorted()
 }
 
 nonisolated struct CustomConnection: Equatable, Sendable {

@@ -5,7 +5,7 @@ struct ChatScreen: View {
     let models: ModelSwitcher
     @Binding var showsBot: Bool
     var focus: SearchFocus?
-    let select: (Bot.ID) -> Void
+    var select: ((Bot.ID) -> Void)?
 
     @Environment(Connection.self) private var connection
     @Environment(BotStore.self) private var bots

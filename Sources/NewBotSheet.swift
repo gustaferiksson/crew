@@ -33,6 +33,7 @@ struct NewBotSheet: View {
         let name: String
         var expensiveModel: (choice: ModelChoice, message: String)?
         var unapplied: [String]
+        var keyless: [String] = []
     }
 
     private var slug: String {
@@ -219,7 +220,15 @@ struct NewBotSheet: View {
             }
         } message: { created in
             let unapplied = created.unapplied.isEmpty ? nil : String(localized: "These options weren't applied: \(created.unapplied.formatted(.list(type: .and))). Change them in the bot's inspector.")
-            Text([created.expensiveModel?.message, unapplied].compactMap { $0 }.joined(separator: "\n\n"))
+            let owner = store.bots.first(where: \.isDefault)?.title ?? "default"
+            let keyless: String? = if created.keyless.isEmpty {
+                nil
+            } else if created.keyless.count == 1 {
+                String(localized: "\(created.keyless[0]) wasn't copied: its key stays with \(owner). Add it again from Connections.")
+            } else {
+                String(localized: "\(created.keyless.formatted(.list(type: .and))) weren't copied: their keys stay with \(owner). Add them again from Connections.")
+            }
+            Text([created.expensiveModel?.message, unapplied, keyless].compactMap { $0 }.joined(separator: "\n\n"))
         }
         #if os(macOS)
         .frame(minWidth: 440, idealHeight: 600)
@@ -246,7 +255,7 @@ struct NewBotSheet: View {
             return
         }
         let result = await apply(options, to: profile.name, via: gateway)
-        if result.expensiveModel == nil && result.unapplied.isEmpty {
+        if result.expensiveModel == nil && result.unapplied.isEmpty && result.keyless.isEmpty {
             finish(result.name)
         } else {
             created = result
@@ -264,7 +273,7 @@ struct NewBotSheet: View {
         }
         if source == nil && !options.connections.isEmpty {
             do {
-                try await copyConnections(options.connections, from: "default", to: name, on: gateway.server, with: connection.urlSession)
+                result.keyless = try await copyConnections(options.connections, from: "default", to: name, on: gateway.server, with: connection.urlSession)
             } catch {
                 result.unapplied.append(String(localized: "connections"))
             }

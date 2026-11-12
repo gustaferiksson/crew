@@ -3,6 +3,10 @@ import Testing
 
 private let fixtures = URL(filePath: #filePath).deletingLastPathComponent().deletingLastPathComponent().appending(path: "fixtures")
 
+nonisolated private struct HistoryFile: Decodable {
+    let messages: [HistoryRow]
+}
+
 private func recorded<Value: Decodable>(_ name: String, in scenario: String, as type: Value.Type, keys: JSONDecoder.KeyDecodingStrategy = .useDefaultKeys) throws -> Value {
     let decoder = JSONDecoder()
     decoder.dateDecodingStrategy = .secondsSince1970
@@ -106,4 +110,23 @@ private func coldOpenChat(_ store: BotStore) throws -> (ChatSessions, ChatSessio
     store.showPreview(of: "vera", from: rows)
     let reply = try #require(rows.last)
     #expect(ChatSessions().summary(of: vera, in: store) == BotSummary(status: .idle, preview: "Hi Sam! What can I help you with?", time: Date(timeIntervalSince1970: reply.timestamp)))
+}
+
+@Test func aCardReplyPreviewsItsProseOrItsTitleNeverItsJSON() throws {
+    let decoder = JSONDecoder()
+    decoder.keyDecodingStrategy = .convertFromSnakeCase
+    let rows = try decoder.decode(HistoryFile.self, from: Data(contentsOf: fixtures.appending(path: "chat.a2ui-update.history.json"))).messages
+    let store = BotStore(fixture: [], statuses: [:])
+    store.apply(roster: try recorded("profiles.after", in: "cleared-bot-chat", as: Roster.self).profiles)
+    let vera = try #require(store.bots.first { $0.name == "vera" })
+
+    store.showPreview(of: "vera", from: rows)
+    #expect(ChatSessions().summary(of: vera, in: store).preview == "Here’s a separate vegan version for 6, so your original card stays unchanged. Lentils, mushrooms and oats make tender meatballs with a savoury cream gravy.")
+
+    let reply = try #require(rows.last)
+    let content = try #require(reply.content)
+    let fence = try #require(content.range(of: "```a2ui"))
+    let cardOnly = HistoryRow(id: reply.id, role: reply.role, content: String(content[fence.lowerBound...]), toolCallId: nil, toolCalls: nil, timestamp: reply.timestamp, reasoning: nil, reasoningContent: nil, displayKind: nil, displayContent: nil, displayCommentary: nil, displayReasoning: nil)
+    store.showPreview(of: "vera", from: rows.dropLast() + [cardOnly])
+    #expect(ChatSessions().summary(of: vera, in: store).preview == "Vegan köttbullar with cream gravy")
 }

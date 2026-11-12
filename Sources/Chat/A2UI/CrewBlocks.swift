@@ -121,6 +121,7 @@ struct CrewTable: View {
     let node: Node
 
     @State private var width: CGFloat = 0
+    @State private var natural: CGFloat = 0
 
     var body: some View {
         let columns = (node.array(for: "columns") ?? []).map { $0 as? String ?? "" }
@@ -128,37 +129,44 @@ struct CrewTable: View {
         let numeric = columns.indices.map { column in
             rows.allSatisfy { row in column >= row.count || row[column].first.map { $0.isNumber || "-+−$€£¥".contains($0) } ?? true }
         }
-        let grid = Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 12) {
+        let grid = Grid(alignment: .leading, horizontalSpacing: 0, verticalSpacing: 12) {
             GridRow {
                 ForEach(columns.indices, id: \.self) { index in
+                    if index > 0 {
+                        Color.clear.frame(minWidth: 12, maxWidth: .infinity, maxHeight: 0)
+                    }
                     Text(columns[index])
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(.secondary)
                         .fixedSize()
-                        .frame(maxWidth: .infinity, alignment: numeric[index] ? .trailing : .leading)
+                        .gridColumnAlignment(numeric[index] ? .trailing : .leading)
                 }
             }
             ForEach(rows.indices, id: \.self) { row in
                 Divider()
                 GridRow {
                     ForEach(rows[row].indices, id: \.self) { column in
+                        if column > 0 {
+                            Color.clear.frame(minWidth: 12, maxWidth: .infinity, maxHeight: 0)
+                        }
                         Text(rows[row][column])
                             .font(.subheadline)
                             .monospacedDigit()
                             .fontWeight(column == 0 ? .medium : .regular)
                             .fixedSize()
-                            .frame(maxWidth: .infinity, alignment: column < numeric.count && numeric[column] ? .trailing : .leading)
                     }
                 }
             }
         }
         ScrollView(.horizontal) {
             grid
+                .onGeometryChange(for: CGFloat.self, of: \.size.width) { natural = $0 }
                 .frame(minWidth: width, alignment: .leading)
         }
         .scrollIndicators(.hidden)
         .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
         .onGeometryChange(for: CGFloat.self, of: \.size.width) { width = $0 }
+        .preference(key: TableWidth.self, value: natural)
     }
 }
 

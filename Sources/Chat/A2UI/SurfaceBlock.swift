@@ -15,6 +15,9 @@ struct SurfaceBlock: View {
     @Environment(\.openedCard) private var openedCard
     #endif
     @Environment(\.expandedCards) private var expandedCards
+    #if os(macOS)
+    @Environment(\.cardWidths) private var cardWidths
+    #endif
     @Environment(ChatPins.self) private var pins
     @State private var pinTaps = 0
     @State private var preview: SurfaceViewModel?
@@ -104,7 +107,14 @@ struct SurfaceBlock: View {
                 }
             }
             .background { Color.clear.glassEffect(.regular, in: .rect(cornerRadius: cardCorner)) }
+            #if os(macOS)
+            .onPreferenceChange(TableWidth.self) { width in
+                if width > 0 { cardWidths?.wrappedValue[id] = width }
+            }
+            .frame(maxWidth: expanded?.wrappedValue == true ? max(560, (cardWidths?.wrappedValue[id] ?? 0) + 40) : 560, alignment: .leading)
+            #else
             .frame(maxWidth: 560, alignment: .leading)
+            #endif
             if revised {
                 Text("Updated")
                     .font(.footnote)

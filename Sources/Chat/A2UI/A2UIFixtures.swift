@@ -15,6 +15,7 @@ extension ChatFixture {
             turn("a2", "Can you clean up the old preview deployments?", nil, "Four previews have been idle for over two weeks. Want me to delete them?\n\n```a2ui\n\(skillExamples[0])\n```", 30),
             turn("a3", nil, #"<a2ui-action>{"context":{"choice":"delete"},"name":"decide","sourceComponentId":"delete","surfaceId":"cleanup-previews"}</a2ui-action>"#, "Deleted all four previews.", 29),
             turn("a5", "Compare the weekend flights to Bodø", nil, "Three direct options, Widerøe is the cheapest.\n\n```a2ui\n\(flightsBlock)\n```", 10),
+            turn("a10", "Make a shopping list for the party drinks, with where each one is in the store", nil, "Here's the list, sorted by aisle.\n\n```a2ui\n\(partyListBlock)\n```", 8),
             turn("a4", "Compare the last 7 days of weather in Stockholm as a chart", nil, weatherReply, 5),
             turn("a7", "What are the best coffee spots on Södermalm? Show them on a map.", nil, coffeeReply, 3),
             turn("a6", "Book us a table at Lilla Ego on Friday", nil, "Fill in the details and I'll send the request.\n\n```a2ui\n\(skillExamples[2])\n```", 1),
@@ -122,6 +123,19 @@ extension ChatFixture {
         ]
         ```
         """#
+
+    static let partyListBlock = """
+        [
+          {"version": "v0.9", "createSurface": {"surfaceId": "party-list", "catalogId": "https://crew.gustaf.dev/catalogs/crew/v1.json"}},
+          {"version": "v0.9", "updateComponents": {"surfaceId": "party-list", "components": [
+            {"id": "root", "component": "Card", "child": "body"},
+            {"id": "body", "component": "Column", "children": ["header", "table"]},
+            {"id": "header", "component": "Header", "title": "Inköpslista till festen", "subtitle": "10 drycker · ICA Kvantum", "symbol": "cart", "tone": "success"},
+            {"id": "table", "component": "Table", "columns": ["Köp", "Dryck", "Sektion", "Hylla"],
+              "rows": [["6 st", "Coca-Cola Zero 1,5 l", "Läsk och vatten", "Gång 7, nedre hyllan"], ["4 st", "Loka Citron 1,5 l", "Läsk och vatten", "Gång 7, mitten"], ["3 st", "Alkoholfritt mousserande vin, torrt, 75 cl", "Alkoholfritt", "Gång 8, översta hyllan"], ["2 st", "Apelsinjuice utan fruktkött 1 l", "Mejeri och juice", "Kyldisken, vänster"], ["2 st", "Äppelmust 1 l", "Mejeri och juice", "Kyldisken, vänster"], ["24 st", "Lättöl 33 cl", "Öl och cider", "Gång 9, pall vid kassan"], ["12 st", "Päroncider alkoholfri 33 cl", "Öl och cider", "Gång 9, mitten"], ["3 st", "Tonic water 1 l", "Mixers", "Gång 8, nedre hyllan"], ["2 st", "Ginger beer 4-pack", "Mixers", "Gång 8, mitten"], ["4 påsar", "Isbitar 2 kg", "Frys", "Frysdisken vid ingången, bredvid blommorna"]]}
+          ]}}
+        ]
+        """
 
     static let flightsBlock = """
         [

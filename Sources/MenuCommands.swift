@@ -35,16 +35,16 @@ struct InspectorCommand: View {
 }
 
 struct PinnedCardCommand: View {
-    @FocusedBinding(\.pinnedCardJumps) private var jumps
+    @FocusedBinding(\.showsPinnedCard) private var isPresented
 
     var body: some View {
-        Button("Go to Pinned Card") { jumps? += 1 }
-            .disabled(jumps == nil)
+        Button("Show Pinned Card") { isPresented = true }
+            .disabled(isPresented == nil)
     }
 }
 
 extension FocusedValues {
     @Entry var inspector: Binding<Bool>?
-    @Entry var pinnedCardJumps: Binding<Int>?
+    @Entry var showsPinnedCard: Binding<Bool>?
 }
 #endif

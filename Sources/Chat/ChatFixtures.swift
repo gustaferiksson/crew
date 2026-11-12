@@ -2,7 +2,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 enum ChatFixture {
-    case conversation, history, earlierLoading, earlierFailed, timestamps, workLog, workLogTools, question, questions, questionsSnacks, questionLong, offline, attachments, dictation, mentions, slash, slashOutput, agentMessage, routine, deliveryFailure, limitFailure, a2ui, a2uiCards, a2uiForm, a2uiTable, a2uiChart, a2uiMap, a2uiCarousel, a2uiCarouselStates, a2uiPinned, a2uiExpanded, a2uiProducts, a2uiUpdates, a2uiStreaming
+    case conversation, history, earlierLoading, earlierFailed, timestamps, workLog, workLogTools, question, questions, questionsSnacks, questionLong, offline, attachments, dictation, mentions, slash, slashOutput, agentMessage, routine, deliveryFailure, limitFailure, a2ui, a2uiCards, a2uiForm, a2uiTable, a2uiTableExpanded, a2uiChart, a2uiMap, a2uiCarousel, a2uiCarouselStates, a2uiPinned, a2uiPinnedSheet, a2uiExpanded, a2uiProducts, a2uiUpdates, a2uiStreaming
     case composerLine, composerLines, composerRunning, composerRunningText, steer, steerTaken, waiting
     case payment, paymentHolding, paymentApproved, paymentLoading, paymentFailed, paymentUnverified, paymentPunycode, paymentCountdown, paymentNotice, paymentOffer, paymentOfferHistory, paymentReceipts
 
@@ -16,6 +16,8 @@ enum ChatFixture {
         if self == .a2uiCards { return ChatPresentation(scrollTarget: "a2") }
         if self == .a2uiForm { return ChatPresentation(scrollTarget: "a6") }
         if self == .a2uiTable { return ChatPresentation(scrollTarget: "a5") }
+        if self == .a2uiTableExpanded { return ChatPresentation(expandedCards: ["party-list"]) }
+        if self == .a2uiPinnedSheet { return ChatPresentation(showsPinnedCard: true) }
         if self == .a2uiChart { return ChatPresentation(scrollTarget: "a4") }
         if self == .a2uiMap { return ChatPresentation(scrollTarget: "a7") }
         if self == .a2uiCarouselStates { return ChatPresentation(scrollTarget: "a9") }
@@ -94,7 +96,8 @@ enum ChatFixture {
         if self == .a2uiUpdates { return Transcript(turns: Self.a2uiUpdateTurns(now)) }
         if self == .a2uiStreaming { return Transcript(turns: Self.a2uiStreamingTurns(now)) }
         if self == .a2uiProducts { return Transcript(turns: Self.productTurns(now, count: max(UserDefaults.standard.integer(forKey: "productTurns"), 1))) }
-        if [.a2ui, .a2uiCards, .a2uiForm, .a2uiTable, .a2uiChart, .a2uiMap, .a2uiCarousel, .a2uiCarouselStates, .a2uiPinned, .a2uiExpanded].contains(self) { return Transcript(turns: Self.a2uiTurns(now)) }
+        if self == .a2uiTableExpanded { return Transcript(turns: Self.a2uiTurns(now).filter { $0.id == "a10" }) }
+        if [.a2ui, .a2uiCards, .a2uiForm, .a2uiTable, .a2uiChart, .a2uiMap, .a2uiCarousel, .a2uiCarouselStates, .a2uiPinned, .a2uiPinnedSheet, .a2uiExpanded].contains(self) { return Transcript(turns: Self.a2uiTurns(now)) }
         if self == .paymentReceipts { return Transcript(turns: Self.receiptTurns(now)) }
         if self == .paymentOffer {
             let offer = #"{"error": "{\"success\": false, \"error_type\": \"crew_no_shop_card\", \"crew_payment\": {\"missing_shop\": \"https://www.zalando.de\"}, \"error\": \"There is no card for https://www.zalando.de.\"}"}"#
@@ -483,7 +486,7 @@ struct ChatFixtureScreen: View {
             activity: fixture == .conversation ? "Preparing terminal" : nil,
             models: fixture == .limitFailure ? Snapshot.limitModels : nil,
             earlier: earlier,
-            pinKey: fixture == .a2uiPinned ? "default" : nil,
+            pinKey: [.a2uiPinned, .a2uiPinnedSheet].contains(fixture) ? "default" : nil,
             presentation: fixture.presentation,
             actions: ChatActions(
                 send: { text, _, _, mode in send(text, mode: mode) },
@@ -499,7 +502,7 @@ struct ChatFixtureScreen: View {
         )
         .environment(\.chatSession, session)
         .toolbar {
-            if fixture == .a2uiPinned {
+            if [.a2uiPinned, .a2uiPinnedSheet].contains(fixture) {
                 ToolbarItem(placement: .primaryAction) {
                     Menu("Chat Options", systemImage: "ellipsis") {
                         Button("Compact Chat…", systemImage: "arrow.down.right.and.arrow.up.left") {}

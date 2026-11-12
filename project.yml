@@ -201,6 +201,7 @@ targets:
       - Sources/Chat/A2UI/CrewCatalog.swift
       - Sources/Chat/A2UI/CrewComponents.swift
       - Sources/Chat/A2UI/CrewBlocks.swift
+      - Sources/Chat/A2UI/TableWidth.swift
       - Sources/Chat/A2UI/CrewChartMap.swift
       - Sources/Chat/A2UI/CrewCarousel.swift
       - Sources/Groups/GroupStore.swift

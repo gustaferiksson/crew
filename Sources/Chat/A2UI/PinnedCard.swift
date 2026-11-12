@@ -28,17 +28,19 @@ struct CardSummary {
     let image: URL?
     let symbol: String
     let tint: Color
+    let checklist: (done: Int, total: Int)?
 
     init(_ root: Node?) {
-        var queue = root.map { [$0] } ?? []
-        var header: Node?
-        var text: Node?
-        while !queue.isEmpty, header == nil {
-            let node = queue.removeFirst()
-            if node.type == "Header" { header = node }
-            if node.type == "Text", text == nil { text = node }
-            queue += node.allChildNodes
+        var nodes = root.map { [$0] } ?? []
+        var index = 0
+        while index < nodes.count {
+            nodes += nodes[index].allChildNodes
+            index += 1
         }
+        let header = nodes.first { $0.type == "Header" }
+        let text = nodes.first { $0.type == "Text" }
+        let boxes = nodes.filter { $0.type == "CheckBox" }
+        checklist = boxes.count > 1 ? (boxes.count { $0.bool(for: "value") == true }, boxes.count) : nil
         let line = text?.string(for: "text")?.split(whereSeparator: \.isNewline).first.map { String(cardMarkdown(String($0)).characters) }
         self.header = header?.id
         title = [header?.string(for: "title"), line].compactMap { $0?.trimmingCharacters(in: .whitespaces) }.first { !$0.isEmpty }
@@ -76,6 +78,15 @@ struct PinnedCardChip: View {
                     Text(summary.title ?? fallbackTitle)
                         .font(.subheadline.weight(.medium))
                         .lineLimit(1)
+                    if let checklist = summary.checklist {
+                        Text("\(checklist.done) of \(checklist.total)")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                            .contentTransition(.numericText())
+                            .lineLimit(1)
+                            .layoutPriority(1)
+                    }
                 }
                 .padding(.leading, (height - tile) / 2)
                 .padding(.trailing, 4)
@@ -83,7 +94,8 @@ struct PinnedCardChip: View {
                 .contentShape(.rect)
             }
             .help(summary.title ?? fallbackTitle)
-            .accessibilityValue("Pinned card")
+            .accessibilityLabel(summary.title ?? fallbackTitle)
+            .accessibilityValue(summary.checklist.map { Text("Pinned card, \($0.done) of \($0.total) done") } ?? Text("Pinned card"))
             .accessibilityHint("Shows the card")
             .accessibilityAction(named: "Unpin", unpin)
             Button("Unpin", systemImage: "xmark", action: unpin)

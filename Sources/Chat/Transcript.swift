@@ -160,6 +160,24 @@ nonisolated struct HistoryRow: Decodable, Sendable {
     var displayMetadata: FailureMetadata? = nil
 }
 
+nonisolated private func cardlessReply(_ reply: String) -> String {
+    guard reply.contains("a2ui") else { return reply }
+    let blocks = markdownBlocks(from: a2uiFenced(reply))
+    let cards = blocks.filter { $0.kind == .code(language: "a2ui") }.map { String($0.content.characters) }
+    guard !cards.isEmpty else { return reply }
+
+    let prose = blocks.filter { $0.kind != .code(language: "a2ui") }.map { String($0.content.characters) }.joined(separator: " ")
+    guard prose.allSatisfy(\.isWhitespace) else { return prose }
+
+    let titles = cards.lazy.compactMap { source -> String? in
+        let json = try? JSONSerialization.jsonObject(with: Data(source.utf8))
+        let messages = json as? [[String: Any]] ?? (json as? [String: Any]).map { [$0] } ?? []
+        let components = messages.flatMap { ($0["updateComponents"] as? [String: Any])?["components"] as? [[String: Any]] ?? [] }
+        return components.first { $0["component"] as? String == "Header" }?["title"] as? String
+    }
+    return titles.first ?? String(localized: "Card")
+}
+
 nonisolated func toolSubject(arguments: String) -> String {
     let object = (try? JSONSerialization.jsonObject(with: Data(arguments.utf8))) as? [String: Any] ?? [:]
     let preferred = ["command", "cmd", "path", "file_path", "query", "url", "pattern", "name", "goal", "prompt"]
@@ -340,7 +358,7 @@ extension Transcript {
 
     var lastMessage: LastMessage? {
         guard let turn = turns.last(where: { $0.pending == nil && (!$0.reply.isEmpty || $0.prompt?.text.isEmpty == false || $0.agentMessage != nil || $0.isRoutine) }) else { return nil }
-        let text = turn.reply.isEmpty ? turn.agentMessage.map { String(localized: "Message from \($0.sender)") } ?? turn.prompt?.text ?? turn.notice ?? "" : turn.reply
+        let text = turn.reply.isEmpty ? turn.agentMessage.map { String(localized: "Message from \($0.sender)") } ?? turn.prompt?.text ?? turn.notice ?? "" : cardlessReply(turn.reply)
         return LastMessage(text: text.split(whereSeparator: \.isWhitespace).joined(separator: " "), date: turn.finishedAt ?? turn.prompt?.sentAt ?? turn.startedAt)
     }
 

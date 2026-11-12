@@ -488,7 +488,7 @@ struct ChatFixtureScreen: View {
             activity: fixture == .conversation ? "Preparing terminal" : nil,
             models: fixture == .limitFailure ? Snapshot.limitModels : nil,
             earlier: earlier,
-            pinKey: [.a2uiPinned, .a2uiPinnedSheet].contains(fixture) ? "default" : nil,
+            pinKey: [.a2uiPinned, .a2uiPinnedSheet, .a2uiUpdates].contains(fixture) ? "default" : nil,
             presentation: fixture.presentation,
             actions: ChatActions(
                 send: { text, _, _, mode in send(text, mode: mode) },

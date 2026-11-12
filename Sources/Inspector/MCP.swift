@@ -10,11 +10,24 @@ nonisolated struct MCPServer: Decodable, Equatable, Identifiable, Sendable {
     var enabled: Bool
     let source: String
     let plugin: String?
+    var tools: JSONValue? = nil
 
     var id: String { name }
 
     var address: String {
         url ?? ([command ?? ""] + args).joined(separator: " ")
+    }
+
+    func offers(_ tool: String) -> Bool {
+        guard case .object(let filter) = tools else { return true }
+        let patterns = { (key: String) -> [String]? in
+            if case .string(let pattern) = filter[key] { return [pattern] }
+            guard case .array(let items) = filter[key] else { return nil }
+            return items.compactMap { if case .string(let pattern) = $0 { pattern } else { nil } }
+        }
+        let matches = { (patterns: [String]) in patterns.contains { $0 == tool || fnmatch($0, tool, 0) == 0 } }
+        if let include = patterns("include") { return matches(include) }
+        return !matches(patterns("exclude") ?? [])
     }
 }
 
@@ -24,12 +37,19 @@ nonisolated struct MCPServerList: Decodable, Sendable {
 
 nonisolated struct MCPTool: Decodable, Equatable, Sendable {
     let name: String
+    let description: String?
+    let schemaChars: Int?
 }
 
 nonisolated struct MCPTestResult: Decodable, Equatable, Sendable {
     let ok: Bool
     let error: String?
     let tools: [MCPTool]
+
+    func tokenEstimate(for server: MCPServer) -> Int? {
+        let sizes = tools.filter { server.offers($0.name) }.compactMap(\.schemaChars).filter { $0 > 0 }
+        return sizes.isEmpty ? nil : sizes.reduce(0) { $0 + ($1 + 3) / 4 }
+    }
 }
 
 nonisolated struct MCPEnvSpec: Decodable, Equatable, Sendable {

@@ -4,14 +4,14 @@ import Testing
 
 nonisolated private let fixtures = URL(filePath: #filePath).deletingLastPathComponent().deletingLastPathComponent().appending(path: "fixtures/mcp")
 
-nonisolated private func fixture(_ name: String) -> Data {
-    (try? Data(contentsOf: fixtures.appending(path: "\(name).v0.22.5.json"))) ?? Data()
+nonisolated private func fixture(_ name: String, version: String = "v0.22.5") -> Data {
+    (try? Data(contentsOf: fixtures.appending(path: "\(name).\(version).json"))) ?? Data()
 }
 
-private func decoded<Value: Decodable>(_ name: String, as type: Value.Type) throws -> Value {
+private func decoded<Value: Decodable>(_ name: String, version: String = "v0.22.5", as type: Value.Type) throws -> Value {
     let decoder = JSONDecoder()
     decoder.keyDecodingStrategy = .convertFromSnakeCase
-    return try decoder.decode(type, from: fixture(name))
+    return try decoder.decode(type, from: fixture(name, version: version))
 }
 
 nonisolated private final class MCPServerStub: URLProtocol {
@@ -85,6 +85,30 @@ nonisolated private final class MCPServerStub: URLProtocol {
     #expect(ConnectionStatus(server: linear, test: oauth, isSigningIn: false) == .needsSignIn(oauth.error))
     #expect(ConnectionStatus(server: linear, test: oauth, isSigningIn: true) == .signingIn)
     #expect(ConnectionStatus(server: probe, test: failed, isSigningIn: false) == .failed(failed.error ?? ""))
+}
+
+@Test func connectionPageListsTheRecordedToolsAndTheirCost() throws {
+    let result = try decoded("test-ok", version: "v0.23.1", as: MCPTestResult.self)
+    #expect(result.tools.map(\.name) == ["ask_wiki_question", "read_wiki_contents", "read_wiki_structure"])
+    #expect(result.tools.map(\.description) == ["Ask any question about a GitHub repository's codebase and get an AI-powered a...", "View documentation about a GitHub repository.", "Get a list of documentation topics for a GitHub repository."])
+    #expect(result.tools.map(\.schemaChars) == [539, 316, 331])
+
+    let servers = try decoded("servers-filtered", version: "v0.23.1", as: MCPServerList.self).servers
+    let deepwiki = servers[1], linear = servers[2]
+    var unfiltered = deepwiki
+    unfiltered.tools = nil
+    #expect(result.tokenEstimate(for: unfiltered) == 135 + 79 + 83)
+    #expect(result.tools.map { deepwiki.offers($0.name) } == [true, true, false])
+    #expect(result.tokenEstimate(for: deepwiki) == 135 + 79)
+    #expect(linear.offers("list_issues"))
+    #expect(!linear.offers("create_issue"))
+
+    var blocked = deepwiki
+    blocked.tools = .object(["include": .array([]), "exclude": .array([.string("ask_wiki_question")])])
+    #expect(!result.tools.contains { blocked.offers($0.name) })
+    #expect(result.tokenEstimate(for: blocked) == nil)
+    let polled = MCPTestResult(ok: true, error: nil, tools: [MCPTool(name: "list_issues", description: nil, schemaChars: nil)])
+    #expect(polled.tokenEstimate(for: unfiltered) == nil)
 }
 
 @Test(arguments: [("servers", "GET", false), ("servers/linear/enabled", "PUT", true), ("servers/linear", "DELETE", false), ("catalog/install", "POST", true)])

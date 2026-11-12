@@ -63,4 +63,23 @@ final class InspectorUITests: XCTestCase {
         let dismissed = NSPredicate(format: "exists == false")
         XCTAssertEqual(XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: dismissed, object: sheet)], timeout: 3), .timedOut)
     }
+
+    @MainActor func testConnectionPageSheetStaysOpenAndListsTools() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-snapshot", "inspector-info", "-server", "hermes.example.com", "-username", "gustaf"]
+        app.launch()
+
+        let opener = app.buttons["Show Details"].firstMatch
+        XCTAssertTrue(app.segmentedControls.firstMatch.waitForExistence(timeout: 10))
+        for _ in 0..<10 where !(opener.exists && opener.isHittable) { app.swipeUp(velocity: .slow) }
+        opener.tap()
+
+        let sheet = app.navigationBars["deepwiki"]
+        XCTAssertTrue(sheet.waitForExistence(timeout: 5))
+        let dismissed = NSPredicate(format: "exists == false")
+        XCTAssertEqual(XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: dismissed, object: sheet)], timeout: 3), .timedOut)
+        XCTAssertTrue(app.staticTexts["ask_wiki_question"].exists)
+        sheet.buttons["Done"].tap()
+        XCTAssertTrue(sheet.waitForNonExistence(timeout: 5))
+    }
 }

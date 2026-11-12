@@ -40,13 +40,14 @@ struct BotInspector: View {
     @State private var vault: BotVault
     @State private var connections: BotConnections
     @State private var isAddingConnection = false
+    @State private var openedConnection: MCPServer?
     @FocusState private var focusedField: FocusedField?
 
     private enum FocusedField {
         case name, role, description
     }
 
-    init(bot: Bot, tab: InspectorTab = .info, routines: RoutineStore = RoutineStore(), draft: ProfileDraft? = nil, conversations: [Conversation]? = nil, shops: ShopList? = nil, vault: BotVault? = nil, connections: BotConnections? = nil, models: ModelSwitcher, isPresented: Binding<Bool>, select: ((String) -> Void)? = nil) {
+    init(bot: Bot, tab: InspectorTab = .info, routines: RoutineStore = RoutineStore(), draft: ProfileDraft? = nil, conversations: [Conversation]? = nil, shops: ShopList? = nil, vault: BotVault? = nil, connections: BotConnections? = nil, openedConnection: MCPServer? = nil, models: ModelSwitcher, isPresented: Binding<Bool>, select: ((String) -> Void)? = nil) {
         self.bot = bot
         self.models = models
         _isPresented = isPresented
@@ -57,6 +58,7 @@ struct BotInspector: View {
         _conversations = State(initialValue: conversations)
         _vault = State(initialValue: vault ?? BotVault(profile: bot.name))
         _connections = State(initialValue: connections ?? BotConnections(profile: bot.name))
+        _openedConnection = State(initialValue: openedConnection)
         _shops = State(initialValue: BotShops(profile: bot.name, fixture: shops))
     }
 
@@ -122,6 +124,14 @@ struct BotInspector: View {
         }
         .sheet(isPresented: $isAddingConnection) {
             AddConnectionSheet(bot: bot, store: connections)
+        }
+        .sheet(item: $openedConnection) { server in
+            NavigationStack {
+                ConnectionPage(bot: bot, name: server.name, store: connections)
+            }
+            #if os(macOS)
+            .frame(width: 420, height: 560)
+            #endif
         }
         .sheet(isPresented: $isEditingCard) {
             CardSheet(currentLabel: shops.list.flatMap { $0.card.problem == nil ? $0.card.label : nil }) { card in
@@ -418,7 +428,7 @@ struct BotInspector: View {
                 .disabled(!isEditable)
             }
         }
-        ConnectionsSection(bot: bot, store: connections, isAdding: $isAddingConnection)
+        ConnectionsSection(bot: bot, store: connections, isAdding: $isAddingConnection, opened: $openedConnection)
         BotRooms(bot: bot, isPresented: $isPresented, select: select)
         Section {
             ConversationList(conversations: conversations, failure: conversationFailure) { openedConversation = $0 }

@@ -128,14 +128,16 @@ struct CrewTable: View {
         let numeric = columns.indices.map { column in
             rows.allSatisfy { row in column >= row.count || row[column].first.map { $0.isNumber || "-+−$€£¥".contains($0) } ?? true }
         }
-        let grid = Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 12) {
+        let grid = Grid(alignment: .leading, horizontalSpacing: 0, verticalSpacing: 12) {
             GridRow {
                 ForEach(columns.indices, id: \.self) { index in
+                    if index > 0 {
+                        Color.clear.frame(minWidth: 12, maxWidth: .infinity, maxHeight: 0)
+                    }
                     Text(columns[index])
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(.secondary)
                         .fixedSize()
-                        .frame(maxWidth: index == columns.count - 1 ? .infinity : nil, alignment: numeric[index] ? .trailing : .leading)
                         .gridColumnAlignment(numeric[index] ? .trailing : .leading)
                 }
             }
@@ -143,12 +145,14 @@ struct CrewTable: View {
                 Divider()
                 GridRow {
                     ForEach(rows[row].indices, id: \.self) { column in
+                        if column > 0 {
+                            Color.clear.frame(minWidth: 12, maxWidth: .infinity, maxHeight: 0)
+                        }
                         Text(rows[row][column])
                             .font(.subheadline)
                             .monospacedDigit()
                             .fontWeight(column == 0 ? .medium : .regular)
                             .fixedSize()
-                            .frame(maxWidth: column == columns.count - 1 ? .infinity : nil, alignment: column < numeric.count && numeric[column] ? .trailing : .leading)
                     }
                 }
             }

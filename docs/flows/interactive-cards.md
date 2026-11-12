@@ -36,7 +36,8 @@ The amount shown is `value × to / from`. When `to` equals `from` (the card as t
 - **Never zero:** a positive amount shows at least the smallest step (¼, or ½ for countables, 1 for fine metric).
 - **Fractions, not decimals:** the only digits shown are whole numbers and the Unicode vulgar fractions, so Swedish ("1½ dl") and English ("1½ cups") read right whatever the device locale, with no `,` vs `.` decimal question. No digit grouping (`1250 g`), which reads correctly in both languages.
 - **Singular and plural:** `unit` and `item` are written in the plural (`eggs`, `cups`, `lökar`, `klyftor vitlök`) and `one` is the singular phrase that replaces both when the shown amount is 1 or less (`1 egg`, `½ cup milk`, `1 lök`, `1 klyfta vitlök`). The skill requires `one` for every row whose words change with the count, in any language; rows like `ägg` or `dl grädde` that read right at any amount leave it out.
-- **No amount** (`salt och peppar`, `to serve`): a missing or non-numeric `value` shows `unit item` alone, never "0".
+- **No amount** (`salt och peppar`, `to serve`): a missing `value` shows `unit item` alone, never "0".
+- **Amounts baked into text** (a bot whose own skill writes "500 g mince" as one label, or `"amount": "500 g"`): the row shows exactly what was written and does not scale. A recipe whose labels are plain strings (`{"path": "name"}`) ignores the Stepper the same way. The skill says a scalable quantity is a number plus a separate unit.
 - **Bad servings:** a missing, zero or non-numeric `from` or `to` shows the written amounts unscaled.
 
 ## The Stepper
@@ -82,7 +83,7 @@ The Stepper resets to the bot's servings whenever the chat's `SurfaceStore` is r
 - **Unknown function name or a `scale` call missing `from`/`to`/`value` keys:** schema validation fails the card as today ("Couldn't display this card" with the raw block). `scale` itself never fails at render time.
 - **Long ingredient text:** wraps like any CheckBox label (no truncation). Long Stepper label: wraps on iPhone, the value and control stay trailing.
 - **Large servings** (`max` 99, `to` 40 from 4): amounts grow to whole numbers (`5000 g`, `40 dl`); no unit conversion.
-- **Dynamic Type:** system controls; at accessibility sizes the row wraps as LabeledContent does.
+- **Dynamic Type:** system controls; at accessibility sizes the label wraps and the value and Stepper stay trailing.
 
 ## Slider and Chart (later in this issue, not in this change)
 

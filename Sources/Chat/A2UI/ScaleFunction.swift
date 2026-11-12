@@ -11,6 +11,9 @@ nonisolated struct ScaleFunction: FunctionImplementation {
 
     func evaluate(arguments: [String: OrderedJSON.JSONValue], context: DataContext) throws -> OrderedJSON.JSONValue {
         let number = { (key: String) in arguments[key]?.doubleValue ?? arguments[key]?.stringValue.flatMap { Double($0) } }
+        if let written = arguments["value"]?.stringValue, Double(written) == nil {
+            return .string([written, arguments["unit"]?.stringValue ?? "", arguments["item"]?.stringValue ?? ""].filter { !$0.isEmpty }.joined(separator: " "))
+        }
         return .string(scaledAmount(
             number("value"), from: number("from"), to: number("to"),
             unit: arguments["unit"]?.stringValue ?? "", item: arguments["item"]?.stringValue ?? "", one: arguments["one"]?.stringValue ?? ""
@@ -24,6 +27,8 @@ nonisolated func scaledAmount(_ value: Double?, from: Double?, to: Double?, unit
 
     let ratio = if let from, let to, from.isFinite, to.isFinite, from > 0, to > 0 { to / from } else { 1.0 }
     let amount = value * ratio
+    guard value < 1_000_000_000, amount < 1_000_000_000 else { return words }
+
     let kind = unit.lowercased()
     let isCountable = ["", "st", "pcs"].contains(kind)
     let shown: Double

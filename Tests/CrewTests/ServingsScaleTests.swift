@@ -75,6 +75,36 @@ private func skillRecipe() throws -> String {
     #expect(scaledAmount(nil, from: 4, to: 6, unit: "", item: "salt och peppar", one: "") == "salt och peppar")
     #expect(scaledAmount(2, from: 0, to: 6, unit: "dl", item: "grädde", one: "") == "2 dl grädde")
     #expect(scaledAmount(2, from: 4, to: nil, unit: "dl", item: "grädde", one: "") == "2 dl grädde")
+    #expect(scaledAmount(1e19, from: 4, to: 4, unit: "g", item: "socker", one: "") == "g socker", "an absurd amount shows the words instead of trapping")
+    #expect(scaledAmount(2, from: 1e-300, to: 12, unit: "dl", item: "grädde", one: "") == "dl grädde")
+}
+
+@MainActor @Test func aRecipeWithAmountsBakedIntoItsLabelsShowsThemUnchanged() throws {
+    let block = """
+        [
+          {"version": "v0.9", "createSurface": {"surfaceId": "baked", "catalogId": "https://crew.gustaf.dev/catalogs/crew/v1.json"}},
+          {"version": "v0.9", "updateComponents": {"surfaceId": "baked", "components": [
+            {"id": "root", "component": "Card", "child": "body"},
+            {"id": "body", "component": "Column", "children": ["header", "servings", "plain", "scaled"]},
+            {"id": "header", "component": "Header", "title": "Köttbullar", "subtitle": "4 servings"},
+            {"id": "servings", "component": "Stepper", "label": "Servings", "value": {"path": "/servings"}},
+            {"id": "plain", "component": "Column", "children": {"componentId": "plain-item", "path": "/plain"}},
+            {"id": "plain-item", "component": "CheckBox", "label": {"path": "name"}, "value": {"path": "done"}},
+            {"id": "scaled", "component": "Column", "children": {"componentId": "scaled-item", "path": "/scaled"}},
+            {"id": "scaled-item", "component": "CheckBox", "value": {"path": "done"}, "label": {"call": "scale", "args": {"value": {"path": "amount"},
+              "unit": {"path": "unit"}, "item": {"path": "item"}, "from": {"path": "/baseServings"}, "to": {"path": "/servings"}}}}
+          ]}},
+          {"version": "v0.9", "updateDataModel": {"surfaceId": "baked", "value": {"servings": 4, "baseServings": 4,
+            "plain": [{"name": "500 g mince", "done": false}, {"name": "1 egg", "done": false}],
+            "scaled": [{"item": "500 g mince", "done": false}, {"amount": "1 dl", "item": "grädde", "done": false}]}}}
+        ]
+        """
+    let model = try surface(block)
+    let written = ["500 g mince", "1 egg", "500 g mince", "1 dl grädde"]
+    #expect(labels(model) == written)
+
+    try turnStepper(model, to: 8)
+    #expect(labels(model) == written, "amounts written into text never scale or vanish")
 }
 
 nonisolated private struct HistoryFile: Decodable {

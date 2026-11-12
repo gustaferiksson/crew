@@ -301,8 +301,7 @@ extension Transcript {
                 exchanges[turn.id] = shown.count
                 var exchange = turn
                 exchange.prompt = nil
-                exchange.reply = ""
-                exchange.work = [WorkItem(id: "\(turn.id)-message", kind: .note(quote(message.body)), startedAt: turn.startedAt)] + log(turn)
+                exchange.work = [WorkItem(id: "\(turn.id)-message", kind: .note(quote(message.body)), startedAt: turn.startedAt)] + turn.work
                 shown.append(exchange)
                 continue
             }
@@ -344,7 +343,7 @@ extension Transcript {
 
     var lastMessage: LastMessage? {
         guard let turn = turns.last(where: { $0.pending == nil && (!$0.reply.isEmpty || $0.prompt?.text.isEmpty == false || $0.agentMessage != nil || $0.isRoutine) }) else { return nil }
-        let text = turn.agentMessage.map { String(localized: "Message from \($0.sender)") } ?? (turn.reply.isEmpty ? turn.prompt?.text ?? turn.notice ?? "" : turn.reply)
+        let text = turn.reply.isEmpty ? turn.agentMessage.map { String(localized: "Message from \($0.sender)") } ?? turn.prompt?.text ?? turn.notice ?? "" : turn.reply
         return LastMessage(text: text.split(whereSeparator: \.isWhitespace).joined(separator: " "), date: turn.finishedAt ?? turn.prompt?.sentAt ?? turn.startedAt)
     }
 

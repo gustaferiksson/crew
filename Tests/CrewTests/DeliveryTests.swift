@@ -61,7 +61,7 @@ private let peerRows = #"""
     #expect(visible.turns.map(\.id) == ["360", "call_cc3a7b7662b447deaa178d7a23724ee9-to", "364", "366"])
     #expect(visible.turns[2].reply == "@crew-test-f0ab5f: “Hello to you and the user!”")
     #expect(visible.turns[3].agentMessage?.sender == "Crew Peer")
-    #expect(try transcript(peerRows).visible.lastMessage?.text == "Message from Crew Peer")
+    #expect(try transcript(peerRows).visible.lastMessage?.text == "@crew-test-f0ab5f’s separate follow-up: “What would you like to test next?”")
 }
 
 @Test func targetFoldsItsExchangeAndDeliveryIntoOneRow() throws {
@@ -69,9 +69,10 @@ private let peerRows = #"""
     #expect(target.turns.map(\.delivery) == [nil, "proc_747c697fd2e6"])
     #expect(target.turns[1].prompt == nil)
     #expect(target.visible.turns.map { $0.outgoingMessage.map { "to \($0.handle)" } ?? $0.id } == ["5", "to crew-test"])
-    #expect(notes(target.visible.turns[0]) == ["> The user sends another greeting; please say hello back.", nil, "Hello again! 👋", "Crew Test confirmed receipt of my greeting."])
+    #expect(notes(target.visible.turns[0]) == ["> The user sends another greeting; please say hello back.", nil, "Crew Test confirmed receipt of my greeting."])
+    #expect(target.visible.turns[0].reply == "Hello again! 👋")
     #expect(target.visible.turns[0].finishedAt == Date(timeIntervalSince1970: 1792127292.1401896))
-    #expect(target.visible.lastMessage?.text == "Message from Crew Test")
+    #expect(target.visible.lastMessage == LastMessage(text: "Hello again! 👋", date: Date(timeIntervalSince1970: 1792127292.1401896)))
 }
 
 @Test func foldedDeliveryKeepsTheExchangeFailure() throws {
@@ -140,7 +141,7 @@ private let peerRows = #"""
     ]
     """#
     #expect(try transcript(rows).visible.turns.map(\.id) == ["11", "call_4abd74874a61445388e0d82da3dd3da7-to"])
-    #expect(try transcript(rows).visible.lastMessage?.text == "Message from Crew Test")
+    #expect(try transcript(rows).visible.lastMessage?.text == "Hello again! 👋")
 }
 
 @Test func onlyWorkingAndWaitingCountAsBusy() {

@@ -34,8 +34,8 @@ func notes(_ turn: Turn) -> [String?] {
     #expect(notes(visible.turns[1]) == ["> Hello! Please pass my greeting along to the user."])
     #expect(visible.turns[1].deliveryFailure?.isUnconfirmed == true)
     #expect(visible.turns[0].prompt == nil)
-    #expect(visible.turns[0].reply.isEmpty)
-    #expect(notes(visible.turns[0]) == ["> The user is greeting you—please say hello back.", nil, "Hello!"])
+    #expect(visible.turns[0].reply == "Hello!")
+    #expect(notes(visible.turns[0]) == ["> The user is greeting you—please say hello back.", nil])
     #expect(visible.turns[2].reply == "Just hello.")
 }
 
@@ -50,8 +50,9 @@ func notes(_ turn: Turn) -> [String?] {
     #expect(transcript.turns.last?.agentMessage == AgentMessage("Message from Scout (@scout): Flights found."))
     let exchange = transcript.visible.turns.last
     #expect(exchange?.status == .streaming)
-    #expect(exchange.map(notes) == ["> Flights found.", "Thanks, Scout."])
-    #expect(transcript.visible.lastMessage?.text == "Message from Scout")
+    #expect(exchange.map(notes) == ["> Flights found."])
+    #expect(exchange?.reply == "Thanks, Scout.")
+    #expect(transcript.visible.lastMessage?.text == "Thanks, Scout.")
 }
 
 @Test func replyToOwnMessageStaysHiddenButASecondMessageShows() {

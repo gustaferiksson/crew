@@ -42,6 +42,25 @@ private func rows(_ turns: [Turn]) -> [String] {
     #expect(outgoing.deliveryFailure == nil)
 }
 
+@Test func exchangeShowsItsLastReplyOutsideTheCollapsedRow() throws {
+    let history = try recorded("default")
+    let question = try #require(history.first { $0.id == 1081 }?.content)
+    let shown = Transcript(history: history).visible.turns
+    let exchange = try #require(shown.first { $0.id == "1080" })
+    #expect(exchange.agentMessage?.handle == "scout")
+    #expect(exchange.reply == question)
+    #expect(!exchange.work.contains { $0.kind == .note(question) })
+    #expect(shown.filter { $0.agentMessage != nil }.map(\.reply) == [
+        "Scout, I saved the transcript to the shared folder. My reply to you was not delivered: your chat was busy.",
+        "I've sent Scout guidance rather than splitting the file. The gap is bounded paging.",
+        question,
+        "Scout, read-only checks returned: Hermes Agent v0.23.0.",
+    ])
+
+    let preview = Transcript(history: history.filter { $0.id <= 1081 }).visible.lastMessage
+    #expect(preview == LastMessage(text: "Scout confirmed the gap: the file tool has no paging. **Do you approve adding a paged reader?**", date: Date(timeIntervalSince1970: try #require(history.first { $0.id == 1081 }?.timestamp))))
+}
+
 @Test func refusedMessageAgentCallShowsItsRowWithTheFailure() throws {
     let shown = Transcript(history: try recorded("default")).visible.turns
     let refused = shown[2]
@@ -87,7 +106,7 @@ private func rows(_ turns: [Turn]) -> [String] {
     #expect(!earlier.work.contains { $0.kind == .note("Scout, read-only checks returned: Hermes Agent v0.23.0.") })
 
     #expect(shown[6].agentMessage?.body == "Understood, I keep the task. The file tool only has head and tail reads; proposed fix: a paged reader.")
-    #expect(shown[6].work.last?.kind == .note("Scout confirmed the gap: the file tool has no paging. **Do you approve adding a paged reader?**"))
+    #expect(shown[6].reply == "Scout confirmed the gap: the file tool has no paging. **Do you approve adding a paged reader?**")
 
     let appended = shown[7]
     #expect(appended.agentMessage == AgentMessage(sender: "Scout", handle: "scout", body: "Please check the live Hermes version of our instance."))
@@ -96,17 +115,17 @@ private func rows(_ turns: [Turn]) -> [String] {
     #expect(appended.status == .complete)
     #expect(appended.startedAt == time(1083))
     #expect(appended.finishedAt == time(1091))
-    try #require(appended.work.count == 3)
+    try #require(appended.work.count == 2)
     #expect(appended.work[0].kind == .note("> Please check the live Hermes version of our instance."))
     guard case .tool(let check) = appended.work[1].kind else { Issue.record("expected the version check"); return }
     #expect(check.name == "terminal")
     #expect(check.result == #"{"output": "Hermes Agent v0.23.0", "exit_code": 0, "error": null}"#)
-    #expect(appended.work[2].kind == .note("Scout, read-only checks returned: Hermes Agent v0.23.0."))
+    #expect(appended.reply == "Scout, read-only checks returned: Hermes Agent v0.23.0.")
 }
 
 @Test func coalescedExchangeSetsThePreview() throws {
     let history = try recorded("default")
-    let latest = LastMessage(text: "Message from Scout", date: Date(timeIntervalSince1970: try #require(history.first { $0.id == 1091 }?.timestamp)))
+    let latest = LastMessage(text: "Scout, read-only checks returned: Hermes Agent v0.23.0.", date: Date(timeIntervalSince1970: try #require(history.first { $0.id == 1091 }?.timestamp)))
     #expect(Transcript(history: history).visible.lastMessage == latest)
 
     let window = Transcript(history: history.filter { $0.id >= 1082 }).visible

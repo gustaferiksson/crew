@@ -8,8 +8,11 @@ import Testing
     var position = ScrollPosition()
     var top: CGFloat = 0
     var distance: CGFloat = 0
+    var topInset: CGFloat = 0
+    var barTop: CGFloat = 0
     var watched: Int?
     var watchedFrame = CGRect.zero
+    var watchedBottom: CGFloat = 0
     var animatedRows = Set<Int>()
 }
 
@@ -23,18 +26,25 @@ private struct Column: View {
                     Text(text)
                         .id(index)
                         .transaction { if $0.animation != nil { model.animatedRows.insert(index) } }
-                        .onGeometryChange(for: CGRect.self) { $0.frame(in: .scrollView) } action: { if index == model.watched { model.watchedFrame = $0 } }
+                        .onGeometryChange(for: [CGRect].self) { [$0.frame(in: .scrollView), $0.frame(in: .global)] } action: {
+                            guard index == model.watched else { return }
+                            model.watchedFrame = $0[0]
+                            model.watchedBottom = $0[1].maxY
+                        }
                 }
             }
             .scrollTargetLayout()
             .padding(16)
         }
-        .onScrollGeometryChange(for: [CGFloat].self) { [$0.visibleRect.minY, $0.contentSize.height - $0.visibleRect.maxY + $0.contentInsets.bottom] } action: {
+        .onScrollGeometryChange(for: [CGFloat].self) { [$0.visibleRect.minY, $0.contentSize.height - $0.visibleRect.maxY + $0.contentInsets.bottom, $0.contentInsets.top] } action: {
             model.top = $1[0]
             model.distance = $1[1]
+            model.topInset = $1[2]
         }
-        .safeAreaBar(edge: .bottom) {
-            Color.gray.frame(height: model.barHeight)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            Color.gray
+                .frame(height: model.barHeight)
+                .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).minY } action: { model.barTop = $0 }
         }
     }
 }
@@ -76,14 +86,43 @@ private let rows = (0..<300).map { String(repeating: "Row \($0) has a few words 
 }
 
 @MainActor struct TranscriptScrollTests {
-    private func host(_ model: ScrollModel) -> NSWindow {
-        let window = OffscreenWindow(size: NSSize(width: 600, height: 700), styleMask: [.titled, .resizable])
+    private func host(_ model: ScrollModel, styleMask: NSWindow.StyleMask = [.titled, .resizable]) -> NSWindow {
+        let window = OffscreenWindow(size: NSSize(width: 600, height: 700), styleMask: styleMask)
         window.isRestorable = false
         window.contentViewController = NSHostingController(rootView: Column(model: model))
         window.setContentSize(NSSize(width: 600, height: 700))
         window.orderBack(nil)
         settle()
         return window
+    }
+
+    @Test func aShortTranscriptSitsOnTheBarWithoutScrolling() throws {
+        let model = ScrollModel()
+        let window = host(model, styleMask: [.titled, .resizable, .fullSizeContentView])
+        defer { window.orderOut(nil) }
+        model.rows = ["Hey, are you up?", "Always. What are we working on tonight?"]
+        model.watched = 1
+        settle(1)
+        #expect(model.topInset > 0, "no title bar inset")
+        #expect(abs(model.top + model.topInset) < 1 && abs(model.distance) < 1, "a chat that fits scrolls: top \(model.top + model.topInset) under the title bar, \(model.distance) past the bar")
+        #expect(abs(model.watchedBottom + 16 - model.barTop) < 1, "last row ends at \(model.watchedBottom + 16), bar at \(model.barTop)")
+
+        let content = try #require(window.contentView)
+        let scroll = try #require(scrollView(in: content))
+        userScroll(scroll, by: 200)
+        #expect(model.distance + model.top + model.topInset <= 1, "after a user scroll the chat scrolls by \(model.distance + model.top + model.topInset)")
+        #expect(model.distance < 40, "Jump to Latest shows at \(model.distance)")
+
+        for height in [900.0, 500.0] {
+            window.setContentSize(NSSize(width: 600, height: height))
+            settle()
+            #expect(abs(model.top + model.topInset) < 1 && abs(model.distance) < 1, "resized to \(height): top \(model.top + model.topInset) under the title bar, \(model.distance) past the bar")
+            #expect(abs(model.watchedBottom + 16 - model.barTop) < 1, "resized to \(height): last row ends at \(model.watchedBottom + 16), bar at \(model.barTop)")
+        }
+
+        model.rows += rows.prefix(40)
+        settle()
+        #expect(abs(model.distance) < 1, "grew past the window \(model.distance)")
     }
 
     @Test func theEndStaysInViewWhileTheReaderIsThere() throws {

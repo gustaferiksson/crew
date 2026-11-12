@@ -27,9 +27,8 @@ struct CardPreview: View {
     @State private var frame = CGRect.zero
 
     var body: some View {
-        if model.rootNode != nil {
-            preview(CardSummary(model.rootNode))
-        }
+        preview(CardSummary(model.rootNode))
+            .redacted(reason: model.rootNode == nil ? .placeholder : [])
     }
 
     private func preview(_ summary: CardSummary) -> some View {

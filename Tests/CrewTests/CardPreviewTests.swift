@@ -1,4 +1,5 @@
 import Foundation
+import OrderedJSON
 import Testing
 
 nonisolated private struct HistoryFile: Decodable {
@@ -39,4 +40,28 @@ private let fixtures = URL(filePath: #filePath).deletingLastPathComponent().dele
     }
     #expect(try summary(of: card("https://example.com/lofoten.jpg")).image == URL(string: "https://example.com/lofoten.jpg"))
     #expect(try summary(of: card("http://example.com/lofoten.jpg")).image == nil)
+}
+
+@MainActor @Test func theChecklistCountFollowsTheRecordedTicksAndANewOne() throws {
+    let decoder = JSONDecoder()
+    decoder.keyDecodingStrategy = .convertFromSnakeCase
+    let rows = try decoder.decode(HistoryFile.self, from: Data(contentsOf: fixtures.appending(path: "chat.a2ui-update.history.json"))).messages
+    let tickOff = try #require(rows.lastIndex { $0.content?.hasPrefix("Ticked off the onion and breadcrumbs") == true })
+    let store = SurfaceStore()
+    store.sync(Transcript(history: Array(rows[...tickOff])))
+    let model = try #require(store.processor.surfaceGroupModel["kottbullar-for-four"])
+    let boxes = (model.dataModel.get("/meat")?.arrayValue?.count ?? 0) + (model.dataModel.get("/gravy")?.arrayValue?.count ?? 0)
+    #expect(boxes == 17)
+
+    let ticked = try #require(CardSummary(model.rootNode).checklist)
+    #expect(ticked.done == 2)
+    #expect(ticked.total == boxes)
+
+    model.dataModel.set("/gravy/0/done", value: .boolean(true))
+    #expect(CardSummary(model.rootNode).checklist?.done == 3)
+}
+
+@MainActor @Test func aSingleCheckBoxIsNotAChecklist() throws {
+    let card = #"```a2ui"# + "\n" + #"[{"version":"v0.9","createSurface":{"surfaceId":"s","catalogId":"https://crew.gustaf.dev/catalogs/crew/v1.json"}},{"version":"v0.9","updateComponents":{"surfaceId":"s","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["h","agree"]},{"id":"h","component":"Header","title":"Booking"},{"id":"agree","component":"CheckBox","label":"I agree","value":{"path":"/agree"}}]}}]"# + "\n```"
+    #expect(try summary(of: card).checklist == nil)
 }

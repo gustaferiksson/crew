@@ -36,8 +36,9 @@ The logic (newest card in, pinned card out) lives in `ChatPins` so `CrewTests` c
 ## The chip
 
 - **Where:** in the chat's bottom bar stack, directly above the composer (or the voice composer while a voice message records) and below any payment, approval, question or shop card. While one of those cards shows the chip is hidden (the stack would get tall); it comes back when the card goes. In a room it also hides while a Reply chip shows above the composer (`docs/flows/room-reply.md`), and comes back after the send or Cancel Reply. An approval or question arriving also closes any open card sheet or popover (`docs/flows/compact-cards.md`); a payment notice or shop offer only hides the chip.
-- **Look:** a Liquid Glass capsule drawn behind the content (`.background { Color.clear.glassEffect(.regular.interactive(), in: .capsule) }`, PLAN's no-glass-in-glass rule): a 24 pt circle with the card's symbol in white on the tone's gradient (the preview tile, smaller and round), then the title in `.subheadline.weight(.medium)`, one line, tail truncation, 4 pt trailing padding, then the X. 36 pt high on iOS, 30 pt on the Mac, both `@ScaledMetric` (a 36 pt target like the system's small capsule buttons; the 8 pt gap to the composer keeps it clear of the `+`). On the Mac the title is also its help tag.
+- **Look:** a Liquid Glass capsule drawn behind the content (`.background { Color.clear.glassEffect(.regular.interactive(), in: .capsule) }`, PLAN's no-glass-in-glass rule): a 24 pt circle with the card's symbol in white on the tone's gradient (the preview tile, smaller and round), then the title in `.subheadline.weight(.medium)`, one line, tail truncation, then the checklist progress when the card has one, 4 pt trailing padding, then the X. 36 pt high on iOS, 30 pt on the Mac, both `@ScaledMetric` (a 36 pt target like the system's small capsule buttons; the 8 pt gap to the composer keeps it clear of the `+`). On the Mac the title is also its help tag.
 - **Width and alignment:** content width, leading-aligned at the composer's own leading margin (iOS 28 pt with the keyboard hidden, 16 pt while the composer is focused; Mac 16 pt), so its left edge lines up with the `+` button. A long title truncates at the composer's trailing margin.
+- **Checklist progress** (like Reminders' "3 of 8"): when the live surface has two or more `CheckBox` components (after templates expand, so a recipe's ingredient rows each count), "<ticked> of <total>" follows the title in `.subheadline`, secondary, monospaced digits, with a numeric content transition as boxes are ticked in the sheet. The title truncates first (the count has the higher layout priority). A single check box is a form control (a consent box), not a checklist, so it shows no count. Rendered with the `chat-a2ui-updates` fixture, which pins its köttbullar card ("1 of 3").
 - **Unpin button:** a trailing `xmark` (`.caption2.weight(.bold)`, secondary) in a frame as wide as the chip's height minus 4 pt and as tall as the chip, labelled "Unpin", help tag Unpin on the Mac.
 - **Context menu:** Unpin (`pin.slash`). Also an "Unpin" accessibility action on the chip.
 - **Unpinned:** the chip scales to half toward its leading edge and fades out (`.scale(0.5, anchor: .leading)` with `.opacity`).
@@ -89,7 +90,7 @@ View > Show Pinned Card, after Show/Hide Inspector, no shortcut, disabled when t
 
 ## VoiceOver and keyboard
 
-- The chip is two buttons: the chip itself (label "<title>", value "Pinned card", hint "Shows the card", and an "Unpin" action) and its X, labelled "Unpin".
+- The chip is two buttons: the chip itself (label "<title>", value "Pinned card", or "Pinned card, 3 of 8 done" for a checklist, hint "Shows the card", and an "Unpin" action) and its X, labelled "Unpin".
 - The sheet's title is the card title; Close and Unpin are labelled.
 - Mac: View > Show Pinned Card from the menu bar (keyboard menu navigation); the chip is focusable with full keyboard navigation and Space opens the sheet; Escape closes it.
 
@@ -100,6 +101,8 @@ The surface gets its own `.contextMenu` with Pin Card or Unpin Card, outside the
 ## Tests
 
 - Unit (`ChatPinsTests`): unchanged; the pin rule did not change.
+- Unit (`CardPreviewTests`): the recorded köttbullar card after its tick-off reply counts 2 of 17 (17 = the `/meat` and `/gravy` rows of its data model), and 3 of 17 after one more box is set through the surface's data model; a card with one check box has no count.
+- Renders: `chat-a2ui-updates` on iOS and Mac, light and dark, shows the chip with "1 of 3"; Mac offscreen probe on it at `width:0`: `PROBE survived`.
 - UI (`PinnedCardUITests`, private simulator, fixture `chat-a2ui-pinned`): the chip (label the card's title, value "Pinned card") sits above the composer with its Unpin X inside it, not in the navigation bar, and its tap opens the sheet, which stays open 3 s; swiping down keeps the chip; Unpin in the sheet keeps the sheet open and the chip goes; the preview opens the same sheet and Pin brings the chip back; the chip's X removes it and Pin Card on a preview brings it back; the chip's context menu Unpin removes it and Pin Card brings it back again; with the chip's sheet open, tapping another preview swaps the card. Fails on `main`: the pin is a navigation bar button there.
 - Renders: `chat-a2ui-pinned` on iOS and Mac, light and dark.
 - Mac offscreen probe with the pinned fixture at `width:0`: `PROBE survived`.

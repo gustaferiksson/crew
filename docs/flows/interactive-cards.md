@@ -30,7 +30,7 @@ with data `{"servings": 4, "baseServings": 4, "ingredients": [{"amount": 500, "u
 The amount shown is `value × to / from`. When `to` equals `from` (the card as the bot wrote it) the amount shows exactly as written (`33 g`, `1.2 kg` in the device's decimal style), so the card never changes the bot's numbers before anyone touches the Stepper. Otherwise Crew owns the rounding so the model can't get it wrong:
 
 - **Fine metric units** (`g`, `ml`, `mg`): whole numbers, rounded to 1 below 20, 5 below 500, 10 below 1000, 50 from 1000 (`375 g`, `1250 g`). No unit conversion (500 g never becomes 0.5 kg): the model's unit stays.
-- **Everything else** (`dl`, `cl`, `l`, `kg`, `msk`, `tsk`, `krm`, `tbsp`, `tsp`, `cup`, `burk`, `paket`, any unknown unit): below 10, the nearest of whole plus ¼, ⅓, ½, ⅔, ¾ (`1½ dl`, `⅔ cup`, `2¼ tsk`); from 10, whole numbers.
+- **Everything else** (`dl`, `cl`, `l`, `kg`, `msk`, `tsk`, `krm`, `tbsp`, `tsp`, `cup`, `burk`, `paket`, any unknown unit): below 10, the nearest of whole plus ¼, ½, ¾, and ⅓, ⅔ only for `dl` and cups where those measures exist (`1½ dl`, `⅔ cup`, `2¼ tsk`; never `⅓ tsk`); from 10, whole numbers.
 - **Countable items** (no unit, or `st`, `pcs`): halves below 3 (`1½ ägg`), whole numbers from 3. Half an egg or onion is how cookbooks and recipe apps (Paprika, NYT Cooking) scale; rounding silently to 2 would change the dish.
 - **Ties round up** (1.25 eggs shows `1½`): a cook is better served by a little more than by running short.
 - **Never zero:** a positive amount shows at least the smallest step (¼, or ½ for countables, 1 for fine metric).

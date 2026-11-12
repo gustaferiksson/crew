@@ -95,7 +95,7 @@ enum ChatFixture {
         if [.offline, .history, .dictation, .composerLines].contains(self) { return Transcript(turns: turns) }
         if [.earlierLoading, .earlierFailed].contains(self) { return Transcript(turns: [turns[0]]) }
         if self == .a2uiUpdates { return Transcript(turns: Self.a2uiUpdateTurns(now)) }
-        if [.a2uiServings, .a2uiServingsScaled].contains(self) { return Transcript(turns: Self.a2uiServingsTurns(now, servings: self == .a2uiServings ? 4 : 7)) }
+        if [.a2uiServings, .a2uiServingsScaled].contains(self) { return Transcript(turns: Self.a2uiServingsTurns(now, servings: self == .a2uiServings ? 4 : 3)) }
         if self == .a2uiStreaming { return Transcript(turns: Self.a2uiStreamingTurns(now)) }
         if self == .a2uiProducts { return Transcript(turns: Self.productTurns(now, count: max(UserDefaults.standard.integer(forKey: "productTurns"), 1))) }
         if self == .a2uiTableExpanded { return Transcript(turns: Self.a2uiTurns(now).filter { $0.id == "a10" }) }

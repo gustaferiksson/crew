@@ -41,7 +41,7 @@ nonisolated func scaledAmount(_ value: Double?, from: Double?, to: Double?, unit
         shown = amount.rounded()
     } else {
         let whole = amount.rounded(.down)
-        let steps: [Double] = isCountable ? [0, 0.5, 1] : [0, 0.25, 1.0 / 3, 0.5, 2.0 / 3, 0.75, 1]
+        let steps: [Double] = isCountable ? [0, 0.5, 1] : ["dl", "cup", "cups"].contains(kind) ? [0, 0.25, 1.0 / 3, 0.5, 2.0 / 3, 0.75, 1] : [0, 0.25, 0.5, 0.75, 1]
         let nearest = steps.reversed().min { abs($0 - (amount - whole)) < abs($1 - (amount - whole)) } ?? 0
         shown = max(isCountable ? 0.5 : 0.25, whole + nearest)
     }

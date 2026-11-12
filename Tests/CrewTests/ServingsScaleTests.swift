@@ -67,6 +67,8 @@ private func skillRecipe() throws -> String {
     #expect(scaledAmount(2, from: 4, to: 5, unit: "", item: "eggs", one: "egg") == "2½ eggs", "countables round to halves, ties up")
     #expect(scaledAmount(1, from: 4, to: 1, unit: "", item: "lökar", one: "lök") == "½ lök", "never zero")
     #expect(scaledAmount(6, from: 4, to: 12, unit: "dl", item: "mjölk", one: "") == "18 dl mjölk")
+    #expect(scaledAmount(1, from: 3, to: 2, unit: "tsk", item: "salt", one: "") == "¾ tsk salt", "no ⅓ spoon measure exists")
+    #expect(scaledAmount(1, from: 3, to: 2, unit: "dl", item: "grädde", one: "") == "⅔ dl grädde")
 }
 
 @Test func theBotsAmountsShowAsWrittenAndBadInputNeverBreaksTheRow() {
@@ -129,7 +131,7 @@ nonisolated private struct HistoryFile: Decodable {
     try turnStepper(model, to: 6)
     #expect(labels(model) == [
         "375 g beef mince", "375 g pork mince", "75 g fine dried breadcrumbs", "150 ml milk", "1½ small onions, finely chopped", "1½ eggs",
-        "1¼ tsp fine salt", "⅓ tsp ground black pepper", "⅓ tsp ground allspice (optional)", "3 tbsp butter for onion and frying",
+        "1¼ tsp fine salt", "½ tsp ground black pepper", "½ tsp ground allspice (optional)", "3 tbsp butter for onion and frying",
         "1½ tbsp butter", "2¼ tbsp plain flour", "450 ml beef stock, preferably low-salt", "225 ml double or whipping cream", "1½ tsp soy sauce",
         "Salt and black pepper, to taste", "1200 g potatoes", "Lingonberry jam", "Pickled cucumber",
     ])
@@ -137,7 +139,7 @@ nonisolated private struct HistoryFile: Decodable {
     try turnStepper(model, to: 2)
     #expect(labels(model) == [
         "125 g beef mince", "125 g pork mince", "25 g fine dried breadcrumbs", "50 ml milk", "½ small onion, finely chopped", "½ egg",
-        "⅓ tsp fine salt", "¼ tsp ground black pepper", "¼ tsp ground allspice (optional)", "1 tbsp butter for onion and frying",
+        "½ tsp fine salt", "¼ tsp ground black pepper", "¼ tsp ground allspice (optional)", "1 tbsp butter for onion and frying",
         "½ tbsp butter", "¾ tbsp plain flour", "150 ml beef stock, preferably low-salt", "75 ml double or whipping cream", "½ tsp soy sauce",
         "Salt and black pepper, to taste", "400 g potatoes", "Lingonberry jam", "Pickled cucumber",
     ])

@@ -37,7 +37,7 @@ nonisolated func scaledAmount(_ value: Double?, from: Double?, to: Double?, unit
     } else if ["g", "ml", "mg"].contains(kind) {
         let step: Double = amount < 20 ? 1 : amount < 500 ? 5 : amount < 1000 ? 10 : 50
         shown = max(1, (amount / step).rounded() * step)
-    } else if amount >= (isCountable ? 3 : 10) {
+    } else if amount >= (isCountable ? 2 : 10) {
         shown = amount.rounded()
     } else {
         let whole = amount.rounded(.down)

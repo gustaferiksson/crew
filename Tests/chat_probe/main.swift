@@ -1651,7 +1651,10 @@ if phases.contains("a2ui-update") || phases.contains("a2ui-servings") {
             print("A2UI-UPDATE", text, "| ids", surfaceIds(reply), "| creates", reply.matches(of: /createSurface/).count, "| chars", reply.count)
         }
         try await turn(env["A2UI_PROMPT"] ?? "Give me a recipe for köttbullar for 4")
-        if !phases.contains("a2ui-servings") {
+        if phases.contains("a2ui-servings") {
+            try await turn("Make it for 6")
+            try await turn("Make me a packing list for a weekend hike")
+        } else {
             try await turn("Make it for 6")
             try await turn("Tick off the onion and the breadcrumbs on the card, I already have them.")
             try await turn("Also give me a vegan version, I want to keep this one too")

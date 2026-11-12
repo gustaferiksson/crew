@@ -120,7 +120,7 @@ struct CrewBadge: View {
 struct CrewTable: View {
     let node: Node
 
-    @State private var width: CGFloat = 0
+    @State private var natural: CGFloat = 0
 
     var body: some View {
         let columns = (node.array(for: "columns") ?? []).map { $0 as? String ?? "" }
@@ -135,7 +135,8 @@ struct CrewTable: View {
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(.secondary)
                         .fixedSize()
-                        .frame(maxWidth: .infinity, alignment: numeric[index] ? .trailing : .leading)
+                        .frame(maxWidth: index == columns.count - 1 ? .infinity : nil, alignment: numeric[index] ? .trailing : .leading)
+                        .gridColumnAlignment(numeric[index] ? .trailing : .leading)
                 }
             }
             ForEach(rows.indices, id: \.self) { row in
@@ -147,18 +148,25 @@ struct CrewTable: View {
                             .monospacedDigit()
                             .fontWeight(column == 0 ? .medium : .regular)
                             .fixedSize()
-                            .frame(maxWidth: .infinity, alignment: column < numeric.count && numeric[column] ? .trailing : .leading)
+                            .frame(maxWidth: column == columns.count - 1 ? .infinity : nil, alignment: column < numeric.count && numeric[column] ? .trailing : .leading)
                     }
                 }
             }
         }
-        ScrollView(.horizontal) {
+        ViewThatFits(in: .horizontal) {
             grid
-                .frame(minWidth: width, alignment: .leading)
+            ScrollView(.horizontal) {
+                grid
+            }
+            .scrollIndicators(.hidden)
         }
-        .scrollIndicators(.hidden)
-        .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
-        .onGeometryChange(for: CGFloat.self, of: \.size.width) { width = $0 }
+        .background(alignment: .leading) {
+            grid
+                .fixedSize()
+                .hidden()
+                .onGeometryChange(for: CGFloat.self, of: \.size.width) { natural = $0 }
+        }
+        .preference(key: TableWidth.self, value: natural)
     }
 }
 

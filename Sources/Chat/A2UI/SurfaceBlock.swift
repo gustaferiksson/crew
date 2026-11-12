@@ -18,6 +18,7 @@ struct SurfaceBlock: View {
     @Environment(ChatPins.self) private var pins
     @State private var pinTaps = 0
     @State private var preview: SurfaceViewModel?
+    @State private var tableWidths: [String: CGFloat] = [:]
 
     var body: some View {
         if let store, case .surfaces(let created, let revised, let updated) = store.blocks[source] {
@@ -104,7 +105,8 @@ struct SurfaceBlock: View {
                 }
             }
             .background { Color.clear.glassEffect(.regular, in: .rect(cornerRadius: cardCorner)) }
-            .frame(maxWidth: 560, alignment: .leading)
+            .onPreferenceChange(TableWidth.self) { tableWidths[id] = $0 }
+            .frame(maxWidth: max(560, (tableWidths[id] ?? 0) + 40), alignment: .leading)
             if revised {
                 Text("Updated")
                     .font(.footnote)

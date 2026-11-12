@@ -13,12 +13,10 @@ extension EnvironmentValues {
 
 nonisolated let chatSpace = "chat"
 
-#if os(iOS)
 struct OpenedCard: Equatable {
     let id: String
     let anchor: CGRect?
 }
-#endif
 
 struct CardSummary {
     let header: String?
@@ -83,11 +81,7 @@ struct PinnedCardChip: View {
             }
             .help(summary.title ?? fallbackTitle)
             .accessibilityValue("Pinned card")
-            #if os(iOS)
             .accessibilityHint("Shows the card")
-            #else
-            .accessibilityHint("Shows the card in the conversation")
-            #endif
             .accessibilityAction(named: "Unpin", unpin)
             Button("Unpin", systemImage: "xmark", action: unpin)
                 .labelStyle(.iconOnly)
@@ -104,7 +98,6 @@ struct PinnedCardChip: View {
     }
 }
 
-#if os(iOS)
 struct PinnedCardContent: View {
     let surfaces: SurfaceStore
     let id: String
@@ -113,8 +106,12 @@ struct PinnedCardContent: View {
     let togglePin: () -> Void
 
     @Environment(\.dismiss) private var dismiss
+    #if os(macOS)
+    @State private var tableWidth: CGFloat = 0
+    #endif
 
     var body: some View {
+        #if os(iOS)
         if let model = surfaces.processor.surfaceGroupModel[id] {
             NavigationStack {
                 card(model)
@@ -136,6 +133,25 @@ struct PinnedCardContent: View {
             .presentationDetents([.medium, .large])
             .presentationBackgroundInteraction(.enabled(upThrough: .medium))
         }
+        #else
+        if let model = surfaces.processor.surfaceGroupModel[id] {
+            card(model)
+                .onPreferenceChange(TableWidth.self) { tableWidth = $0 }
+                .frame(width: min(max(440, tableWidth + 40), 800))
+                .frame(maxHeight: 640)
+                .fixedSize(horizontal: false, vertical: true)
+                .toolbar {
+                    if let isPinned {
+                        ToolbarItem(placement: .destructiveAction) {
+                            pinButton(isPinned)
+                        }
+                    }
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Done") { dismiss() }
+                    }
+                }
+        }
+        #endif
     }
 
     private func pinButton(_ isPinned: Bool) -> some View {
@@ -153,4 +169,3 @@ struct PinnedCardContent: View {
         }
     }
 }
-#endif

@@ -273,9 +273,6 @@ nonisolated extension DeliveryFailure {
 
 extension Transcript {
     var visible: Transcript {
-        let log = { (turn: Turn) in
-            turn.work + (turn.reply.isEmpty ? [] : [WorkItem(id: "\(turn.id)-reply", kind: .note(turn.reply), startedAt: turn.finishedAt ?? turn.startedAt)])
-        }
         let quote = { (text: String) in text.split(separator: "\n", omittingEmptySubsequences: false).map { "> \($0)" }.joined(separator: "\n") }
         var shown: [Turn] = []
         var awaited: [(handle: String, origin: Turn.ID)] = []
@@ -322,7 +319,7 @@ extension Transcript {
             followUp.deliveryFailure?.target = handle
             let sent = call.flatMap { call in shown.firstIndex { $0.id == "\(call.id)-to" } }
             if let origin, let index = exchanges[origin.id] {
-                shown[index].work += log(turn)
+                shown[index].work += turn.work + (turn.reply.isEmpty ? [] : [WorkItem(id: "\(turn.id)-reply", kind: .note(turn.reply), startedAt: turn.finishedAt ?? turn.startedAt)])
                 shown[index].finishedAt = turn.finishedAt
                 let failed = sent ?? index
                 shown[failed].deliveryFailure = shown[failed].deliveryFailure ?? followUp.deliveryFailure

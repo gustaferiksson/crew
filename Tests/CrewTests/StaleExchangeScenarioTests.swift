@@ -49,7 +49,8 @@ private func settle(_ session: ChatSession) async throws {
     let starts = rows.filter { $0.role == "user" && AgentMessage($0.content ?? "") != nil }.map { Date(timeIntervalSince1970: $0.timestamp) }
     #expect(visible.filter { $0.outgoingMessage?.handle == "crew-test" }.count == visible.count - 5)
     #expect(shown.count == 5)
-    #expect(shown.allSatisfy { $0.agentMessage?.sender == "Crew Test" && $0.prompt == nil && $0.reply.isEmpty })
+    #expect(shown.allSatisfy { $0.agentMessage?.sender == "Crew Test" && $0.prompt == nil })
+    #expect(shown.map(\.reply) == ["Hello!", "Hello again! 👋", "Hello again! 👋", "", "Hello! 👋"])
     #expect(shown.map(\.startedAt) == starts)
 }
 
@@ -59,7 +60,7 @@ private func settle(_ session: ChatSession) async throws {
     store.showPreview(of: "test-bot", from: try recorded("test-bot.preview", as: [HistoryRow].self))
     let lastRow = try #require(Transcript(history: try recorded("test-bot.history", as: [HistoryRow].self)).visible.turns.last { $0.outgoingMessage == nil })
     let lastActive = try #require(store.bots.first { $0.name == "test-bot" }?.canonicalSession?.lastActive)
-    #expect(store.previews["test-bot"]?.text == "Message from Crew Test")
+    #expect(store.previews["test-bot"]?.text == "Hello! 👋")
     #expect(abs(lastActive.timeIntervalSince(lastRow.startedAt)) < 1)
 }
 
@@ -75,6 +76,7 @@ private func settle(_ session: ChatSession) async throws {
     try await Task.sleep(for: .milliseconds(300))
     let exchanges = { session.transcript.visible.turns.filter { $0.outgoingMessage == nil } }
     #expect(exchanges().count == 4)
+    #expect(session.visible.lastMessage?.text == "Message from Crew Test")
     let position = try #require(bot.canonicalSession?.position)
     session.sync(to: ReadPosition(session: position.session, messages: position.messages + 1))
     for _ in 0..<100 where exchanges().count == 4 {
@@ -82,7 +84,7 @@ private func settle(_ session: ChatSession) async throws {
     }
     #expect(exchanges().count == 5)
     #expect(exchanges().last?.startedAt == Date(timeIntervalSince1970: try #require(rows.first { $0.id == 22 }).timestamp))
-    #expect(session.visible.lastMessage?.text == "Message from Crew Test")
+    #expect(session.visible.lastMessage?.text == "Hello! 👋")
 }
 
 @Test func freshTargetChatOpenDuringTheExchangeShowsIt() async throws {
@@ -92,7 +94,7 @@ private func settle(_ session: ChatSession) async throws {
     try await settle(session)
     #expect(session.transcript.visible.turns.filter { $0.outgoingMessage == nil }.count == 1)
     #expect(session.transcript.visible.turns.first?.agentMessage?.sender == "Crew Test")
-    #expect(session.visible.lastMessage?.text == "Message from Crew Test")
+    #expect(session.visible.lastMessage?.text == "Hello!")
 }
 
 @Test func refetchKeepsLocalFailures() {

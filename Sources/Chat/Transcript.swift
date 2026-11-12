@@ -273,9 +273,6 @@ nonisolated extension DeliveryFailure {
 
 extension Transcript {
     var visible: Transcript {
-        let log = { (turn: Turn) in
-            turn.work + (turn.reply.isEmpty ? [] : [WorkItem(id: "\(turn.id)-reply", kind: .note(turn.reply), startedAt: turn.finishedAt ?? turn.startedAt)])
-        }
         let quote = { (text: String) in text.split(separator: "\n", omittingEmptySubsequences: false).map { "> \($0)" }.joined(separator: "\n") }
         var shown: [Turn] = []
         var awaited: [(handle: String, origin: Turn.ID)] = []
@@ -301,8 +298,7 @@ extension Transcript {
                 exchanges[turn.id] = shown.count
                 var exchange = turn
                 exchange.prompt = nil
-                exchange.reply = ""
-                exchange.work = [WorkItem(id: "\(turn.id)-message", kind: .note(quote(message.body)), startedAt: turn.startedAt)] + log(turn)
+                exchange.work = [WorkItem(id: "\(turn.id)-message", kind: .note(quote(message.body)), startedAt: turn.startedAt)] + turn.work
                 shown.append(exchange)
                 continue
             }
@@ -323,7 +319,7 @@ extension Transcript {
             followUp.deliveryFailure?.target = handle
             let sent = call.flatMap { call in shown.firstIndex { $0.id == "\(call.id)-to" } }
             if let origin, let index = exchanges[origin.id] {
-                shown[index].work += log(turn)
+                shown[index].work += turn.work + (turn.reply.isEmpty ? [] : [WorkItem(id: "\(turn.id)-reply", kind: .note(turn.reply), startedAt: turn.finishedAt ?? turn.startedAt)])
                 shown[index].finishedAt = turn.finishedAt
                 let failed = sent ?? index
                 shown[failed].deliveryFailure = shown[failed].deliveryFailure ?? followUp.deliveryFailure
@@ -344,7 +340,7 @@ extension Transcript {
 
     var lastMessage: LastMessage? {
         guard let turn = turns.last(where: { $0.pending == nil && (!$0.reply.isEmpty || $0.prompt?.text.isEmpty == false || $0.agentMessage != nil || $0.isRoutine) }) else { return nil }
-        let text = turn.agentMessage.map { String(localized: "Message from \($0.sender)") } ?? (turn.reply.isEmpty ? turn.prompt?.text ?? turn.notice ?? "" : turn.reply)
+        let text = turn.reply.isEmpty ? turn.agentMessage.map { String(localized: "Message from \($0.sender)") } ?? turn.prompt?.text ?? turn.notice ?? "" : turn.reply
         return LastMessage(text: text.split(whereSeparator: \.isWhitespace).joined(separator: " "), date: turn.finishedAt ?? turn.prompt?.sentAt ?? turn.startedAt)
     }
 

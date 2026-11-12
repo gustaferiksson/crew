@@ -55,14 +55,14 @@ private func replayedStore() throws -> BotStore {
 @Test func mentionedBotChatShowsOneCollapsedExchange() throws {
     let transcript = Transcript(history: try history("crew-test-peer.history"))
     #expect(transcript.turns.count == 2)
-    #expect(chatRows(transcript) == ["work log: 4", "message to: crew-test", "work log: 1"])
+    #expect(chatRows(transcript) == ["work log: 3", "reply: Hello!", "message to: crew-test", "work log: 1"])
     #expect(transcript.visible.turns.first?.agentMessage?.sender == "Crew Test")
 }
 
 @Test func botRowsShowTheLastVisibleTurn() throws {
     let store = try replayedStore()
     #expect(store.previews["crew-test"]?.text == "@crew-test-peer: “Hello! Great to hear from you.”")
-    #expect(store.previews["crew-test-peer"]?.text == "Message from Crew Test")
+    #expect(store.previews["crew-test-peer"]?.text == "Hello!")
     #expect(store.bots.first { $0.name == "crew-test-peer" }?.description == "Crew scenario peer")
     let open = ChatSessions(fixture: try ["crew-test", "crew-test-peer"].reduce(into: [:]) { sessions, name in
         guard let bot = store.bots.first(where: { $0.name == name }) else { return }

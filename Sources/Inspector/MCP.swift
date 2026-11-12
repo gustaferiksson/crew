@@ -102,7 +102,7 @@ nonisolated func mcpRequest(_ path: String, profile: String, method: String = "G
 
 nonisolated func copyConnections(_ names: Set<String>, from source: String, to profile: String, on server: URL, with session: URLSession) async throws {
     var read = hermesRequest("api/config", on: server)
-    read.url?.append(queryItems: [URLQueryItem(name: "profile", value: source)])
+    read.url?.append(queryItems: [URLQueryItem(name: "profile", value: source), URLQueryItem(name: "include_defaults", value: "false")])
     guard case .object(let config) = try await fetch(read, with: session, as: JSONValue.self), case .object(let all) = config["mcp_servers"] ?? .null else {
         throw ProfileError(errorDescription: String(localized: "Couldn't read the connections to copy."))
     }

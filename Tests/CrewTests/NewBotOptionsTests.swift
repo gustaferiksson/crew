@@ -29,7 +29,8 @@ nonisolated private final class ConfigStub: URLProtocol {
             return data
         }
         ConfigStub.requests.withLock { $0.append(("\(request.httpMethod ?? "GET") \(url.path())?\(url.query() ?? "")", body)) }
-        let config = #"{"model":{"default":"gpt-6.1-sol"},"mcp_servers":{"files":{"url":"http://host/mcp","headers":{"Authorization":"Bearer secret"}},"icloud":{"url":"http://host/icloud"}}}"#
+        let authorization = url.query()?.contains("include_defaults=false") == true ? "Bearer ${MCP_FILES_API_KEY}" : "Bearer secret"
+        let config = #"{"model":{"default":"gpt-6.1-sol"},"mcp_servers":{"files":{"url":"http://host/mcp","headers":{"Authorization":"\#(authorization)"}},"icloud":{"url":"http://host/icloud"}}}"#
         let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)!
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
         client?.urlProtocol(self, didLoad: Data((request.httpMethod == "PUT" ? #"{"ok":true}"# : config).utf8))
@@ -67,13 +68,13 @@ private func encoded(_ profile: NewProfile) throws -> [String: JSONValue] {
     #expect(options.changedToolsets.map(\.name) == ["terminal"])
 }
 
-@Test func copyConnectionsWritesOnlyTheChosenEntriesToTheNewBot() async throws {
+@Test func copyConnectionsCopiesTheChosenEntriesWithTheirSecretReferences() async throws {
     let server = try #require(URL(string: "https://hermes.invalid"))
     try await copyConnections(["files"], from: "default", to: "crew-test-new", on: server, with: ConfigStub.session)
     let requests = ConfigStub.requests.withLock { $0 }
-    #expect(requests.map(\.line) == ["GET /api/config?profile=default", "PUT /api/config?profile=crew-test-new"])
+    #expect(requests.map(\.line) == ["GET /api/config?profile=default&include_defaults=false", "PUT /api/config?profile=crew-test-new"])
     let body = try JSONDecoder().decode(JSONValue.self, from: try #require(requests.last?.body))
     #expect(body == .object(["config": .object(["mcp_servers": .object([
-        "files": .object(["url": .string("http://host/mcp"), "headers": .object(["Authorization": .string("Bearer secret")])]),
+        "files": .object(["url": .string("http://host/mcp"), "headers": .object(["Authorization": .string("Bearer ${MCP_FILES_API_KEY}")])]),
     ])])]))
 }

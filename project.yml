@@ -155,6 +155,7 @@ targets:
       - Sources/Chat/ChatDrafts.swift
       - Sources/Chat/Draft.swift
       - Sources/Chat/ChatPins.swift
+      - Sources/Chat/A2UI/CardState.swift
       - Sources/Chat/Composer.swift
       - Sources/Chat/Dictation.swift
       - Sources/Chat/RequestCards.swift

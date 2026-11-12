@@ -120,6 +120,7 @@ struct CrewBadge: View {
 struct CrewTable: View {
     let node: Node
 
+    @State private var width: CGFloat = 0
     @State private var natural: CGFloat = 0
 
     var body: some View {
@@ -157,19 +158,14 @@ struct CrewTable: View {
                 }
             }
         }
-        ViewThatFits(in: .horizontal) {
+        ScrollView(.horizontal) {
             grid
-            ScrollView(.horizontal) {
-                grid
-            }
-            .scrollIndicators(.hidden)
-        }
-        .background(alignment: .leading) {
-            grid
-                .fixedSize()
-                .hidden()
                 .onGeometryChange(for: CGFloat.self, of: \.size.width) { natural = $0 }
+                .frame(minWidth: width, alignment: .leading)
         }
+        .scrollIndicators(.hidden)
+        .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
+        .onGeometryChange(for: CGFloat.self, of: \.size.width) { width = $0 }
         .preference(key: TableWidth.self, value: natural)
     }
 }

@@ -8,6 +8,9 @@ extension EnvironmentValues {
     @Entry var openedCard: Binding<OpenedCard?>?
     #endif
     @Entry var expandedCards: Binding<Set<String>>?
+    #if os(macOS)
+    @Entry var cardWidths: Binding<[String: CGFloat]>?
+    #endif
     @Entry var hiddenHeader: String?
 }
 

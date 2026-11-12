@@ -82,7 +82,7 @@ private let partyList = """
         model.shows += 1
         settle(1.5)
         let sheet = try #require(window.attachedSheet, "Show Pinned Card opened no sheet")
-        let tables = scrollViews(in: try #require(sheet.contentView)).filter { $0.hasHorizontalScroller || ($0.documentView?.frame.width ?? 0) > $0.frame.width.rounded() + 1 }
+        let tables = scrollViews(in: try #require(sheet.contentView)).filter { ($0.documentView?.frame.width ?? 0).rounded() > $0.frame.width.rounded() }
         #expect(sheet.frame.width.rounded() > 560, "the sheet is \(sheet.frame.width.rounded()) pt, narrower than the table")
         #expect(tables.isEmpty, "the table scrolls inside the sheet")
 
@@ -98,8 +98,7 @@ private let partyList = """
         defer { window.orderOut(nil) }
         settle(1.5)
         let content = try #require(window.contentView)
-        let transcriptHeight = scrollViews(in: content).map { $0.frame.height }.max() ?? 0
-        let tables = scrollViews(in: content).filter { $0.frame.height < transcriptHeight }
-        #expect(tables.isEmpty == !scrolls, "\(tables.count) horizontal table scroll views at a \(width) pt window")
+        let overflowing = scrollViews(in: content).filter { ($0.documentView?.frame.width ?? 0).rounded() > $0.frame.width.rounded() }
+        #expect(overflowing.isEmpty == !scrolls, "\(overflowing.count) overflowing table scroll views at a \(width) pt window")
     }
 }

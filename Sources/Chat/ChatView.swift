@@ -124,6 +124,9 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
     @State private var chipFrame = CGRect.zero
     #endif
     @State private var expandedCards: Set<String>
+    #if os(macOS)
+    @State private var cardWidths: [String: CGFloat] = [:]
+    #endif
     @State private var unpins = 0
     @State private var isOnScreen = false
     @State private var liveTurn: Turn.ID?
@@ -316,6 +319,9 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
             .environment(\.chatActions, latestActions)
             .environment(\.transcriptExpansion, expansion)
             .environment(\.expandedCards, $expandedCards)
+            #if os(macOS)
+            .environment(\.cardWidths, $cardWidths)
+            #endif
             .environment(\.transcriptTaps, transcriptTaps)
             .animation(.interactiveSpring, value: reveal)
             .padding(16)

@@ -1,4 +1,5 @@
 import A2UICore
+import A2UIJSON
 import A2UISwiftUI
 import BasicCatalog
 import BasicCatalogSwiftUI
@@ -49,6 +50,10 @@ let crewCatalogs: [Catalog<ComponentImplementation>] = {
             "region": {"type": "object", "required": ["latitude", "longitude"], "properties": {
               "latitude": {"type": "number"}, "longitude": {"type": "number"}, "span": {"type": "number"}}}
             """)) { CrewMap(node: $0) },
+        ComponentImplementation(name: "Stepper", schema: crewSchema("Stepper", required: ["value"], properties: """
+            "label": {"type": "string"}, "min": {"type": "number"}, "max": {"type": "number"},
+            "value": {"$ref": "https://a2ui.org/schemas/v0_9_1/common.json#/$defs/DynamicNumber"}
+            """)) { CrewStepper(node: $0) },
         ComponentImplementation(name: "Carousel", schema: crewSchema("Carousel", required: ["items"], properties: """
             "items": {"type": "array", "items": {"type": "object", "required": ["title"], "properties": {
               "title": {"type": "string"}, "subtitle": {"type": "string"}, "price": {"type": "string"}, "badge": {"type": "string"},
@@ -57,7 +62,7 @@ let crewCatalogs: [Catalog<ComponentImplementation>] = {
     ]
     let components = BasicCatalogImplementation.allComponents + crewComponents
     return [(crewCatalogID, A2UIProtocolVersion.v09), (V09BasicCatalog.catalogURI, .v09), (V09BasicCatalog.v091CatalogURI, .v091)].map { id, version in
-        Catalog(id: id, protocolVersion: version, components: components, functions: V09BasicCatalog.functions, themeSchema: V09BasicCatalog.themeSchema)
+        Catalog(id: id, protocolVersion: version, components: components, functions: V09BasicCatalog.functions + [ScaleFunction()], themeSchema: V09BasicCatalog.themeSchema)
     }
 }()
 
@@ -67,5 +72,5 @@ private func crewSchema(_ name: String, required: [String], properties: String) 
     try! Schema(instance: """
         {"type": "object", "required": ["component", \(required.map { "\"\($0)\"" }.joined(separator: ", "))], "properties": {
           "component": {"const": "\(name)"}, \(properties)}}
-        """)
+        """, remoteSchemas: A2UICommonSchema.allSchemas)
 }

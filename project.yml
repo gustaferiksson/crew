@@ -204,6 +204,8 @@ targets:
       - Sources/Chat/A2UI/TableWidth.swift
       - Sources/Chat/A2UI/CrewChartMap.swift
       - Sources/Chat/A2UI/CrewCarousel.swift
+      - Sources/Chat/A2UI/CrewStepper.swift
+      - Sources/Chat/A2UI/ScaleFunction.swift
       - Sources/Groups/GroupStore.swift
       - Sources/Groups/GroupSession.swift
       - Sources/Groups/RoomHistory.swift

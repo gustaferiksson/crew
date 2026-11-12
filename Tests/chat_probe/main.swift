@@ -1625,7 +1625,8 @@ if phases.contains("a2ui") {
     print("REPLY", reply.path)
 }
 
-if phases.contains("a2ui-update") {
+if phases.contains("a2ui-update") || phases.contains("a2ui-servings") {
+    let fixture = phases.contains("a2ui-servings") ? "chat.a2ui-servings.history.json" : "chat.a2ui-update.history.json"
     let skill = try String(contentsOf: URL(fileURLWithPath: #filePath).appending(path: "../../../Sources/Profile/crew-ui.SKILL.md").standardized, encoding: .utf8)
     var install = hermesRequest("api/skills/content", on: server, json: ["name": "crew-ui", "content": skill, "profile": "crew-test"])
     install.httpMethod = "PUT"
@@ -1650,9 +1651,11 @@ if phases.contains("a2ui-update") {
             print("A2UI-UPDATE", text, "| ids", surfaceIds(reply), "| creates", reply.matches(of: /createSurface/).count, "| chars", reply.count)
         }
         try await turn(env["A2UI_PROMPT"] ?? "Give me a recipe for köttbullar for 4")
-        try await turn("Make it for 6")
-        try await turn("Tick off the onion and the breadcrumbs on the card, I already have them.")
-        try await turn("Also give me a vegan version, I want to keep this one too")
+        if !phases.contains("a2ui-servings") {
+            try await turn("Make it for 6")
+            try await turn("Tick off the onion and the breadcrumbs on the card, I already have them.")
+            try await turn("Also give me a vegan version, I want to keep this one too")
+        }
         try await Task.sleep(for: .seconds(3))
         await store.reload(gateway)
         guard let session = store.bots.first(where: { $0.name == name })?.canonicalSession else { throw HermesError.invalidResponse }
@@ -1664,7 +1667,7 @@ if phases.contains("a2ui-update") {
         pretty.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
         let scrubs = [(server.host() ?? "", "hermes.example.com"), (name, "crew-test-peer")].filter { $0.0.count > 2 }
         let text = scrubs.reduce(String(decoding: try pretty.encode(JSONValue.object(["messages": .array(kept)])), as: UTF8.self)) { $0.replacingOccurrences(of: $1.0, with: $1.1) }.replacingOccurrences(of: "/opt/data/", with: "/opt/hermes/data/")
-        let file = URL(fileURLWithPath: #filePath).appending(path: "../../fixtures/chat.a2ui-update.history.json").standardized
+        let file = URL(fileURLWithPath: #filePath).appending(path: "../../fixtures/\(fixture)").standardized
         try Data((text + "\n").utf8).write(to: file)
         print("RECORDED \(kept.count) rows to \(file.path)")
     } catch {

@@ -47,22 +47,12 @@ struct SurfaceBlock: View {
             CardGoneLine()
         } else if let store, case .failed(let reason) = store.blocks[source] {
             FailedSurface(reason: reason, source: source)
-        } else if let preview {
-            CardPreview(model: preview, fallbackTitle: String(localized: "Card")) { _ in }
+        } else {
+            CardPreview(model: preview ?? SurfaceViewModel(surfaceID: "", catalogs: [:]), fallbackTitle: String(localized: "Preparing card…")) { _ in }
                 .disabled(true)
                 .background { Color.clear.glassEffect(.regular, in: .rect(cornerRadius: cardCorner)) }
                 .frame(maxWidth: 560, alignment: .leading)
                 .task(id: previewStep(forLength: source.utf8.count)) { refreshPreview() }
-        } else {
-            Label {
-                Text("Preparing card…")
-            } icon: {
-                ProgressView()
-                    .controlSize(.small)
-            }
-            .font(.footnote)
-            .foregroundStyle(.secondary)
-            .task(id: previewStep(forLength: source.utf8.count)) { refreshPreview() }
         }
     }
 

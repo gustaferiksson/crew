@@ -21,12 +21,6 @@ private func scratchFile() -> URL {
     URL.temporaryDirectory.appending(path: "crew-cards-\(UUID().uuidString)/cards.json")
 }
 
-private func nodes(_ node: Node?) -> [Node] {
-    guard let node else { return [] }
-    let children = node.properties.values.flatMap { value in (value as? Node).map { [$0] } ?? (value as? [Node]) ?? [] }
-    return [node] + children.flatMap(nodes)
-}
-
 @MainActor private func opened(_ transcript: Transcript, from file: URL) -> SurfaceStore {
     let store = SurfaceStore()
     store.saved = (CardState(fileURL: file), "chef")

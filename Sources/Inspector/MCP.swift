@@ -201,26 +201,65 @@ nonisolated func replacingServer(_ name: String, in rawConfig: String, profile: 
     return body
 }
 
-nonisolated func copyConnections(_ names: Set<String>, from source: String, to profile: String, on server: URL, with session: URLSession) async throws -> [String] {
-    var read = hermesRequest("api/config", on: server)
-    read.url?.append(queryItems: [URLQueryItem(name: "profile", value: source), URLQueryItem(name: "include_defaults", value: "false")])
-    guard case .object(let config) = try await fetch(read, with: session, as: JSONValue.self), case .object(let all) = config["mcp_servers"] ?? .null else {
-        throw ProfileError(errorDescription: String(localized: "Couldn't read the connections to copy."))
-    }
+nonisolated enum ConnectionAddOutcome: Hashable, Sendable {
+    case added, addedOff, needsSignIn, alreadyAdded, differentConnection, missingKey, writtenKey, removed
+    case failed(String)
+}
 
+nonisolated func copySkip(for entry: JSONValue, keys: Set<String>) -> ConnectionAddOutcome? {
+    let references = String(decoding: (try? JSONEncoder().encode(entry)) ?? Data(), as: UTF8.self).matches(of: /\$\{(\w+)\}/).map { String($0.1) }
+    guard keys.isSuperset(of: references) else { return .missingKey }
+    guard case .object(let fields) = entry else { return nil }
+
+    let secret = { (name: String) in ["KEY", "TOKEN", "SECRET", "PASSWORD", "AUTH"].contains { name.uppercased().contains($0) } }
+    let literal = { (value: String) in !value.isEmpty && !value.contains("${") }
+    let members = { (key: String) -> [String: JSONValue] in if case .object(let members) = fields[key] { members } else { [:] } }
+    let named = (members("headers").merging(members("env")) { first, _ in first }).compactMap { name, value in
+        if case .string(let text) = value { (name, text) } else { nil }
+    }
+    let url = if case .string(let text) = fields["url"] { URLComponents(string: text) } else { URLComponents?.none }
+    let query = (url?.queryItems ?? []).map { ($0.name, $0.value ?? "") }
+    let args = MCPServer.names(fields["args"]) ?? []
+    let flags = args.indices.compactMap { index -> (String, String)? in
+        guard args[index].hasPrefix("-") else { return nil }
+        let parts = args[index].split(separator: "=", maxSplits: 1).map(String.init)
+        if parts.count == 2 { return (parts[0], parts[1]) }
+        return index + 1 < args.endIndex ? (args[index], args[index + 1]) : nil
+    }
+    let clientSecret = if case .string(let text) = members("oauth")["client_secret"] { text } else { "" }
+    let written = (named + query + flags).contains { secret($0.0) && literal($0.1) }
+        || literal(clientSecret)
+        || literal(url?.password ?? "")
+    return written ? .writtenKey : nil
+}
+
+nonisolated func rawConfigText(of profile: String, on server: URL, with session: URLSession) async throws -> String {
+    var read = hermesRequest("api/config", on: server)
+    read.url?.append(queryItems: [URLQueryItem(name: "profile", value: profile), URLQueryItem(name: "include_defaults", value: "false")])
+    return String(decoding: try await fetchData(read, with: session), as: UTF8.self)
+}
+
+nonisolated func setKeys(of profile: String, on server: URL, with session: URLSession) async throws -> Set<String> {
     var readEnv = hermesRequest("api/env", on: server)
     readEnv.url?.append(queryItems: [URLQueryItem(name: "profile", value: profile)])
     guard case .object(let rows) = try await fetch(readEnv, with: session, as: JSONValue.self) else {
-        throw ProfileError(errorDescription: String(localized: "Couldn't read the new bot's keys."))
+        throw ProfileError(errorDescription: String(localized: "Couldn't read the bot's keys."))
     }
-    let setVariables = Set(rows.compactMap { name, row in
+    return Set(rows.compactMap { name, row in
         if case .object(let fields) = row, fields["is_set"] == .bool(true) { name } else { nil }
     })
-    let chosen = all.filter { names.contains($0.key) }
-    let keyless = try chosen.filter { _, entry in
-        let references = try String(decoding: JSONEncoder().encode(entry), as: UTF8.self).matches(of: /\$\{(\w+)\}/).map { String($0.1) }
-        return !setVariables.isSuperset(of: references)
+}
+
+nonisolated func copyConnections(_ names: Set<String>, from source: String, to profile: String, on server: URL, with session: URLSession) async throws -> [String] {
+    guard case .object(let config) = try JSONDecoder().decode(JSONValue.self, from: Data(try await rawConfigText(of: source, on: server, with: session).utf8)),
+          case .object(let all) = config["mcp_servers"] ?? .null
+    else {
+        throw ProfileError(errorDescription: String(localized: "Couldn't read the connections to copy."))
     }
+
+    let keys = try await setKeys(of: profile, on: server, with: session)
+    let chosen = all.filter { names.contains($0.key) }
+    let keyless = chosen.filter { copySkip(for: $0.value, keys: keys) != nil }
     let copied = chosen.filter { keyless[$0.key] == nil }
     guard !copied.isEmpty else { return keyless.keys.sorted() }
 
@@ -231,6 +270,57 @@ nonisolated func copyConnections(_ names: Set<String>, from source: String, to p
     write.httpBody = try JSONEncoder().encode(JSONValue.object(["config": .object(["mcp_servers": .object(copied)])]))
     _ = try await fetch(write, with: session, as: JSONValue.self)
     return keyless.keys.sorted()
+}
+
+nonisolated func rawServerEntry(_ name: String, in rawConfig: String) throws -> Substring? {
+    let decode = { (text: Substring) in try JSONDecoder().decode(JSONValue.self, from: Data(text.utf8)) }
+    guard let servers = jsonMembers(rawConfig[...]).first(where: { (try? decode($0.key)) == .string("mcp_servers") })?.value else { return nil }
+    return try jsonMembers(servers).first { try decode($0.key) == .string(name) }?.value
+}
+
+nonisolated func addingServer(_ name: String, entry: Substring, to rawConfig: String, profile: String) throws -> Data {
+    let decode = { (text: Substring) in try JSONDecoder().decode(JSONValue.self, from: Data(text.utf8)) }
+    let encode = { (value: JSONValue) in String(decoding: try JSONEncoder().encode(value), as: UTF8.self) }
+    let unsafe = ProfileError(errorDescription: String(localized: "Crew couldn't prepare this change safely, so nothing was saved."))
+    guard case .object(let config) = try decode(rawConfig[...]) else { throw unsafe }
+    let current = config["mcp_servers"] ?? .null
+    let before: [String: JSONValue]? = if case .object(let servers) = current { servers } else if current == .null { [:] } else { nil }
+    guard let before else { throw unsafe }
+
+    let servers = jsonMembers(rawConfig[...]).first { (try? decode($0.key)) == .string("mcp_servers") }?.value ?? ""
+    let members = jsonMembers(servers).map { "\($0.key):\($0.value)" } + ["\(try encode(.string(name))):\(entry)"]
+    let body = Data("{\"servers\":{\(members.joined(separator: ","))},\"profile\":\(try encode(.string(profile)))}".utf8)
+
+    var expected = before
+    expected[name] = try decode(entry)
+    guard before[name] == nil,
+          case .object(let sent) = try? JSONDecoder().decode(JSONValue.self, from: body),
+          sent["servers"] == .object(expected)
+    else { throw unsafe }
+    return body
+}
+
+nonisolated func addConnection(_ name: String, entry: Substring, to profile: String, on server: URL, with session: URLSession) async -> ConnectionAddOutcome {
+    do {
+        let source = try JSONDecoder().decode(JSONValue.self, from: Data(entry.utf8))
+        let rawConfig = try await rawConfigText(of: profile, on: server, with: session)
+        if let existing = try rawServerEntry(name, in: rawConfig) {
+            guard case .object(let ours) = source, case .object(let theirs) = try JSONDecoder().decode(JSONValue.self, from: Data(existing.utf8)) else { return .differentConnection }
+            let same = ["url", "command", "args"].allSatisfy { ours[$0] == theirs[$0] }
+            return same ? .alreadyAdded : .differentConnection
+        }
+        if let skip = copySkip(for: source, keys: try await setKeys(of: profile, on: server, with: session)) { return skip }
+
+        var write = mcpRequest("servers", profile: profile, method: "PUT", on: server)
+        write.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        write.httpBody = try addingServer(name, entry: entry, to: rawConfig, profile: profile)
+        _ = try await fetch(write, with: session, as: JSONValue.self)
+        guard case .object(let fields) = source else { return .added }
+        if fields["enabled"] == .bool(false) { return .addedOff }
+        return fields["auth"] == .string("oauth") ? .needsSignIn : .added
+    } catch {
+        return .failed(error.localizedDescription)
+    }
 }
 
 nonisolated struct CustomConnection: Equatable, Sendable {
@@ -431,7 +521,7 @@ final class BotConnections {
         busy.insert(name)
         defer { busy.remove(name) }
         do {
-            guard case .object(let config) = try JSONDecoder().decode(JSONValue.self, from: Data(try await rawConfig(on: server, with: urlSession).utf8)),
+            guard case .object(let config) = try JSONDecoder().decode(JSONValue.self, from: Data(try await rawConfigText(of: profile, on: server, with: urlSession).utf8)),
                   case .object(let servers) = config["mcp_servers"] ?? .null,
                   case .object(let entry) = servers[name] ?? .null
             else {
@@ -460,7 +550,7 @@ final class BotConnections {
         busy.insert(name)
         defer { busy.remove(name) }
         do {
-            guard let body = try replacingServer(name, in: try await rawConfig(on: server, with: urlSession), profile: profile, change: change) else {
+            guard let body = try replacingServer(name, in: try await rawConfigText(of: profile, on: server, with: urlSession), profile: profile, change: change) else {
                 failures[name] = String(localized: "\(name) was removed on the server.")
                 return false
             }
@@ -473,12 +563,6 @@ final class BotConnections {
             failures[name] = error.localizedDescription
             return false
         }
-    }
-
-    private func rawConfig(on server: URL, with urlSession: URLSession) async throws -> String {
-        var read = hermesRequest("api/config", on: server)
-        read.url?.append(queryItems: [URLQueryItem(name: "profile", value: profile), URLQueryItem(name: "include_defaults", value: "false")])
-        return String(decoding: try await fetchData(read, with: urlSession), as: UTF8.self)
     }
 
     func add(_ body: [String: JSONValue], catalog: Bool, on server: URL, with urlSession: URLSession) async throws {

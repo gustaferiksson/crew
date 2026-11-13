@@ -7,6 +7,7 @@ struct ConnectionPage: View {
     let store: BotConnections
 
     @Environment(Connection.self) private var connection
+    @Environment(BotStore.self) private var bots
     @Environment(\.webAuthenticationSession) private var webAuthenticationSession
     @Environment(\.dismiss) private var dismiss
     @State private var query = ""
@@ -15,6 +16,7 @@ struct ConnectionPage: View {
     @State private var isChangingKey = false
     @State private var apiKey = ""
     @State private var isRemoving = false
+    @State private var isAddingToBots = false
 
     private var isOnline: Bool {
         connection.state == .connected
@@ -104,6 +106,10 @@ struct ConnectionPage: View {
                     }
                     .disabled(!canEdit)
                 }
+                if server.plugin == nil, bots.bots.contains(where: { $0.id != bot.id && $0.meta.hidden != true }) {
+                    Button("Add to Other Bots…") { isAddingToBots = true }
+                        .disabled(!canEdit)
+                }
             }
             Section {
                 HStack(spacing: 8) {
@@ -150,6 +156,9 @@ struct ConnectionPage: View {
             }
         }
         .formStyle(.grouped)
+        .navigationDestination(isPresented: $isAddingToBots) {
+            AddToBotsPage(bot: bot, server: server)
+        }
         .alert("Change Address", isPresented: $isChangingAddress) {
             TextField("Address", text: $address)
                 .textContentType(.URL)

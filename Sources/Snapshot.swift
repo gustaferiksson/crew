@@ -142,6 +142,8 @@ enum Snapshot: String {
     case connectionPage = "connection-page"
     case connectionPageMany = "connection-page-many"
     case connectionPageSignIn = "connection-page-sign-in"
+    case connectionAddTo = "connection-add-to"
+    case connectionAddToResult = "connection-add-to-result"
     case voiceActivity = "voice-activity"
     case chatVoice = "chat-voice"
     case sidebarVoice = "sidebar-voice"

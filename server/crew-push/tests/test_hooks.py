@@ -178,6 +178,8 @@ UNTITLED_CARD = CARD_REPLIES[2][CARD_REPLIES[2].index("```a2ui"):]
     (UNTITLED_CARD, "Replied"),
     (CARD_ONLY.replace("```a2ui", "<a2ui-json>").rstrip().removesuffix("```") + "</a2ui-json>",
      "Vegan köttbullar with cream gravy"),
+    (f"<a2ui-json>\n{CARD_ONLY}\n</a2ui-json>", "Vegan köttbullar with cream gravy"),
+    (CARD_ONLY.replace('"title":"Vegan köttbullar with cream gravy"', '"title":{"path":"/title"}'), "Replied"),
 ])
 def test_card_reply_pushes_its_prose_or_its_title_never_its_json(push: CrewPush, enqueued: list,
                                                                   reply: str, body: str) -> None:

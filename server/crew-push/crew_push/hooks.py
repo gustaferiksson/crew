@@ -45,7 +45,7 @@ KINDS: dict[str, KindStyle] = {
     "payment": KindStyle("approvals", "CREW_PAYMENT", "time-sensitive", 300, "Wants to pay"),
 }
 
-A2UI_TAGGED = re.compile(r"<a2ui-json>\s*(?:```[a-z]*\n)?([\s\S]*?)\s*(?:```\s*)?</a2ui-json>")
+A2UI_TAGGED = re.compile(r"<a2ui-json>\s*(?:```[a-z0-9]*\n)?([\s\S]*?)\s*(?:```\s*)?</a2ui-json>")
 A2UI_FENCED = re.compile(r"```a2ui[ \t]*\n([\s\S]*?)(?:```|\Z)")
 MARKDOWN = (
     (re.compile(r"```[^\n]*"), ""),
@@ -66,7 +66,8 @@ def card_title(source: str) -> str:
         parsed = json.loads(source)
         messages = parsed if isinstance(parsed, list) else [parsed]
         components = [c for m in messages for c in m.get("updateComponents", {}).get("components", [])]
-        return str(next(c["title"] for c in components if c.get("component") == "Header"))
+        title = next(c.get("title") for c in components if c.get("component") == "Header")
+        return title if isinstance(title, str) else ""
     except Exception:
         return ""
 

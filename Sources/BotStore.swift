@@ -642,9 +642,12 @@ final class BotStore {
             let photo = bot.hasAvatar && bot.meta.imageKind != "shape"
             return VoiceBot(name: bot.name, title: bot.title, session: bot.canonicalSession?.id.rawValue, lastActive: bot.canonicalSession?.lastActive, shape: look.shape.rawValue, color: look.color, expression: photo ? nil : bot.meta.expression, hidden: bot.meta.hidden == true)
         }
-        try? FileManager.default.createDirectory(at: voiceURL.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try? encoder.encode(voiceBots).write(to: voiceURL, options: .atomic)
-        WidgetCenter.shared.reloadTimelines(ofKind: PinnedGlance.widgetKind)
+        let voiceData = try? encoder.encode(voiceBots)
+        if let voiceData, voiceData != (try? Data(contentsOf: voiceURL)) {
+            try? FileManager.default.createDirectory(at: voiceURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try? voiceData.write(to: voiceURL, options: .atomic)
+            WidgetCenter.shared.reloadTimelines(ofKind: PinnedGlance.widgetKind)
+        }
         publishToSiri(voiceBots.filter { !$0.hidden }.map { BotEntity(id: $0.name, title: $0.title) })
         #endif
     }

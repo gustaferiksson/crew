@@ -41,6 +41,7 @@ struct PinnedCardSmall: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -70,7 +71,7 @@ struct PinnedCardRectangular: View {
             if let detail = content.detail {
                 Text(detail)
                     .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                    .lineLimit(content.glance == nil ? 2 : 1)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -95,6 +96,7 @@ struct PinnedCardCircular: View {
                 }
             }
             .gaugeStyle(.accessoryCircularCapacity)
+            .privacySensitive()
             .accessibilityValue(Text("\(progress.done) of \(progress.total) done"))
         } else {
             ZStack {

@@ -240,6 +240,26 @@ private struct ConnectionsFixtureSheets: ViewModifier {
                 .frame(width: 420, height: 560)
                 #endif
             }
+            .sheet(isPresented: .constant([.connectionAddTo, .connectionAddToResult].contains(snapshot))) {
+                NavigationStack {
+                    ConnectionPage(bot: ada, name: snapshot == .connectionAddTo ? "deepwiki" : "files", store: store)
+                        .navigationDestination(isPresented: .constant(true)) {
+                            if let deepwiki = store.servers?.first(where: { $0.name == "deepwiki" }), let files = store.servers?.first(where: { $0.name == "files" }) {
+                                if snapshot == .connectionAddTo {
+                                    AddToBotsPage(bot: ada, server: deepwiki, picked: ["scout", "forge"])
+                                } else {
+                                    AddToBotsPage(bot: ada, server: files, picked: ["default", "scout", "forge", "ledger", "atlas", "chef", "quill", "pixel"], outcomes: [
+                                        "default": .added, "scout": .missingKey, "forge": .alreadyAdded, "ledger": .differentConnection, "atlas": .failed("The request timed out."),
+                                        "chef": .needsSignIn, "quill": .addedOff, "pixel": .writtenKey,
+                                    ])
+                                }
+                            }
+                        }
+                }
+                #if os(macOS)
+                .frame(width: 420, height: 560)
+                #endif
+            }
     }
 }
 

@@ -1,4 +1,6 @@
 import A2UICore
+import Combine
+import CryptoKit
 import Foundation
 import Observation
 import OrderedJSON
@@ -25,6 +27,7 @@ final class SurfaceStore {
     private(set) var newest: ChatPins.Card?
     private(set) var present: Set<String> = []
     @ObservationIgnored var send: (String) -> Void = { _ in }
+    @ObservationIgnored var saved: (state: CardState, chat: String)?
     @ObservationIgnored private(set) lazy var processor = {
         let processor = MessageProcessor(catalogs: crewCatalogs)
         processor.outboundListener = { [weak self] message in
@@ -34,6 +37,11 @@ final class SurfaceStore {
     }()
     @ObservationIgnored private var replyBlocks: [String: [String]] = [:]
     @ObservationIgnored private var previews: [String: (healed: String, processor: MessageProcessor)] = [:]
+    @ObservationIgnored private var fingerprints: [String: String] = [:]
+    @ObservationIgnored private var updateHashes: [String: [String]] = [:]
+    @ObservationIgnored private var lastData: [String: OrderedJSON.JSONValue] = [:]
+    @ObservationIgnored private var watches: [String: AnyCancellable] = [:]
+    @ObservationIgnored private var isApplying = false
 
     func sync(_ transcript: Transcript) {
         var choices: [String: String] = [:]
@@ -55,6 +63,7 @@ final class SurfaceStore {
         let isBusy = transcript.turns.last?.status == .streaming
         if isBusy != self.isBusy { self.isBusy = isBusy }
         if !isBusy { previews.removeAll() }
+        restore()
     }
 
     func preview(_ partial: String) -> SurfaceViewModel? {
@@ -92,6 +101,18 @@ final class SurfaceStore {
             .reduce(into: [String]()) { if !$0.contains($1) { $0.append($1) } }
         if created.isEmpty, !updated.isEmpty, updated.allSatisfy({ processor.surfaceGroupModel[$0] == nil }) { return .lost }
         let revised = created.filter { processor.surfaceGroupModel[$0] != nil }
+        let hash = SHA256.hash(data: Data(source.utf8)).map { String(format: "%02x", $0) }.joined()
+        let botPaths = messages.compactMap { message in
+            message["updateDataModel"].flatMap { update in update["surfaceId"]?.stringValue.map { (surface: $0, path: update["path"]?.stringValue ?? "/") } }
+        }
+        for id in updated where botPaths.contains(where: { $0.surface == id }) {
+            updateHashes[id, default: []].append(hash)
+            guard let saved, let fingerprint = fingerprints[id] else { continue }
+            saved.state.botUpdated(botPaths.filter { $0.surface == id }.map(\.path), with: hash, on: fingerprint, in: saved.chat)
+        }
+
+        isApplying = true
+        defer { isApplying = false }
         do {
             for id in revised {
                 try processor.processMessages(["version": "v0.9", "deleteSurface": ["surfaceId": .string(id)]])
@@ -100,8 +121,44 @@ final class SurfaceStore {
         } catch {
             return .failed(String(describing: error))
         }
-        for id in created { owners[id] = source }
+        for id in created {
+            owners[id] = source
+            fingerprints[id] = id + ":" + hash
+            updateHashes[id] = []
+            watch(id)
+        }
         return .surfaces(created: created, revised: revised, updated: updated)
+    }
+
+    private func watch(_ id: String) {
+        guard let data = processor.surfaceGroupModel[id]?.dataModel else { return }
+        lastData[id] = data.data
+        watches[id] = data.dataPublisher.sink { [weak self] new in
+            self?.dataChanged(id, to: new)
+        }
+    }
+
+    private func dataChanged(_ id: String, to new: OrderedJSON.JSONValue) {
+        let old = lastData[id]
+        lastData[id] = new
+        guard !isApplying, let saved, let fingerprint = fingerprints[id] else { return }
+
+        let changes = changedLeaves(from: old, to: new, at: "")
+        guard !changes.isEmpty else { return }
+        saved.state.userChanged(changes, on: fingerprint, after: updateHashes[id] ?? [], in: saved.chat)
+    }
+
+    private func restore() {
+        guard let saved else { return }
+        isApplying = true
+        defer { isApplying = false }
+
+        for (id, fingerprint) in fingerprints {
+            guard let data = processor.surfaceGroupModel[id]?.dataModel else { continue }
+            for (path, value) in saved.state.values(of: fingerprint, in: saved.chat) where data.get(path) != value {
+                data.set(path, value: value)
+            }
+        }
     }
 
     private func forward(_ message: RendererToAgentMessage) {
@@ -110,6 +167,22 @@ final class SurfaceStore {
         guard let json = try? sentActionEncoder.encode(sent) else { return }
         send("<a2ui-action>\(String(decoding: json, as: UTF8.self))</a2ui-action>")
     }
+}
+
+nonisolated private func changedLeaves(from old: OrderedJSON.JSONValue?, to new: OrderedJSON.JSONValue?, at path: String) -> [String: OrderedJSON.JSONValue] {
+    if old == new { return [:] }
+    if case .object(let before)? = old, case .object(let after)? = new {
+        return Set(before.keys).union(after.keys).reduce(into: [:]) { changes, key in
+            let escaped = key.replacing("~", with: "~0").replacing("/", with: "~1")
+            changes.merge(changedLeaves(from: before[key], to: after[key], at: path + "/" + escaped)) { $1 }
+        }
+    }
+    if case .array(let before)? = old, case .array(let after)? = new, before.count == after.count {
+        return before.indices.reduce(into: [:]) { changes, index in
+            changes.merge(changedLeaves(from: before[index], to: after[index], at: "\(path)/\(index)")) { $1 }
+        }
+    }
+    return [path: new ?? .null]
 }
 
 nonisolated private let sentActionEncoder = {

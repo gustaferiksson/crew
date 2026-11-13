@@ -132,6 +132,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
     @State private var liveTurn: Turn.ID?
     @State private var transcriptTaps = 0
     @Environment(ChatPins.self) private var pins
+    @Environment(CardState.self) private var cardState: CardState?
     @Environment(BotStore.self) private var bots
     @Environment(\.scenePhase) private var scenePhase
     #if os(macOS)
@@ -357,6 +358,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
         #endif
         .onChange(of: transcript.turns.map(\.status), initial: true) {
             surfaces.send = actions.sendHidden
+            if let cardState, let pinKey { surfaces.saved = (cardState, pinKey) }
             surfaces.sync(transcript)
         }
         .onChange(of: surfaces.newest, initial: true) {

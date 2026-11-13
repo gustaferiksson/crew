@@ -60,20 +60,39 @@ The amount shown is `value × to / from`. When `to` equals `from` (the card as t
 - **Rooms, Other Conversations sheet:** the same `SurfaceBlock`, same behaviour.
 - **Older Crew builds:** an unknown `Stepper` or `scale` fails the card as "Couldn't display this card" with the raw block. Same accepted degradation as the Carousel (`docs/flows/a2ui-carousel.md`).
 
-## Reload, relaunch and switching chats: reset
+## Reload, relaunch and switching chats: what the user set stays
 
-The Stepper resets to the bot's servings whenever the chat's `SurfaceStore` is rebuilt (leaving the chat, a relaunch, or on iPhone the app being killed in the background mid-cooking; a history reload keeps it, since blocks are keyed by text), exactly like ticks, text fields and chips today. Decision: reset, not persist, in this change.
+What the user sets on a card (ticks, the Stepper, choice chips, text fields, sliders: every input that writes the card's data model) survives leaving the chat, a relaunch and the iPhone app being killed in the background mid-cooking, per chat and per card. One rule for every input, so a remembered Stepper never sits next to resetting ticks. This replaces the "reset" decision of the first Stepper change (#227's open question on card control state).
 
-- One rule for every card input: persisting only servings would leave ticks resetting next to a remembered stepper on the same card.
-- Persisting card input belongs in one place for all inputs (a `pins.json`-style file keyed by chat, surface id and block fingerprint, replayed after `ingest`), which is the open question already on #227. It is a follow-up, not part of this change.
-- The bot's message stays the source of truth: other devices and other apps see the servings the bot wrote.
-- Cost: a user who scaled to 6 and switches chats sees 4 again. Accepted for now; #227's open question on card control state covers it.
+- **Store:** `CardState`, an `@Observable` store shaped like `ChatPins`: `cards.json` in Application Support, written atomically on each change (like `drafts.json`, which also writes per keystroke), never `UserDefaults`. Per device, not synced: other devices, Hermes Desktop and the bot still see the values the bot wrote.
+- **Key:** the chat key (the pins' key: `bot.id` for a Bot Chat, `room.selectionID` for a room) plus the card's fingerprint, the surface id and a SHA-256 of the block that created it (as `ChatPins`' seen watermark), so the same card from live and from history is one entry.
+- **What is stored:** only the data-model paths the user changed and their values (`/meat/0/done: true`, `/servings: 6`), never the bot's data. A change is a data-model write outside `SurfaceStore`'s ingest of a bot block; its paths come from comparing the model before and after the write (leaves of objects and of arrays that kept their length; an array that changed length is stored whole, as a choice list is). A user who unticks a box again keeps that entry (the value equals the bot's, which changes nothing).
+- **Bounded:** at most the 200 most recently changed cards across all chats; the oldest goes first.
+- **Replay:** after `SurfaceStore.sync` has ingested the transcript's blocks, the saved values of each card are written into its live data model (inside the ingest guard, so replay is not recorded as a change), so the ticks, the scaled amounts and the pinned chip's "3 of 8" are back before the first frame of the reopened chat.
+- **Rooms:** same as a Bot Chat, keyed by the room. **Other Conversations sheet:** not saved (it has no chat key, like pins); its cards reset when the sheet closes, as before.
+- **Bot list preview, push, inspector, Hermes Desktop, other devices:** unchanged; nothing is sent to the bot or the server.
+- **Two Mac windows on one chat:** each `ChatView` has its own `SurfaceStore`, so a tick in one window shows in the other only after it reopens the chat; both write the same entry and the last write wins per path.
 
 ## Card updates by the bot
 
-- **Re-create with the same id** ("make it for 6"): a new card with the bot's servings and amounts; local stepper state is gone, like ticks (card-updates spec).
-- **Update-only `updateDataModel` with a `path`** (a tick-off): only that path changes; the local servings stay.
-- **`updateDataModel` without a path** (whole model): replaces local servings with the bot's, as it replaces ticks; `baseServings` comes with it, so amounts are never scaled twice.
+- **Update-only `updateDataModel` with a `path`** (a tick-off, a new count): the bot's value wins for that path and anything below it; every other user value stays (the local servings stay through a tick-off). The entry drops the paths the bot sent, so a relaunch does not bring back the overridden value. Each entry remembers the update blocks it has already seen (their SHA-256), seeded at every user change with the card's update blocks ingested so far, so replaying the same history after a relaunch drops nothing (also for a value the user changed after a tick-off that was already in history), while a later bot update does. A bot path above a saved path (`/meat` over `/meat/0/done`) or below one (`/choices/1` under a whole saved `/choices` array) both count as sent.
+- **`updateDataModel` without a path** (whole model): the bot sent every path, so every user value of that card goes; `baseServings` comes with it, so amounts are never scaled twice.
+- **Re-create with the same id** ("make it for 6", a new `createSurface` block): a new fingerprint, so the card starts fresh with the bot's servings, amounts and ticks; the older entry is never replayed and ages out of the 200. The "updated below" line of the older turn is unchanged.
+- **Identical blocks** (the bot repeats a block word for word): one fingerprint, so one entry, as for pins.
+
+## Cleared
+
+- **Start New Chat and Compact Chat:** nothing is cleared, as for pins (`pinned-card.md` > Gone). Compact usually keeps the recent cards, so their ticks stay; entries for cards that left the transcript are never replayed and age out through the 200-card bound.
+- **Deleting the bot:** its entries go, with its draft and pin.
+- **Sign Out:** the whole file is reset, at both call sites that reset drafts and pins (`SettingsView`, `BotsView`); the Mac Sign Out text says Crew forgets "the unsent drafts, pinned cards and card choices on this Mac".
+
+## States
+
+- **Offline:** cards and their saved values are local, so they show offline.
+- **Busy:** cards are disabled while a turn runs (unchanged), so the user writes nothing then; bot updates during the turn land after it.
+- **A saved path the card no longer has** (the bot's update removed a row): writing it adds the key back to the data model, which nothing binds, so nothing shows.
+- **Unreadable or missing file:** starts empty, like `pins.json`.
+- **Snapshots and tests:** an in-memory store (UI tests may pass a scratch file in the app's temporary directory), never the real `cards.json` (Application Support is shared by Debug and release Mac builds).
 
 ## Invalid input and long content
 
@@ -96,3 +115,6 @@ A Slider bound to `/rate` already writes the data model. Driving a Chart needs `
 - Real-server probe on a throwaway clone of `crew-test` (`Tests/chat_probe/run.sh a2ui-servings`): "Give me a recipe for köttbullar for 4" must produce a Stepper and `scale` bindings; the recorded reply becomes a fixture.
 - Renders of the recipe card expanded at two servings values, Mac and iPhone, light and dark (the iPhone − / + capsule on glass in both).
 - `axe describe-ui` on the iPhone render: the Stepper is one adjustable element with the count as its value.
+- Card state (`CardStateTests`, each shown failing without the change): tick a recorded card's box through its CheckBox binding and turn its Stepper, build a new `CardState` and `SurfaceStore` from the same scratch file, replay the same history and find the tick, the servings and the scaled amount; a later bot tick-off overrides only its own path while the user's other values stay, and replaying that history again keeps it so; a same-id re-create starts fresh; `clear` and `reset` empty the file; the 200-card bound drops the oldest.
+- Render `chat-a2ui-saved` on the Mac and iPhone, light and dark: the recorded köttbullar card from `Tests/fixtures/chat.a2ui-servings.history.json` expanded with saved ticks and servings replayed from an in-memory store.
+- No iOS UI test: the unit tests rebuild both stores from one scratch file, which is what a relaunch does; a UI test would only repeat that through a test-only launch path.

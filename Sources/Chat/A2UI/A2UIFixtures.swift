@@ -74,6 +74,19 @@ extension ChatFixture {
         )]
     }
 
+    static func savedCards() -> CardState {
+        let cards = CardState(fileURL: nil)
+        let store = SurfaceStore()
+        store.saved = (cards, "default")
+        store.sync(recordedRows().map { Transcript(history: $0) } ?? Transcript())
+        let data = store.processor.surfaceGroupModel["kottbullar-for-four"]?.dataModel
+        data?.set("/servings", value: .number(6))
+        for path in ["/meat/0/done", "/meat/1/done", "/meat/5/done", "/gravy/2/done"] {
+            data?.set(path, value: .boolean(true))
+        }
+        return cards
+    }
+
     static func a2uiStreamingTurns(_ now: Date) -> [Turn] {
         let partial = """
             Classic köttbullar for 4, about 45 minutes.

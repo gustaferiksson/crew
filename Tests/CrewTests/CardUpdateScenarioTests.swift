@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 import Testing
 
 nonisolated private struct HistoryFile: Decodable {
@@ -86,4 +87,28 @@ private func cardBlocks(_ transcript: Transcript) -> [String] {
     #expect(store.processor.surfaceGroupModel[recipe] != nil, "the processor outlives the transcript")
     #expect(!store.present.contains(recipe))
     #expect(store.present.contains(vegan))
+}
+
+@MainActor @Test func updatedBelowLeadsToTheTurnThatNowHoldsTheCard() throws {
+    let transcript = Transcript(history: try recordedRows())
+    let store = SurfaceStore()
+    store.sync(transcript)
+    let cardTurns = transcript.turns.filter { $0.reply.contains("```a2ui") }
+    try #require(cardTurns.count == 4)
+
+    #expect(store.cardTurns[recipe] == cardTurns[1].id, "the first turn's line points at the 'make it for 6' turn")
+    #expect(store.cardTurns[vegan] == cardTurns[3].id)
+}
+
+@Test func onlyALiveReplyAnimatesItsCardUpdates() {
+    let earlier: [Turn.Status] = [.complete, .complete]
+    let streaming = earlier + [.streaming]
+    let finished = earlier + [.complete]
+
+    #expect(Transaction.cardUpdate(from: streaming, to: finished, reducingMotion: false).animation == .smooth, "a reply that just finished animates")
+    #expect(Transaction.cardUpdate(from: streaming, to: [.complete] + finished, reducingMotion: false).animation == .smooth, "an earlier page landing as the reply finishes still animates it")
+    #expect(Transaction.cardUpdate(from: streaming, to: finished, reducingMotion: true).animation == nil, "never under Reduce Motion")
+    #expect(Transaction.cardUpdate(from: finished, to: finished, reducingMotion: false).animation == nil, "opening the chat draws the final state")
+    #expect(Transaction.cardUpdate(from: [], to: finished, reducingMotion: false).animation == nil, "history arriving after open draws the final state")
+    #expect(Transaction.cardUpdate(from: finished, to: [.complete, .complete] + finished, reducingMotion: false).animation == nil, "Load Earlier replays older blocks without animating")
 }

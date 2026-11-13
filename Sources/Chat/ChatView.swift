@@ -116,6 +116,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
     @State private var timestampWidth: CGFloat = 40
     @State private var surfaces = SurfaceStore()
     @State private var highlighted: Turn.ID?
+    @State private var shownTurn: Turn.ID?
     @State private var handledFocus: UUID?
     @State private var focusPages: (focus: UUID, count: Int)?
     @State private var responses: [SensoryFeedback] = []
@@ -135,6 +136,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
     @Environment(CardState.self) private var cardState: CardState?
     @Environment(BotStore.self) private var bots
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     #if os(macOS)
     @Environment(\.appearsActive) private var appearsActive
     #else
@@ -320,6 +322,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
             .environment(\.chatActions, latestActions)
             .environment(\.transcriptExpansion, expansion)
             .environment(\.expandedCards, $expandedCards)
+            .environment(\.shownTurn, $shownTurn)
             #if os(macOS)
             .environment(\.cardWidths, $cardWidths)
             #endif
@@ -356,10 +359,10 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
             TrackpadSwipe { trackpadTravel = $0 }
         }
         #endif
-        .onChange(of: transcript.turns.map(\.status), initial: true) {
+        .onChange(of: transcript.turns.map(\.status), initial: true) { old, new in
             surfaces.send = actions.sendHidden
             if let cardState, let pinKey { surfaces.saved = (cardState, pinKey) }
-            surfaces.sync(transcript)
+            withTransaction(.cardUpdate(from: old, to: new, reducingMotion: reduceMotion)) { surfaces.sync(transcript) }
         }
         .onChange(of: surfaces.newest, initial: true) {
             guard let pinKey, let newest = surfaces.newest else { return }
@@ -433,6 +436,12 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
             position.scrollTo(id: target.id, anchor: .center)
             handledFocus = focus.id
             highlighted = target.id
+        }
+        .onChange(of: shownTurn) {
+            guard let shownTurn else { return }
+            position.scrollTo(id: shownTurn, anchor: .center)
+            highlighted = shownTurn
+            self.shownTurn = nil
         }
         .task(id: highlighted) {
             guard highlighted != nil else { return }

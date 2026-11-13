@@ -26,6 +26,7 @@ final class SurfaceStore {
     private(set) var isBusy = false
     private(set) var newest: ChatPins.Card?
     private(set) var present: Set<String> = []
+    private(set) var cardTurns: [String: Turn.ID] = [:]
     @ObservationIgnored var send: (String) -> Void = { _ in }
     @ObservationIgnored var saved: (state: CardState, chat: String)?
     @ObservationIgnored private(set) lazy var processor = {
@@ -46,6 +47,7 @@ final class SurfaceStore {
     func sync(_ transcript: Transcript) {
         var choices: [String: String] = [:]
         var cards: [ChatPins.Card] = []
+        var cardTurns: [String: Turn.ID] = [:]
         for turn in transcript.turns {
             if let action = turn.hiddenText.flatMap(SentAction.init(text:)) {
                 choices[action.surfaceId] = action.sourceComponentId
@@ -54,9 +56,13 @@ final class SurfaceStore {
             for source in replyBlocks[turn.reply] ?? read(turn.reply) {
                 guard case .surfaces(let ids, _, _) = blocks[source] else { continue }
                 cards += ids.map { ChatPins.Card(surface: $0, source: source, finishedAt: turn.finishedAt ?? turn.startedAt) }
+                for id in ids where owners[id] == source {
+                    cardTurns[id] = turn.id
+                }
             }
         }
         if choices != self.choices { self.choices = choices }
+        if cardTurns != self.cardTurns { self.cardTurns = cardTurns }
         if cards.last != newest { newest = cards.last }
         let present = Set(cards.map(\.surface))
         if present != self.present { self.present = present }

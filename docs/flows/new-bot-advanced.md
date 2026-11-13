@@ -1,6 +1,6 @@
 # New Bot: Advanced (#119)
 
-New Bot keeps its basic fields (name, title, role, look, Duplicate From, description, instructions). One **Advanced** row at the end of the form pushes a Form page, on iPhone and Mac alike (the same pattern as Appearance), so the sheet's height is unchanged and #175's short-screen fit can't regress. Untouched, Advanced sends exactly what New Bot sent before.
+New Bot keeps its basic fields (name, title, role, look, Duplicate From, description, instructions). One **Advanced** row at the end of the form pushes a Form page, on iPhone and Mac alike (the same pattern as Appearance), so the sheet's height is unchanged and #175's short-screen fit can't regress. Untouched, Advanced sends what New Bot sent before, plus Rich UI (the `crew-ui` skill), which is on by default for a new bot.
 
 ## What Hermes 0.22.5 accepts (checked on the server with `crew-test-adv*` throwaways, deleted after)
 
@@ -17,16 +17,17 @@ New Bot keeps its basic fields (name, title, role, look, Duplicate From, descrip
 - **Copy API Keys** switch, on. Off sends `mirror_credentials: false`.
 - **Bundled Skills** switch, on, hidden while duplicating. Off sends `no_skills: true`.
 - Footer: where keys come from (the default bot's title) and that single skills are set later in the inspector.
+- **Rich UI** section, hidden while duplicating: a **Cards and Forms** switch, on, with the inspector's footer. On installs the bundled `crew-ui` skill after create (the inspector's `installCrewUISkill`), which a fresh bot has enabled, with or without bundled skills. A duplicate keeps its source's Rich UI, like its other skills. Existing bots are untouched.
 - **Toolsets** row with "N On", pushing a Form of switches (label and tool summary), seeded from the default profile (or the source). Only the switches the user flips are saved after create.
 - **Connections** section, only when not duplicating and the default profile has config servers: one switch per server (title, address truncated in the middle), all off. Footer: copied from the default bot; some need Copy API Keys or a new sign-in. Plugin servers are left out (not in config). Managing connections stays in the inspector's Connections section.
 
 ## After Create
 
 1. `profiles.create` with name, description, soul, clone_from, and the key and skills switches. A failure keeps the sheet open with Hermes' message, as before.
-2. Flipped toolsets, copied connections, then the model.
+2. Rich UI (when on and not duplicating), flipped toolsets, copied connections, then the model. These steps are `NewBotOptions.apply`, which the sheet and `Tests/bot_probe/run.sh rich` share.
 3. All applied: the sheet closes and selects the bot, as before.
 4. The model needs confirmation: an alert "Use This Model?" with Hermes' message, **Use Anyway** (confirms and closes) / **Keep Default** (closes; the bot keeps the server default).
-5. A step failed: the bot exists, so the sheet can't retry under the same name. An alert "Bot Created" lists what wasn't applied ("toolsets", "connections", "model") and says to change it in the inspector; OK closes into the bot. Both alerts merge into one when both happen.
+5. A step failed: the bot exists, so the sheet can't retry under the same name. An alert "Bot Created" lists what wasn't applied ("toolsets", "connections", "model") and says to change it in the inspector; OK closes into the bot. Both alerts merge into one when both happen. A failed Rich UI install gets its own sentence in that alert: "Cards and Forms couldn't be turned on, so this bot answers in plain text. Turn it on in the bot's inspector." The inspector's switch then reads off, since the skill isn't there.
 
 ## States
 

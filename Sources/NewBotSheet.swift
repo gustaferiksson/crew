@@ -27,14 +27,7 @@ struct NewBotSheet: View {
     @State private var options = NewBotOptions()
     @State private var providers: [ModelProvider] = []
     @State private var connections: [MCPServer]?
-    @State private var created: Created?
-
-    private struct Created {
-        let name: String
-        var expensiveModel: (choice: ModelChoice, message: String)?
-        var unapplied: [String]
-        var keyless: [String] = []
-    }
+    @State private var created: NewBotResult?
 
     private var slug: String {
         let folded = name.folding(options: [.diacriticInsensitive, .caseInsensitive, .widthInsensitive], locale: nil).lowercased()
@@ -228,7 +221,8 @@ struct NewBotSheet: View {
             } else {
                 String(localized: "\(created.keyless.formatted(.list(type: .and))) weren't copied: their keys stay with \(owner). Add them again from Connections.")
             }
-            Text([created.expensiveModel?.message, unapplied, keyless].compactMap { $0 }.joined(separator: "\n\n"))
+            let richUI: String? = created.richUIFailed ? String(localized: "Cards and Forms couldn't be turned on, so this bot answers in plain text. Turn it on in the bot's inspector.") : nil
+            Text([created.expensiveModel?.message, richUI, unapplied, keyless].compactMap { $0 }.joined(separator: "\n\n"))
         }
         #if os(macOS)
         .frame(minWidth: 440, idealHeight: 600)
@@ -254,39 +248,12 @@ struct NewBotSheet: View {
             failure = if case GatewayError.rpc(_, let message) = error { message } else { error.localizedDescription }
             return
         }
-        let result = await apply(options, to: profile.name, via: gateway)
-        if result.expensiveModel == nil && result.unapplied.isEmpty && result.keyless.isEmpty {
+        let result = await options.apply(to: profile.name, cloneFrom: source, via: gateway, urlSession: connection.urlSession)
+        if result.expensiveModel == nil && result.unapplied.isEmpty && result.keyless.isEmpty && !result.richUIFailed {
             finish(result.name)
         } else {
             created = result
         }
-    }
-
-    private func apply(_ options: NewBotOptions, to name: String, via gateway: Gateway) async -> Created {
-        var result = Created(name: name, unapplied: [])
-        do {
-            for toolset in options.changedToolsets {
-                try await saveToolset(toolset.name, enabled: toolset.enabled, of: name, on: gateway.server, with: connection.urlSession)
-            }
-        } catch {
-            result.unapplied.append(String(localized: "toolsets"))
-        }
-        if source == nil && !options.connections.isEmpty {
-            do {
-                result.keyless = try await copyConnections(options.connections, from: "default", to: name, on: gateway.server, with: connection.urlSession)
-            } catch {
-                result.unapplied.append(String(localized: "connections"))
-            }
-        }
-        guard let model = options.model else { return result }
-        do {
-            if case .needsConfirmation(let message) = try await changeModel(of: name, to: model, confirmation: .ask, via: gateway) {
-                result.expensiveModel = (model, message)
-            }
-        } catch {
-            result.unapplied.append(String(localized: "model"))
-        }
-        return result
     }
 
     private func confirm(_ model: ModelChoice, for name: String) async {

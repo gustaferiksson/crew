@@ -52,8 +52,8 @@ for appearance in light dark; do
     xcrun simctl terminate "$DEVICE" dev.gustaf.crew 2>/dev/null || true
     rm -f snapshots/.out
     xcrun simctl launch --stdout="$PWD/snapshots/.out" "$DEVICE" dev.gustaf.crew -snapshot "$screen" "${FIXTURE_ARGS[@]}" >/dev/null
-    # A just-created simulator's first launch takes about a minute to draw.
-    deadline=$((SECONDS + 120))
+    # A just-created simulator's first launch takes 30 to 100 s to draw.
+    deadline=$((SECONDS + 180))
     until grep -q ready snapshots/.out 2>/dev/null; do
       (( SECONDS < deadline )) || { echo "✗ ios-${screen}${suffix}: the app never printed ready, no screenshot taken" >&2; exit 1; }
       sleep 0.5

@@ -79,18 +79,11 @@ extension ChatFixture {
         let ticked = list.replacing(#"{"name": "2 avocados", "done": false}"#, with: #"{"name": "2 avocados", "done": true}"#)
             .replacing(#"{"name": "8 tortillas", "done": false}"#, with: #"{"name": "8 tortillas", "done": true}"#)
         let start = now.addingTimeInterval(-300)
-        return [
-            Turn(
-                id: "s1", prompt: Prompt(text: "Make me a shopping list for tacos for 4", sentAt: start),
-                reply: "Tacos for 4, sorted by store section.\n\n```a2ui\n\(ticked)\n```",
-                status: .complete, startedAt: start, finishedAt: start.addingTimeInterval(6)
-            ),
-            Turn(
-                id: "s2", hiddenText: #"<a2ui-action>{"context":{},"name":"done-shopping","sourceComponentId":"done","surfaceId":"taco-shopping-list"}</a2ui-action>"#,
-                reply: "You got the avocados and the tortillas. Still missing: red onion, tomatoes, lime, minced beef, crème fraîche, cheese and salsa.",
-                status: .complete, startedAt: now.addingTimeInterval(-60), finishedAt: now.addingTimeInterval(-55)
-            ),
-        ]
+        return [Turn(
+            id: "s1", prompt: Prompt(text: "Make me a shopping list for tacos for 4", sentAt: start),
+            reply: "Tacos for 4, sorted by store section.\n\n```a2ui\n\(ticked)\n```",
+            status: .complete, startedAt: start, finishedAt: start.addingTimeInterval(6)
+        )]
     }
 
     static func a2uiTimerTurns(_ now: Date) -> [Turn] {

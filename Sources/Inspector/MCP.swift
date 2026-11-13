@@ -18,17 +18,35 @@ nonisolated struct MCPServer: Decodable, Equatable, Identifiable, Sendable {
         url ?? ([command ?? ""] + args).joined(separator: " ")
     }
 
+    static func names(_ value: JSONValue?) -> [String]? {
+        if case .string(let pattern) = value { return [pattern] }
+        guard case .array(let items) = value else { return nil }
+        return items.compactMap { if case .string(let pattern) = $0 { pattern } else { nil } }
+    }
+
     func offers(_ tool: String) -> Bool {
         guard case .object(let filter) = tools else { return true }
-        let patterns = { (key: String) -> [String]? in
-            if case .string(let pattern) = filter[key] { return [pattern] }
-            guard case .array(let items) = filter[key] else { return nil }
-            return items.compactMap { if case .string(let pattern) = $0 { pattern } else { nil } }
-        }
         let matches = { (patterns: [String]) in patterns.contains { $0 == tool || fnmatch($0, tool, 0) == 0 } }
-        if let include = patterns("include") { return matches(include) }
-        return !matches(patterns("exclude") ?? [])
+        if let include = Self.names(filter["include"]) { return matches(include) }
+        return !matches(Self.names(filter["exclude"]) ?? [])
     }
+
+    func canSwitch(_ tool: String) -> Bool {
+        guard case .object(let filter) = tools else { return true }
+        let patterns = Self.names(filter["include"]) ?? Self.names(filter["exclude"]) ?? []
+        return !patterns.contains { $0 != tool && fnmatch($0, tool, 0) == 0 }
+    }
+}
+
+nonisolated func settingTool(_ tool: String, on: Bool, in entry: [String: JSONValue]) -> [String: JSONValue] {
+    var entry = entry
+    var tools: [String: JSONValue] = if case .object(let tools) = entry["tools"] { tools } else { [:] }
+    let key = MCPServer.names(tools["include"]) == nil ? "exclude" : "include"
+    let current = MCPServer.names(tools[key]) ?? []
+    let names = on == (key == "include") ? current + (current.contains(tool) ? [] : [tool]) : current.filter { $0 != tool }
+    tools[key] = key == "exclude" && names.isEmpty ? nil : .array(names.map(JSONValue.string))
+    entry["tools"] = tools.isEmpty ? nil : .object(tools)
+    return entry
 }
 
 nonisolated struct MCPServerList: Decodable, Sendable {
@@ -118,6 +136,69 @@ nonisolated func mcpRequest(_ path: String, profile: String, method: String = "G
     request.setValue("application/json", forHTTPHeaderField: "Content-Type")
     request.httpBody = try? JSONEncoder().encode(body)
     return request
+}
+
+nonisolated func jsonMembers(_ object: Substring) -> [(key: Substring, value: Substring)] {
+    var members: [(key: Substring, value: Substring)] = []
+    var depth = 0
+    var inString = false
+    var escaped = false
+    var start = object.startIndex
+    var colon: Substring.Index?
+    for index in object.indices {
+        let character = object[index]
+        if inString {
+            if escaped { escaped = false } else if character == "\\" { escaped = true } else if character == "\"" { inString = false }
+            continue
+        }
+        if character == "," || character == "}", depth == 1, let colon {
+            members.append((object[start..<colon].trimmingCharacters(in: .whitespacesAndNewlines)[...], object[object.index(after: colon)..<index].trimmingCharacters(in: .whitespacesAndNewlines)[...]))
+        }
+        if character == "\"" {
+            inString = true
+        } else if character == "{" || character == "[" {
+            depth += 1
+            if depth == 1 { start = object.index(after: index) }
+        } else if character == "}" || character == "]" {
+            depth -= 1
+        } else if character == ":", depth == 1, colon == nil {
+            colon = index
+        } else if character == ",", depth == 1 {
+            start = object.index(after: index)
+            colon = nil
+        }
+    }
+    return members
+}
+
+nonisolated func replacingServer(_ name: String, in rawConfig: String, profile: String, change: ([String: JSONValue]) -> [String: JSONValue]) throws -> Data? {
+    let decode = { (text: Substring) in try JSONDecoder().decode(JSONValue.self, from: Data(text.utf8)) }
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
+    let encode = { (value: JSONValue) in String(decoding: try encoder.encode(value), as: UTF8.self) }
+    guard let servers = jsonMembers(rawConfig[...]).first(where: { (try? decode($0.key)) == .string("mcp_servers") })?.value,
+          let target = try jsonMembers(servers).first(where: { try decode($0.key) == .string(name) }),
+          case .object(let old) = try decode(target.value)
+    else { return nil }
+
+    let new = change(old)
+    let kept = try jsonMembers(target.value).compactMap { member -> String? in
+        guard case .string(let key) = try decode(member.key), let value = new[key] else { return nil }
+        return value == old[key] ? "\(member.key):\(member.value)" : "\(member.key):\(try encode(value))"
+    }
+    let added = try new.keys.filter { old[$0] == nil }.sorted().map { "\(try encode(.string($0))):\(try encode(new[$0] ?? .null))" }
+    let entry = "{" + (kept + added).joined(separator: ",") + "}"
+    let map = jsonMembers(servers).map { "\($0.key):\($0.key == target.key ? entry[...] : $0.value)" }.joined(separator: ",")
+    let body = Data("{\"servers\":{\(map)},\"profile\":\(try encode(.string(profile)))}".utf8)
+
+    guard case .object(let before) = try decode(servers),
+          case .object(let sent) = try? JSONDecoder().decode(JSONValue.self, from: body),
+          case .object(let after) = sent["servers"] ?? .null,
+          Set(after.keys) == Set(before.keys),
+          after[name] == .object(new),
+          after.filter({ $0.key != name }) == before.filter({ $0.key != name })
+    else { throw ProfileError(errorDescription: String(localized: "Crew couldn't prepare this change safely, so nothing was saved.")) }
+    return body
 }
 
 nonisolated func copyConnections(_ names: Set<String>, from source: String, to profile: String, on server: URL, with session: URLSession) async throws -> [String] {
@@ -320,6 +401,84 @@ final class BotConnections {
         }
         servers?.removeAll { $0.name == name }
         tests[name] = nil
+    }
+
+    func setTool(_ tool: String, on: Bool, for name: String, on server: URL, with urlSession: URLSession) async {
+        guard let index = servers?.firstIndex(where: { $0.name == name }), let current = servers?[index] else { return }
+        servers?[index].tools = settingTool(tool, on: on, in: ["tools": current.tools ?? .null])["tools"]
+        if isFixture { return requests.append("tool \(name) \(tool) \(on)") }
+        guard await edit(name, on: server, with: urlSession, change: { settingTool(tool, on: on, in: $0) }) else {
+            return await load(on: server, with: urlSession)
+        }
+    }
+
+    func changeAddress(_ address: String, for name: String, on server: URL, with urlSession: URLSession) async {
+        if isFixture { return requests.append("address \(name) \(address)") }
+        let changed = await edit(name, on: server, with: urlSession) { entry in
+            var entry = entry
+            entry["url"] = .string(address)
+            return entry
+        }
+        await load(on: server, with: urlSession)
+        guard changed, servers?.first(where: { $0.name == name })?.enabled == true else { return }
+        tests[name] = nil
+        await test(name, on: server, with: urlSession)
+    }
+
+    func changeAPIKey(_ key: String, for name: String, on server: URL, with urlSession: URLSession, gateway: Gateway) async {
+        failures[name] = nil
+        if isFixture { return requests.append("api key \(name)") }
+        busy.insert(name)
+        defer { busy.remove(name) }
+        do {
+            guard case .object(let config) = try JSONDecoder().decode(JSONValue.self, from: Data(try await rawConfig(on: server, with: urlSession).utf8)),
+                  case .object(let servers) = config["mcp_servers"] ?? .null,
+                  case .object(let entry) = servers[name] ?? .null
+            else {
+                failures[name] = String(localized: "\(name) was removed on the server.")
+                return
+            }
+            guard case .object(let headers) = entry["headers"] ?? .null, headers.count == 1,
+                  case .string(let authorization) = headers["Authorization"] ?? .null,
+                  let variable = authorization.wholeMatch(of: /Bearer \$\{(\w+)\}/)?.1
+            else {
+                failures[name] = String(localized: "\(name)'s headers were written by hand. Change its key on the server.")
+                return
+            }
+            _ = try await gateway.call("mcp.servers.set_api_key", ["name": name, "value": key, "env_var": String(variable), "profile": profile], as: JSONValue.self)
+        } catch {
+            failures[name] = error.localizedDescription
+            return
+        }
+
+        tests[name] = nil
+        await test(name, on: server, with: urlSession)
+    }
+
+    private func edit(_ name: String, on server: URL, with urlSession: URLSession, change: ([String: JSONValue]) -> [String: JSONValue]) async -> Bool {
+        failures[name] = nil
+        busy.insert(name)
+        defer { busy.remove(name) }
+        do {
+            guard let body = try replacingServer(name, in: try await rawConfig(on: server, with: urlSession), profile: profile, change: change) else {
+                failures[name] = String(localized: "\(name) was removed on the server.")
+                return false
+            }
+            var write = mcpRequest("servers", profile: profile, method: "PUT", on: server)
+            write.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            write.httpBody = body
+            _ = try await fetch(write, with: urlSession, as: JSONValue.self)
+            return true
+        } catch {
+            failures[name] = error.localizedDescription
+            return false
+        }
+    }
+
+    private func rawConfig(on server: URL, with urlSession: URLSession) async throws -> String {
+        var read = hermesRequest("api/config", on: server)
+        read.url?.append(queryItems: [URLQueryItem(name: "profile", value: profile), URLQueryItem(name: "include_defaults", value: "false")])
+        return String(decoding: try await fetchData(read, with: urlSession), as: UTF8.self)
     }
 
     func add(_ body: [String: JSONValue], catalog: Bool, on server: URL, with urlSession: URLSession) async throws {

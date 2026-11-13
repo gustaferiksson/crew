@@ -1,0 +1,1 @@
+{"mcp_servers":{"wikikey":{"headers":{"Authorization":"Bearer ${MCP_WIKIKEY_API_KEY}"},"url":"https://mcp.deepwiki.com/mcp"},"deepwiki":{"url":"https://mcp.deepwiki.com/mcp","enabled":true}}}

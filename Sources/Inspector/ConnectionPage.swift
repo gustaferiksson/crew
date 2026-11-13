@@ -10,6 +10,11 @@ struct ConnectionPage: View {
     @Environment(\.webAuthenticationSession) private var webAuthenticationSession
     @Environment(\.dismiss) private var dismiss
     @State private var query = ""
+    @State private var isChangingAddress = false
+    @State private var address = ""
+    @State private var isChangingKey = false
+    @State private var apiKey = ""
+    @State private var isRemoving = false
 
     private var isOnline: Bool {
         connection.state == .connected
@@ -52,6 +57,7 @@ struct ConnectionPage: View {
     private func form(_ server: MCPServer) -> some View {
         let status = store.status(of: server)
         let isBusy = store.busy.contains(server.id)
+        let canEdit = isOnline && !isBusy && status != .signingIn && server.plugin == nil
         return Form {
             Section {
                 HStack(spacing: 12) {
@@ -84,6 +90,20 @@ struct ConnectionPage: View {
                 LabeledContent("Sign-In") {
                     Text(server.auth == "oauth" ? "Sign In" : server.auth == "header" ? "API Key" : "None")
                 }
+                if server.plugin == nil, let url = server.url {
+                    Button("Change Address…") {
+                        address = url
+                        isChangingAddress = true
+                    }
+                    .disabled(!canEdit)
+                }
+                if server.plugin == nil, server.auth == "header" {
+                    Button("Change API Key…") {
+                        apiKey = ""
+                        isChangingKey = true
+                    }
+                    .disabled(!canEdit)
+                }
             }
             Section {
                 HStack(spacing: 8) {
@@ -112,7 +132,7 @@ struct ConnectionPage: View {
             }
             #endif
             Section {
-                toolRows(server, status: status)
+                toolRows(server, status: status, canEdit: canEdit)
             } header: {
                 if case .connected(let count) = status {
                     Text("^[\(count) Tool](inflect: true)")
@@ -122,12 +142,64 @@ struct ConnectionPage: View {
             } footer: {
                 toolsFooter(server, status: status)
             }
+            if server.plugin == nil {
+                Section {
+                    Button("Remove Connection…", role: .destructive) { isRemoving = true }
+                        .disabled(!canEdit)
+                }
+            }
         }
         .formStyle(.grouped)
+        .alert("Change Address", isPresented: $isChangingAddress) {
+            TextField("Address", text: $address)
+                .textContentType(.URL)
+                #if os(iOS)
+                .keyboardType(.URL)
+                .textInputAutocapitalization(.never)
+                #endif
+                .autocorrectionDisabled()
+            Button("Cancel", role: .cancel) {}
+            Button("Save") {
+                let address = address.trimmingCharacters(in: .whitespaces)
+                run { url, urlSession in await store.changeAddress(address, for: server.name, on: url, with: urlSession) }
+            }
+            .disabled(!isNewAddress(for: server))
+        } message: {
+            Text("\(server.name) is tested again with the new address. Changes apply to new chats.")
+        }
+        .alert("Change API Key", isPresented: $isChangingKey) {
+            SecureField("API Key", text: $apiKey)
+            Button("Cancel", role: .cancel) { apiKey = "" }
+            Button("Save") {
+                let key = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+                apiKey = ""
+                guard let gateway = connection.gateway else { return }
+                run { url, urlSession in await store.changeAPIKey(key, for: server.name, on: url, with: urlSession, gateway: gateway) }
+            }
+            .disabled(apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        } message: {
+            Text("The old key is replaced. Changes apply to new chats.")
+        }
+        .confirmationDialog("Remove \(server.name) from \(bot.title)?", isPresented: $isRemoving, titleVisibility: .visible) {
+            Button("Remove", role: .destructive) {
+                run { url, urlSession in
+                    await store.remove(server.name, on: url, with: urlSession)
+                    if store.servers?.contains(where: { $0.name == server.name }) == false { dismiss() }
+                }
+            }
+        } message: {
+            Text("\(bot.title) loses these tools in new chats.")
+        }
+    }
+
+    private func isNewAddress(for server: MCPServer) -> Bool {
+        let parsed = URL(string: address.trimmingCharacters(in: .whitespaces))
+        guard let scheme = parsed?.scheme?.lowercased(), ["https", "http"].contains(scheme), parsed?.host()?.isEmpty == false else { return false }
+        return address.trimmingCharacters(in: .whitespaces) != server.url
     }
 
     @ViewBuilder
-    private func toolRows(_ server: MCPServer, status: ConnectionStatus) -> some View {
+    private func toolRows(_ server: MCPServer, status: ConnectionStatus, canEdit: Bool) -> some View {
         if status == .off {
             Text("Turn on \(server.name) to see its tools.")
                 .foregroundStyle(.secondary)
@@ -163,24 +235,15 @@ struct ConnectionPage: View {
                 ContentUnavailableView.search(text: query)
             }
             ForEach(matches, id: \.name) { tool in
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(tool.name)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                        if let description = tool.description, !description.isEmpty {
-                            Text(description)
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    Spacer(minLength: 8)
-                    if !server.offers(tool.name) {
-                        Text("Off")
-                            .foregroundStyle(.secondary)
+                Toggle(isOn: Binding(get: { server.offers(tool.name) }, set: { value in run { url, urlSession in await store.setTool(tool.name, on: value, for: server.name, on: url, with: urlSession) } })) {
+                    Text(tool.name)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    if let description = tool.description, !description.isEmpty {
+                        Text(description)
                     }
                 }
-                .accessibilityElement(children: .combine)
+                .disabled(!canEdit || !server.canSwitch(tool.name))
             }
         }
     }
@@ -192,9 +255,10 @@ struct ConnectionPage: View {
                 if let estimate = store.tests[server.id]?.tokenEstimate(for: server) {
                     Text("These tools use about \(estimate, format: .number) tokens of \(bot.title)'s context in every chat.")
                 }
-                if tools.contains(where: { !server.offers($0.name) }) {
-                    Text("Tools marked Off are turned off for \(bot.title) and aren't counted.")
+                if tools.contains(where: { !server.canSwitch($0.name) }) {
+                    Text("Tools matched by a pattern in Hermes' config can't be switched here.")
                 }
+                Text("Changes apply to new chats.")
             }
         }
     }

@@ -24,24 +24,24 @@ A recipe step like "Simmer 8 minutes" today is only text; the cook sets a timer 
 - **iPhone:** the card inputs' text styles; the row is at least 44 pt tall so the small bordered buttons keep a 44 pt hit height. **Mac:** the same row, small bordered push buttons, hover and keyboard focus from the system.
 - **Light and dark:** system colours only (tint, secondary, green), checked in both.
 - **Reduce Motion:** nothing in the row animates: the digits are the system timer text, and state changes swap the row without a transition, with or without Reduce Motion.
-- **Dynamic Type:** text scales; at accessibility sizes the row stacks the time over the buttons (`ViewThatFits`), so the digits never truncate.
+- **Dynamic Type:** text scales; at accessibility sizes (`dynamicTypeSize.isAccessibilitySize`) the row switches its `AnyLayout` from a horizontal to a vertical stack, so the time sits over the buttons and the digits never truncate.
 
 ## Behaviour
 
-- **Start:** saves the end date (now + `seconds`) and schedules a local notification at that date. Nothing goes to the bot or the server.
-- **Pause:** saves the remaining time and removes the pending notification. **Resume:** a new end date (now + remaining) and a new notification. **Reset:** back to idle, removes any pending or delivered notification for this timer.
-- **Several timers:** each timer has its own state and notification (identifier: chat key, surface id and timer key), so two steps or two cards can run at once and end separately.
+- **Start:** saves the end date (now + `seconds`) in `CardTimers` and schedules a local notification at that date through `PushCenter.scheduleTimer`. Nothing goes to the bot.
+- **Pause:** saves the remaining time and removes the notification (`PushCenter.cancelTimer`). **Resume:** a new end date (now + remaining) and a new notification. **Reset:** back to idle, removes any pending or delivered notification for this timer.
+- **Several timers:** each timer has its own state and notification under one key, `timer.<chat key>.<surface id>.<timer id>` (the timer id is the `Timer` component's id, or `<steps id>-<step number>`), so two steps or two cards can run at once and end separately.
 - **Busy turn:** unlike the other card controls, a timer stays usable while the bot replies (a turn takes about 30 s, and a cook must be able to pause): the row re-enables its own buttons inside the surface-wide `.disabled(isBusy)`. Nothing it does reaches the bot, so the reason for the rule does not apply.
 - **Streaming:** the progressive preview is the compact row, so timers appear once the card is complete.
 
 ## State and persistence
 
-- **Stored in the card's data model**, under a top-level key per timer that the bot never writes: `crew-timer-<component id>` for a `Timer`, `crew-timer-<steps id>-<step number>` for a step (`/` and `~` in ids replaced by `-`). One string value per timer: `running <end, seconds since 1970>` or `paused <remaining seconds>`; `null` or absent is idle.
-- **Persisted by `CardState`** (`docs/flows/interactive-cards.md` > Reload, relaunch and switching chats) like any other user write: leaving the chat, relaunching and the iPhone app being killed in the background keep the timer. A running timer whose end date passed while Crew was closed opens as Done; a paused one opens paused at the same remaining time.
-- **Expanded row and pinned sheet** share one view model, so a timer started in one shows running in the other.
-- **Other Conversations sheet:** no chat key, so the state is not saved (as for ticks); its notification still fires.
-- **Bot updates:** the bot never writes `crew-timer-*` keys, so every `updateDataModel`, with or without a path, keeps the timers (`CardState.botUpdated` never drops them, and the replay after the update brings them back into the live model). A same-id re-create ("make it for 6") is a new card: its timers start idle, like its ticks, while a notification the old card scheduled still fires (the user started a real timer; Crew does not cancel it behind their back). Starting the same timer on the new card replaces that notification (same identifier).
-- **Cleared:** deleting the bot and Sign Out clear `CardState` (as for ticks); pending timer notifications stay and fire.
+- **Stored in `CardTimers`**, a small `@Observable` store shaped like `CardState`: `timers.json` in Application Support, written atomically on each change, never `UserDefaults`, at most 200 timers (the oldest change goes first). One string per key: `running <end, seconds since 1970>` or `paused <remaining seconds>`; absent is idle. The key is the notification's identifier, so the card and the alarm can't disagree.
+- **Not in the card's data model:** the bot's data and the user's ticks stay in `CardState`; timers never pass through `SurfaceStore`. Leaving the chat, relaunching and the iPhone app being killed in the background keep the timer. A running timer whose end date passed while Crew was closed opens as Done; a paused one opens paused at the same remaining time.
+- **Expanded row and pinned sheet** read the same key from the same store, so a timer started in one shows running in the other.
+- **Other Conversations sheet:** no chat key, so its timers use an empty chat part (`timer..<surface>.<id>`); they are saved like the others, and two such sheets showing cards with the same surface and timer id share a timer (rare, accepted).
+- **Bot updates:** nothing the bot sends touches a timer. A path or whole-model `updateDataModel` keeps every timer, and a same-id re-create ("make it for 6", a new fingerprint) keeps them too: the re-sent card shows the running timer, because the key has no fingerprint. Step timers are keyed by position, so a re-sent card that inserts or removes a step before a timed step shifts the timers onto other steps (the bot rarely restructures a method mid-cook; accepted). An orphan alarm (a notification with no timer showing) can't arise from bot updates; the only path is the 200-timer bound evicting a running timer, which needs 200 newer timer changes first.
+- **Cleared:** deleting the bot clears its timers (`CardTimers.clear`) and cancels its pending and delivered timer notifications (`PushCenter.cancelTimers(chat:)`, by the `timer.<chat>.` prefix); Sign Out resets the store and cancels every timer notification, at both Sign Out call sites.
 - **Done stays** on the card until Reset, also days later, like a ticked box.
 - **Per device and per window:** state is per device (a timer started on the iPhone is idle on the Mac), and two Mac windows on one chat have their own `SurfaceStore`, so the second window shows the timer as it was when it opened; Start there replaces the notification (same identifier).
 
@@ -53,7 +53,7 @@ A recipe step like "Simmer 8 minutes" today is only text; the cook sets a timer 
 - **Permission, in context:** Crew already asks on first connection (`AppTasks` runs `PushCenter.authorize()`), so usually the answer is known. If it is still `.notDetermined` (asked before any connection, or the request never ran), Start or Resume runs that same `authorize()` (alert, sound, badge; it also registers for push, as at first connection), so the system prompt appears right after the tap that needs it. The timer starts whether the user allows or not.
 - **Provisional:** delivered quietly to Notification Center, the system's rule.
 - **Denied or off, or `add` fails** (iOS keeps at most 64 pending local notifications): the timer runs and shows Done in the card; no notification, and no nag (the Notifications settings screen already explains how to turn them on).
-- **Known limitations:** a plain notification follows the silent switch (Clock's alarms don't), and a running timer has no Lock Screen or Dynamic Island countdown and is hidden while its card is collapsed. AlarmKit or a Live Activity is what Apple would use; PLAN.md keeps Live Activities to voice, so this stays a notification for now.
+- **Known limitations:** a plain notification follows the silent switch (Clock's alarms don't), and a running timer has no Lock Screen or Dynamic Island countdown and is hidden while its card is collapsed. AlarmKit or a Live Activity is what Apple would use; moving iOS timers to AlarmKit is #338, and PLAN.md keeps Live Activities to voice, so this stays a notification for now.
 - **Mac:** the same `UNUserNotificationCenter` request and permission; the banner shows in Notification Center.
 
 ## VoiceOver and accessibility
@@ -76,12 +76,12 @@ A recipe step like "Simmer 8 minutes" today is only text; the cook sets a timer 
 
 - **Offline:** works the same; nothing goes to the bot.
 - **Long content:** a long `label` wraps; the time and buttons stay trailing until accessibility sizes, where they stack.
-- **Very long or odd durations:** hours show as `1:05:00`; fractions of a second round down to whole seconds; `seconds` over 24 h still counts (no cap needed, a local notification takes any interval).
+- **Very long or odd durations:** hours show as `1:05:00`; the shown time rounds fractions of a second up to the next whole second, as a countdown does (a paused 41.2 s shows `0:42`); `seconds` over 24 h still counts (no cap needed, a local notification takes any interval).
 - **Device clock change:** the end date is absolute, so a manual clock change shifts the countdown like Clock's timer would not; accepted, rare.
 
 ## Verification
 
-- Unit tests (`CardTimerTests`, each shown failing without the change): the state math (start, pause, resume, reset, the remaining time at a given now, a running timer past its end is Done) with an injected clock; the notification request (identifier, title, body, `timer` kind, time-sensitive, trigger at the remaining time); a whole-model bot update keeps a saved timer; persistence through `CardState` and `SurfaceStore` from one scratch file (start one timer, pause a second, relaunch both stores, find both states; relaunch past the end date gives Done); the skill's recipe example decodes with its timed step.
+- Unit tests (`CardTimerTests`, each shown failing without the change): the state math (start, pause, resume, reset, the remaining time at a given now, a running timer past its end is Done) with an injected clock; the notification request (identifier, title, body, `timer` kind, time-sensitive, trigger at the remaining time); `PushCenter.presentation` always shows a timer, also for the visible chat; `CardTimers` from one scratch file across a relaunch (running past its end is Done, paused keeps its time, Reset and a bot's `clear` stick); a running timer survives the bot re-sending the card under the same id; the probed recipes build with timed steps.
 - Probe: `Tests/chat_probe/run.sh a2ui-unasked` with 2 recipe prompts, each on a fresh throwaway `crew-test` clone with skill v10: count replies with a timed step and check each card builds in Crew's processor. Reported as measured.
 - Renders: `chat-a2ui-timer` (a recipe card expanded with step timers idle, running, paused and done, seeded from an in-memory `CardState`) on iPhone and Mac, light and dark.
 - No UI test: the state and the request are unit-tested; adding the request and removing it are single system calls.

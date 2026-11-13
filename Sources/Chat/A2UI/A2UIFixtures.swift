@@ -86,16 +86,12 @@ extension ChatFixture {
         )]
     }
 
-    static func timerCards() -> CardState {
-        let cards = CardState(fileURL: nil)
-        let store = SurfaceStore()
-        store.saved = (cards, "default")
-        store.sync(Transcript(turns: a2uiTimerTurns(.now)))
-        let data = store.processor.surfaceGroupModel["pancakes"]?.dataModel
-        data?.set(CardTimer.path(for: "method-1"), value: CardTimer.running(until: .now.addingTimeInterval(-60)).saved)
-        data?.set(CardTimer.path(for: "method-2"), value: CardTimer.paused(remaining: 42).saved)
-        data?.set(CardTimer.path(for: "method-3"), value: CardTimer.running(until: .now.addingTimeInterval(372)).saved)
-        return cards
+    static func timerStates() -> CardTimers {
+        let timers = CardTimers(fileURL: nil)
+        timers.set(.running(until: .now.addingTimeInterval(-60)), for: CardTimers.key(chat: "default", surface: "pancakes", timer: "method-1"))
+        timers.set(.paused(remaining: 42), for: CardTimers.key(chat: "default", surface: "pancakes", timer: "method-2"))
+        timers.set(.running(until: .now.addingTimeInterval(372)), for: CardTimers.key(chat: "default", surface: "pancakes", timer: "method-3"))
+        return timers
     }
 
     static func savedCards() -> CardState {

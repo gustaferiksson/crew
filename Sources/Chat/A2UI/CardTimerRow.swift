@@ -1,6 +1,5 @@
 import A2UICore
 import SwiftUI
-import UserNotifications
 
 extension EnvironmentValues {
     @Entry var cardModel: SurfaceViewModel?
@@ -14,9 +13,9 @@ struct CardTimerRow: View {
     let alert: String
     let seconds: TimeInterval
 
-    @ObservedObject private var data: DataModel
     @Environment(\.surfaces) private var surfaces
-    @Environment(PushCenter.self) private var push
+    @Environment(CardTimers.self) private var timers: CardTimers?
+    @Environment(PushCenter.self) private var push: PushCenter?
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     init(model: SurfaceViewModel, id: String, title: String?, name: String, alert: String, seconds: TimeInterval) {
@@ -26,7 +25,6 @@ struct CardTimerRow: View {
         self.name = name
         self.alert = alert
         self.seconds = seconds
-        data = model.dataModel
     }
 
     var body: some View {
@@ -93,34 +91,30 @@ struct CardTimerRow: View {
         }
     }
 
-    private var timer: CardTimer {
-        CardTimer(data.get(CardTimer.path(for: id)))
+    private var key: String {
+        CardTimers.key(chat: surfaces?.saved?.chat, surface: model.surfaceID, timer: id)
     }
 
-    private var alertID: String {
-        "timer.\(surfaces?.saved?.chat ?? "").\(model.surfaceID).\(id)"
+    private var timer: CardTimer {
+        timers?.timer(key) ?? .idle
     }
 
     private func start() {
         let next = timer.started(for: seconds, at: .now)
-        data.set(CardTimer.path(for: id), value: next.saved)
+        timers?.set(next, for: key)
         guard case .running(let end) = next else { return }
 
-        let request = CardTimer.alert(id: alertID, card: CardSummary(model.rootNode).title, what: alert, chat: surfaces?.saved?.chat, after: end.timeIntervalSinceNow)
-        Task {
-            if push.authorization == .notDetermined { await push.authorize() }
-            try? await UNUserNotificationCenter.current().add(request)
-        }
+        let request = CardTimer.alert(id: key, card: CardSummary(model.rootNode).title, what: alert, chat: surfaces?.saved?.chat, after: end.timeIntervalSinceNow)
+        Task { await push?.scheduleTimer(request) }
     }
 
     private func pause() {
-        data.set(CardTimer.path(for: id), value: timer.paused(at: .now).saved)
-        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [alertID])
+        timers?.set(timer.paused(at: .now), for: key)
+        push?.cancelTimer(key)
     }
 
     private func reset() {
-        data.set(CardTimer.path(for: id), value: nil)
-        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [alertID])
-        UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: [alertID])
+        timers?.set(.idle, for: key)
+        push?.cancelTimer(key)
     }
 }

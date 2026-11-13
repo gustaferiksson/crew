@@ -1,5 +1,4 @@
 import Foundation
-import OrderedJSON
 import UserNotifications
 
 nonisolated enum CardTimer: Equatable {
@@ -7,8 +6,8 @@ nonisolated enum CardTimer: Equatable {
     case running(until: Date)
     case paused(remaining: TimeInterval)
 
-    init(_ saved: OrderedJSON.JSONValue?) {
-        let parts = saved?.stringValue?.split(separator: " ") ?? []
+    init(_ saved: String?) {
+        let parts = saved?.split(separator: " ") ?? []
         guard parts.count == 2, let number = Double(parts[1]) else {
             self = .idle
             return
@@ -22,13 +21,9 @@ nonisolated enum CardTimer: Equatable {
         }
     }
 
-    static func path(for id: String) -> String {
-        "/crew-timer-" + id.replacing("/", with: "-").replacing("~", with: "-")
-    }
-
-    var saved: OrderedJSON.JSONValue? {
-        if case .running(let end) = self { return .string("running \(end.timeIntervalSince1970)") }
-        if case .paused(let remaining) = self { return .string("paused \(remaining)") }
+    var saved: String? {
+        if case .running(let end) = self { return "running \(end.timeIntervalSince1970)" }
+        if case .paused(let remaining) = self { return "paused \(remaining)" }
         return nil
     }
 

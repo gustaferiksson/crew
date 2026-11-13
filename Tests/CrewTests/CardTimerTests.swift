@@ -28,43 +28,63 @@ private let start = Date(timeIntervalSince1970: 1_800_000_000)
     }
     #expect(CardTimer.idle.saved == nil)
     #expect(CardTimer(nil) == .idle)
-    #expect(CardTimer(.string("ringing 12")) == .idle)
-    #expect(CardTimer.path(for: "method/2~x") == "/crew-timer-method-2-x")
+    #expect(CardTimer("ringing 12") == .idle)
 }
 
-@MainActor private func pancakes(saved file: URL) throws -> SurfaceStore {
+@MainActor private func pancakes(servings: Int = 4) throws -> Transcript {
     let skill = try String(contentsOf: URL(filePath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appending(path: "Sources/Profile/crew-ui.SKILL.md"), encoding: .utf8)
     let recipe = try #require(markdownBlocks(from: skill).map { String($0.content.characters) }.first { $0.contains(#""seconds": 600"#) })
-    let turn = Turn(id: "t1", prompt: Prompt(text: "Pancakes", sentAt: start), reply: "Pancakes.\n\n```a2ui\n\(recipe)\n```", status: .complete, startedAt: start, finishedAt: start)
-    let store = SurfaceStore()
-    store.saved = (CardState(fileURL: file), "chef")
-    store.sync(Transcript(turns: [turn]))
-    return store
+    let turn = { (id: String, servings: Int) in
+        Turn(id: id, prompt: Prompt(text: "Pancakes", sentAt: start), reply: "Pancakes.\n\n```a2ui\n\(recipe.replacing(#""servings": 4, "baseServings": 4"#, with: #""servings": \#(servings), "baseServings": \#(servings)"#))\n```", status: .complete, startedAt: start, finishedAt: start)
+    }
+    return Transcript(turns: servings == 4 ? [turn("t1", 4)] : [turn("t1", 4), turn("t2", servings)])
 }
 
 @MainActor @Test func timersSurviveARelaunchAndOneThatEndedMeanwhileIsDone() throws {
-    let file = URL.temporaryDirectory.appending(path: "crew-timers-\(UUID().uuidString)/cards.json")
-    let store = try pancakes(saved: file)
-    let model = try #require(store.processor.surfaceGroupModel["pancakes"])
-    let steps = try #require(nodes(model.rootNode).first { $0.type == "Steps" })
-    let timed = (steps.array(for: "items") ?? []).compactMap { $0 as? ResolvedDictionary }
-    #expect(timed.count == 1)
-    #expect(timed.first?.double(for: "seconds") == 600)
-
-    let rest = CardTimer.path(for: "method-2")
-    let other = CardTimer.path(for: "pizza")
+    let file = URL.temporaryDirectory.appending(path: "crew-timers-\(UUID().uuidString)/timers.json")
+    let timers = CardTimers(fileURL: file)
+    let rest = CardTimers.key(chat: "chef", surface: "pancakes", timer: "method-2")
+    let pizza = CardTimers.key(chat: "chef", surface: "dinner", timer: "pizza")
     let now = Date.now
-    model.dataModel.set(rest, value: CardTimer.idle.started(for: 600, at: now.addingTimeInterval(-700)).saved)
-    model.dataModel.set(other, value: CardTimer.idle.started(for: 720, at: now).paused(at: now.addingTimeInterval(20)).saved)
+    timers.set(CardTimer.idle.started(for: 600, at: now.addingTimeInterval(-700)), for: rest)
+    timers.set(CardTimer.idle.started(for: 720, at: now).paused(at: now.addingTimeInterval(20)), for: pizza)
 
-    let relaunched = try pancakes(saved: file)
-    let data = try #require(relaunched.processor.surfaceGroupModel["pancakes"]?.dataModel)
-    #expect(CardTimer(data.get(rest)).isDone(at: .now), "the rest timer ended while Crew was closed")
-    #expect(CardTimer(data.get(other)) == .paused(remaining: 700))
+    let relaunched = CardTimers(fileURL: file)
+    #expect(relaunched.timer(rest).isDone(at: .now), "the rest timer ended while Crew was closed")
+    #expect(relaunched.timer(pizza) == .paused(remaining: 700))
 
-    data.set(rest, value: CardTimer.idle.saved)
-    let reset = try pancakes(saved: file)
-    #expect(CardTimer(reset.processor.surfaceGroupModel["pancakes"]?.dataModel.get(rest)) == .idle, "Reset survives a relaunch too")
+    relaunched.set(.idle, for: rest)
+    relaunched.clear("other")
+    #expect(CardTimers(fileURL: file).timer(rest) == .idle, "Reset survives a relaunch too")
+    #expect(CardTimers(fileURL: file).timer(pizza) == .paused(remaining: 700))
+    relaunched.clear("chef")
+    #expect(CardTimers(fileURL: file).entries.isEmpty, "deleting the bot clears its timers")
+}
+
+@MainActor @Test func aRunningTimerSurvivesTheBotResendingTheCard() throws {
+    let store = SurfaceStore()
+    store.saved = (CardState(fileURL: nil), "chef")
+    store.sync(try pancakes())
+    let first = try #require(store.processor.surfaceGroupModel["pancakes"])
+    let steps = try #require(nodes(first.rootNode).first { $0.type == "Steps" })
+    #expect((steps.array(for: "items") ?? []).compactMap { $0 as? ResolvedDictionary }.first?.double(for: "seconds") == 600)
+
+    let timers = CardTimers(fileURL: nil)
+    let running = CardTimer.idle.started(for: 600, at: .now)
+    timers.set(running, for: CardTimers.key(chat: store.saved?.chat, surface: first.surfaceID, timer: "\(steps.id)-2"))
+
+    store.sync(try pancakes(servings: 6))
+    let resent = try #require(store.processor.surfaceGroupModel["pancakes"])
+    #expect(resent !== first, "the re-send is a new card with a new fingerprint")
+    #expect(resent.dataModel.get("/servings")?.numeric == 6)
+    #expect(timers.timer(CardTimers.key(chat: store.saved?.chat, surface: resent.surfaceID, timer: "\(steps.id)-2")) == running)
+}
+
+@MainActor @Test func timerAlertsShowEvenInTheOpenChat() throws {
+    let timer = try #require(PushRoute(userInfo: ["crew": ["profile": "chef", "kind": "timer"]]))
+    let reply = try #require(PushRoute(userInfo: ["crew": ["profile": "chef"]]))
+    #expect(PushCenter.presentation(for: timer, isActive: true, visibleBot: "chef") == [.banner, .list, .sound])
+    #expect(PushCenter.presentation(for: reply, isActive: true, visibleBot: "chef") == [])
 }
 
 @MainActor @Test func theProbedRecipesBuildWithTimedSteps() throws {
@@ -83,13 +103,6 @@ private let start = Date(timeIntervalSince1970: 1_800_000_000)
 
 nonisolated private struct TimerHistory: Decodable {
     let messages: [HistoryRow]
-}
-
-@Test func aWholeModelBotUpdateKeepsTheTimers() {
-    let cards = CardState(fileURL: nil)
-    cards.userChanged(["/crew-timer-method-2": .string("paused 30"), "/servings": .number(6)], on: "pancakes:x", after: [], in: "chef")
-    cards.botUpdated(["/"], with: "u1", on: "pancakes:x", in: "chef")
-    #expect(cards.values(of: "pancakes:x", in: "chef") == ["/crew-timer-method-2": .string("paused 30")])
 }
 
 @Test func theAlertNamesTheCardAndTheStepAndAlwaysShows() throws {

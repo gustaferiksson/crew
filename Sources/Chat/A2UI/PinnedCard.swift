@@ -178,6 +178,7 @@ struct PinnedCardContent: View {
             Surface(viewModel: model, catalogs: crewCatalogs)
                 .id(surfaces.owners[id])
                 .environment(\.surfaceChoice, surfaces.choices[id])
+                .environment(\.cardModel, model)
                 .disabled(surfaces.isBusy)
                 .padding(20)
                 .frame(maxWidth: .infinity, alignment: .leading)

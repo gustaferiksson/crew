@@ -296,7 +296,7 @@ final class PushCenter: NSObject {
         #else
         let isActive = NSApplication.shared.isActive
         #endif
-        guard let route, isActive, route.profile == visibleBot else { return [.banner, .list, .sound] }
+        guard let route, route.kind != "timer", isActive, route.profile == visibleBot else { return [.banner, .list, .sound] }
         return []
     }
 

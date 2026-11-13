@@ -178,6 +178,7 @@ targets:
       - Sources/Connection.swift
       - Sources/Keychain.swift
       - Sources/Push/PushRoute.swift
+      - Sources/Push/PushCenter.swift
       - Sources/Chat/Mentions.swift
       - Sources/Chat/SlashCommands.swift
       - Sources/Profile/ProfileDraft.swift
@@ -206,6 +207,9 @@ targets:
       - Sources/Chat/A2UI/CrewChartMap.swift
       - Sources/Chat/A2UI/CrewCarousel.swift
       - Sources/Chat/A2UI/CrewStepper.swift
+      - Sources/Chat/A2UI/CrewTimer.swift
+      - Sources/Chat/A2UI/CardTimerRow.swift
+      - Sources/Chat/A2UI/CardTimer.swift
       - Sources/Chat/A2UI/ScaleFunction.swift
       - Sources/Groups/GroupStore.swift
       - Sources/Groups/GroupSession.swift

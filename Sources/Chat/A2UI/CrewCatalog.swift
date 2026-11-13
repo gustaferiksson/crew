@@ -24,8 +24,12 @@ let crewCatalogs: [Catalog<ComponentImplementation>] = {
             "image": {"type": "string"}, "tone": \(toneSchema)
             """)) { CrewHeader(node: $0) },
         ComponentImplementation(name: "Steps", schema: crewSchema("Steps", required: ["items"], properties: """
-            "items": {"type": "array", "items": {"type": "string"}}
+            "items": {"type": "array", "items": {"anyOf": [{"type": "string"}, {"type": "object", "required": ["text"], "properties": {
+              "text": {"type": "string"}, "seconds": {"type": "number"}}}]}}
             """)) { CrewSteps(node: $0) },
+        ComponentImplementation(name: "Timer", schema: crewSchema("Timer", required: ["seconds"], properties: """
+            "label": {"type": "string"}, "seconds": {"type": "number"}
+            """)) { CrewTimer(node: $0) },
         ComponentImplementation(name: "Badge", schema: crewSchema("Badge", required: ["text"], properties: """
             "text": {"type": "string"}, "symbol": {"type": "string"}, "tone": \(toneSchema)
             """)) { CrewBadge(node: $0) },

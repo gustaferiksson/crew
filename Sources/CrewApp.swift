@@ -12,7 +12,7 @@ struct CrewApp: App {
     @State private var chats = Snapshot.requested?.chats ?? ChatSessions()
     @State private var drafts = Snapshot.requested?.drafts ?? .shared
     @State private var pins = Snapshot.requested == nil ? ChatPins.shared : ChatPins(fixture: Snapshot.requested == .chatA2UIPinnedSheet ? ["default": ChatPins.Pin(seen: ChatPins.Seen(fingerprint: "", finishedAt: .distantFuture), pinned: "party-list")] : [:])
-    @State private var cardState = Snapshot.requested == nil ? CardState.shared : UserDefaults.standard.string(forKey: "cardsFile").map { CardState(fileURL: URL.temporaryDirectory.appending(path: $0)) } ?? (Snapshot.requested == .chatA2UISaved ? ChatFixture.savedCards() : CardState(fileURL: nil))
+    @State private var cardState = Snapshot.requested == nil ? CardState.shared : UserDefaults.standard.string(forKey: "cardsFile").map { CardState(fileURL: URL.temporaryDirectory.appending(path: $0)) } ?? (Snapshot.requested == .chatA2UISaved ? ChatFixture.savedCards() : Snapshot.requested == .chatA2UITimer ? ChatFixture.timerCards() : CardState(fileURL: nil))
     @State private var groups = [.groupChat, .groupChatPaused, .groupChatContext, .groupChatRoutine, .groupChatReply, .groupChatReplyPinned, .groupWelcome, .groupInspector, .groupInspectorMembers, .sidebarCompact].contains(Snapshot.requested) ? GroupStore(fixture: [Snapshot.fixtureRoom]) : Snapshot.requested == .inspectorRooms ? GroupStore(fixture: [Snapshot.fixtureRoom, Snapshot.fixtureRoomPair]) : GroupStore()
     @State private var scenes = Scenes()
     #if os(iOS)

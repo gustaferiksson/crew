@@ -77,21 +77,32 @@ struct CrewImage: View {
 struct CrewSteps: View {
     let node: Node
 
+    @Environment(\.cardModel) private var model
+
     var body: some View {
-        let items = (node.array(for: "items") ?? []).map { $0 as? String ?? "" }
+        let items = node.array(for: "items") ?? []
         VStack(alignment: .leading, spacing: 16) {
             ForEach(items.indices, id: \.self) { index in
-                HStack(alignment: .firstTextBaseline, spacing: 12) {
-                    Text(index + 1, format: .number)
-                        .font(.subheadline.weight(.semibold))
-                        .monospacedDigit()
-                        .foregroundStyle(.white)
-                        .frame(width: 24, height: 24)
-                        .background(.tint, in: .circle)
-                    Text(cardMarkdown(items[index]))
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                let timed = items[index] as? ResolvedDictionary
+                let text = timed?.string(for: "text") ?? items[index] as? String ?? ""
+                let seconds = timed?.double(for: "seconds") ?? 0
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(alignment: .firstTextBaseline, spacing: 12) {
+                        Text(index + 1, format: .number)
+                            .font(.subheadline.weight(.semibold))
+                            .monospacedDigit()
+                            .foregroundStyle(.white)
+                            .frame(width: 24, height: 24)
+                            .background(.tint, in: .circle)
+                        Text(cardMarkdown(text))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .accessibilityElement(children: .combine)
+                    if let model, seconds > 0 {
+                        CardTimerRow(model: model, id: "\(node.id)-\(index + 1)", title: nil, name: String(localized: "Step \(index + 1)"), alert: text, seconds: seconds)
+                            .padding(.leading, 36)
+                    }
                 }
-                .accessibilityElement(children: .combine)
             }
         }
     }

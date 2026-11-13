@@ -74,6 +74,30 @@ extension ChatFixture {
         )]
     }
 
+    static func a2uiTimerTurns(_ now: Date) -> [Turn] {
+        let recipe = markdownBlocks(from: crewUISkill).map { String($0.content.characters) }.first { $0.contains(#""component": "Stepper""#) } ?? ""
+        let method = recipe.firstMatch(of: /"items": \[[^\]]*"Fry thin pancakes[^\]]*\]/).map { String($0.output) } ?? ""
+        let timed = #""items": [{"text": "Whisk the flour with half the milk until smooth, then let it rest.", "seconds": 600}, {"text": "Whisk in the rest of the milk, the eggs and the salt.", "seconds": 60}, {"text": "Heat a pan and melt a knob of butter.", "seconds": 120}, {"text": "Fry thin pancakes in butter, about 1 min a side.", "seconds": 60}]"#
+        let start = now.addingTimeInterval(-900)
+        return [Turn(
+            id: "s1", prompt: Prompt(text: "Pancakes for 4, please", sentAt: start),
+            reply: "Classic Swedish pancakes, about 30 minutes.\n\n```a2ui\n\(recipe.replacing(method, with: timed))\n```",
+            status: .complete, startedAt: start, finishedAt: start.addingTimeInterval(6)
+        )]
+    }
+
+    static func timerCards() -> CardState {
+        let cards = CardState(fileURL: nil)
+        let store = SurfaceStore()
+        store.saved = (cards, "default")
+        store.sync(Transcript(turns: a2uiTimerTurns(.now)))
+        let data = store.processor.surfaceGroupModel["pancakes"]?.dataModel
+        data?.set(CardTimer.path(for: "method-1"), value: CardTimer.running(until: .now.addingTimeInterval(-60)).saved)
+        data?.set(CardTimer.path(for: "method-2"), value: CardTimer.paused(remaining: 42).saved)
+        data?.set(CardTimer.path(for: "method-3"), value: CardTimer.running(until: .now.addingTimeInterval(372)).saved)
+        return cards
+    }
+
     static func savedCards() -> CardState {
         let cards = CardState(fileURL: nil)
         let store = SurfaceStore()

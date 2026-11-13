@@ -43,7 +43,7 @@ final class CardState {
         guard var entry = chats[chat]?[card], !entry.updates.contains(update) else { return }
         entry.updates.insert(update)
         entry.values = entry.values.filter { saved in
-            !paths.contains { $0 == "/" || saved.key == $0 || saved.key.hasPrefix($0 + "/") || $0.hasPrefix(saved.key + "/") }
+            saved.key.hasPrefix("/crew-timer-") || !paths.contains { $0 == "/" || saved.key == $0 || saved.key.hasPrefix($0 + "/") || $0.hasPrefix(saved.key + "/") }
         }
         chats[chat]?[card] = entry
         save()

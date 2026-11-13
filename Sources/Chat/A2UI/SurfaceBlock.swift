@@ -4,6 +4,15 @@ import SwiftUI
 
 extension EnvironmentValues {
     @Entry var surfaceChoice: String?
+    @Entry var shownTurn: Binding<Turn.ID?>?
+}
+
+extension Transaction {
+    static func cardUpdate(from old: [Turn.Status], to new: [Turn.Status], reducingMotion: Bool) -> Transaction {
+        let hasFinished = zip(old.reversed(), new.reversed()).contains { $0 == .streaming && $1 != .streaming }
+        guard hasFinished, !reducingMotion else { return Transaction() }
+        return .disclosure(.smooth)
+    }
 }
 
 struct SurfaceBlock: View {
@@ -30,13 +39,13 @@ struct SurfaceBlock: View {
                         if store.owners[id] == source {
                             card(model, id: id, in: store, revised: revised.contains(id))
                         } else {
-                            CardUpdateLine(model: model, direction: .below)
+                            CardUpdateLine(model: model, id: id, direction: .below)
                         }
                     }
                 }
                 ForEach(updated, id: \.self) { id in
                     if store.present.contains(id), let model = store.processor.surfaceGroupModel[id] {
-                        CardUpdateLine(model: model, direction: .above)
+                        CardUpdateLine(model: model, id: id, direction: .above)
                     } else {
                         CardGoneLine()
                     }
@@ -126,11 +135,31 @@ private struct CardUpdateLine: View {
     }
 
     @ObservedObject var model: SurfaceViewModel
+    let id: String
     let direction: Direction
 
+    @Environment(\.surfaces) private var store
+    @Environment(\.shownTurn) private var shownTurn
+
     var body: some View {
+        if direction == .below, let shownTurn, let turn = store?.cardTurns[id] {
+            Button { shownTurn.wrappedValue = turn } label: {
+                line
+                    #if os(iOS)
+                    .frame(minHeight: 44)
+                    #endif
+                    .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("Shows the current version")
+        } else {
+            line
+        }
+    }
+
+    private var line: some View {
         let title = CardSummary(model.rootNode).title ?? String(localized: "Card")
-        Label {
+        return Label {
             if direction == .below {
                 Text("\(title) · updated below")
             } else {

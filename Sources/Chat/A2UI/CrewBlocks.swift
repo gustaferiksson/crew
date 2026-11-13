@@ -107,6 +107,7 @@ struct CrewBadge: View {
                 Image(systemName: symbol)
             }
             Text(node.string(for: "text") ?? "")
+                .contentTransition(.numericText())
         }
         .font(.caption.weight(.semibold))
         .foregroundStyle(tint)
@@ -152,6 +153,7 @@ struct CrewTable: View {
                         Text(rows[row][column])
                             .font(.subheadline)
                             .monospacedDigit()
+                            .contentTransition(.numericText())
                             .fontWeight(column == 0 ? .medium : .regular)
                             .fixedSize()
                     }
@@ -195,6 +197,7 @@ struct CrewKeyValue: View {
                             Text(value)
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
+                                .contentTransition(.numericText())
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                     } else {
@@ -203,6 +206,7 @@ struct CrewKeyValue: View {
                         Text(value)
                             .foregroundStyle(.secondary)
                             .monospacedDigit()
+                            .contentTransition(.numericText())
                             .multilineTextAlignment(.trailing)
                     }
                 }

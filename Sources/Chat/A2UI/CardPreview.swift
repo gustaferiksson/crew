@@ -71,6 +71,7 @@ struct CardPreview: View {
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
+                            .contentTransition(.numericText())
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)

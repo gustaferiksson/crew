@@ -95,14 +95,39 @@ struct ApprovalCard: View {
     let botName: String
     let respond: (ApprovalChoice) -> Void
 
+    @Environment(\.dynamicTypeSize) private var typeSize
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Label("\(request.requester ?? botName) wants to run a command", systemImage: "exclamationmark.shield.fill")
                 .font(.subheadline.weight(.semibold))
                 .symbolRenderingMode(.multicolor)
+                #if os(iOS)
+                .fixedSize(horizontal: false, vertical: true)
+                #endif
+                .layoutPriority(2)
+            ViewThatFits(in: .vertical) {
+                details
+                ScrollView {
+                    details
+                }
+                .scrollBounceBehavior(.basedOnSize)
+                .scrollIndicatorsFlash(onAppear: true)
+            }
+            .layoutPriority(1)
+            buttons
+                .layoutPriority(2)
+        }
+        .padding(16)
+        .background { Color.clear.glassEffect(in: .rect(cornerRadius: 28)) }
+        .dynamicTypeSize(...DynamicTypeSize.accessibility3)
+    }
+
+    private var details: some View {
+        VStack(alignment: .leading, spacing: 12) {
             Text(request.command)
                 .font(.footnote.monospaced())
-                .lineLimit(4)
+                .lineLimit(typeSize.isAccessibilitySize ? nil : 4)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -112,32 +137,59 @@ struct ApprovalCard: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
-            Grid(horizontalSpacing: 8, verticalSpacing: 8) {
-                GridRow {
+        }
+    }
+
+    private var buttons: some View {
+        Group {
+            if typeSize.isAccessibilitySize {
+                VStack(spacing: 8) {
+                    button(.once)
                     if request.choices.contains(.session) {
-                        Button("Allow for Session") { respond(.session) }
+                        button(.session)
                     }
                     if request.choices.contains(.always) {
-                        Button("Always Allow") { respond(.always) }
+                        button(.always)
                     }
+                    button(.deny)
                 }
-                GridRow {
-                    Button(role: .destructive) {
-                        respond(.deny)
-                    } label: {
-                        Text("Deny")
-                            .foregroundStyle(.red)
+            } else {
+                Grid(horizontalSpacing: 8, verticalSpacing: 8) {
+                    GridRow {
+                        if request.choices.contains(.session) {
+                            button(.session)
+                        }
+                        if request.choices.contains(.always) {
+                            button(.always)
+                        }
                     }
-                    Button("Allow Once") { respond(.once) }
-                        .buttonStyle(.borderedProminent)
+                    GridRow {
+                        button(.deny)
+                        button(.once)
+                    }
                 }
             }
-            .buttonStyle(.bordered)
-            .buttonBorderShape(.capsule)
-            .buttonSizing(.flexible)
         }
-        .padding(16)
-        .background { Color.clear.glassEffect(in: .rect(cornerRadius: 28)) }
+        .buttonStyle(.bordered)
+        .buttonBorderShape(.capsule)
+        .buttonSizing(.flexible)
+    }
+
+    @ViewBuilder
+    private func button(_ choice: ApprovalChoice) -> some View {
+        if choice == .deny {
+            Button(role: .destructive) {
+                respond(.deny)
+            } label: {
+                Text("Deny")
+                    .foregroundStyle(.red)
+            }
+        } else if choice == .once {
+            Button("Allow Once") { respond(.once) }
+                .buttonStyle(.borderedProminent)
+        } else {
+            Button(choice == .session ? "Allow for Session" : "Always Allow") { respond(choice) }
+        }
     }
 }
 

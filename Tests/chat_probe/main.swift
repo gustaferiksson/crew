@@ -1204,6 +1204,109 @@ if phases.contains("a2ui-unasked") {
     exit(0)
 }
 
+if phases.contains("a2ui-action") {
+    let skill = try String(contentsOf: URL(fileURLWithPath: #filePath).appending(path: "../../../Sources/Profile/crew-ui.SKILL.md").standardized, encoding: .utf8)
+    let store = BotStore(fixture: [], statuses: [:])
+    Task { await store.run(gateway, urlSession: urlSession) }
+    try await Task.sleep(for: .seconds(3))
+    let pretty = JSONEncoder()
+    pretty.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+    func resolve(_ path: String, in model: Any?) -> Any? {
+        path.split(separator: "/").reduce(model) { node, key in
+            if let object = node as? [String: Any] { return object[String(key)] }
+            if let array = node as? [Any], let index = Int(key), array.indices.contains(index) { return array[index] }
+            return nil
+        }
+    }
+    func mentioned(_ item: String, in reply: String) -> Bool {
+        let words = item.lowercased().split { !$0.isLetter }.map(String.init).filter { $0.count >= 4 && !["small", "fresh", "ripe", "large", "packet", "optional", "about"].contains($0) }
+        return words.contains { word in reply.lowercased().contains(word.hasSuffix("es") ? String(word.dropLast(2)) : word.hasSuffix("s") ? String(word.dropLast()) : word) }
+    }
+    for run in 1...(Int(env["A2UI_RUNS"] ?? "") ?? 3) {
+        let name = "crew-test-\(UUID().uuidString.prefix(6).lowercased())"
+        do {
+            try await store.create(NewProfile(name: name, description: "Crew card probe", soul: nil, cloneFrom: "crew-test"), via: gateway) { $0.title = "Crew Cards" }
+            var install = hermesRequest("api/skills/content", on: server, json: ["name": "crew-ui", "content": skill, "profile": name])
+            install.httpMethod = "PUT"
+            _ = try await fetch(install, with: urlSession, as: JSONValue.self)
+            var lookup = hermesRequest("api/skills/content", on: server)
+            lookup.url?.append(queryItems: [URLQueryItem(name: "name", value: "crew-ui"), URLQueryItem(name: "profile", value: name)])
+            guard case .object(let installed) = try await fetch(lookup, with: urlSession, as: JSONValue.self), installed["content"] == .string(skill) else { throw HermesError.invalidResponse }
+            await store.reload(gateway)
+            guard let fresh = store.bots.first(where: { $0.name == name }) else { throw HermesError.invalidResponse }
+            let chat = try await attached(fresh)
+            chat.send(env["A2UI_PROMPT"] ?? "Make me a shopping list for tacos for 4", mode: .send)
+            try await Task.sleep(for: .seconds(2))
+            try await waitIdle(chat)
+            let card = chat.transcript.turns.last?.reply ?? ""
+            try card.write(to: outDir.appending(path: "action-\(run)-card.md"), atomically: true, encoding: .utf8)
+            guard let fence = card.firstMatch(of: /```a2ui\s*\n([\s\S]*?)\n```/), let messages = try JSONSerialization.jsonObject(with: Data(fence.1.utf8)) as? [[String: Any]],
+                  let surface = messages.compactMap({ ($0["createSurface"] as? [String: Any])?["surfaceId"] as? String }).first
+            else { throw HermesError.invalidResponse }
+            let components = messages.flatMap { ($0["updateComponents"] as? [String: Any])?["components"] as? [[String: Any]] ?? [] }
+            let model = messages.compactMap { $0["updateDataModel"] as? [String: Any] }.reduce(into: [String: Any]()) { model, update in
+                let path = update["path"] as? String ?? "/"
+                if path == "/", let value = update["value"] as? [String: Any] { model = value } else { model[String(path.dropFirst())] = update["value"] }
+            }
+            let bound = components.first { component in
+                guard component["component"] as? String == "Button", let context = ((component["action"] as? [String: Any])?["event"] as? [String: Any])?["context"] as? [String: Any] else { return false }
+                return context.values.contains { ($0 as? [String: Any])?["path"] != nil }
+            }
+            guard let bound, let event = (bound["action"] as? [String: Any])?["event"] as? [String: Any], let declared = event["context"] as? [String: Any] else {
+                print("ACTION run \(run) | surface \(surface) | no path-bound button | buttons \(components.filter { $0["component"] as? String == "Button" }.count) | stepper \(components.contains { $0["component"] as? String == "Stepper" }) | timers \(card.matches(of: /"seconds"\s*:/).count)")
+                throw CancellationError()
+            }
+            var context = declared.mapValues { value in (value as? [String: Any])?["path"].flatMap { resolve($0 as? String ?? "", in: model) } ?? value }
+            let rows = context.keys.sorted().flatMap { key in
+                (context[key] as? [[String: Any]] ?? []).indices.compactMap { index -> (key: String, index: Int, flag: String, label: String)? in
+                    guard let row = (context[key] as? [[String: Any]])?[index], let flag = row.first(where: { $0.value is Bool })?.key, let label = ["name", "item", "label", "text"].lazy.compactMap({ row[$0] as? String }).first ?? row.values.compactMap({ $0 as? String }).first else { return nil }
+                    return (key, index, flag, label)
+                }
+            }
+            let picks = rows.isEmpty ? [] : [0, rows.count / 2]
+            for pick in picks {
+                let row = rows[pick]
+                guard var items = context[row.key] as? [[String: Any]] else { continue }
+                items[row.index][row.flag] = true
+                context[row.key] = items
+            }
+            let ticked = picks.map { rows[$0].label }
+            let unticked = rows.indices.filter { !picks.contains($0) }.map { rows[$0].label }
+            let payload: [String: Any] = ["context": context, "name": event["name"] as? String ?? "", "sourceComponentId": bound["id"] as? String ?? "", "surfaceId": surface]
+            let json = String(decoding: try JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys, .withoutEscapingSlashes]), as: UTF8.self)
+            chat.sendHidden("<a2ui-action>\(json)</a2ui-action>")
+            try await Task.sleep(for: .seconds(2))
+            try await waitIdle(chat)
+            let reply = chat.transcript.turns.last?.reply ?? ""
+            try reply.write(to: outDir.appending(path: "action-\(run)-reply.md"), atomically: true, encoding: .utf8)
+            print("ACTION run \(run) | surface \(surface) | button \(bound["id"] ?? "") \(declared.keys.sorted()) | ticked \(ticked) named \(ticked.filter { mentioned($0, in: reply) }.count)/\(ticked.count) | unticked named \(unticked.filter { mentioned($0, in: reply) }.count)/\(unticked.count) | bytes \(json.utf8.count)")
+            print("REPLY \(run):", reply.replacingOccurrences(of: "\n", with: " ").prefix(600))
+            if run == 1 {
+                try await Task.sleep(for: .seconds(3))
+                await store.reload(gateway)
+                guard let session = store.bots.first(where: { $0.name == name })?.canonicalSession else { throw HermesError.invalidResponse }
+                let (data, _) = try await urlSession.data(for: historyRequest(of: session.resolvedID, profile: name, on: server, limit: 200))
+                guard case .object(let page) = try JSONDecoder().decode(JSONValue.self, from: data), case .array(let rows) = page["messages"] else { throw HermesError.invalidResponse }
+                let keys: Set = ["id", "role", "content", "tool_call_id", "tool_calls", "timestamp", "reasoning", "reasoning_content", "display_kind"]
+                let kept = rows.map { row in if case .object(let object) = row { JSONValue.object(object.filter { keys.contains($0.key) }) } else { row } }
+                let scrubs = [(server.host() ?? "", "hermes.example.com"), (name, "crew-test-peer")].filter { $0.0.count > 2 }
+                let text = scrubs.reduce(String(decoding: try pretty.encode(JSONValue.object(["messages": .array(kept)])), as: UTF8.self)) { $0.replacingOccurrences(of: $1.0, with: $1.1) }.replacingOccurrences(of: "/opt/data/", with: "/opt/hermes/data/")
+                let file = URL(fileURLWithPath: #filePath).appending(path: "../../fixtures/chat.a2ui-action.history.json").standardized
+                try Data((text + "\n").utf8).write(to: file)
+                print("RECORDED \(kept.count) rows to \(file.lastPathComponent)")
+            }
+        } catch is CancellationError {
+        } catch {
+            print("ACTION run \(run) FAILED", error)
+        }
+        await store.reload(gateway)
+        if let bot = store.bots.first(where: { $0.name == name }) { try await store.delete(bot, via: gateway, urlSession: urlSession) }
+        await store.reload(gateway)
+        print(store.bots.contains { $0.name == name } ? "THROWAWAY NOT DELETED: \(name)" : "throwaway deleted")
+    }
+    exit(0)
+}
+
 let bot = try await crewTest()
 print("canonical", bot.canonicalSession?.id.rawValue ?? "nil")
 let chat = try await attached(bot)

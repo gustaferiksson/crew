@@ -74,6 +74,18 @@ extension ChatFixture {
         )]
     }
 
+    static func a2uiShoppingTurns(_ now: Date) -> [Turn] {
+        let list = markdownBlocks(from: crewUISkill).map { String($0.content.characters) }.first { $0.contains("taco-shopping-list") } ?? ""
+        let ticked = list.replacing(#"{"name": "2 avocados", "done": false}"#, with: #"{"name": "2 avocados", "done": true}"#)
+            .replacing(#"{"name": "8 tortillas", "done": false}"#, with: #"{"name": "8 tortillas", "done": true}"#)
+        let start = now.addingTimeInterval(-300)
+        return [Turn(
+            id: "s1", prompt: Prompt(text: "Make me a shopping list for tacos for 4", sentAt: start),
+            reply: "Tacos for 4, sorted by store section.\n\n```a2ui\n\(ticked)\n```",
+            status: .complete, startedAt: start, finishedAt: start.addingTimeInterval(6)
+        )]
+    }
+
     static func a2uiTimerTurns(_ now: Date) -> [Turn] {
         let recipe = markdownBlocks(from: crewUISkill).map { String($0.content.characters) }.first { $0.contains(#""component": "Stepper""#) } ?? ""
         let method = recipe.firstMatch(of: /"items": \[[^\]]*"Fry thin pancakes[^\]]*\]/).map { String($0.output) } ?? ""

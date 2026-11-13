@@ -1,7 +1,7 @@
 ---
 name: crew-ui
 description: Use for recipes, lists, trips, comparisons, tables, charts.
-version: 10
+version: 11
 ---
 
 # Rich UI in Crew
@@ -10,7 +10,7 @@ Installed by the Crew app's Rich UI switch. Crew replaces this file when it ship
 
 The Crew app draws A2UI v0.9 blocks as native cards. Draw one without being asked whenever the reply is a recipe, a checklist, a shopping or packing list, an itinerary or day plan, a comparison, a table, key facts, a forecast or numbers over time (a chart), places (a map), a form, a decision, or products, hotels or restaurants to pick between (a carousel). The user expects the card; never wait for "make a card", and never answer one of these in markdown lists or tables instead. Answer plainly only for a short fact or conversation, like "Oslo is the capital of Norway".
 
-Shapes: a recipe as in the recipe example; a checklist, shopping or packing list as CheckBoxes under one h4 per section (store aisle, bag, phase); an itinerary as one h4 per day over a KeyValue of times and plans; a comparison as a Table with one column per option, with Badges for the verdict.
+Shapes: a recipe as in the recipe example; a checklist, shopping or packing list as CheckBoxes under one h4 per section (store aisle, bag, phase); a standalone shopping or packing list also ends with one primary button whose context binds every section's path (as the "Done shopping" button in the shopping list example), so a tap tells you what is ticked, but a recipe's ingredients and other checklists get no button; an itinerary as one h4 per day over a KeyValue of times and plans; a comparison as a Table with one column per option, with Badges for the verdict.
 
 Rules:
 - Write one or two lines of prose first and put the block last. Other apps show the block as code, so the prose must carry the answer on its own.
@@ -53,7 +53,7 @@ Crew-only components (plain values, no {"path"} bindings, except Stepper above):
 
 When the user taps a button, Crew sends you a hidden message like
 <a2ui-action>{"context": {"choice": "delete"}, "name": "decide", "sourceComponentId": "delete", "surfaceId": "cleanup-previews"}</a2ui-action>
-with the bound values resolved at tap time. Crew already marks the tapped button, so reply briefly in prose and act on it. To only tick rows or set inputs on a card, send updateDataModel for the same surfaceId and no createSurface; any other change re-sends the whole card.
+with the bound values resolved at tap time. To learn what the user ticked or typed on a card, bind those paths in the button's context, as the shopping list example's "Done shopping" button does with {"produce": {"path": "/produce"}}: you get each row with its current "done". Bind only the paths you need, never "/"; a value over 8 KB arrives as "(not sent: over 8 KB)". Crew already marks the tapped button, so reply briefly in prose and act on it. To only tick rows or set inputs on a card, send updateDataModel for the same surfaceId and no createSurface; any other change re-sends the whole card.
 
 Example, a decision:
 ```a2ui
@@ -108,7 +108,7 @@ Example, a shopping list, one h4 per store section:
   {"version": "v0.9", "createSurface": {"surfaceId": "taco-shopping-list", "catalogId": "https://crew.gustaf.dev/catalogs/crew/v1.json"}},
   {"version": "v0.9", "updateComponents": {"surfaceId": "taco-shopping-list", "components": [
     {"id": "root", "component": "Card", "child": "body"},
-    {"id": "body", "component": "Column", "children": ["header", "produce-title", "produce", "dairy-title", "dairy", "pantry-title", "pantry"]},
+    {"id": "body", "component": "Column", "children": ["header", "produce-title", "produce", "dairy-title", "dairy", "pantry-title", "pantry", "actions"]},
     {"id": "header", "component": "Header", "title": "Tacos for 4", "subtitle": "9 items", "symbol": "cart"},
     {"id": "produce-title", "component": "Text", "text": "Produce", "variant": "h4"},
     {"id": "produce", "component": "Column", "children": {"componentId": "item", "path": "/produce"}},
@@ -116,7 +116,10 @@ Example, a shopping list, one h4 per store section:
     {"id": "dairy", "component": "Column", "children": {"componentId": "item", "path": "/dairy"}},
     {"id": "pantry-title", "component": "Text", "text": "Pantry", "variant": "h4"},
     {"id": "pantry", "component": "Column", "children": {"componentId": "item", "path": "/pantry"}},
-    {"id": "item", "component": "CheckBox", "label": {"path": "name"}, "value": {"path": "done"}}
+    {"id": "item", "component": "CheckBox", "label": {"path": "name"}, "value": {"path": "done"}},
+    {"id": "actions", "component": "Row", "justify": "end", "children": ["done"]},
+    {"id": "done-label", "component": "Text", "text": "Done shopping"},
+    {"id": "done", "component": "Button", "child": "done-label", "variant": "primary", "action": {"event": {"name": "done-shopping", "context": {"produce": {"path": "/produce"}, "dairy": {"path": "/dairy"}, "pantry": {"path": "/pantry"}}}}}
   ]}},
   {"version": "v0.9", "updateDataModel": {"surfaceId": "taco-shopping-list", "value": {
     "produce": [{"name": "2 avocados", "done": false}, {"name": "1 red onion", "done": false}, {"name": "3 tomatoes", "done": false}, {"name": "1 lime", "done": false}],

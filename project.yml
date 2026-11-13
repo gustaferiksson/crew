@@ -98,6 +98,10 @@ targets:
       - Widgets
       - Sources/Voice/VoiceShared.swift
       - Sources/Voice/VoiceBot.swift
+      - Sources/PinnedWidget/PinnedGlance.swift
+      - Sources/PinnedWidget/PinnedWidgetContent.swift
+      - Sources/PinnedWidget/PinnedCardWidgetViews.swift
+      - Sources/Chat/A2UI/CrewTones.swift
       - Sources/AvatarView.swift
       - Sources/AvatarFace.swift
       - Sources/EyePose.swift
@@ -155,6 +159,9 @@ targets:
       - Sources/Chat/ChatDrafts.swift
       - Sources/Chat/Draft.swift
       - Sources/Chat/ChatPins.swift
+      - Sources/PinnedWidget/PinnedGlance.swift
+      - Sources/PinnedWidget/PinnedWidgetContent.swift
+      - Sources/Chat/A2UI/CrewTones.swift
       - Sources/Chat/A2UI/CardState.swift
       - Sources/Chat/Composer.swift
       - Sources/Chat/Dictation.swift

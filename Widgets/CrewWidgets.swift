@@ -8,6 +8,7 @@ struct CrewWidgets: WidgetBundle {
     var body: some Widget {
         TalkControl()
         VoiceActivity()
+        PinnedCardWidget()
     }
 }
 

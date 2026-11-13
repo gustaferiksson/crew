@@ -5,6 +5,7 @@ import SwiftUI
 #if os(iOS)
 import AppIntents
 import CoreSpotlight
+import WidgetKit
 #endif
 
 nonisolated struct BotMeta: Hashable, Sendable {
@@ -582,6 +583,7 @@ final class BotStore {
         try? FileManager.default.removeItem(at: photoDirectory)
         #if os(iOS)
         VoiceBot.cacheURL.map { try? FileManager.default.removeItem(at: $0) }
+        WidgetCenter.shared.reloadTimelines(ofKind: PinnedGlance.widgetKind)
         publishToSiri([])
         #endif
     }
@@ -642,6 +644,7 @@ final class BotStore {
         }
         try? FileManager.default.createDirectory(at: voiceURL.deletingLastPathComponent(), withIntermediateDirectories: true)
         try? encoder.encode(voiceBots).write(to: voiceURL, options: .atomic)
+        WidgetCenter.shared.reloadTimelines(ofKind: PinnedGlance.widgetKind)
         publishToSiri(voiceBots.filter { !$0.hidden }.map { BotEntity(id: $0.name, title: $0.title) })
         #endif
     }

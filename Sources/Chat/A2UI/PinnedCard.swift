@@ -27,6 +27,7 @@ struct CardSummary {
     let subtitle: String?
     let image: URL?
     let symbol: String
+    let tone: String?
     let tint: Color
     let checklist: (done: Int, total: Int)?
 
@@ -47,7 +48,8 @@ struct CardSummary {
         subtitle = header?.string(for: "subtitle")?.trimmingCharacters(in: .whitespaces).split(whereSeparator: \.isNewline).first.map(String.init)
         image = header?.string(for: "image").flatMap(URL.init(string:)).flatMap { $0.scheme == "https" ? $0 : nil }
         symbol = systemSymbol(header?.string(for: "symbol")) ?? "rectangle.on.rectangle"
-        tint = crewTones[header?.string(for: "tone") ?? ""] ?? .accentColor
+        tone = header?.string(for: "tone")
+        tint = crewTones[tone ?? ""] ?? .accentColor
     }
 }
 

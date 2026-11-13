@@ -368,6 +368,13 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
             guard let pinKey, let newest = surfaces.newest else { return }
             pins.arrived(newest, in: pinKey)
         }
+        #if os(iOS)
+        .background {
+            if let pinKey, let id = pins.pinned(in: pinKey), surfaces.present.contains(id), let model = surfaces.processor.surfaceGroupModel[id] {
+                PinnedGlanceReporter(model: model, chat: pinKey)
+            }
+        }
+        #endif
         .dropDestination(for: URL.self) { urls, _ in
             guard features.contains(.attachments) else { return false }
             tray.add(urls)

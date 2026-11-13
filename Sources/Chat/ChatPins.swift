@@ -1,6 +1,9 @@
 import CryptoKit
 import Foundation
 import Observation
+#if os(iOS)
+import WidgetKit
+#endif
 
 @Observable
 final class ChatPins {
@@ -20,6 +23,7 @@ final class ChatPins {
     struct Pin: Codable, Equatable {
         var seen: Seen?
         var pinned: String?
+        var glance: PinnedGlance?
     }
 
     private struct Stored: Codable {
@@ -30,10 +34,14 @@ final class ChatPins {
     private(set) var chats: [String: Pin]
     private var since: Date
     private let fileURL: URL?
+    private let widgetURL: URL?
+    private var published: [String: PinnedGlance]
 
-    init(fileURL: URL? = URL.applicationSupportDirectory.appending(path: "pins.json")) {
+    init(fileURL: URL? = URL.applicationSupportDirectory.appending(path: "pins.json"), widgetURL: URL? = PinnedGlance.fileURL) {
         let stored = fileURL.flatMap { try? Data(contentsOf: $0) }.flatMap { try? JSONDecoder().decode(Stored.self, from: $0) }
         self.fileURL = fileURL
+        self.widgetURL = widgetURL
+        published = PinnedGlance.saved(at: widgetURL)
         since = stored?.since ?? .now
         chats = stored?.chats ?? [:]
         if stored == nil { save() }
@@ -41,6 +49,8 @@ final class ChatPins {
 
     init(fixture chats: [String: Pin]) {
         fileURL = nil
+        widgetURL = nil
+        published = [:]
         since = .distantPast
         self.chats = chats
     }
@@ -63,6 +73,15 @@ final class ChatPins {
         save()
     }
 
+    func show(_ glance: PinnedGlance, in chat: String) {
+        guard widgetURL != nil, let pin = chats[chat], pin.pinned == glance.surface else { return }
+        var stamped = glance
+        stamped.pinnedAt = pin.glance?.surface == glance.surface ? pin.glance?.pinnedAt ?? .now : .now
+        guard stamped != pin.glance else { return }
+        chats[chat]?.glance = stamped
+        save()
+    }
+
     func clear(_ chat: String) {
         guard chats[chat] != nil else { return }
         chats[chat] = nil
@@ -79,5 +98,17 @@ final class ChatPins {
         guard let fileURL else { return }
         try? FileManager.default.createDirectory(at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
         try? JSONEncoder().encode(Stored(since: since, chats: chats)).write(to: fileURL, options: .atomic)
+        publish()
+    }
+
+    private func publish() {
+        let glances = chats.compactMapValues { pin in pin.glance.flatMap { $0.surface == pin.pinned ? $0 : nil } }
+        guard let widgetURL, glances != published || !FileManager.default.fileExists(atPath: widgetURL.path()) else { return }
+        try? FileManager.default.createDirectory(at: widgetURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try? JSONEncoder().encode(glances).write(to: widgetURL, options: .atomic)
+        published = glances
+        #if os(iOS)
+        WidgetCenter.shared.reloadTimelines(ofKind: PinnedGlance.widgetKind)
+        #endif
     }
 }

@@ -290,14 +290,37 @@ final class PushCenter: NSObject {
         _ = try? await fetch(request, with: connection.urlSession, as: Empty.self)
     }
 
+    func scheduleTimer(_ request: UNNotificationRequest) async {
+        if authorization == .notDetermined { await authorize() }
+        try? await UNUserNotificationCenter.current().add(request)
+    }
+
+    func cancelTimer(_ id: String) {
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [id])
+        UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: [id])
+    }
+
+    func cancelTimers(chat: String?) async {
+        let center = UNUserNotificationCenter.current()
+        let prefix = chat.map { "timer.\($0)." } ?? "timer."
+        let pending = await center.pendingNotificationRequests().map(\.identifier).filter { $0.hasPrefix(prefix) }
+        let delivered = await center.deliveredNotifications().map(\.request.identifier).filter { $0.hasPrefix(prefix) }
+        center.removePendingNotificationRequests(withIdentifiers: pending)
+        center.removeDeliveredNotifications(withIdentifiers: delivered)
+    }
+
+    static func presentation(for route: PushRoute?, isActive: Bool, visibleBot: Bot.ID?) -> UNNotificationPresentationOptions {
+        guard let route, route.kind != "timer", isActive, route.profile == visibleBot else { return [.banner, .list, .sound] }
+        return []
+    }
+
     private func presentation(for route: PushRoute?) -> UNNotificationPresentationOptions {
         #if os(iOS)
         let isActive = UIApplication.shared.applicationState == .active
         #else
         let isActive = NSApplication.shared.isActive
         #endif
-        guard let route, isActive, route.profile == visibleBot else { return [.banner, .list, .sound] }
-        return []
+        return Self.presentation(for: route, isActive: isActive, visibleBot: visibleBot)
     }
 
     private func open(_ route: PushRoute?) {

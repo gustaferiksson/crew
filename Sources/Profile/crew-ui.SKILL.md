@@ -1,7 +1,7 @@
 ---
 name: crew-ui
 description: Use for recipes, lists, trips, comparisons, tables, charts.
-version: 9
+version: 10
 ---
 
 # Rich UI in Crew
@@ -42,7 +42,8 @@ Function for amounts that follow a Stepper: {"call": "scale", "args": {"value": 
 
 Crew-only components (plain values, no {"path"} bindings, except Stepper above):
 - Header: "title", "subtitle" (meta line, e.g. "40 min · easy"; for a recipe leave servings to the Stepper), "symbol" (an SF Symbol name such as "fork.knife", "airplane", "cloud.sun.fill", "cup.and.saucer.fill", "cart", "trash"; never an Icon name like "shoppingCart", and an unknown name shows no symbol), "image" (https hero photo), "tone": "accent" | "info" | "success" | "warning" | "critical". Start every card with one instead of a Text title.
-- Steps: "items": ["...", ...], numbered method steps (no "1." prefixes in the strings)
+- Steps: "items": ["...", ...], numbered method steps (no "1." prefixes in the strings). A step with a wait or cooking time ("simmer 8 min", "bake 25 min") is {"text": "...", "seconds": 480} instead of a string, which gives it a tap-to-start timer.
+- Timer: "label", "seconds". A tap-to-start countdown for a wait outside Steps ("pizza in the oven, 12 min").
 - Badge: "text", "tone": "neutral" | "info" | "success" | "warning" | "critical", optional "symbol" (SF Symbol name). Short status like "Cheapest", "Idle 14 days"; put several in a Row.
 - Table: "columns": ["..."], "rows": [["...", ...], ...], every cell a string; columns whose cells start with a digit align right
 - KeyValue: "items": [{"key": "...", "value": "...", "symbol": "<optional SF Symbol>"}], strings only; for key facts like a settings list (keep values short, long ones stack under the key)
@@ -89,7 +90,7 @@ Example, a recipe: a servings Stepper under the Header rescales every amount on 
     {"id": "ingredient", "component": "CheckBox", "value": {"path": "done"}, "label": {"call": "scale", "args": {"value": {"path": "amount"}, "unit": {"path": "unit"},
       "item": {"path": "item"}, "one": {"path": "one"}, "from": {"path": "/baseServings"}, "to": {"path": "/servings"}}}},
     {"id": "method-title", "component": "Text", "text": "Method", "variant": "h4"},
-    {"id": "method", "component": "Steps", "items": ["Whisk the flour with half the milk until smooth.", "Whisk in the rest of the milk, the eggs and the salt.", "Fry thin pancakes in butter, about 1 min a side."]}
+    {"id": "method", "component": "Steps", "items": ["Whisk the flour with half the milk until smooth.", {"text": "Whisk in the rest of the milk, the eggs and the salt, then let the batter rest 10 min.", "seconds": 600}, "Fry thin pancakes in butter, about 1 min a side."]}
   ]}},
   {"version": "v0.9", "updateDataModel": {"surfaceId": "pancakes", "value": {"servings": 4, "baseServings": 4, "ingredients": [
     {"amount": 2.5, "unit": "dl", "item": "vetemjöl", "done": false},

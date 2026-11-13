@@ -1,3 +1,4 @@
+import json
 import sys
 import types
 from pathlib import Path
@@ -161,6 +162,27 @@ def test_previews_off_sends_generic_text(device, enqueued: list) -> None:
 def test_long_reply_is_clipped() -> None:
     from crew_push.hooks import clip
     assert len(clip("word " * 500, 400)) == 400
+
+
+CARD_REPLIES = [message["content"] for message in json.loads(
+    (Path(__file__).resolve().parents[3] / "Tests" / "fixtures" / "chat.a2ui-update.history.json").read_text())["messages"]
+    if message["role"] == "assistant" and "```a2ui" in message["content"]]
+CARD_ONLY = CARD_REPLIES[3][CARD_REPLIES[3].index("```a2ui"):]
+UNTITLED_CARD = CARD_REPLIES[2][CARD_REPLIES[2].index("```a2ui"):]
+
+
+@pytest.mark.parametrize(("reply", "body"), [
+    (CARD_REPLIES[3], "Here’s a separate vegan version for 6, so your original card stays unchanged. "
+                      "Lentils, mushrooms and oats make tender meatballs with a savoury cream gravy."),
+    (CARD_ONLY, "Vegan köttbullar with cream gravy"),
+    (UNTITLED_CARD, "Replied"),
+    (CARD_ONLY.replace("```a2ui", "<a2ui-json>").rstrip().removesuffix("```") + "</a2ui-json>",
+     "Vegan köttbullar with cream gravy"),
+])
+def test_card_reply_pushes_its_prose_or_its_title_never_its_json(push: CrewPush, enqueued: list,
+                                                                  reply: str, body: str) -> None:
+    turn(push, reply=reply)
+    assert enqueued[0][2]["aps"]["alert"]["body"] == body
 
 
 @pytest.mark.parametrize("change", [

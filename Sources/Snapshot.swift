@@ -65,6 +65,7 @@ enum Snapshot: String {
     case chatA2UIServingsScaled = "chat-a2ui-servings-scaled"
     case chatA2UISaved = "chat-a2ui-saved"
     case chatA2UITimer = "chat-a2ui-timer"
+    case chatA2UIShopping = "chat-a2ui-shopping"
     case layout
     case layoutInspector = "layout-inspector"
     case chatWindow = "chat-window"

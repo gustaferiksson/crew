@@ -7,6 +7,7 @@ import OrderedJSON
 import SwiftUI
 
 private let blockLimit = 64 * 1024
+private let contextValueLimit = 8 * 1024
 
 extension EnvironmentValues {
     @Entry var surfaces: SurfaceStore?
@@ -169,7 +170,10 @@ final class SurfaceStore {
 
     private func forward(_ message: RendererToAgentMessage) {
         guard case .action(let action) = message else { return }
-        let sent = SentAction(name: action.name, surfaceId: action.surfaceID, sourceComponentId: action.sourceComponentID, context: action.context)
+        let context = action.context.mapValues { value in
+            ((try? sentActionEncoder.encode(value).count) ?? .max) <= contextValueLimit ? value : .string("(not sent: over 8 KB)")
+        }
+        let sent = SentAction(name: action.name, surfaceId: action.surfaceID, sourceComponentId: action.sourceComponentID, context: context)
         guard let json = try? sentActionEncoder.encode(sent) else { return }
         send("<a2ui-action>\(String(decoding: json, as: UTF8.self))</a2ui-action>")
     }

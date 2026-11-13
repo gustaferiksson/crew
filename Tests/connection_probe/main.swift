@@ -54,9 +54,13 @@ func envRequest(_ method: String, body: [String: String]? = nil) async throws ->
     return data
 }
 
+func keyRow() async throws -> [String: JSONValue]? {
+    guard case .object(let rows) = try JSONDecoder().decode(JSONValue.self, from: try await envRequest("GET")), case .object(let row) = rows[keyVariable] ?? .null else { return nil }
+    return row
+}
+
 func keyIsSet() async throws -> Bool {
-    guard case .object(let rows) = try JSONDecoder().decode(JSONValue.self, from: try await envRequest("GET")), case .object(let row) = rows[keyVariable] ?? .null else { return false }
-    return row["is_set"] == .bool(true)
+    try await keyRow()?["is_set"] == .bool(true)
 }
 
 let before = try await listedServers()
@@ -77,6 +81,9 @@ do {
     try Data((String(decoding: try pretty.encode(JSONValue.object(["mcp_servers": .object(added)])), as: UTF8.self) + "\n").utf8).write(to: fixture)
     print("recorded \(fixture.lastPathComponent)")
 
+    let listed = try await listedServers()
+    check(listed.first { $0.name == keyServer }?.auth == "header", "/api/mcp/servers reports the dummy key server as auth header, so Change API Key shows")
+    print("listed order before the first save: \(listed.map(\.name))")
     await store.test("deepwiki", on: server, with: urlSession)
     let tools = store.tests["deepwiki"]?.tools.map(\.name) ?? []
     check(store.tests["deepwiki"]?.ok == true && tools.count > 1, "deepwiki tests ok with \(tools.count) tools")
@@ -91,6 +98,7 @@ do {
         check(false, "raw deepwiki present")
     }
     check(off[keyServer] == added[keyServer], "other server untouched by the tool switch")
+    print("listed order after the first save: \(try await listedServers().map(\.name))")
     check(try await listedServers().first { $0.name == "deepwiki" }?.offers(tool) == false, "/api/mcp/servers reports \(tool) off")
     await store.test("deepwiki", on: server, with: urlSession)
     check(store.tests["deepwiki"]?.ok == true, "deepwiki still tests ok with a tool off")
@@ -109,12 +117,15 @@ do {
     await store.changeAddress("https://mcp.deepwiki.com/mcp", for: "deepwiki", on: server, with: urlSession)
 
     check(try await keyIsSet(), "dummy key is_set before rotation")
+    let rowBefore = try await keyRow()
+    print("env row fields: \(rowBefore?.keys.sorted() ?? [])")
     await store.changeAPIKey("crew-probe-dummy-new", for: keyServer, on: server, with: urlSession, gateway: gateway)
     check(store.failures[keyServer] == nil, "key rotation answered ok \(store.failures[keyServer] ?? "")")
     let rotated = try await rawServers()
     check(rotated[keyServer] == added[keyServer], "rotated server's config still holds the same reference")
     check(!"\(rotated)".contains("crew-probe-dummy"), "no key value in the raw config")
     check(try await keyIsSet(), "dummy key is_set after rotation")
+    check(try await keyRow() != rowBefore, "the env row changed with the new key")
     check(store.tests[keyServer]?.ok == true, "dummy key server tests ok after rotation")
 
     var rejected = rotated

@@ -70,7 +70,7 @@ Sum of `ceil(schema_chars / 4)` over the tools the filter lets through, skipping
 - Saving: the Test Connection row's spinner, the connection's switches and buttons disabled.
 - Error (offline mid-save, timeout, Hermes 400 validation detail, 5xx): the text in red in the Test Connection footer, directly above Tools; a rejected PUT writes nothing (all or nothing), and since a timed-out PUT may still have landed, the page reloads the server list so the switches show what is saved.
 - Conflict: the change is applied to the entry as just read, so a change made elsewhere to another key or another connection is kept. When the fresh read no longer has the connection: "deepwiki was removed on the server." and the list reloads (the page then shows "This connection was removed."). The PUT itself is unversioned, so two clients saving in the same instant can still overwrite each other: a Hermes limitation, stated, not worked around.
-- The JSON Crew sends has sorted keys, so the first Crew save may reorder the keys of `mcp_servers` in `config.yaml` once (Hermes writes YAML in the order it receives); values and `${VAR}` references are unchanged.
+- The JSON Crew sends has sorted keys and Hermes writes YAML in the order it receives, so every Crew save leaves `mcp_servers` (and each entry's keys) in sorted order in `config.yaml`; a server added later is appended by Hermes and moves into place on the next Crew save. Values and `${VAR}` references are unchanged; numbers pass through `Double`, so `30.0` comes back as `30`.
 
 ## Long content
 

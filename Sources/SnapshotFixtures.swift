@@ -53,7 +53,7 @@ extension Snapshot {
         if isShops || chatFixture?.isPayment == true {
             return Connection(fixture: .connected, server: self == .addCardHTTP ? URL(string: "http://hermes.local:9119")! : server, crewPush: PluginStatus(pluginVersion: "0.5.0", installId: "fixture", apnsConfigured: true, http2: true, devices: 2, features: ["payments", "card"], gate: true))
         }
-        if [.sidebar, .sidebarVoice, .sidebarHidden, .sidebarFlat, .sidebarCompact, .sidebarDraft, .sidebarSearch, .searchResult, .otherConversation, .layout, .layoutInspector, .chatWindow, .chatWindowInspector, .chatWindowMissing, .inspectorLook, .profileSkills, .botPage, .chatOptions, .notifications, .newBot, .newBotAdvanced, .newGroup, .settingsAccount, .settingsNotifications, .settingsNotificationsAsk, .groupChat, .groupChatPaused, .groupChatContext, .groupChatRoutine, .groupChatReply, .groupChatReplyPinned, .groupWelcome, .groupInspector, .groupInspectorMembers].contains(self) || chatFixture != nil || inspectorTab != nil { return Connection(fixture: .connected, server: server) }
+        if [.sidebar, .sidebarVoice, .sidebarHidden, .sidebarFlat, .sidebarCompact, .sidebarDraft, .sidebarSearch, .searchResult, .otherConversation, .layout, .layoutInspector, .readme, .chatWindow, .chatWindowInspector, .chatWindowMissing, .inspectorLook, .profileSkills, .botPage, .chatOptions, .notifications, .newBot, .newBotAdvanced, .newGroup, .settingsAccount, .settingsNotifications, .settingsNotificationsAsk, .groupChat, .groupChatPaused, .groupChatContext, .groupChatRoutine, .groupChatReply, .groupChatReplyPinned, .groupWelcome, .groupInspector, .groupInspectorMembers].contains(self) || chatFixture != nil || inspectorTab != nil { return Connection(fixture: .connected, server: server) }
         if self == .unreachable { return Connection(fixture: .unreachable, server: server) }
         return Connection(fixture: .signedOut, server: server)
     }
@@ -76,6 +76,18 @@ extension Snapshot {
                 bot("quill", 60 * 30, "Draft two is ready for review.", BotMeta(title: "Quill", color: "#ec4899")),
                 bot("ghost", 1, "Hidden until someone unhides it.", BotMeta(title: "Ghost", color: "#8e8e93", hidden: true)),
             ], statuses: ["scout": .unread, "ghost": .unread])
+        }
+        if self == .readme {
+            return BotStore(fixture: [
+                bot("default", 25, "Your inbox is clear. Two invoices are waiting for approval.", BotMeta(pinned: true)),
+                bot("ada", 60 * 2, "The survey results are summarised in a one-page brief.", BotMeta(title: "Ada Lovelace", role: "Head of Research and Analytics", color: "#8b5cf6", pinned: true)),
+                bot("scout", 60 * 5, "Found three direct flights to Lisbon for the long weekend.", BotMeta(title: "Scout", role: "Travel Planner", color: "#38bdf8", pinned: true)),
+                bot("chef", 2, ChatFixture.readmeReply, BotMeta(title: "Chef", color: "#f59e0b", sectionID: "home", sectionName: "Home")),
+                bot("pixel", 60 * 24 * 2, "Resized the screenshots for the App Store listing.", BotMeta(title: "Pixel", sectionID: "home", sectionName: "Home")),
+                bot("forge", 60 * 3, "Version 0.4.2 is published and tagged.", BotMeta(title: "Forge", role: "Release Engineer", color: "#f97316", sectionID: "work", sectionName: "Work")),
+                bot("atlas", 60 * 6, "Tuesday's standup notes are filed.", BotMeta(title: "Atlas", color: "#14b8a6", sectionID: "work", sectionName: "Work")),
+                bot("ledger", 60 * 26, "October expenses match the bank statement.", BotMeta(title: "Ledger", role: "Bookkeeper", color: "#22c55e", sectionID: "work", sectionName: "Work")),
+            ], statuses: ["atlas": .unread], photos: Snapshot.samplePhoto.map { ["scout": $0] } ?? [:])
         }
         if self == .sidebarHidden {
             return BotStore(fixture: [
@@ -107,7 +119,7 @@ extension Snapshot {
     }
 
     var selectedBot: Bot.ID? {
-        [.layout: "ada", .layoutInspector: "pixel", .sidebarCompact: "forge", .searchResult: "default", .chatWindow: "ada", .chatWindowInspector: "ada", .chatWindowMissing: "gone"][self]
+        [.layout: "ada", .readme: "chef", .layoutInspector: "pixel", .sidebarCompact: "forge", .searchResult: "default", .chatWindow: "ada", .chatWindowInspector: "ada", .chatWindowMissing: "gone"][self]
     }
 
     var searchQuery: String? {
@@ -152,6 +164,9 @@ extension Snapshot {
                 startedAt: asked.addingTimeInterval(-3600), finishedAt: asked.addingTimeInterval(-3590)
             )
             return ChatSessions(fixture: ["scout": ChatSession(fixture: scout, transcript: Transcript(turns: [turn]), todos: [])])
+        }
+        if self == .readme, let chef = bots.bots.first(where: { $0.id == "chef" }) {
+            return ChatSessions(fixture: ["chef": ChatSession(fixture: chef, transcript: Transcript(turns: ChatFixture.readmeTurns(.now)), todos: [])])
         }
         guard let id = selectedBot ?? (self == .sidebarSearch ? "default" : nil), let bot = bots.bots.first(where: { $0.id == id }) else { return ChatSessions() }
         return ChatSessions(fixture: [id: ChatSession(fixture: bot, transcript: ChatFixture.history.transcript, todos: [], context: ContextUsage(used: 277_700, window: 1_000_000))])
@@ -199,6 +214,7 @@ extension Snapshot {
         if self == .chatSelection { window.setContentSize(NSSize(width: 860, height: 900)) }
         if self == .chatTimestamps { window.setContentSize(NSSize(width: 560, height: 900)) }
         if [.chatWindow, .chatWindowMissing, .groupChat, .groupChatPaused, .groupChatContext, .groupChatRoutine, .groupWelcome].contains(self) { window.setContentSize(NSSize(width: 560, height: 640)) }
+        if self == .readme { window.setContentSize(NSSize(width: 960, height: 780)) }
         if self == .chatWindowInspector { window.setContentSize(NSSize(width: 900, height: 640)) }
         if self == .sidebarCompact { window.setContentSize(NSSize(width: 760, height: 1000)) }
         if height > 0 { window.setContentSize(NSSize(width: window.contentRect(forFrameRect: window.frame).width, height: height)) }

@@ -77,6 +77,17 @@ nonisolated func hermesRequest(_ path: String, on server: URL, json body: [Strin
 }
 
 nonisolated func fetch<Response: Decodable>(_ request: URLRequest, with session: URLSession, as type: Response.Type = Response.self) async throws -> Response {
+    let data = try await fetchData(request, with: session)
+    let decoder = JSONDecoder()
+    decoder.keyDecodingStrategy = .convertFromSnakeCase
+    do {
+        return try decoder.decode(Response.self, from: data)
+    } catch {
+        throw HermesError.invalidResponse
+    }
+}
+
+nonisolated func fetchData(_ request: URLRequest, with session: URLSession) async throws -> Data {
     let host = request.url?.host() ?? "the server"
     let (data, response): (Data, URLResponse)
     do {
@@ -91,13 +102,7 @@ nonisolated func fetch<Response: Decodable>(_ request: URLRequest, with session:
     guard (200..<300).contains(http.statusCode) else {
         throw HermesError.server(http.statusCode, detail: (try? JSONDecoder().decode(ErrorBody.self, from: data))?.detail)
     }
-    let decoder = JSONDecoder()
-    decoder.keyDecodingStrategy = .convertFromSnakeCase
-    do {
-        return try decoder.decode(Response.self, from: data)
-    } catch {
-        throw HermesError.invalidResponse
-    }
+    return data
 }
 
 nonisolated func probe(_ server: URL, with session: URLSession) async throws -> ServerStatus {

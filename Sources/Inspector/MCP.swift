@@ -134,10 +134,62 @@ nonisolated func mcpRequest(_ path: String, profile: String, method: String = "G
     guard var body else { return request }
     body["profile"] = .string(profile)
     request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-    let encoder = JSONEncoder()
-    encoder.outputFormatting = .sortedKeys
-    request.httpBody = try? encoder.encode(body)
+    request.httpBody = try? JSONEncoder().encode(body)
     return request
+}
+
+nonisolated func jsonMembers(_ object: Substring) -> [(key: Substring, value: Substring)] {
+    var members: [(key: Substring, value: Substring)] = []
+    var depth = 0
+    var inString = false
+    var escaped = false
+    var start = object.startIndex
+    var colon: Substring.Index?
+    for index in object.indices {
+        let character = object[index]
+        if inString {
+            if escaped { escaped = false } else if character == "\\" { escaped = true } else if character == "\"" { inString = false }
+            continue
+        }
+        if character == "," || character == "}", depth == 1, let colon {
+            members.append((object[start..<colon].trimmingCharacters(in: .whitespacesAndNewlines)[...], object[object.index(after: colon)..<index].trimmingCharacters(in: .whitespacesAndNewlines)[...]))
+        }
+        if character == "\"" {
+            inString = true
+        } else if character == "{" || character == "[" {
+            depth += 1
+            if depth == 1 { start = object.index(after: index) }
+        } else if character == "}" || character == "]" {
+            depth -= 1
+        } else if character == ":", depth == 1, colon == nil {
+            colon = index
+        } else if character == ",", depth == 1 {
+            start = object.index(after: index)
+            colon = nil
+        }
+    }
+    return members
+}
+
+nonisolated func replacingServer(_ name: String, in rawConfig: String, profile: String, change: ([String: JSONValue]) -> [String: JSONValue]) throws -> Data? {
+    let decode = { (text: Substring) in try JSONDecoder().decode(JSONValue.self, from: Data(text.utf8)) }
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
+    let encode = { (value: JSONValue) in String(decoding: try encoder.encode(value), as: UTF8.self) }
+    guard let servers = jsonMembers(rawConfig[...]).first(where: { (try? decode($0.key)) == .string("mcp_servers") })?.value,
+          let target = try jsonMembers(servers).first(where: { try decode($0.key) == .string(name) }),
+          case .object(let old) = try decode(target.value)
+    else { return nil }
+
+    let new = change(old)
+    let kept = try jsonMembers(target.value).compactMap { member -> String? in
+        guard case .string(let key) = try decode(member.key), let value = new[key] else { return nil }
+        return value == old[key] ? "\(member.key):\(member.value)" : "\(member.key):\(try encode(value))"
+    }
+    let added = try new.keys.filter { old[$0] == nil }.sorted().map { "\(try encode(.string($0))):\(try encode(new[$0] ?? .null))" }
+    let entry = "{" + (kept + added).joined(separator: ",") + "}"
+    let map = jsonMembers(servers).map { "\($0.key):\($0.key == target.key ? entry[...] : $0.value)" }.joined(separator: ",")
+    return Data("{\"servers\":{\(map)},\"profile\":\(try encode(.string(profile)))}".utf8)
 }
 
 nonisolated func copyConnections(_ names: Set<String>, from source: String, to profile: String, on server: URL, with session: URLSession) async throws -> [String] {
@@ -370,7 +422,10 @@ final class BotConnections {
         busy.insert(name)
         defer { busy.remove(name) }
         do {
-            guard case .object(let entry) = try await rawServers(on: server, with: urlSession)?[name] ?? .null else {
+            guard case .object(let config) = try JSONDecoder().decode(JSONValue.self, from: Data(try await rawConfig(on: server, with: urlSession).utf8)),
+                  case .object(let servers) = config["mcp_servers"] ?? .null,
+                  case .object(let entry) = servers[name] ?? .null
+            else {
                 failures[name] = String(localized: "\(name) was removed on the server.")
                 return
             }
@@ -396,12 +451,14 @@ final class BotConnections {
         busy.insert(name)
         defer { busy.remove(name) }
         do {
-            guard var all = try await rawServers(on: server, with: urlSession), case .object(let entry) = all[name] ?? .null else {
+            guard let body = try replacingServer(name, in: try await rawConfig(on: server, with: urlSession), profile: profile, change: change) else {
                 failures[name] = String(localized: "\(name) was removed on the server.")
                 return false
             }
-            all[name] = .object(change(entry))
-            _ = try await fetch(mcpRequest("servers", profile: profile, method: "PUT", body: ["servers": .object(all)], on: server), with: urlSession, as: JSONValue.self)
+            var write = mcpRequest("servers", profile: profile, method: "PUT", on: server)
+            write.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            write.httpBody = body
+            _ = try await fetch(write, with: urlSession, as: JSONValue.self)
             return true
         } catch {
             failures[name] = error.localizedDescription
@@ -409,11 +466,10 @@ final class BotConnections {
         }
     }
 
-    private func rawServers(on server: URL, with urlSession: URLSession) async throws -> [String: JSONValue]? {
+    private func rawConfig(on server: URL, with urlSession: URLSession) async throws -> String {
         var read = hermesRequest("api/config", on: server)
         read.url?.append(queryItems: [URLQueryItem(name: "profile", value: profile), URLQueryItem(name: "include_defaults", value: "false")])
-        guard case .object(let config) = try await fetch(read, with: urlSession, as: JSONValue.self), case .object(let all) = config["mcp_servers"] ?? .null else { return nil }
-        return all
+        return String(decoding: try await fetchData(read, with: urlSession), as: UTF8.self)
     }
 
     func add(_ body: [String: JSONValue], catalog: Bool, on server: URL, with urlSession: URLSession) async throws {

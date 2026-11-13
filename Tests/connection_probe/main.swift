@@ -7,8 +7,8 @@ nonisolated struct ProfileError: LocalizedError {
 }
 
 let profile = "crew-test"
-let keyServer = "crewtestkey"
-let keyVariable = "MCP_CREWTESTKEY_API_KEY"
+let keyServer = "wikikey"
+let keyVariable = "MCP_WIKIKEY_API_KEY"
 let env = ProcessInfo.processInfo.environment
 let server = try serverURL(from: env["HERMES_URL"] ?? "")
 let configuration = URLSessionConfiguration.ephemeral
@@ -36,6 +36,17 @@ func rawServers() async throws -> [String: JSONValue] {
     read.url?.append(queryItems: [URLQueryItem(name: "profile", value: profile), URLQueryItem(name: "include_defaults", value: "false")])
     guard case .object(let config) = try await fetch(read, with: urlSession, as: JSONValue.self), case .object(let servers) = config["mcp_servers"] ?? .null else { return [:] }
     return servers
+}
+
+func rawServersText() async throws -> Substring {
+    var read = hermesRequest("api/config", on: server)
+    read.url?.append(queryItems: [URLQueryItem(name: "profile", value: profile), URLQueryItem(name: "include_defaults", value: "false")])
+    let raw = String(decoding: try await fetchData(read, with: urlSession), as: UTF8.self)
+    return jsonMembers(raw[...]).first { $0.key == "\"mcp_servers\"" }?.value ?? ""
+}
+
+func keyOrder() async throws -> [String] {
+    try await jsonMembers(rawServersText()).flatMap { server in [String(server.key)] + jsonMembers(server.value).map { "  " + $0.key } }
 }
 
 func listedServers() async throws -> [MCPServer] {
@@ -71,15 +82,15 @@ guard before.isEmpty else {
 
 let store = BotConnections(profile: profile)
 do {
-    try await store.add(["name": .string("deepwiki"), "env": .object([:])], catalog: true, on: server, with: urlSession)
     try await store.add(["name": .string(keyServer), "url": .string("https://mcp.deepwiki.com/mcp"), "auth": .string("header"), "bearer_token": .string("crew-probe-dummy-old")], catalog: false, on: server, with: urlSession)
+    try await store.add(["name": .string("deepwiki"), "env": .object([:])], catalog: true, on: server, with: urlSession)
     let added = try await rawServers()
     check(Set(added.keys) == ["deepwiki", keyServer], "both connections added")
     check("\(added[keyServer] ?? .null)".contains("${\(keyVariable)}"), "the dummy key is a reference")
-    let pretty = JSONEncoder()
-    pretty.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
-    try Data((String(decoding: try pretty.encode(JSONValue.object(["mcp_servers": .object(added)])), as: UTF8.self) + "\n").utf8).write(to: fixture)
+    try Data("{\"mcp_servers\":\(try await rawServersText())}\n".utf8).write(to: fixture)
     print("recorded \(fixture.lastPathComponent)")
+    let order = try await keyOrder()
+    print("raw order before the first save: \(order)")
 
     let listed = try await listedServers()
     check(listed.first { $0.name == keyServer }?.auth == "header", "/api/mcp/servers reports the dummy key server as auth header, so Change API Key shows")
@@ -98,6 +109,7 @@ do {
         check(false, "raw deepwiki present")
     }
     check(off[keyServer] == added[keyServer], "other server untouched by the tool switch")
+    check(try await keyOrder().filter { !$0.contains("tools") } == order, "the tool switch kept server and key order")
     print("listed order after the first save: \(try await listedServers().map(\.name))")
     check(try await listedServers().first { $0.name == "deepwiki" }?.offers(tool) == false, "/api/mcp/servers reports \(tool) off")
     await store.test("deepwiki", on: server, with: urlSession)
@@ -113,6 +125,7 @@ do {
         check(entry.filter { $0.key != "url" } == original.filter { $0.key != "url" }, "address change touched only url")
     }
     check(moved[keyServer] == added[keyServer], "other server untouched by the address change")
+    check(try await keyOrder() == order, "the address change kept server and key order")
     check(store.tests["deepwiki"]?.ok == true, "deepwiki retested ok at the new address")
     await store.changeAddress("https://mcp.deepwiki.com/mcp", for: "deepwiki", on: server, with: urlSession)
 

@@ -32,12 +32,12 @@ nonisolated private final class RawConfigStub: URLProtocol {
             return data
         }
         RawConfigStub.requests.withLock { $0.append(("\(request.httpMethod ?? "GET") \(url.path())?\(query)", body)) }
-        let expanded = String(decoding: rawConfig, as: UTF8.self).replacing("${MCP_CREWTESTKEY_API_KEY}", with: "plaintext-key")
+        let expanded = String(decoding: rawConfig, as: UTF8.self).replacing("${MCP_WIKIKEY_API_KEY}", with: "plaintext-key")
         let reply: String
         if url.path() == "/api/config" {
             reply = query.contains("crew-test-gone") ? #"{"model":"gpt-6.1-sol"}"# : query.contains("include_defaults=false") ? String(decoding: rawConfig, as: UTF8.self) : expanded
         } else if url.path() == "/api/mcp/servers", request.httpMethod == "GET" {
-            reply = #"{"servers":[{"name":"crewtestkey","transport":"http","url":"https://mcp.deepwiki.com/mcp","command":null,"args":[],"auth":"header","enabled":true,"source":"config","plugin":null},{"name":"deepwiki","transport":"http","url":"https://mcp.deepwiki.com/mcp","command":null,"args":[],"auth":null,"enabled":true,"source":"config","plugin":null}]}"#
+            reply = #"{"servers":[{"name":"wikikey","transport":"http","url":"https://mcp.deepwiki.com/mcp","command":null,"args":[],"auth":"header","enabled":true,"source":"config","plugin":null},{"name":"deepwiki","transport":"http","url":"https://mcp.deepwiki.com/mcp","command":null,"args":[],"auth":null,"enabled":true,"source":"config","plugin":null}]}"#
         } else if url.path().hasSuffix("/test") {
             reply = #"{"ok":true,"tools":[{"name":"ask_wiki_question","description":"Ask"}]}"#
         } else {
@@ -63,10 +63,13 @@ private func sentServers(_ profile: String) throws -> [String: JSONValue]? {
     return servers
 }
 
-private func bytes(_ value: JSONValue?) throws -> Data {
-    let encoder = JSONEncoder()
-    encoder.outputFormatting = .sortedKeys
-    return try encoder.encode(value ?? .null)
+private func rawMembers(_ text: String) -> [(key: Substring, value: Substring)] {
+    jsonMembers(jsonMembers(text[...]).first { $0.key == "\"mcp_servers\"" || $0.key == "\"servers\"" }?.value ?? "")
+}
+
+private func sentText(_ profile: String) -> String {
+    let body = RawConfigStub.requests.withLock { $0 }.last { $0.line == "PUT /api/mcp/servers?profile=\(profile)" }?.body
+    return String(decoding: body ?? Data(), as: UTF8.self)
 }
 
 private func loadedStore(_ profile: String) async throws -> (BotConnections, URL) {
@@ -84,8 +87,12 @@ private func loadedStore(_ profile: String) async throws -> (BotConnections, URL
     let sent = try #require(try sentServers("crew-test-tool"))
     #expect(RawConfigStub.requests.withLock { $0 }.contains { $0.line == "GET /api/config?profile=crew-test-tool&include_defaults=false" })
     #expect(store.failures["deepwiki"] == nil)
-    #expect(Set(sent.keys) == Set(raw.keys))
-    #expect(try bytes(sent["crewtestkey"]) == bytes(raw["crewtestkey"]))
+    let recordedMembers = rawMembers(String(decoding: rawConfig, as: UTF8.self))
+    let sentMembers = rawMembers(sentText("crew-test-tool"))
+    #expect(sentMembers.map(\.key) == ["\"wikikey\"", "\"deepwiki\""])
+    #expect(sentMembers.map(\.key) == recordedMembers.map(\.key))
+    #expect(sentMembers.first?.value == recordedMembers.first?.value)
+    #expect(jsonMembers(sentMembers[1].value).map(\.key) == ["\"url\"", "\"enabled\"", "\"tools\""])
     guard case .object(var expected) = raw["deepwiki"] ?? .null else { return #expect(Bool(false)) }
     expected["tools"] = .object(["exclude": .array([.string("ask_wiki_question")])])
     #expect(sent["deepwiki"] == .object(expected))
@@ -94,16 +101,21 @@ private func loadedStore(_ profile: String) async throws -> (BotConnections, URL
 
 @Test func anAddressChangeKeepsTheEditedEntrysSecretReference() async throws {
     let (store, server) = try await loadedStore("crew-test-address")
-    await store.changeAddress("https://mcp.example.com/mcp", for: "crewtestkey", on: server, with: RawConfigStub.session)
+    await store.changeAddress("https://mcp.example.com/mcp", for: "wikikey", on: server, with: RawConfigStub.session)
 
     let raw = try recorded()
     let sent = try #require(try sentServers("crew-test-address"))
-    #expect(try bytes(sent["deepwiki"]) == bytes(raw["deepwiki"]))
-    #expect(sent["crewtestkey"] == .object([
+    let recordedMembers = rawMembers(String(decoding: rawConfig, as: UTF8.self))
+    let sentMembers = rawMembers(sentText("crew-test-address"))
+    #expect(sentMembers.map(\.key) == recordedMembers.map(\.key))
+    #expect(sentMembers.last?.value == recordedMembers.last?.value)
+    #expect(jsonMembers(sentMembers[0].value).map(\.key) == ["\"headers\"", "\"url\""])
+    #expect(sent["wikikey"] == .object([
         "url": .string("https://mcp.example.com/mcp"),
-        "headers": .object(["Authorization": .string("Bearer ${MCP_CREWTESTKEY_API_KEY}")]),
+        "headers": .object(["Authorization": .string("Bearer ${MCP_WIKIKEY_API_KEY}")]),
     ]))
-    #expect(!String(decoding: try bytes(.object(sent)), as: UTF8.self).contains("plaintext-key"))
+    #expect(!sentText("crew-test-address").contains("plaintext-key"))
+    #expect(raw.count == sent.count)
 }
 
 @Test func noWholeMapWriteWithoutTheConnectionInAFreshRead() async throws {

@@ -189,7 +189,16 @@ nonisolated func replacingServer(_ name: String, in rawConfig: String, profile: 
     let added = try new.keys.filter { old[$0] == nil }.sorted().map { "\(try encode(.string($0))):\(try encode(new[$0] ?? .null))" }
     let entry = "{" + (kept + added).joined(separator: ",") + "}"
     let map = jsonMembers(servers).map { "\($0.key):\($0.key == target.key ? entry[...] : $0.value)" }.joined(separator: ",")
-    return Data("{\"servers\":{\(map)},\"profile\":\(try encode(.string(profile)))}".utf8)
+    let body = Data("{\"servers\":{\(map)},\"profile\":\(try encode(.string(profile)))}".utf8)
+
+    guard case .object(let before) = try decode(servers),
+          case .object(let sent) = try? JSONDecoder().decode(JSONValue.self, from: body),
+          case .object(let after) = sent["servers"] ?? .null,
+          Set(after.keys) == Set(before.keys),
+          after[name] == .object(new),
+          after.filter({ $0.key != name }) == before.filter({ $0.key != name })
+    else { throw ProfileError(errorDescription: String(localized: "Crew couldn't prepare this change safely, so nothing was saved.")) }
+    return body
 }
 
 nonisolated func copyConnections(_ names: Set<String>, from source: String, to profile: String, on server: URL, with session: URLSession) async throws -> [String] {

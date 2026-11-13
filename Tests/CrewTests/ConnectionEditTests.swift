@@ -148,3 +148,18 @@ private func loadedStore(_ profile: String) async throws -> (BotConnections, URL
     #expect(server.canSwitch("ask_wiki_question"))
     #expect(server.canSwitch("read_wiki_contents"))
 }
+
+@Test func jsonMembersSplitsTrickyObjectsAndRoundTrips() throws {
+    let text = #"""
+    { "a{,": "x\"},]:y" , "b":[1,[2,{"c":"]"}],"}"],
+      "c\\": {"d": "\\\"{", "e": [[], {}]}, "f": null, "g": -1.5e3 }
+    """#
+    let members = jsonMembers(text[...])
+    #expect(members.map(\.key) == [#""a{,""#, #""b""#, #""c\\""#, #""f""#, #""g""#])
+    #expect(members.map(\.value) == [#""x\"},]:y""#, #"[1,[2,{"c":"]"}],"}"]"#, #"{"d": "\\\"{", "e": [[], {}]}"#, "null", "-1.5e3"])
+
+    let rebuilt = "{" + members.map { "\($0.key):\($0.value)" }.joined(separator: ",") + "}"
+    let decode = { (text: String) in try JSONDecoder().decode(JSONValue.self, from: Data(text.utf8)) }
+    #expect(try decode(rebuilt) == decode(text))
+    #expect(jsonMembers("{}").isEmpty)
+}

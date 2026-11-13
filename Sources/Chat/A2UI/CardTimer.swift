@@ -13,7 +13,7 @@ nonisolated enum CardTimer: Equatable {
             return
         }
         if parts[0] == "running" {
-            self = .running(until: Date(timeIntervalSince1970: number))
+            self = .running(until: Date(timeIntervalSinceReferenceDate: number))
         } else if parts[0] == "paused" {
             self = .paused(remaining: number)
         } else {
@@ -22,7 +22,7 @@ nonisolated enum CardTimer: Equatable {
     }
 
     var saved: String? {
-        if case .running(let end) = self { return "running \(end.timeIntervalSince1970)" }
+        if case .running(let end) = self { return "running \(end.timeIntervalSinceReferenceDate)" }
         if case .paused(let remaining) = self { return "paused \(remaining)" }
         return nil
     }

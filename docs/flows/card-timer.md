@@ -36,7 +36,7 @@ A recipe step like "Simmer 8 minutes" today is only text; the cook sets a timer 
 
 ## State and persistence
 
-- **Stored in `CardTimers`**, a small `@Observable` store shaped like `CardState`: `timers.json` in Application Support, written atomically on each change, never `UserDefaults`, at most 200 timers (the oldest change goes first). One string per key: `running <end, seconds since 1970>` or `paused <remaining seconds>`; absent is idle. The key is the notification's identifier, so the card and the alarm can't disagree.
+- **Stored in `CardTimers`**, a small `@Observable` store shaped like `CardState`: `timers.json` in Application Support, written atomically on each change, never `UserDefaults`, at most 200 timers (the oldest change goes first). One string per key: `running <end, seconds since 2001-01-01, Foundation's reference date, which round-trips exactly>` or `paused <remaining seconds>`; absent is idle. The key is the notification's identifier, so the card and the alarm can't disagree.
 - **Not in the card's data model:** the bot's data and the user's ticks stay in `CardState`; timers never pass through `SurfaceStore`. Leaving the chat, relaunching and the iPhone app being killed in the background keep the timer. A running timer whose end date passed while Crew was closed opens as Done; a paused one opens paused at the same remaining time.
 - **Expanded row and pinned sheet** read the same key from the same store, so a timer started in one shows running in the other.
 - **Other Conversations sheet:** no chat key, so its timers use an empty chat part (`timer..<surface>.<id>`); they are saved like the others, and two such sheets showing cards with the same surface and timer id share a timer (rare, accepted).

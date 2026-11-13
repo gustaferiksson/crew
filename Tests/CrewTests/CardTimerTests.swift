@@ -23,7 +23,7 @@ private let start = Date(timeIntervalSince1970: 1_800_000_000)
 }
 
 @Test func theSavedStringRoundTrips() {
-    for timer in [CardTimer.running(until: start), .paused(remaining: 312.5)] {
+    for timer in [CardTimer.running(until: start), .running(until: start.addingTimeInterval(0.1)), .running(until: Date(timeIntervalSinceReferenceDate: 784_700_000.001_371_7)), .paused(remaining: 312.5)] {
         #expect(CardTimer(timer.saved) == timer)
     }
     #expect(CardTimer.idle.saved == nil)
@@ -45,12 +45,13 @@ private let start = Date(timeIntervalSince1970: 1_800_000_000)
     let timers = CardTimers(fileURL: file)
     let rest = CardTimers.key(chat: "chef", surface: "pancakes", timer: "method-2")
     let pizza = CardTimers.key(chat: "chef", surface: "dinner", timer: "pizza")
-    let now = Date.now
+    let now = start.addingTimeInterval(0.123_456_789)
     timers.set(CardTimer.idle.started(for: 600, at: now.addingTimeInterval(-700)), for: rest)
     timers.set(CardTimer.idle.started(for: 720, at: now).paused(at: now.addingTimeInterval(20)), for: pizza)
 
     let relaunched = CardTimers(fileURL: file)
-    #expect(relaunched.timer(rest).isDone(at: .now), "the rest timer ended while Crew was closed")
+    #expect(relaunched.timer(rest) == .running(until: now.addingTimeInterval(-100)), "the saved end date comes back exactly")
+    #expect(relaunched.timer(rest).isDone(at: now), "the rest timer ended while Crew was closed")
     #expect(relaunched.timer(pizza) == .paused(remaining: 700))
 
     relaunched.set(.idle, for: rest)
@@ -70,7 +71,7 @@ private let start = Date(timeIntervalSince1970: 1_800_000_000)
     #expect((steps.array(for: "items") ?? []).compactMap { $0 as? ResolvedDictionary }.first?.double(for: "seconds") == 600)
 
     let timers = CardTimers(fileURL: nil)
-    let running = CardTimer.idle.started(for: 600, at: .now)
+    let running = CardTimer.running(until: Date(timeIntervalSinceReferenceDate: 784_700_000.001_371_7))
     timers.set(running, for: CardTimers.key(chat: store.saved?.chat, surface: first.surfaceID, timer: "\(steps.id)-2"))
 
     store.sync(try pancakes(servings: 6))

@@ -9,8 +9,7 @@ private let knownClippedLabels: Set<String> = [
 extension XCUIApplication {
     @MainActor func auditHitRegionsAndClipping() throws {
         try performAccessibilityAudit(for: [.hitRegion, .textClipped]) { issue in
-            guard let element = issue.element else { return true }
-            return issue.auditType == .textClipped && knownClippedLabels.contains(element.label)
+            issue.auditType == .textClipped && knownClippedLabels.contains(issue.element?.label ?? "")
         }
     }
 }

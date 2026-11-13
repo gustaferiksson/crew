@@ -94,8 +94,10 @@ struct ApprovalCard: View {
     let request: ApprovalRequest
     let botName: String
     let respond: (ApprovalChoice) -> Void
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
+        let buttons = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 8)) : AnyLayout(GridLayout(horizontalSpacing: 8, verticalSpacing: 8))
         VStack(alignment: .leading, spacing: 12) {
             Label("\(request.requester ?? botName) wants to run a command", systemImage: "exclamationmark.shield.fill")
                 .font(.subheadline.weight(.semibold))
@@ -112,7 +114,7 @@ struct ApprovalCard: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
-            Grid(horizontalSpacing: 8, verticalSpacing: 8) {
+            buttons {
                 GridRow {
                     if request.choices.contains(.session) {
                         Button("Allow for Session") { respond(.session) }

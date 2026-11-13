@@ -114,6 +114,16 @@ private func sentServers(_ profile: String) throws -> [String: JSONValue]? {
     #expect(try sentServers("crew-test-fresh") == ["deepwiki": .object(["url": .string("https://mcp.deepwiki.com/mcp"), "enabled": .bool(true)])])
 }
 
+@Test func anOAuthConnectionNeedsSignInAndAnOffOneStaysOff() async throws {
+    let server = try #require(URL(string: "https://hermes.invalid"))
+    let oauth = await addConnection("linear", entry: #"{"url":"https://mcp.linear.app/mcp","auth":"oauth"}"#, to: "crew-test-oauth", on: server, with: AddStub.session)
+    let off = await addConnection("archive", entry: #"{"url":"https://archive.example/mcp","enabled":false}"#, to: "crew-test-off", on: server, with: AddStub.session)
+    #expect(oauth == .needsSignIn)
+    #expect(off == .addedOff)
+    #expect(try sentServers("crew-test-oauth")?["linear"] == .object(["url": .string("https://mcp.linear.app/mcp"), "auth": .string("oauth")]))
+    #expect(try sentServers("crew-test-off")?["archive"] == .object(["url": .string("https://archive.example/mcp"), "enabled": .bool(false)]))
+}
+
 @Test func aReadThatIsNotAServerMapWritesNothing() async throws {
     guard case .failed = try await add("deepwiki", to: "crew-test-odd") else { return #expect(Bool(false)) }
     #expect(sentText("crew-test-odd") == nil)

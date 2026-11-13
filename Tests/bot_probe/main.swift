@@ -16,6 +16,64 @@ await gateway.connect()
 for _ in 0..<40 where await gateway.status != .connected { try await Task.sleep(for: .milliseconds(250)) }
 guard await gateway.status == .connected else { print("not connected"); exit(1) }
 
+nonisolated struct ListedSkill: Decodable, Sendable {
+    let name: String
+    let enabled: Bool?
+}
+
+nonisolated struct SkillText: Decodable, Sendable { let content: String }
+
+if CommandLine.arguments.dropFirst().first == "rich" {
+    guard crewUISkillVersion(crewUISkill) > 0 else { print("crew-ui.SKILL.md not next to the probe"); exit(1) }
+    let store = BotStore(fixture: [], statuses: [:])
+    await store.reload(gateway)
+    let names = ["crew-test-rich", "crew-test-rich-bare"]
+    guard !store.bots.contains(where: { names.contains($0.name) }) else { print("probe bots already exist, aborting"); exit(1) }
+    let before = Set(store.bots.map(\.name))
+    var failures: [String] = []
+    func check(_ condition: Bool, _ label: String) {
+        print(condition ? "ok  " : "FAIL", label)
+        if !condition { failures.append(label) }
+    }
+    for name in names {
+        do {
+            var options = NewBotOptions()
+            options.bundledSkills = name == "crew-test-rich"
+            let profile = options.profile(name: name, description: nil, soul: nil, cloneFrom: nil)
+            try await store.create(profile, via: gateway) { $0 = BotMeta(title: "Crew Rich Probe") }
+            let result = await options.apply(to: name, cloneFrom: nil, via: gateway, urlSession: urlSession)
+            check(result.isComplete, "\(name): New Bot steps complete")
+            var list = hermesRequest("api/skills", on: server)
+            list.url?.append(queryItems: [URLQueryItem(name: "profile", value: name)])
+            let listed = try await fetch(list, with: urlSession, as: [ListedSkill].self).first { $0.name == crewUISkillName }
+            check(listed != nil && listed?.enabled != false, "\(name): GET /api/skills lists crew-ui enabled (\(String(describing: listed)))")
+            let described = try await gateway.call("profiles.describe", ["name": name], as: ProfileDetails.self).skills.first { $0.name == crewUISkillName }
+            check(described?.enabled == true, "\(name): profiles.describe shows crew-ui on, so the inspector switch reads on")
+            var content = hermesRequest("api/skills/content", on: server)
+            content.url?.append(queryItems: [URLQueryItem(name: "name", value: crewUISkillName), URLQueryItem(name: "profile", value: name)])
+            let installed = try await fetch(content, with: urlSession, as: SkillText.self).content
+            check(installed == crewUISkill, "\(name): installed crew-ui matches the bundled v\(crewUISkillVersion(crewUISkill))")
+        } catch {
+            failures.append("\(name): \(error)")
+            print("FAIL", name, error)
+        }
+    }
+    for name in names {
+        guard let target = store.bots.first(where: { $0.name == name }) else { continue }
+        do {
+            try await store.delete(target, via: gateway, urlSession: urlSession)
+            check(!store.bots.contains { $0.name == name }, "delete: \(name) gone")
+        } catch {
+            failures.append("delete \(name): \(error)")
+            print("FAIL delete", name, error)
+        }
+    }
+    await store.reload(gateway)
+    check(Set(store.bots.map(\.name)) == before, "roster back to its original profiles")
+    print(failures.isEmpty ? "ALL OK" : "FAILURES: \(failures)")
+    exit(failures.isEmpty ? 0 : 1)
+}
+
 if let path = CommandLine.arguments.dropFirst().first {
     let audio = try Data(contentsOf: URL(fileURLWithPath: path))
     var request = hermesRequest("api/audio/transcribe", on: server, json: ["data_url": "data:audio/m4a;base64,\(audio.base64EncodedString())", "mime_type": "audio/m4a"])

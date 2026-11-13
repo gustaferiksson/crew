@@ -4,6 +4,7 @@ nonisolated struct NewBotOptions: Equatable, Sendable {
     var model: ModelChoice?
     var copyKeys = true
     var bundledSkills = true
+    var richUI = true
     var toolsets: [ProfileCapability] = []
     var loadedToolsets: [ProfileCapability] = []
     var connections: Set<String> = []
@@ -18,6 +19,52 @@ nonisolated struct NewBotOptions: Equatable, Sendable {
             mirrorCredentials: copyKeys ? nil : false,
             noSkills: bundledSkills || cloneFrom != nil ? nil : true
         )
+    }
+
+    func apply(to name: String, cloneFrom: String?, via gateway: Gateway, urlSession: URLSession) async -> NewBotResult {
+        var result = NewBotResult(name: name)
+        if richUI && cloneFrom == nil {
+            do {
+                try await installCrewUISkill(in: name, on: gateway.server, with: urlSession)
+            } catch {
+                result.richUIFailed = true
+            }
+        }
+        do {
+            for toolset in changedToolsets {
+                try await saveToolset(toolset.name, enabled: toolset.enabled, of: name, on: gateway.server, with: urlSession)
+            }
+        } catch {
+            result.unapplied.append(String(localized: "toolsets"))
+        }
+        if cloneFrom == nil && !connections.isEmpty {
+            do {
+                result.keyless = try await copyConnections(connections, from: "default", to: name, on: gateway.server, with: urlSession)
+            } catch {
+                result.unapplied.append(String(localized: "connections"))
+            }
+        }
+        guard let model else { return result }
+        do {
+            if case .needsConfirmation(let message) = try await changeModel(of: name, to: model, confirmation: .ask, via: gateway) {
+                result.expensiveModel = (model, message)
+            }
+        } catch {
+            result.unapplied.append(String(localized: "model"))
+        }
+        return result
+    }
+}
+
+nonisolated struct NewBotResult {
+    let name: String
+    var expensiveModel: (choice: ModelChoice, message: String)?
+    var unapplied: [String] = []
+    var keyless: [String] = []
+    var richUIFailed = false
+
+    var isComplete: Bool {
+        expensiveModel == nil && unapplied.isEmpty && keyless.isEmpty && !richUIFailed
     }
 }
 
@@ -55,6 +102,17 @@ struct NewBotAdvanced: View {
                 Text(source == nil
                     ? "API keys and sign-ins come from \(defaultTitle). Without bundled skills the bot starts with none; turn single skills on later in its inspector."
                     : "API keys and sign-ins come from \(defaultTitle).")
+            }
+            if source == nil {
+                Section {
+                    Toggle(isOn: $options.richUI) {
+                        Label("Cards and Forms", systemImage: "rectangle.on.rectangle")
+                    }
+                } header: {
+                    Text("Rich UI")
+                } footer: {
+                    Text("Lets this bot answer with cards, checklists and forms that Crew draws natively. Other apps show them as code.")
+                }
             }
             Section {
                 NavigationLink {

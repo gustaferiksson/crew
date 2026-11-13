@@ -148,6 +148,8 @@ enum Snapshot: String {
     case voiceActivity = "voice-activity"
     case chatVoice = "chat-voice"
     case sidebarVoice = "sidebar-voice"
+    case widgetPinnedCard = "widget-pinned-card"
+    case widgetPinnedCardEmpty = "widget-pinned-card-empty"
 
     static let requested = UserDefaults.standard.string(forKey: "snapshot").flatMap(Snapshot.init(rawValue:))
     static let isInteractive = UserDefaults.standard.bool(forKey: "uiTest")

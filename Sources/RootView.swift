@@ -34,6 +34,10 @@ struct RootView: View {
                 #if os(iOS)
                 VoiceActivityFixture()
                 #endif
+            } else if Snapshot.requested == .widgetPinnedCard || Snapshot.requested == .widgetPinnedCardEmpty {
+                #if os(iOS)
+                PinnedWidgetFixture(empty: Snapshot.requested == .widgetPinnedCardEmpty)
+                #endif
             } else if Snapshot.requested == .avatarEyes {
                 LivingEyesFixture()
             } else if Snapshot.requested == .avatarPicker {

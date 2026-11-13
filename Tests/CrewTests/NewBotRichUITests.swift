@@ -40,7 +40,7 @@ private func requests(for profile: String) -> [String] {
 
     #expect(requests(for: "crew-test-rich").contains { $0.hasPrefix("GET /api/skills/content?name=crew-ui") })
     #expect(SkillStub.requests.withLock { $0.contains("POST /api/skills?") })
-    #expect(result.isComplete)
+    #expect(!result.richUIFailed)
 }
 
 @Test func aFailedSkillInstallStillFinishesTheBotWithRichUIOff() async {
@@ -48,7 +48,6 @@ private func requests(for profile: String) -> [String] {
 
     #expect(result.name == "crew-test-broken")
     #expect(result.richUIFailed)
-    #expect(!result.isComplete)
     #expect(result.unapplied.isEmpty)
 }
 

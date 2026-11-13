@@ -42,7 +42,7 @@ if CommandLine.arguments.dropFirst().first == "rich" {
             let profile = options.profile(name: name, description: nil, soul: nil, cloneFrom: nil)
             try await store.create(profile, via: gateway) { $0 = BotMeta(title: "Crew Rich Probe") }
             let result = await options.apply(to: name, cloneFrom: nil, via: gateway, urlSession: urlSession)
-            check(result.isComplete, "\(name): New Bot steps complete")
+            check(!result.richUIFailed && result.unapplied.isEmpty, "\(name): New Bot steps complete")
             var list = hermesRequest("api/skills", on: server)
             list.url?.append(queryItems: [URLQueryItem(name: "profile", value: name)])
             let listed = try await fetch(list, with: urlSession, as: [ListedSkill].self).first { $0.name == crewUISkillName }

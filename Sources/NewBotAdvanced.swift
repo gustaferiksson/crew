@@ -62,10 +62,6 @@ nonisolated struct NewBotResult {
     var unapplied: [String] = []
     var keyless: [String] = []
     var richUIFailed = false
-
-    var isComplete: Bool {
-        expensiveModel == nil && unapplied.isEmpty && keyless.isEmpty && !richUIFailed
-    }
 }
 
 struct NewBotAdvanced: View {

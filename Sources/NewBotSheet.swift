@@ -249,7 +249,7 @@ struct NewBotSheet: View {
             return
         }
         let result = await options.apply(to: profile.name, cloneFrom: source, via: gateway, urlSession: connection.urlSession)
-        if result.isComplete {
+        if result.expensiveModel == nil && result.unapplied.isEmpty && result.keyless.isEmpty && !result.richUIFailed {
             finish(result.name)
         } else {
             created = result

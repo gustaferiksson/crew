@@ -1,6 +1,39 @@
+<div align="center">
+
+<img src="pages/icon-512.png" width="128" height="128" alt="Crew app icon">
+
 # Crew
 
-Crew is a native SwiftUI client for [Hermes Agent](https://github.com/NousResearch/hermes-agent) bots on iPhone, iPad and Mac. It talks to `hermes dashboard` over its REST API and WebSocket gateway: chat with every profile on your server, follow tool calls and reasoning live, answer approvals and questions, edit a bot's look, instructions and capabilities, and manage its routines. Optional push notifications come from the bundled `crew-push` server plugin.
+**Your Hermes bots, native on iPhone, iPad and Mac.**
+
+Chat with every bot on your server, hear back on the lock screen, and get replies as cards you can tick, scale and tap.
+
+[Download](https://github.com/gustaferiksson/crew/releases/latest) · [Install with Homebrew](#install) · Requires macOS 27 or iOS 27
+
+</div>
+
+<p align="center">
+  <img src="docs/images/mac.png" width="580" alt="Crew on the Mac: the bot list, a chat and a recipe card">
+  <img src="docs/images/iphone.png" width="216" alt="Crew on iPhone: the bot list">
+</p>
+
+## What it does
+
+Crew is a native SwiftUI client for [Hermes Agent](https://github.com/NousResearch/hermes-agent). Each profile on your server shows up as a bot with its own face, chat and routines, like contacts in Messages. It talks to `hermes dashboard` over its REST API and WebSocket gateway, so there is nothing extra to run on the server for the basics.
+
+| | |
+|---|---|
+| **Chat** | Every bot's Bot Chat, with tool calls and reasoning live as they run, attachments, dictation, `@`-mentions of other bots and slash commands. |
+| **Cards** | Bots can answer with interactive cards: checklists, tables, maps, forms and recipes whose servings rescale and whose steps have timers. The newest card pins above the composer. |
+| **Approvals and questions** | A bot that wants to run a risky command or needs an answer asks in the chat, and its notification takes you straight there. |
+| **Notifications** | Finished turns, approvals, questions and routines, also while Crew is closed, through the bundled `crew-push` plugin. |
+| **Bots** | Edit a bot's look, instructions, model, skills and connections (MCP servers, with each one's tools and context cost). |
+| **Routines** | Schedule, run, pause and stop a bot's routines. |
+| **Group rooms** | Put 2 to 6 bots in one room and let them work it out together. |
+| **Payments** | With `crew-push`, a bot can fill a stored card into a shop's checkout, only after you hold to approve the amount and merchant in Crew. |
+| **Updates** | The Mac app updates itself; the iPhone app shows a banner when a newer build is out. |
+
+Crew signs in with your dashboard account and keeps only the session cookies in the Keychain, never your password.
 
 ## Install
 
@@ -10,20 +43,33 @@ Crew is a native SwiftUI client for [Hermes Agent](https://github.com/NousResear
 brew install --cask gustaferiksson/tap/crew
 ```
 
-Or download `Crew-<version>.zip` from the [latest release](https://github.com/gustaferiksson/crew/releases/latest) and move `Crew.app` to `/Applications`. Crew updates itself after that (Crew > Check for Updates…).
+Or download `Crew-<version>.zip` from the [latest release](https://github.com/gustaferiksson/crew/releases/latest) and move `Crew.app` to `/Applications`.
 
-**iOS** (iOS 27 or newer): builds are Ad Hoc signed, so they install only on devices registered to the developer account. On a registered device, open [gustaferiksson.github.io/crew](https://gustaferiksson.github.io/crew/) in Safari and tap Install. Crew shows a banner in the bot list when a newer build is out.
+**iOS** (iOS 27 or newer): builds are Ad Hoc signed, so they install only on devices registered to the developer account. On a registered device, open [gustaferiksson.github.io/crew](https://gustaferiksson.github.io/crew/) in Safari and tap Install.
 
-## Server requirements
+## Set up
 
-- Hermes Agent 0.21.3 or newer, running `hermes dashboard` behind HTTPS.
-- Dashboard authentication turned on with the `basic` (username and password) provider. Crew signs in with the same account as the web dashboard and keeps only the session cookies in the Keychain, never the password.
+1. Run Hermes Agent 0.21.3 or newer with `hermes dashboard` behind HTTPS.
+2. Turn on dashboard authentication with the `basic` (username and password) provider.
+3. Open Crew and sign in with the dashboard's address and account.
 
-## Push notifications
+For notifications while Crew is closed, and for payments, install `crew-push` on the Hermes host (Hermes v0.23.0 or later): see [`server/crew-push/README.md`](server/crew-push/README.md). Each release attaches `crew-push-<version>.tar.gz`; the plugin is versioned separately from the app.
 
-Without the plugin, Crew notifies you about finished turns, approvals and questions while it is running. For notifications when Crew is closed, install `crew-push` on the Hermes host: see [`server/crew-push/README.md`](server/crew-push/README.md). Each release attaches `crew-push-<version>.tar.gz`; the plugin is versioned separately from the app.
+<details>
+<summary><b>How it works</b></summary>
 
-## Building
+<br>
+
+Crew is one SwiftUI codebase for iOS, iPadOS and macOS. Chats, approvals and questions run over the dashboard's WebSocket gateway; bots, routines, skills and connections over its REST API. Cards are [A2UI](https://github.com/a2ui-project/a2ui) surfaces the bot writes into its reply, taught by the `crew-ui` skill Crew installs on each bot, and drawn with native controls.
+
+`crew-push` is a Hermes plugin. It hooks the end of each turn, approvals and questions and sends them to Apple's push service, and it guards payments: every card fill needs an amount, a merchant and a reason, and waits for your approval in Crew. Design notes and decisions live in [`docs/PLAN.md`](docs/PLAN.md).
+
+</details>
+
+<details>
+<summary><b>Building from source</b></summary>
+
+<br>
 
 You need Xcode 27 and [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`).
 
@@ -33,8 +79,10 @@ cp .env.example .env   # set DEVELOPMENT_TEAM for a team-signed build
 ./device.sh            # build, install and launch on a connected iPhone (needs DEVELOPMENT_TEAM)
 ```
 
-Without `.env` the Mac build is ad hoc signed. `CREW_PUSH=1` in `.env` signs with the push entitlements (see the plugin README). Releases are built by `package.sh` in CI; [`docs/release.md`](docs/release.md) describes the pipeline. Design notes and decisions live in [`docs/PLAN.md`](docs/PLAN.md).
+Without `.env` the Mac build is ad hoc signed. `CREW_PUSH=1` in `.env` signs with the push entitlements (see the plugin README). The Xcode project is generated by XcodeGen and isn't tracked. Releases are built by `package.sh` in CI, see [`docs/release.md`](docs/release.md).
+
+</details>
 
 ## License
 
-MIT, see [`LICENSE`](LICENSE). Parts of `server/crew-push` are adapted from hermex-push; see its [`NOTICE`](server/crew-push/NOTICE).
+[MIT](LICENSE). Parts of `server/crew-push` are adapted from hermex-push; see its [`NOTICE`](server/crew-push/NOTICE).

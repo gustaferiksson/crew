@@ -68,7 +68,7 @@ struct ChatScreen: View {
             focus: focus,
             earlier: session?.earlier ?? .complete,
             pinKey: bot.id,
-            presentation: Snapshot.requested == .layoutInspector ? ChatPresentation(scrollTarget: "t1") : ChatPresentation(),
+            presentation: Snapshot.requested == .layoutInspector ? ChatPresentation(scrollTarget: "t1") : Snapshot.requested == .readme ? ChatPresentation(expandedCards: ["pancakes"]) : ChatPresentation(),
             actions: ChatActions(
                 send: { session?.send($0, attachments: $1, mentioning: $2, mode: $3) },
                 sendHidden: { session?.sendHidden($0) },

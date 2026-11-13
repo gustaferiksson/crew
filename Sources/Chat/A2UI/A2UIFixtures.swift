@@ -74,6 +74,42 @@ extension ChatFixture {
         )]
     }
 
+    static let readmeReply = "Thin pancakes for 6, ready in about 30 minutes."
+
+    static func readmeTurns(_ now: Date) -> [Turn] {
+        let recipe = """
+            [
+              {"version": "v0.9", "createSurface": {"surfaceId": "pancakes", "catalogId": "https://crew.gustaf.dev/catalogs/crew/v1.json"}},
+              {"version": "v0.9", "updateComponents": {"surfaceId": "pancakes", "components": [
+                {"id": "root", "component": "Card", "child": "body"},
+                {"id": "body", "component": "Column", "children": ["header", "servings", "ingredients-title", "list", "method-title", "method"]},
+                {"id": "header", "component": "Header", "title": "Pancakes", "subtitle": "30 min", "symbol": "fork.knife"},
+                {"id": "servings", "component": "Stepper", "label": "Servings", "value": {"path": "/servings"}, "min": 1, "max": 12},
+                {"id": "ingredients-title", "component": "Text", "text": "Ingredients", "variant": "h4"},
+                {"id": "list", "component": "Column", "children": {"componentId": "ingredient", "path": "/ingredients"}},
+                {"id": "ingredient", "component": "CheckBox", "value": {"path": "done"}, "label": {"call": "scale", "args": {"value": {"path": "amount"}, "unit": {"path": "unit"},
+                  "item": {"path": "item"}, "one": {"path": "one"}, "from": {"path": "/baseServings"}, "to": {"path": "/servings"}}}},
+                {"id": "method-title", "component": "Text", "text": "Method", "variant": "h4"},
+                {"id": "method", "component": "Steps", "items": ["Whisk the flour, sugar and salt with half the milk until smooth.", {"text": "Whisk in the rest of the milk and the eggs, then let the batter rest.", "seconds": 600}, "Fry thin pancakes in butter, about 1 min a side."]}
+              ]}},
+              {"version": "v0.9", "updateDataModel": {"surfaceId": "pancakes", "value": {"servings": 6, "baseServings": 4, "ingredients": [
+                {"amount": 1, "unit": "cups", "item": "flour", "one": "cup flour", "done": true},
+                {"amount": 2, "unit": "cups", "item": "milk", "one": "cup milk", "done": true},
+                {"amount": 2, "item": "eggs", "one": "egg", "done": false},
+                {"amount": 2, "unit": "tbsp", "item": "sugar", "done": false},
+                {"amount": 0.5, "unit": "tsp", "item": "salt", "done": false},
+                {"item": "Butter for frying", "done": false}
+              ]}}}
+            ]
+            """
+        let start = now.addingTimeInterval(-120)
+        return [Turn(
+            id: "r1", prompt: Prompt(text: "Pancakes for 6 tonight?", sentAt: start),
+            reply: "\(readmeReply)\n\n```a2ui\n\(recipe)\n```",
+            status: .complete, startedAt: start, finishedAt: start.addingTimeInterval(8)
+        )]
+    }
+
     static func a2uiShoppingTurns(_ now: Date) -> [Turn] {
         let list = markdownBlocks(from: crewUISkill).map { String($0.content.characters) }.first { $0.contains("taco-shopping-list") } ?? ""
         let ticked = list.replacing(#"{"name": "2 avocados", "done": false}"#, with: #"{"name": "2 avocados", "done": true}"#)

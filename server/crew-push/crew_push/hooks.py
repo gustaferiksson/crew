@@ -45,6 +45,8 @@ KINDS: dict[str, KindStyle] = {
     "payment": KindStyle("approvals", "CREW_PAYMENT", "time-sensitive", 300, "Wants to pay"),
 }
 
+A2UI_TAGGED = re.compile(r"<a2ui-json>\s*(?:```[a-z0-9]*\n)?([\s\S]*?)\s*(?:```\s*)?</a2ui-json>")
+A2UI_FENCED = re.compile(r"```a2ui[ \t]*\n([\s\S]*?)(?:```|\Z)")
 MARKDOWN = (
     (re.compile(r"```[^\n]*"), ""),
     (re.compile(r"!?\[([^\]]*)\]\([^)]*\)"), r"\1"),
@@ -59,11 +61,25 @@ DELIVERY = re.compile(r"\[IMPORTANT: Background process (proc_[0-9a-f]+)\b.*bot_
 PROCESS_ID = re.compile(r'"process_id":\s*"(proc_[0-9a-f]+)"')
 
 
+def card_title(source: str) -> str:
+    try:
+        parsed = json.loads(source)
+        messages = parsed if isinstance(parsed, list) else [parsed]
+        components = [c for m in messages for c in m.get("updateComponents", {}).get("components", [])]
+        title = next(c.get("title") for c in components if c.get("component") == "Header")
+        return title if isinstance(title, str) else ""
+    except Exception:
+        return ""
+
+
 def plain(markdown: str) -> str:
-    text = markdown
+    fenced = A2UI_TAGGED.sub(lambda match: f"```a2ui\n{match[1]}\n```", markdown)
+    text = A2UI_FENCED.sub(" ", fenced)
     for pattern, replacement in MARKDOWN:
         text = pattern.sub(replacement, text)
-    return text
+    if text.strip():
+        return text
+    return next(filter(None, map(card_title, A2UI_FENCED.findall(fenced))), "")
 
 
 def clip(text: str, limit: int) -> str:
@@ -381,7 +397,7 @@ class CrewPush:
             self.notify("turn_error", session_id, ref, body=turn_exit_reason or "The turn failed.")
             return
         if completed and reply:
-            self.notify("reply", session_id, ref, body=plain(reply))
+            self.notify("reply", session_id, ref, body=plain(reply) or KINDS["reply"].generic)
 
     def pre_tool_call(self, *, tool_name: str = "", args: Any = None, session_id: str = "",
                       tool_call_id: str = "", task_id: str = "", **_: Any) -> dict[str, str] | None:

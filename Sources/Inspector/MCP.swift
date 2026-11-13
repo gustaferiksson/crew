@@ -90,7 +90,7 @@ nonisolated struct MCPCatalogEntry: Decodable, Equatable, Identifiable, Sendable
     let args: [String]
     let url: String?
     let postInstall: String
-    let installed: Bool
+    var installed: Bool
 
     var id: String { name }
 }

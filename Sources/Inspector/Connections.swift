@@ -370,7 +370,7 @@ struct CatalogEntryForm: View {
 
     private var isComplete: Bool {
         entry.requiredEnv.allSatisfy { !$0.required || !(values[$0.name] ?? "").trimmingCharacters(in: .whitespaces).isEmpty }
-            && (entry.authType != "header" || !token.trimmingCharacters(in: .whitespaces).isEmpty)
+            && (!isExtra || entry.authType != "header" || !token.trimmingCharacters(in: .whitespaces).isEmpty)
     }
 
     var body: some View {
@@ -393,7 +393,7 @@ struct CatalogEntryForm: View {
             } footer: {
                 Text(entry.authType == "oauth" ? "After adding it, sign in from the Connections list." : entry.authType == "header" ? "Sent as a bearer token. Hermes keeps it in the bot's secrets." : "No sign-in needed.")
             }
-            if entry.authType == "header" {
+            if isExtra, entry.authType == "header" {
                 Section {
                     SecureField("API Key", text: $token, prompt: Text("Personal Access Token"))
                     if let page = connectionLooks[entry.name]?.tokenPage {

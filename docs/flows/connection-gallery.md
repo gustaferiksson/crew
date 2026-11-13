@@ -39,7 +39,7 @@ Header: tile and display name; navigation title the display name. Then the catal
 
 The Connections rows (tile, name, remove confirmation) and the Connection page (header, navigation title, remove confirmation) show the overlay's display name and tile when the configured name is an overlay key, else the raw name and monogram as today. The page's Details gain a **Name** row with the raw name when it differs, because Hermes' own errors ("Server 'linear' already exists"), `config.yaml` and the bot's tool names use it. A hand-made server called `linear` shows as Linear.
 
-Follow-up, not in this change: the remaining strings that name a connection (Change Address and Change API Key messages, the "headers were written by hand" error, Add to Other Bots' footer and outcomes, New Bot Advanced's list and its Bot Created alert) still show the raw name.
+Follow-up, not in this change: the remaining strings that name a connection (Change Address and Change API Key messages, the "headers were written by hand" error, Add to Other Bots' footer and outcomes, New Bot Advanced's list and its Bot Created alert) still show the raw name. Catalog addresses that aren't a plain public URL are shown as Hermes lists them: n8n's `${N8N_MCP_SERVER_URL}` template and unreal-engine's `http://127.0.0.1:8000/mcp` (the Hermes machine, not this device).
 
 ## Not touched
 
@@ -54,7 +54,7 @@ Chats, the bot list (preview, time, status, unread), push and the Mac menus show
 
 ## Verification
 
-- Unit: the overlay covers every name in `catalog.v0.23.1.json`; every symbol resolves; grouping puts an unknown name under Other with its raw name; extras are dropped on a name collision and show Added from the server list; search over display name, raw name and description; the GitHub and extra bodies equal the Custom Connection writes.
+- Unit: the overlay covers every name in `catalog.v0.23.1.json`; every symbol resolves; grouping puts an unknown name under Other with its raw name; extras are dropped on a name collision and show Added from the server list; search over display name, raw name, description and category. The extras' bodies are the Custom Connection writes (`CustomConnection.body`, already unit-tested), checked end to end by the probe.
 - Real server (`Tests/connection_probe/run.sh gallery`, throwaway `crew-test-gallery` bot, deleted after): GitHub with a fake token stores a `${MCP_GITHUB_API_KEY}` reference and no token text in the raw config, the key `is_set` in `.env`, the server listed; Zapier and Granola add and `/auth` answers `authorization_required` with an authorization URL (the URL is never printed), and the flows are cancelled.
-- Renders, iPhone and Mac, each light and dark: `add-connection` (an unknown `acme-notes` entry in the fixture), `github-connection` (the GitHub detail page), `inspector-connections` (overlay names beside raw `files`) and `connection-page` (display name title, Name row).
+- Renders, iPhone and Mac, each light and dark: `add-connection` (its first screen; the fixture's unknown `acme-notes` entry under Other is below the fold, covered by the unit test), `github-connection` (the GitHub detail page), `inspector-connections` (overlay names beside raw `files`) and `connection-page` (display name title, Name row).
 - Not verified: a completed Zapier or Granola vendor login, and a live GitHub token.

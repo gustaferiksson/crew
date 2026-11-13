@@ -14,6 +14,7 @@ struct BotsView: View {
     @Environment(PushCenter.self) private var push
     @Environment(ChatDrafts.self) private var drafts
     @Environment(ChatPins.self) private var pins
+    @Environment(CardState.self) private var cardState: CardState?
     @Environment(Scenes.self) private var scenes
     #if os(macOS)
     @Environment(\.openWindow) private var openWindow
@@ -99,6 +100,7 @@ struct BotsView: View {
         .modifier(BotDeletion(bot: $deleting) { id in
             drafts.clear(id)
             pins.clear(id)
+            cardState?.clear(id)
             if selection == id { selection = nil }
         })
         .alert("New Section", isPresented: Binding(get: { filing != nil }, set: { if !$0 { filing = nil } })) {
@@ -375,6 +377,7 @@ struct BotsView: View {
                                 await connection.signOut()
                                 drafts.reset()
                                 pins.reset()
+                                cardState?.reset()
                             }
                         }
                     }

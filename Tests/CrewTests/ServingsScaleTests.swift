@@ -4,13 +4,13 @@ import OrderedJSON
 import SwiftUI
 import Testing
 
-private func nodes(_ node: Node?) -> [Node] {
+func nodes(_ node: Node?) -> [Node] {
     guard let node else { return [] }
     let children = node.properties.values.flatMap { value in (value as? Node).map { [$0] } ?? (value as? [Node]) ?? [] }
     return [node] + children.flatMap(nodes)
 }
 
-@MainActor private func surface(_ block: String) throws -> SurfaceViewModel {
+@MainActor func surface(_ block: String) throws -> SurfaceViewModel {
     let payload = try JSONDecoder().decode(OrderedJSON.JSONValue.self, from: Data(block.utf8))
     let processor = MessageProcessor(catalogs: crewCatalogs)
     try processor.processMessages(payload)

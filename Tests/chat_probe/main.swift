@@ -1133,6 +1133,77 @@ if phases.contains("slash-raw") {
     exit(0)
 }
 
+if phases.contains("a2ui-unasked") {
+    let skillFile = env["A2UI_SKILL"].map { URL(fileURLWithPath: $0) } ?? URL(fileURLWithPath: #filePath).appending(path: "../../../Sources/Profile/crew-ui.SKILL.md").standardized
+    let skill = try String(contentsOf: skillFile, encoding: .utf8)
+    let prompts = env["A2UI_PROMPTS"]?.split(separator: "\n").map(String.init) ?? [
+        "Give me a recipe for chili con carne",
+        "What should I pack for a weekend in Stockholm?",
+        "Compare iPhone 17 and Pixel 11",
+        "Plan a 3-day itinerary for Copenhagen",
+        "Make me a shopping list for tacos for 4",
+        "What's the capital of Norway?",
+    ]
+    let followUp = "Add what I need for guacamole and drop the cheese"
+    let store = BotStore(fixture: [], statuses: [:])
+    Task { await store.run(gateway, urlSession: urlSession) }
+    try await Task.sleep(for: .seconds(3))
+    let pretty = JSONEncoder()
+    pretty.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+    func cards(_ reply: String) -> [String] {
+        let fences = reply.matches(of: /```a2ui\s*\n([\s\S]*?)\n```/).map { String($0.1) }
+        let messages = fences.compactMap { try? JSONSerialization.jsonObject(with: Data($0.utf8)) as? [[String: Any]] }.flatMap { $0 }
+        return messages.compactMap { ($0["createSurface"] as? [String: Any])?["surfaceId"] as? String }
+    }
+    func run(_ texts: [String], slug: String) async throws {
+        let name = "crew-test-\(UUID().uuidString.prefix(6).lowercased())"
+        let scrubs = [(server.host() ?? "", "hermes.example.com"), (name, "crew-test-peer")].filter { $0.0.count > 2 }
+        do {
+            try await store.create(NewProfile(name: name, description: "Crew card probe", soul: nil, cloneFrom: "crew-test"), via: gateway) { $0.title = "Crew Cards" }
+            var install = hermesRequest("api/skills/content", on: server, json: ["name": "crew-ui", "content": skill, "profile": name])
+            install.httpMethod = "PUT"
+            _ = try await fetch(install, with: urlSession, as: JSONValue.self)
+            var lookup = hermesRequest("api/skills/content", on: server)
+            lookup.url?.append(queryItems: [URLQueryItem(name: "name", value: "crew-ui"), URLQueryItem(name: "profile", value: name)])
+            guard case .object(let installed) = try await fetch(lookup, with: urlSession, as: JSONValue.self), installed["content"] == .string(skill) else { throw HermesError.invalidResponse }
+            await store.reload(gateway)
+            guard let fresh = store.bots.first(where: { $0.name == name }) else { throw HermesError.invalidResponse }
+            let chat = try await attached(fresh)
+            for (step, text) in texts.enumerated() {
+                chat.send(text, mode: .send)
+                try await Task.sleep(for: .seconds(2))
+                try await waitIdle(chat)
+                let turn = chat.transcript.turns.last
+                let reply = turn?.reply ?? ""
+                let loaded = turn?.work.contains { if case .tool(let call) = $0.kind { call.name == "skill_view" && call.subject.contains("crew-ui") } else { false } } ?? false
+                let ids = cards(reply)
+                let servings = reply.contains(/"component"\s*:\s*"Stepper"/) && reply.contains(/"call"\s*:\s*"scale"/)
+                print("UNASKED \(text) | cards \(ids.count) | ids \(ids) | skill_view \(loaded) | stepper+scale \(servings) | chars \(reply.count)")
+                try reply.write(to: outDir.appending(path: "\(slug)-\(step).md"), atomically: true, encoding: .utf8)
+            }
+            await store.reload(gateway)
+            if let session = store.bots.first(where: { $0.name == name })?.canonicalSession {
+                let (data, _) = try await urlSession.data(for: historyRequest(of: session.resolvedID, profile: name, on: server, limit: 200))
+                guard case .object(let page) = try JSONDecoder().decode(JSONValue.self, from: data), case .array(let messages) = page["messages"] else { throw HermesError.invalidResponse }
+                let keys: Set = ["id", "role", "content", "tool_call_id", "tool_calls", "timestamp", "reasoning", "reasoning_content", "display_kind"]
+                let kept = messages.map { row in if case .object(let object) = row { JSONValue.object(object.filter { keys.contains($0.key) }) } else { row } }
+                let text = scrubs.reduce(String(decoding: try pretty.encode(JSONValue.object(["messages": .array(kept)])), as: UTF8.self)) { $0.replacingOccurrences(of: $1.0, with: $1.1) }.replacingOccurrences(of: "/opt/data/", with: "/opt/hermes/data/")
+                try Data((text + "\n").utf8).write(to: outDir.appending(path: "\(slug).history.json"))
+            }
+        } catch {
+            print("UNASKED FAILED", texts[0], error)
+        }
+        await store.reload(gateway)
+        if let bot = store.bots.first(where: { $0.name == name }) { try await store.delete(bot, via: gateway, urlSession: urlSession) }
+        await store.reload(gateway)
+        print(store.bots.contains { $0.name == name } ? "THROWAWAY NOT DELETED: \(name)" : "throwaway deleted")
+    }
+    for (index, prompt) in prompts.enumerated() {
+        try await run(prompt.hasPrefix("Make me a shopping list") ? [prompt, followUp] : [prompt], slug: "unasked-\(index)")
+    }
+    exit(0)
+}
+
 let bot = try await crewTest()
 print("canonical", bot.canonicalSession?.id.rawValue ?? "nil")
 let chat = try await attached(bot)

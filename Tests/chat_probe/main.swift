@@ -1253,7 +1253,7 @@ if phases.contains("a2ui-action") {
                 return context.values.contains { ($0 as? [String: Any])?["path"] != nil }
             }
             guard let bound, let event = (bound["action"] as? [String: Any])?["event"] as? [String: Any], let declared = event["context"] as? [String: Any] else {
-                print("ACTION run \(run) | surface \(surface) | no path-bound button | buttons \(components.filter { $0["component"] as? String == "Button" }.count)")
+                print("ACTION run \(run) | surface \(surface) | no path-bound button | buttons \(components.filter { $0["component"] as? String == "Button" }.count) | stepper \(components.contains { $0["component"] as? String == "Stepper" }) | timers \(card.matches(of: /"seconds"\s*:/).count)")
                 throw CancellationError()
             }
             var context = declared.mapValues { value in (value as? [String: Any])?["path"].flatMap { resolve($0 as? String ?? "", in: model) } ?? value }

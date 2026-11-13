@@ -97,6 +97,7 @@ struct SurfaceBlock: View {
                     Surface(viewModel: model, catalogs: crewCatalogs)
                         .id(store.owners[id])
                         .environment(\.surfaceChoice, store.choices[id])
+                        .environment(\.cardModel, model)
                         .environment(\.hiddenHeader, CardSummary(model.rootNode).header)
                         .disabled(store.isBusy)
                         .padding([.horizontal, .bottom], 20)

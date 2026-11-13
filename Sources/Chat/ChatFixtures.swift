@@ -2,7 +2,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 enum ChatFixture {
-    case conversation, history, earlierLoading, earlierFailed, timestamps, workLog, workLogTools, question, questions, questionsSnacks, questionLong, offline, attachments, dictation, mentions, slash, slashOutput, agentMessage, routine, deliveryFailure, limitFailure, a2ui, a2uiCards, a2uiForm, a2uiTable, a2uiTableExpanded, a2uiChart, a2uiMap, a2uiCarousel, a2uiCarouselStates, a2uiPinned, a2uiPinnedSheet, a2uiExpanded, a2uiProducts, a2uiUpdates, a2uiStreaming, a2uiServings, a2uiServingsScaled, a2uiSaved
+    case conversation, history, earlierLoading, earlierFailed, timestamps, workLog, workLogTools, question, questions, questionsSnacks, questionLong, offline, attachments, dictation, mentions, slash, slashOutput, agentMessage, routine, deliveryFailure, limitFailure, a2ui, a2uiCards, a2uiForm, a2uiTable, a2uiTableExpanded, a2uiChart, a2uiMap, a2uiCarousel, a2uiCarouselStates, a2uiPinned, a2uiPinnedSheet, a2uiExpanded, a2uiProducts, a2uiUpdates, a2uiStreaming, a2uiServings, a2uiServingsScaled, a2uiSaved, a2uiTimer
     case composerLine, composerLines, composerRunning, composerRunningText, steer, steerTaken, waiting
     case payment, paymentHolding, paymentApproved, paymentLoading, paymentFailed, paymentUnverified, paymentPunycode, paymentCountdown, paymentNotice, paymentOffer, paymentOfferHistory, paymentReceipts
 
@@ -24,6 +24,7 @@ enum ChatFixture {
         if self == .a2uiUpdates { return ChatPresentation(scrollTarget: "u1") }
         if [.a2uiServings, .a2uiServingsScaled].contains(self) { return ChatPresentation(expandedCards: ["pancakes"]) }
         if self == .a2uiSaved { return ChatPresentation(expandedCards: ["kottbullar-for-four"]) }
+        if self == .a2uiTimer { return ChatPresentation(expandedCards: ["pancakes"]) }
         if self == .a2uiExpanded { return ChatPresentation(expandedCards: ["brown-slippers-picks"], scrollTarget: "a8") }
         if self == .timestamps { return ChatPresentation(revealsTimestamps: true, scrollTarget: "t2") }
         if self == .workLog { return ChatPresentation(expandedTurns: ["t4"], expandedWork: ["t4-w0", "t4-w2"], scrollTarget: "t4") }
@@ -99,6 +100,7 @@ enum ChatFixture {
         if [.a2uiServings, .a2uiServingsScaled].contains(self) { return Transcript(turns: Self.a2uiServingsTurns(now, servings: self == .a2uiServings ? 4 : 3)) }
         if self == .a2uiStreaming { return Transcript(turns: Self.a2uiStreamingTurns(now)) }
         if self == .a2uiSaved { return Self.recordedRows().map { Transcript(history: $0) } ?? Transcript() }
+        if self == .a2uiTimer { return Transcript(turns: Self.a2uiTimerTurns(now)) }
         if self == .a2uiProducts { return Transcript(turns: Self.productTurns(now, count: max(UserDefaults.standard.integer(forKey: "productTurns"), 1))) }
         if self == .a2uiTableExpanded { return Transcript(turns: Self.a2uiTurns(now).filter { $0.id == "a10" }) }
         if [.a2ui, .a2uiCards, .a2uiForm, .a2uiTable, .a2uiChart, .a2uiMap, .a2uiCarousel, .a2uiCarouselStates, .a2uiPinned, .a2uiPinnedSheet, .a2uiExpanded].contains(self) { return Transcript(turns: Self.a2uiTurns(now)) }
@@ -490,7 +492,7 @@ struct ChatFixtureScreen: View {
             activity: fixture == .conversation ? "Preparing terminal" : nil,
             models: fixture == .limitFailure ? Snapshot.limitModels : nil,
             earlier: earlier,
-            pinKey: [.a2uiPinned, .a2uiPinnedSheet, .a2uiUpdates, .a2uiSaved].contains(fixture) ? "default" : nil,
+            pinKey: [.a2uiPinned, .a2uiPinnedSheet, .a2uiUpdates, .a2uiSaved, .a2uiTimer].contains(fixture) ? "default" : nil,
             presentation: fixture.presentation,
             actions: ChatActions(
                 send: { text, _, _, mode in send(text, mode: mode) },

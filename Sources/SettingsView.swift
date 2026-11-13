@@ -35,6 +35,7 @@ private struct AccountSettings: View {
     @Environment(ChatDrafts.self) private var drafts
     @Environment(ChatPins.self) private var pins
     @Environment(CardState.self) private var cardState: CardState?
+    @Environment(CardTimers.self) private var cardTimers: CardTimers?
     @Environment(\.openWindow) private var openWindow
     @AppStorage("username") private var username = ""
     @State private var confirmsSignOut = false
@@ -82,6 +83,8 @@ private struct AccountSettings: View {
                         drafts.reset()
                         pins.reset()
                         cardState?.reset()
+                        cardTimers?.reset()
+                        await push.cancelTimers(chat: nil)
                         isSigningOut = false
                         openWindow(id: "main")
                     }

@@ -1,14 +1,16 @@
 ---
 name: crew-ui
-description: Use for recipes, checklists, tables, charts, maps, forms.
-version: 8
+description: Use for recipes, lists, trips, comparisons, tables, charts.
+version: 9
 ---
 
 # Rich UI in Crew
 
 Installed by the Crew app's Rich UI switch. Crew replaces this file when it ships a newer `version`; bump the version here only if you want your edits to survive.
 
-The Crew app draws A2UI v0.9 blocks as native cards. Use one when a reply offers a choice or decision, a list to tick off, a form to fill in, a recipe or how-to, structured data such as a comparison table or key facts, numbers over time or categories (a chart), places (a map), or two or more comparable things to pick between, such as products, hotels or restaurants (a carousel). Answer plainly when there is nothing to interact with or compare.
+The Crew app draws A2UI v0.9 blocks as native cards. Draw one without being asked whenever the reply is a recipe, a checklist, a shopping or packing list, an itinerary or day plan, a comparison, a table, key facts, a forecast or numbers over time (a chart), places (a map), a form, a decision, or products, hotels or restaurants to pick between (a carousel). The user expects the card; never wait for "make a card", and never answer one of these in markdown lists or tables instead. Answer plainly only for a short fact or conversation, like "Oslo is the capital of Norway".
+
+Shapes: a recipe as in the recipe example; a checklist, shopping or packing list as CheckBoxes under one h4 per section (store aisle, bag, phase); an itinerary as one h4 per day over a KeyValue of times and plans; a comparison as a Table with one column per option, with Badges for the verdict.
 
 Rules:
 - Write one or two lines of prose first and put the block last. Other apps show the block as code, so the prose must carry the answer on its own.
@@ -16,7 +18,7 @@ Rules:
 - First message: {"version": "v0.9", "createSurface": {"surfaceId": "<id>", "catalogId": "https://crew.gustaf.dev/catalogs/crew/v1.json"}}. Name the id after the thing, e.g. "tomato-soup-recipe" or "lofoten-packing-list", not "recipe" or "list".
 - Then {"version": "v0.9", "updateComponents": {"surfaceId": "<id>", "components": [...]}}: a flat list where exactly one component has "id": "root" and children are referenced by id, never nested inline. Order it top to bottom (root, Column, Header, then the sections) and put long Steps last, so Crew can draw the card as it arrives.
 - Last, optional state for inputs: {"version": "v0.9", "updateDataModel": {"surfaceId": "<id>", "value": {...}}}.
-- When the user asks to change a card you made ("for 6 people", "make it vegan", "add a column", "fix step 3"), send the whole card again with the same surfaceId: createSurface, components and data. Crew replaces the old card and marks the new one as updated. On a refinement, write the amounts for the new count and set both servings and baseServings to it. Use a new surfaceId for a different thing, a side-by-side comparison, or when the user wants to keep the old card.
+- When the user asks to change what a card shows ("for 6 people", "make it vegan", "shorter method", "add the missing amounts", "drop the cheese"), send the whole card again with the same surfaceId: createSurface, components and data. Crew replaces the old card and marks the new one as updated. Never answer a content change in prose or with a block that only has updateComponents or updateDataModel. On a refinement, write the amounts for the new count and set both servings and baseServings to it. Use a new surfaceId for a different thing, a side-by-side comparison, or when the user wants to keep the old card.
 - A recipe card always follows the recipe example below: a servings Stepper under the Header and one CheckBox per ingredient whose label calls "scale", with each amount as a number and its unit separate in the data model ({"amount": 500, "unit": "g", "item": "blandfärs"}, never "500 g blandfärs" in one string or "amount": "500 g"). Never write ingredient amounts into Text, so the user can change the servings on the card without asking you.
 - The root is always a Card whose child is a Column that starts with a Header. Never use a bare Column as the root, and never skip the Header.
 - {"path": "/a/b"} binds a property to the data model. Inside a template ({"componentId": "<id>", "path": "/items"}) paths are relative to the item, like {"path": "name"}.
@@ -50,7 +52,7 @@ Crew-only components (plain values, no {"path"} bindings, except Stepper above):
 
 When the user taps a button, Crew sends you a hidden message like
 <a2ui-action>{"context": {"choice": "delete"}, "name": "decide", "sourceComponentId": "delete", "surfaceId": "cleanup-previews"}</a2ui-action>
-with the bound values resolved at tap time. Crew already marks the tapped button, so reply briefly in prose and act on it. To change the card instead, send a block with updateComponents or updateDataModel for the same surfaceId and no createSurface.
+with the bound values resolved at tap time. Crew already marks the tapped button, so reply briefly in prose and act on it. To only tick rows or set inputs on a card, send updateDataModel for the same surfaceId and no createSurface; any other change re-sends the whole card.
 
 Example, a decision:
 ```a2ui
@@ -99,25 +101,26 @@ Example, a recipe: a servings Stepper under the Header rescales every amount on 
 ]
 ```
 
-Example, a form:
+Example, a shopping list, one h4 per store section:
 ```a2ui
 [
-  {"version": "v0.9", "createSurface": {"surfaceId": "booking", "catalogId": "https://crew.gustaf.dev/catalogs/crew/v1.json"}},
-  {"version": "v0.9", "updateComponents": {"surfaceId": "booking", "components": [
-    {"id": "root", "component": "Card", "child": "form"},
-    {"id": "form", "component": "Column", "children": ["header", "name", "date", "guests", "notes", "actions"]},
-    {"id": "header", "component": "Header", "title": "Table at Lilla Ego", "subtitle": "Västmannagatan 69 · Friday", "symbol": "fork.knife"},
-    {"id": "name", "component": "TextField", "label": "Name on the booking", "value": {"path": "/name"}},
-    {"id": "date", "component": "DateTimeInput", "label": "When", "value": {"path": "/date"}, "enableDate": true, "enableTime": true},
-    {"id": "guests", "component": "ChoicePicker", "label": "Guests", "displayStyle": "chips", "value": {"path": "/guests"},
-      "options": [{"label": "2", "value": "2"}, {"label": "4", "value": "4"}, {"label": "6", "value": "6"}]},
-    {"id": "notes", "component": "TextField", "label": "Notes", "variant": "longText", "value": {"path": "/notes"}},
-    {"id": "actions", "component": "Row", "justify": "end", "children": ["submit"]},
-    {"id": "submit-label", "component": "Text", "text": "Request Booking"},
-    {"id": "submit", "component": "Button", "child": "submit-label", "variant": "primary", "action": {"event": {"name": "book",
-      "context": {"name": {"path": "/name"}, "date": {"path": "/date"}, "guests": {"path": "/guests"}, "notes": {"path": "/notes"}}}}}
+  {"version": "v0.9", "createSurface": {"surfaceId": "taco-shopping-list", "catalogId": "https://crew.gustaf.dev/catalogs/crew/v1.json"}},
+  {"version": "v0.9", "updateComponents": {"surfaceId": "taco-shopping-list", "components": [
+    {"id": "root", "component": "Card", "child": "body"},
+    {"id": "body", "component": "Column", "children": ["header", "produce-title", "produce", "dairy-title", "dairy", "pantry-title", "pantry"]},
+    {"id": "header", "component": "Header", "title": "Tacos for 4", "subtitle": "9 items", "symbol": "cart"},
+    {"id": "produce-title", "component": "Text", "text": "Produce", "variant": "h4"},
+    {"id": "produce", "component": "Column", "children": {"componentId": "item", "path": "/produce"}},
+    {"id": "dairy-title", "component": "Text", "text": "Dairy and meat", "variant": "h4"},
+    {"id": "dairy", "component": "Column", "children": {"componentId": "item", "path": "/dairy"}},
+    {"id": "pantry-title", "component": "Text", "text": "Pantry", "variant": "h4"},
+    {"id": "pantry", "component": "Column", "children": {"componentId": "item", "path": "/pantry"}},
+    {"id": "item", "component": "CheckBox", "label": {"path": "name"}, "value": {"path": "done"}}
   ]}},
-  {"version": "v0.9", "updateDataModel": {"surfaceId": "booking", "value": {"name": "", "date": "", "guests": ["2"], "notes": ""}}}
+  {"version": "v0.9", "updateDataModel": {"surfaceId": "taco-shopping-list", "value": {
+    "produce": [{"name": "2 avocados", "done": false}, {"name": "1 red onion", "done": false}, {"name": "3 tomatoes", "done": false}, {"name": "1 lime", "done": false}],
+    "dairy": [{"name": "500 g minced beef", "done": false}, {"name": "2 dl crème fraîche", "done": false}, {"name": "150 g grated cheese", "done": false}],
+    "pantry": [{"name": "8 tortillas", "done": false}, {"name": "1 jar salsa", "done": false}]}}}
 ]
 ```
 
@@ -132,23 +135,6 @@ Example, a chart (use "values" instead of "series" for a single set):
     {"id": "chart", "component": "Chart", "kind": "line", "unit": "°C", "labels": ["Wed", "Thu", "Fri", "Sat", "Sun", "Mon", "Tue"],
       "series": [{"name": "High", "values": [14, 12, 15, 17, 13, 11, 12]}, {"name": "Low", "values": [7, 6, 8, 9, 7, 4, 5]}]},
     {"id": "facts", "component": "KeyValue", "items": [{"key": "Warmest", "value": "Sat, 17 °C", "symbol": "thermometer.sun"}, {"key": "Rain", "value": "Thu and Mon", "symbol": "cloud.rain"}]}
-  ]}}
-]
-```
-
-Example, a map:
-```a2ui
-[
-  {"version": "v0.9", "createSurface": {"surfaceId": "sofo-coffee", "catalogId": "https://crew.gustaf.dev/catalogs/crew/v1.json"}},
-  {"version": "v0.9", "updateComponents": {"surfaceId": "sofo-coffee", "components": [
-    {"id": "root", "component": "Card", "child": "body"},
-    {"id": "body", "component": "Column", "children": ["header", "map", "places"]},
-    {"id": "header", "component": "Header", "title": "Coffee on Södermalm", "subtitle": "3 favourites", "symbol": "cup.and.saucer.fill", "tone": "warning"},
-    {"id": "map", "component": "Map", "markers": [
-      {"title": "Drop Coffee", "latitude": 59.3172, "longitude": 18.0617},
-      {"title": "Johan & Nyström", "latitude": 59.3135, "longitude": 18.0779},
-      {"title": "Mellqvist Kaffebar", "latitude": 59.3170, "longitude": 18.0566}]},
-    {"id": "places", "component": "KeyValue", "items": [{"key": "Drop Coffee", "value": "Wollmar Yxkullsgatan 10"}, {"key": "Johan & Nyström", "value": "Swedenborgsgatan 7"}, {"key": "Mellqvist Kaffebar", "value": "Hornsgatan 78"}]}
   ]}}
 ]
 ```

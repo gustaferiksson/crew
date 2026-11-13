@@ -19,7 +19,7 @@ New Bot keeps its basic fields (name, title, role, look, Duplicate From, descrip
 - Footer: where keys come from (the default bot's title) and that single skills are set later in the inspector.
 - **Rich UI** section, hidden while duplicating: a **Cards and Forms** switch, on, with the inspector's footer. On installs the bundled `crew-ui` skill after create (the inspector's `installCrewUISkill`), which a fresh bot has enabled, with or without bundled skills. A duplicate keeps its source's Rich UI, like its other skills. Existing bots are untouched.
 - **Toolsets** row with "N On", pushing a Form of switches (label and tool summary), seeded from the default profile (or the source). Only the switches the user flips are saved after create.
-- **Connections** section, only when not duplicating and the default profile has config servers: one switch per server (title, address truncated in the middle), all off. Footer: copied from the default bot; some need Copy API Keys or a new sign-in. Plugin servers are left out (not in config). Managing connections stays in the inspector's Connections section.
+- **Connections** section, only when not duplicating and the default profile has config servers: one switch per server (title, address truncated in the middle), all off. Footer: copied from the default bot; some need Copy API Keys or a new sign-in. A connection whose key reference the new bot lacks, or whose entry holds a key written literally (the rule in `docs/flows/connection-page.md`, Add to Other Bots), is not copied and is named in the "Bot Created" alert. Plugin servers are left out (not in config). Managing connections stays in the inspector's Connections section.
 
 ## After Create
 

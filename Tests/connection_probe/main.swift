@@ -74,6 +74,99 @@ func keyIsSet() async throws -> Bool {
     try await keyRow()?["is_set"] == .bool(true)
 }
 
+if CommandLine.arguments.contains("addto") {
+    let targets = ["crew-test-add-a", "crew-test-add-b"]
+    let targetFixture = URL(fileURLWithPath: #filePath).appending(path: "../../fixtures/mcp/config-raw-target.v0.23.1.json").standardized
+    guard try await listedServers().isEmpty else {
+        print("crew-test already has connections; clean up first")
+        exit(1)
+    }
+
+    func targetRaw(_ name: String) async throws -> String { try await rawConfigText(of: name, on: server, with: urlSession) }
+    func targetServers(_ name: String) async throws -> [String: JSONValue] {
+        guard case .object(let config) = try JSONDecoder().decode(JSONValue.self, from: Data(try await targetRaw(name).utf8)), case .object(let servers) = config["mcp_servers"] ?? .null else { return [:] }
+        return servers
+    }
+
+    let store = BotConnections(profile: profile)
+    let keyed = BotConnections(profile: targets[1])
+    do {
+        for target in targets {
+            _ = try await gateway.call("profiles.create", ["name": JSONValue.string(target), "mirror_credentials": .bool(false), "no_skills": .bool(true), "no_alias": .bool(true)], as: JSONValue.self)
+        }
+        try await store.add(["name": .string(keyServer), "url": .string("https://mcp.deepwiki.com/mcp"), "auth": .string("header"), "bearer_token": .string("crew-probe-dummy-source")], catalog: false, on: server, with: urlSession)
+        try await store.add(["name": .string("deepwiki"), "env": .object([:])], catalog: true, on: server, with: urlSession)
+        try await store.add(["name": .string("linear"), "env": .object([:])], catalog: true, on: server, with: urlSession)
+        try await keyed.add(["name": .string("notes"), "url": .string("https://mcp.deepwiki.com/mcp"), "auth": .string("header"), "bearer_token": .string("crew-probe-dummy-notes")], catalog: false, on: server, with: urlSession)
+        var setKey = hermesRequest("api/env", on: server, json: ["key": keyVariable, "value": "crew-probe-dummy-target", "profile": targets[1]])
+        setKey.httpMethod = "PUT"
+        setKey.url?.append(queryItems: [URLQueryItem(name: "profile", value: targets[1])])
+        _ = try await fetch(setKey, with: urlSession, as: JSONValue.self)
+
+        let targetText = try await targetRaw(targets[1])
+        try Data("{\"mcp_servers\":\(jsonMembers(targetText[...]).first { $0.key == "\"mcp_servers\"" }?.value ?? "{}")}\n".utf8).write(to: targetFixture)
+        print("recorded \(targetFixture.lastPathComponent)")
+        let notesBefore = try await targetServers(targets[1])["notes"]
+
+        let sourceRaw = try await rawConfigText(of: profile, on: server, with: urlSession)
+        var outcomes: [String: ConnectionAddOutcome] = [:]
+        for name in ["deepwiki", keyServer, "linear"] {
+            guard let entry = try rawServerEntry(name, in: sourceRaw) else { check(false, "source has \(name)"); continue }
+            for target in targets {
+                outcomes["\(target) \(name)"] = await addConnection(name, entry: entry, to: target, on: server, with: urlSession)
+            }
+        }
+        print("outcomes: \(outcomes.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" })")
+        check(outcomes["\(targets[0]) deepwiki"] == .added && outcomes["\(targets[1]) deepwiki"] == .added, "deepwiki added to both")
+        check(outcomes["\(targets[0]) \(keyServer)"] == .missingKey, "key server skipped on the bot without the key")
+        check(outcomes["\(targets[1]) \(keyServer)"] == .added, "key server added to the bot with its own key")
+        check(outcomes["\(targets[0]) linear"] == .needsSignIn, "linear added and needs sign-in")
+
+        let source = try await rawServers()
+        for target in targets {
+            let raw = try await targetRaw(target)
+            check(!raw.contains("crew-probe-dummy"), "\(target) raw config holds no key value")
+            let servers = try await targetServers(target)
+            check(servers["deepwiki"] == source["deepwiki"], "\(target) deepwiki entry equals the source entry")
+            let tester = BotConnections(profile: target)
+            await tester.test("deepwiki", on: server, with: urlSession)
+            check(tester.tests["deepwiki"]?.ok == true, "\(target) deepwiki /test ok")
+        }
+        let keyedServers = try await targetServers(targets[1])
+        check(keyedServers[keyServer] == source[keyServer] && "\(keyedServers[keyServer] ?? .null)".contains("${\(keyVariable)}"), "keyed bot holds the key reference")
+        check(keyedServers["notes"] == notesBefore && "\(notesBefore ?? .null)".contains("${MCP_NOTES_API_KEY}"), "keyed bot's own server unchanged, still a reference")
+        await keyed.test(keyServer, on: server, with: urlSession)
+        check(keyed.tests[keyServer]?.ok == true, "key server /test ok on the keyed bot")
+        check(try await targetServers(targets[0])[keyServer] == nil, "key server absent on the bot without the key")
+        let again = await addConnection("deepwiki", entry: try rawServerEntry("deepwiki", in: sourceRaw) ?? "", to: targets[0], on: server, with: urlSession)
+        check(again == .alreadyAdded, "adding again says already added")
+    } catch {
+        check(false, "probe step threw: \(error)")
+    }
+
+    for target in targets {
+        var delete = hermesRequest("api/profiles/\(target)", on: server)
+        delete.httpMethod = "DELETE"
+        delete.timeoutInterval = 45
+        do { _ = try await fetch(delete, with: urlSession, as: JSONValue.self) } catch { check(false, "delete \(target): \(error)") }
+    }
+    for name in ["deepwiki", keyServer, "linear"] {
+        await store.remove(name, on: server, with: urlSession)
+    }
+    _ = try? await envRequest("DELETE", body: ["key": keyVariable, "profile": profile])
+    let (afterData, _) = try await urlSession.data(for: mcpRequest("servers", profile: profile, on: server))
+    print("final crew-test servers: \(String(decoding: afterData, as: UTF8.self))")
+    check(try JSONDecoder().decode(JSONValue.self, from: afterData) == .object(["servers": .array([])]), "crew-test ends with no servers")
+    check(try await keyIsSet() == false, "dummy key removed from crew-test's .env")
+    var list = hermesRequest("api/profiles", on: server)
+    list.httpMethod = "GET"
+    let profiles = String(decoding: try await fetchData(list, with: urlSession), as: UTF8.self)
+    check(!targets.contains { profiles.contains("\"\($0)\"") }, "throwaway bots deleted")
+    await gateway.disconnect()
+    print(failures.isEmpty ? "PROBE PASSED" : "PROBE FAILED: \(failures.count)")
+    exit(failures.isEmpty ? 0 : 1)
+}
+
 let before = try await listedServers()
 guard before.isEmpty else {
     print("crew-test already has connections: \(before.map(\.name)); clean up first")

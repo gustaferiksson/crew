@@ -13,7 +13,8 @@ Chat with every bot on your server, hear back on the lock screen, and get replie
 </div>
 
 <p align="center">
-  <img src="docs/images/mac.png" width="720" alt="Crew on the Mac: the bot list, a chat and a recipe card">
+  <img src="docs/images/mac.png" width="580" alt="Crew on the Mac: the bot list, a chat and a recipe card">
+  <img src="docs/images/iphone.png" width="216" alt="Crew on iPhone: the bot list">
 </p>
 
 ## What it does

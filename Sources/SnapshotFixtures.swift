@@ -78,16 +78,17 @@ extension Snapshot {
             ], statuses: ["scout": .unread, "ghost": .unread])
         }
         if self == .readme {
+            let sinceClock = Date.now.timeIntervalSince(Snapshot.statusBarClock) / 60
             return BotStore(fixture: [
-                bot("default", 25, "Your inbox is clear. Two invoices are waiting for approval.", BotMeta(pinned: true)),
-                bot("ada", 60 * 2, "The survey results are summarised in a one-page brief.", BotMeta(title: "Ada Lovelace", role: "Head of Research and Analytics", color: "#8b5cf6", pinned: true)),
-                bot("scout", 60 * 5, "Found three direct flights to Lisbon for the long weekend.", BotMeta(title: "Scout", role: "Travel Planner", color: "#38bdf8", pinned: true)),
-                bot("chef", 2, ChatFixture.readmeReply, BotMeta(title: "Chef", color: "#f59e0b", sectionID: "home", sectionName: "Home")),
-                bot("pixel", 60 * 24 * 2, "Resized the screenshots for the App Store listing.", BotMeta(title: "Pixel", sectionID: "home", sectionName: "Home")),
-                bot("forge", 60 * 3, "Version 0.4.2 is published and tagged.", BotMeta(title: "Forge", role: "Release Engineer", color: "#f97316", sectionID: "work", sectionName: "Work")),
-                bot("atlas", 60 * 6, "Tuesday's standup notes are filed.", BotMeta(title: "Atlas", color: "#14b8a6", sectionID: "work", sectionName: "Work")),
-                bot("ledger", 60 * 26, "October expenses match the bank statement.", BotMeta(title: "Ledger", role: "Bookkeeper", color: "#22c55e", sectionID: "work", sectionName: "Work")),
-            ], statuses: ["atlas": .unread], photos: Snapshot.samplePhoto.map { ["scout": $0] } ?? [:])
+                bot("default", sinceClock + 25, "Your inbox is clear. Two invoices are waiting for approval.", BotMeta(pinned: true)),
+                bot("ada", sinceClock + 60 * 2, "The survey results are summarised in a one-page brief.", BotMeta(title: "Ada Lovelace", role: "Head of Research and Analytics", color: "#8b5cf6", pinned: true)),
+                bot("scout", sinceClock + 60 * 5, "Found three direct flights to Lisbon for the long weekend.", BotMeta(title: "Scout", role: "Travel Planner", color: "#38bdf8", pinned: true)),
+                bot("chef", sinceClock + 2, ChatFixture.readmeReply, BotMeta(title: "Chef", color: "#f59e0b", sectionID: "home", sectionName: "Home")),
+                bot("pixel", sinceClock + 60 * 24 * 2, "Resized the screenshots for the App Store listing.", BotMeta(title: "Pixel", sectionID: "home", sectionName: "Home")),
+                bot("forge", sinceClock + 60 * 3, "Version 0.4.2 is published and tagged.", BotMeta(title: "Forge", role: "Release Engineer", color: "#f97316", sectionID: "work", sectionName: "Work")),
+                bot("atlas", sinceClock + 60 * 6, "Tuesday's standup notes are filed.", BotMeta(title: "Atlas", color: "#14b8a6", sectionID: "work", sectionName: "Work")),
+                bot("ledger", sinceClock + 60 * 26, "October expenses match the bank statement.", BotMeta(title: "Ledger", role: "Bookkeeper", color: "#22c55e", sectionID: "work", sectionName: "Work")),
+            ], statuses: [:], photos: Snapshot.samplePhoto.map { ["scout": $0] } ?? [:])
         }
         if self == .sidebarHidden {
             return BotStore(fixture: [
@@ -119,7 +120,10 @@ extension Snapshot {
     }
 
     var selectedBot: Bot.ID? {
-        [.layout: "ada", .readme: "chef", .layoutInspector: "pixel", .sidebarCompact: "forge", .searchResult: "default", .chatWindow: "ada", .chatWindowInspector: "ada", .chatWindowMissing: "gone"][self]
+        #if os(iOS)
+        if self == .readme { return nil }
+        #endif
+        return [.layout: "ada", .readme: "chef", .layoutInspector: "pixel", .sidebarCompact: "forge", .searchResult: "default", .chatWindow: "ada", .chatWindowInspector: "ada", .chatWindowMissing: "gone"][self]
     }
 
     var searchQuery: String? {
@@ -166,11 +170,13 @@ extension Snapshot {
             return ChatSessions(fixture: ["scout": ChatSession(fixture: scout, transcript: Transcript(turns: [turn]), todos: [])])
         }
         if self == .readme, let chef = bots.bots.first(where: { $0.id == "chef" }) {
-            return ChatSessions(fixture: ["chef": ChatSession(fixture: chef, transcript: Transcript(turns: ChatFixture.readmeTurns(.now)), todos: [])])
+            return ChatSessions(fixture: ["chef": ChatSession(fixture: chef, transcript: Transcript(turns: ChatFixture.readmeTurns(Snapshot.statusBarClock)), todos: [])])
         }
         guard let id = selectedBot ?? (self == .sidebarSearch ? "default" : nil), let bot = bots.bots.first(where: { $0.id == id }) else { return ChatSessions() }
         return ChatSessions(fixture: [id: ChatSession(fixture: bot, transcript: ChatFixture.history.transcript, todos: [], context: ContextUsage(used: 277_700, window: 1_000_000))])
     }
+
+    static let statusBarClock = Calendar.current.date(bySettingHour: 9, minute: 41, second: 0, of: .now) ?? .now
 
     static var samplePhoto: Image? {
         let renderer = ImageRenderer(content:

@@ -81,13 +81,13 @@ extension Snapshot {
             let sinceClock = Date.now.timeIntervalSince(Snapshot.statusBarClock) / 60
             return BotStore(fixture: [
                 bot("default", sinceClock + 25, "Your inbox is clear. Two invoices are waiting for approval.", BotMeta(pinned: true)),
-                bot("ada", sinceClock + 60 * 2, "The survey results are summarised in a one-page brief.", BotMeta(title: "Ada Lovelace", role: "Head of Research and Analytics", color: "#8b5cf6", pinned: true)),
+                bot("ada", sinceClock + 60 * 2, "The survey results are summarised in a one-page brief.", BotMeta(title: "Ada Lovelace", role: "Research", color: "#8b5cf6", pinned: true)),
                 bot("scout", sinceClock + 60 * 5, "Found three direct flights to Lisbon for the long weekend.", BotMeta(title: "Scout", role: "Travel Planner", color: "#38bdf8", pinned: true)),
                 bot("chef", sinceClock + 2, ChatFixture.readmeReply, BotMeta(title: "Chef", color: "#f59e0b", sectionID: "home", sectionName: "Home")),
                 bot("pixel", sinceClock + 60 * 24 * 2, "Resized the screenshots for the App Store listing.", BotMeta(title: "Pixel", sectionID: "home", sectionName: "Home")),
-                bot("forge", sinceClock + 60 * 3, "Version 0.4.2 is published and tagged.", BotMeta(title: "Forge", role: "Release Engineer", color: "#f97316", sectionID: "work", sectionName: "Work")),
+                bot("forge", sinceClock + 60 * 3, "Version 0.4.2 is published and tagged.", BotMeta(title: "Forge", color: "#f97316", sectionID: "work", sectionName: "Work")),
                 bot("atlas", sinceClock + 60 * 6, "Tuesday's standup notes are filed.", BotMeta(title: "Atlas", color: "#14b8a6", sectionID: "work", sectionName: "Work")),
-                bot("ledger", sinceClock + 60 * 26, "October expenses match the bank statement.", BotMeta(title: "Ledger", role: "Bookkeeper", color: "#22c55e", sectionID: "work", sectionName: "Work")),
+                bot("ledger", sinceClock + 60 * 26, "October expenses match the bank statement.", BotMeta(title: "Ledger", color: "#22c55e", sectionID: "work", sectionName: "Work")),
             ], statuses: [:], photos: Snapshot.samplePhoto.map { ["scout": $0] } ?? [:])
         }
         if self == .sidebarHidden {

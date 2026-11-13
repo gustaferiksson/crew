@@ -1136,7 +1136,7 @@ if phases.contains("slash-raw") {
 if phases.contains("a2ui-unasked") {
     let skillFile = env["A2UI_SKILL"].map { URL(fileURLWithPath: $0) } ?? URL(fileURLWithPath: #filePath).appending(path: "../../../Sources/Profile/crew-ui.SKILL.md").standardized
     let skill = try String(contentsOf: skillFile, encoding: .utf8)
-    let prompts = [
+    let prompts = env["A2UI_PROMPTS"]?.split(separator: "\n").map(String.init) ?? [
         "Give me a recipe for chili con carne",
         "What should I pack for a weekend in Stockholm?",
         "Compare iPhone 17 and Pixel 11",
@@ -1199,7 +1199,7 @@ if phases.contains("a2ui-unasked") {
         print(store.bots.contains { $0.name == name } ? "THROWAWAY NOT DELETED: \(name)" : "throwaway deleted")
     }
     for (index, prompt) in prompts.enumerated() {
-        try await run(index == 4 ? [prompt, followUp] : [prompt], slug: "unasked-\(index)")
+        try await run(prompt.hasPrefix("Make me a shopping list") ? [prompt, followUp] : [prompt], slug: "unasked-\(index)")
     }
     exit(0)
 }

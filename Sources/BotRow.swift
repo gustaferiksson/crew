@@ -33,8 +33,7 @@ struct BotRow: View {
                 .frame(width: 8, height: 8)
                 .opacity(status == .unread ? 1 : 0)
                 .frame(width: dotGutter)
-                .accessibilityLabel("Unread")
-                .accessibilityHidden(status != .unread)
+                .accessibilityHidden(true)
             BotAvatar(bot: bot, status: status, photo: photo, size: rowAvatarSize)
                 .environment(\.avatarsFollowPointer, true)
                 .padding(.trailing, 12)
@@ -78,6 +77,8 @@ struct BotRow: View {
             }
             #endif
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityValue(status == .unread ? Text("Unread") : Text(verbatim: ""))
     }
 
     @ViewBuilder

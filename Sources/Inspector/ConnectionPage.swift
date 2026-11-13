@@ -45,7 +45,7 @@ struct ConnectionPage: View {
                 ContentUnavailableView("Connection Removed", systemImage: "puzzlepiece.extension", description: Text("This connection was removed."))
             }
         }
-        .navigationTitle(name)
+        .navigationTitle(connectionLooks[name]?.title ?? name)
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif
@@ -65,7 +65,7 @@ struct ConnectionPage: View {
                 HStack(spacing: 12) {
                     ConnectionIcon(name: server.name)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(server.name)
+                        Text(connectionLooks[server.name]?.title ?? server.name)
                             .font(.headline)
                             .lineLimit(1)
                             .truncationMode(.middle)
@@ -82,6 +82,9 @@ struct ConnectionPage: View {
                 } else {
                     Toggle("Enabled", isOn: Binding(get: { server.enabled }, set: { value in run { url, urlSession in await store.setEnabled(value, for: server.name, on: url, with: urlSession) } }))
                         .disabled(!isOnline || isBusy || status == .signingIn)
+                }
+                if let look = connectionLooks[server.name], look.title != server.name {
+                    LabeledContent("Name", value: server.name)
                 }
                 LabeledContent(server.url == nil ? "Command" : "Address") {
                     Text(server.address)
@@ -189,7 +192,7 @@ struct ConnectionPage: View {
         } message: {
             Text("The old key is replaced. Changes apply to new chats.")
         }
-        .confirmationDialog("Remove \(server.name) from \(bot.title)?", isPresented: $isRemoving, titleVisibility: .visible) {
+        .confirmationDialog("Remove \(connectionLooks[server.name]?.title ?? server.name) from \(bot.title)?", isPresented: $isRemoving, titleVisibility: .visible) {
             Button("Remove", role: .destructive) {
                 run { url, urlSession in
                     await store.remove(server.name, on: url, with: urlSession)

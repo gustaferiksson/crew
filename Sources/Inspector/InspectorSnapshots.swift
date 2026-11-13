@@ -121,6 +121,7 @@ struct InspectorFixtureScreen: View {
             ],
             signingIn: ["notion": "flow"],
             catalog: [
+                entry("acme-notes", "Notes and tasks from the Acme workspace.", "oauth", false),
                 entry("airtable", "Bases, tables, and records from your Airtable workspace.", "oauth", false),
                 entry("context7", "Up-to-date, version-specific library docs and code examples.", "none", false),
                 entry("deepwiki", "Ask questions about any public GitHub repo (Devin's DeepWiki).", "none", true),
@@ -171,7 +172,7 @@ struct InspectorFixtureScreen: View {
 
     @ViewBuilder
     private var inspector: some View {
-        if [.inspectorConnections, .addConnection, .customConnection].contains(snapshot) {
+        if [.inspectorConnections, .addConnection, .customConnection, .githubConnection].contains(snapshot) {
             Form { ConnectionsSection(bot: ada, store: connections, isAdding: .constant(false), opened: .constant(nil)) }
                 .formStyle(.grouped)
         } else if snapshot == .inspectorVoice {
@@ -231,6 +232,14 @@ private struct ConnectionsFixtureSheets: ViewModifier {
         content
             .sheet(isPresented: .constant(snapshot == .addConnection)) {
                 AddConnectionSheet(bot: ada, store: store)
+            }
+            .sheet(isPresented: .constant(snapshot == .githubConnection)) {
+                NavigationStack {
+                    CatalogEntryForm(entry: connectionExtras[0], store: store) {}
+                }
+                #if os(macOS)
+                .frame(width: 420, height: 560)
+                #endif
             }
             .sheet(isPresented: .constant(snapshot == .customConnection)) {
                 NavigationStack {

@@ -74,7 +74,7 @@ final class InspectorUITests: XCTestCase {
         for _ in 0..<10 where !(opener.exists && opener.isHittable) { app.swipeUp(velocity: .slow) }
         opener.tap()
 
-        let sheet = app.navigationBars["deepwiki"]
+        let sheet = app.navigationBars["DeepWiki"]
         XCTAssertTrue(sheet.waitForExistence(timeout: 5))
         let dismissed = NSPredicate(format: "exists == false")
         XCTAssertEqual(XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: dismissed, object: sheet)], timeout: 3), .timedOut)

@@ -44,7 +44,7 @@ struct ConnectionsSection: View {
             Text("Tools from other apps and services that \(bot.title) can use. Changes apply to new chats.")
         }
         .confirmationDialog(
-            confirmingRemoval.map { String(localized: "Remove \($0.name) from \(bot.title)?") } ?? "",
+            confirmingRemoval.map { String(localized: "Remove \(connectionLooks[$0.name]?.title ?? $0.name) from \(bot.title)?") } ?? "",
             isPresented: Binding(get: { confirmingRemoval != nil }, set: { if !$0 { confirmingRemoval = nil } }),
             titleVisibility: .visible,
             presenting: confirmingRemoval
@@ -137,7 +137,7 @@ private struct ConnectionRow: View {
         HStack(alignment: .top, spacing: 12) {
             ConnectionIcon(name: server.name)
             VStack(alignment: .leading, spacing: 2) {
-                Text(server.name)
+                Text(connectionLooks[server.name]?.title ?? server.name)
                     .lineLimit(1)
                     .truncationMode(.middle)
                 ConnectionStatusLine(status: status, errorLines: 2)
@@ -213,14 +213,22 @@ struct ConnectionIcon: View {
     let name: String
 
     private static let colors: [Color] = [.blue, .indigo, .purple, .pink, .orange, .teal, .green, .cyan]
+    private static let tints: [ConnectionCategory: Color] = [.productivity: .blue, .developer: .indigo, .data: .teal, .business: .green, .design: .pink, .reference: .orange, .travel: .cyan]
 
     var body: some View {
-        Text(name.prefix(1).uppercased())
-            .font(.subheadline.weight(.semibold))
-            .foregroundStyle(.white)
-            .frame(width: 28, height: 28)
-            .background(Self.colors[name.unicodeScalars.reduce(0) { $0 + Int($1.value) } % Self.colors.count].gradient, in: .rect(cornerRadius: 7))
-            .accessibilityHidden(true)
+        let look = connectionLooks[name]
+        Group {
+            if let look {
+                Image(systemName: look.symbol)
+            } else {
+                Text(name.prefix(1).uppercased())
+            }
+        }
+        .font(.subheadline.weight(.semibold))
+        .foregroundStyle(.white)
+        .frame(width: 28, height: 28)
+        .background((look.flatMap { Self.tints[$0.category] } ?? Self.colors[name.unicodeScalars.reduce(0) { $0 + Int($1.value) } % Self.colors.count]).gradient, in: .rect(cornerRadius: 7))
+        .accessibilityHidden(true)
     }
 }
 
@@ -232,13 +240,8 @@ struct AddConnectionSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var query = ""
 
-    private var entries: [MCPCatalogEntry] {
-        let all = store.catalog ?? []
-        guard !query.isEmpty else { return all }
-        return all.filter { $0.name.localizedStandardContains(query) || $0.description.localizedStandardContains(query) }
-    }
-
     var body: some View {
+        let sections = gallerySections(catalog: store.catalog ?? [], servers: store.servers ?? [], query: query)
         NavigationStack {
             Form {
                 #if os(macOS)
@@ -258,17 +261,27 @@ struct AddConnectionSheet: View {
                 } footer: {
                     Text("A server's address, or a command the server runs.")
                 }
-                Section("From Hermes") {
-                    if let catalog = store.catalog, !catalog.isEmpty {
-                        ForEach(entries) { entry in
-                            NavigationLink {
-                                CatalogEntryForm(entry: entry, store: store) { dismiss() }
-                            } label: {
-                                CatalogRow(entry: entry)
-                            }
-                            .disabled(entry.installed)
+                if let catalog = store.catalog, !catalog.isEmpty {
+                    if sections.isEmpty {
+                        Section {
+                        } header: {
+                            Text("No Results for “\(query)”")
                         }
-                    } else if store.catalog != nil || store.catalogFailed {
+                    }
+                    ForEach(sections, id: \.category) { section in
+                        Section(section.category.rawValue) {
+                            ForEach(section.entries) { entry in
+                                NavigationLink {
+                                    CatalogEntryForm(entry: entry, store: store) { dismiss() }
+                                } label: {
+                                    CatalogRow(entry: entry)
+                                }
+                                .disabled(entry.installed)
+                            }
+                        }
+                    }
+                } else if store.catalog != nil || store.catalogFailed {
+                    Section {
                         HStack(spacing: 8) {
                             Text("Couldn't load the catalog.")
                                 .foregroundStyle(.secondary)
@@ -277,7 +290,9 @@ struct AddConnectionSheet: View {
                                 .buttonStyle(.borderless)
                                 .disabled(connection.state != .connected)
                         }
-                    } else {
+                    }
+                } else {
+                    Section {
                         ProgressView()
                             .controlSize(.small)
                     }
@@ -317,7 +332,7 @@ private struct CatalogRow: View {
         HStack(spacing: 12) {
             ConnectionIcon(name: entry.name)
             VStack(alignment: .leading, spacing: 2) {
-                Text(entry.name)
+                Text(connectionLooks[entry.name]?.title ?? entry.name)
                     .lineLimit(1)
                 Text(entry.description)
                     .font(.subheadline)
@@ -334,18 +349,28 @@ private struct CatalogRow: View {
     }
 }
 
-private struct CatalogEntryForm: View {
+struct CatalogEntryForm: View {
     let entry: MCPCatalogEntry
     let store: BotConnections
     let done: () -> Void
 
     @Environment(Connection.self) private var connection
     @State private var values: [String: String] = [:]
+    @State private var token = ""
     @State private var failure: String?
     @State private var isSaving = false
 
+    private var title: String {
+        connectionLooks[entry.name]?.title ?? entry.name
+    }
+
+    private var isExtra: Bool {
+        !(store.catalog ?? []).contains { $0.name == entry.name }
+    }
+
     private var isComplete: Bool {
         entry.requiredEnv.allSatisfy { !$0.required || !(values[$0.name] ?? "").trimmingCharacters(in: .whitespaces).isEmpty }
+            && (entry.authType != "header" || !token.trimmingCharacters(in: .whitespaces).isEmpty)
     }
 
     var body: some View {
@@ -353,7 +378,7 @@ private struct CatalogEntryForm: View {
             Section {
                 HStack(spacing: 12) {
                     ConnectionIcon(name: entry.name)
-                    Text(entry.name)
+                    Text(title)
                         .font(.headline)
                 }
                 Text(entry.description)
@@ -366,7 +391,17 @@ private struct CatalogEntryForm: View {
                         .textSelection(.enabled)
                 }
             } footer: {
-                Text(entry.authType == "oauth" ? "After adding it, sign in from the Connections list." : "No sign-in needed.")
+                Text(entry.authType == "oauth" ? "After adding it, sign in from the Connections list." : entry.authType == "header" ? "Sent as a bearer token. Hermes keeps it in the bot's secrets." : "No sign-in needed.")
+            }
+            if entry.authType == "header" {
+                Section {
+                    SecureField("API Key", text: $token, prompt: Text("Personal Access Token"))
+                    if let page = connectionLooks[entry.name]?.tokenPage {
+                        Link("Create a Token on \(title)", destination: page)
+                    }
+                } footer: {
+                    Text("Choose the repositories and permissions it may use, such as Contents, Issues and Pull requests.")
+                }
             }
             if !entry.requiredEnv.isEmpty {
                 Section("Details") {
@@ -411,7 +446,7 @@ private struct CatalogEntryForm: View {
         .formStyle(.grouped)
         .privacySensitive()
         .disabled(isSaving)
-        .navigationTitle(entry.name)
+        .navigationTitle(title)
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif
@@ -430,12 +465,14 @@ private struct CatalogEntryForm: View {
     private func add() {
         guard let server = connection.session?.server, !isSaving else { return }
         let env = values.filter { !$0.value.isEmpty }.mapValues(JSONValue.string)
+        let extra = CustomConnection(name: entry.name, kind: .url, url: entry.url ?? "", auth: entry.authType == "header" ? .apiKey : .signIn, token: token)
+        guard let body = isExtra ? extra.body : ["name": .string(entry.name), "env": .object(env)] else { return }
         isSaving = true
         failure = nil
         Task {
             defer { isSaving = false }
             do {
-                try await store.add(["name": .string(entry.name), "env": .object(env)], catalog: true, on: server, with: connection.urlSession)
+                try await store.add(body, catalog: !isExtra, on: server, with: connection.urlSession)
                 done()
             } catch {
                 failure = error.localizedDescription

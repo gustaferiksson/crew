@@ -74,6 +74,61 @@ func keyIsSet() async throws -> Bool {
     try await keyRow()?["is_set"] == .bool(true)
 }
 
+if CommandLine.arguments.contains("gallery") {
+    let target = "crew-test-gallery"
+    let token = "crew-probe-dummy-github"
+    let store = BotConnections(profile: target)
+    do {
+        _ = try await gateway.call("profiles.create", ["name": JSONValue.string(target), "mirror_credentials": .bool(false), "no_skills": .bool(true), "no_alias": .bool(true)], as: JSONValue.self)
+        for extra in connectionExtras {
+            let isToken = extra.authType == "header"
+            guard let body = CustomConnection(name: extra.name, kind: .url, url: extra.url ?? "", auth: isToken ? .apiKey : .signIn, token: isToken ? token : "").body else {
+                check(false, "\(extra.name) builds a body")
+                continue
+            }
+            try await store.add(body, catalog: false, on: server, with: urlSession)
+        }
+        check(store.servers?.map(\.name).sorted() == ["github", "granola", "zapier"], "all three extras listed: \(store.servers?.map(\.name) ?? [])")
+
+        let raw = try await rawConfigText(of: target, on: server, with: urlSession)
+        check(!raw.contains(token), "raw config holds no token text")
+        guard case .object(let config) = try JSONDecoder().decode(JSONValue.self, from: Data(raw.utf8)), case .object(let servers) = config["mcp_servers"] ?? .null else { throw HermesError.invalidResponse }
+        print("stored entries: \(servers.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" })")
+        if case .object(let github) = servers["github"] ?? .null {
+            check(github["url"] == .string("https://api.githubcopilot.com/mcp/"), "github url stored")
+            check(github["headers"] == .object(["Authorization": .string("Bearer ${MCP_GITHUB_API_KEY}")]), "github header is a ${MCP_GITHUB_API_KEY} reference")
+        } else {
+            check(false, "github entry stored")
+        }
+        for name in ["zapier", "granola"] {
+            guard case .object(let entry) = servers[name] ?? .null else { check(false, "\(name) entry stored"); continue }
+            check(entry["auth"] == .string("oauth") && entry["headers"] == nil, "\(name) stored as auth oauth without headers")
+        }
+        check(try await setKeys(of: target, on: server, with: urlSession).contains("MCP_GITHUB_API_KEY"), "MCP_GITHUB_API_KEY is set in the bot's .env")
+        print("github /test with a fake token: ok=\(store.tests["github"]?.ok.description ?? "untested") error=\(store.tests["github"]?.error ?? "none")")
+        check(store.status(of: store.servers?.first { $0.name == "github" } ?? MCPServer(name: "", transport: "", url: nil, command: nil, args: [], auth: nil, enabled: false, source: "", plugin: nil)) != .checking, "github was tested after adding")
+
+        for name in ["zapier", "granola"] {
+            let flow = try await fetch(mcpRequest("servers/\(name)/auth", profile: target, method: "POST", on: server), with: urlSession, as: MCPOAuthFlow.self)
+            let host = flow.authorizationUrl.flatMap { URL(string: $0)?.host() } ?? "none"
+            check(flow.status == "authorization_required" && flow.authorizationUrl?.hasPrefix("https://") == true, "\(name) sign-in returns an authorization URL (host \(host)) \(flow.error ?? "")")
+            _ = try? await fetch(mcpRequest("oauth/flows/\(flow.flowId)", profile: target, method: "DELETE", on: server), with: urlSession, as: JSONValue.self)
+        }
+    } catch {
+        check(false, "probe step threw: \(error)")
+    }
+
+    var delete = hermesRequest("api/profiles/\(target)", on: server)
+    delete.httpMethod = "DELETE"
+    delete.timeoutInterval = 45
+    do { _ = try await fetch(delete, with: urlSession, as: JSONValue.self) } catch { check(false, "delete \(target): \(error)") }
+    let profiles = String(decoding: try await fetchData(hermesRequest("api/profiles", on: server), with: urlSession), as: UTF8.self)
+    check(!profiles.contains("\"\(target)\""), "throwaway bot deleted")
+    await gateway.disconnect()
+    print(failures.isEmpty ? "PROBE PASSED" : "PROBE FAILED: \(failures.count)")
+    exit(failures.isEmpty ? 0 : 1)
+}
+
 if CommandLine.arguments.contains("addto") {
     let targets = ["crew-test-add-a", "crew-test-add-b"]
     let targetFixture = URL(fileURLWithPath: #filePath).appending(path: "../../fixtures/mcp/config-raw-target.v0.23.1.json").standardized

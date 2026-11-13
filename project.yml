@@ -229,6 +229,7 @@ targets:
       - Sources/Scenes.swift
       - Sources/Inspector/Vault.swift
       - Sources/Inspector/MCP.swift
+      - Sources/Inspector/ConnectionGallery.swift
       - Sources/NewBotAdvanced.swift
       - Sources/Voice/VoiceBot.swift
       - Sources/Voice/BotAnswer.swift

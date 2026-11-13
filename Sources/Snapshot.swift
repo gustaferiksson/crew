@@ -140,6 +140,7 @@ enum Snapshot: String {
     case inspectorConnections = "inspector-connections"
     case addConnection = "add-connection"
     case customConnection = "custom-connection"
+    case githubConnection = "github-connection"
     case connectionPage = "connection-page"
     case connectionPageMany = "connection-page-many"
     case connectionPageSignIn = "connection-page-sign-in"

@@ -50,6 +50,8 @@ targets:
         products: [A2UISwiftCore, A2UISwiftUI, BasicCatalog, BasicCatalogSwiftUI]
       - target: CrewWidgets
         destinationFilters: [iOS]
+      - target: CrewShare
+        destinationFilters: [iOS]
     sources:
       - path: Sources
         type: syncedFolder
@@ -91,6 +93,8 @@ targets:
           OTHER_CODE_SIGN_FLAGS[sdk=macosx*]: --timestamp
           CODE_SIGN_IDENTITY[sdk=iphoneos*]: Apple Distribution
           PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]: Crew Ad Hoc
+          # Kept out of releases until the Crew Share Ad Hoc profile exists (docs/flows/share-to-bot.md).
+          EXCLUDED_SOURCE_FILE_NAMES: CrewShare.appex
   CrewWidgets:
     type: app-extension
     platform: iOS
@@ -102,6 +106,7 @@ targets:
       - Sources/PinnedWidget/PinnedWidgetContent.swift
       - Sources/PinnedWidget/PinnedCardWidgetViews.swift
       - Sources/Chat/A2UI/CrewTones.swift
+      - Sources/Voice/VoiceAvatar.swift
       - Sources/AvatarView.swift
       - Sources/AvatarFace.swift
       - Sources/EyePose.swift
@@ -132,6 +137,54 @@ targets:
           CODE_SIGN_STYLE: Manual
           CODE_SIGN_IDENTITY: Apple Distribution
           PROVISIONING_PROFILE_SPECIFIER: Crew Widgets Ad Hoc
+  CrewShare:
+    type: app-extension
+    platform: iOS
+    sources:
+      - Share
+      - Sources/Share
+      - Sources/Gateway.swift
+      - Sources/GatewayTypes.swift
+      - Sources/Hermes.swift
+      - Sources/Keychain.swift
+      - Sources/StoredSession.swift
+      - Sources/Chat/Attachments.swift
+      - Sources/Chat/BotChat.swift
+      - Sources/Chat/ContextUsage.swift
+      - Sources/Voice/VoiceBot.swift
+      - Sources/Voice/VoiceAvatar.swift
+      - Sources/AvatarView.swift
+      - Sources/AvatarFace.swift
+      - Sources/EyePose.swift
+      - Sources/EyeScript.swift
+      - Sources/PokeTracker.swift
+      - Sources/AvatarTaskKey.swift
+      - Sources/SeededGenerator.swift
+      - Sources/AvatarShape.swift
+    info:
+      path: Share/Info.plist
+      properties:
+        CFBundleDisplayName: Crew
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.share-services
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShareViewController
+          NSExtensionAttributes:
+            NSExtensionActivationRule:
+              NSExtensionActivationSupportsText: true
+              NSExtensionActivationSupportsWebURLWithMaxCount: 8
+              NSExtensionActivationSupportsImageWithMaxCount: 8
+              NSExtensionActivationSupportsFileWithMaxCount: 8
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.gustaf.crew.share
+        PRODUCT_NAME: CrewShare
+        CODE_SIGN_ENTITLEMENTS: Entitlements/CrewShare.entitlements
+        SKIP_INSTALL: YES
+      configs:
+        Release:
+          CODE_SIGNING_ALLOWED: NO
   CrewTests:
     type: bundle.unit-test
     platform: macOS
@@ -183,7 +236,10 @@ targets:
       - Sources/Snapshot.swift
       - Sources/MenuCommands.swift
       - Sources/Connection.swift
+      - Sources/StoredSession.swift
       - Sources/Keychain.swift
+      - Sources/Chat/BotChat.swift
+      - Sources/Share/SharedItem.swift
       - Sources/Push/PushRoute.swift
       - Sources/Push/PushCenter.swift
       - Sources/Chat/Mentions.swift

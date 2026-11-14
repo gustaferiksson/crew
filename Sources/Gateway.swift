@@ -116,7 +116,7 @@ actor Gateway {
         let task = ticketInSubprotocol
             ? urlSession.webSocketTask(with: url, protocols: ["hermes-gateway-v1", "hermes-gateway-ticket.\(ticket)"])
             : urlSession.webSocketTask(with: url)
-        task.maximumMessageSize = 16 << 20
+        task.maximumMessageSize = 32 << 20
         socket = task
         lastFrameAt = .now
         task.resume()

@@ -7,15 +7,23 @@ nonisolated struct Attachment: Identifiable, Codable, Sendable, Equatable {
         case image, file
     }
 
+    struct Limits: Sendable {
+        let file: Int
+        let total: Int
+        let megabyte: Int
+
+        static let chat = Limits(file: 25, total: 50, megabyte: 1 << 20)
+        static let room = Limits(file: 15, total: 25, megabyte: 1_000_000)
+    }
+
     var id: String
     var kind: Kind
     var name: String
     var path: String?
     var data: Data?
 
-    static let maxBytes = 25 << 20
     static let maxCount = 8
-    static let maxTotalBytes = 50 << 20
+    private static let maxBytes = Limits.chat.file * Limits.chat.megabyte
     private static let maxPixels = 2048
     private static let passthroughTypes: Set<UTType> = [.png, .jpeg, .gif, .webP]
 
@@ -23,8 +31,8 @@ nonisolated struct Attachment: Identifiable, Codable, Sendable, Equatable {
         UTType(filenameExtension: URL(filePath: name).pathExtension)?.preferredMIMEType ?? "application/octet-stream"
     }
 
-    init(kind: Kind, name: String, path: String? = nil, data: Data? = nil) {
-        self.id = path ?? UUID().uuidString
+    init(kind: Kind, name: String, path: String? = nil, data: Data? = nil, id: String? = nil) {
+        self.id = id ?? path ?? UUID().uuidString
         self.kind = kind
         self.name = name
         self.path = path
@@ -33,7 +41,7 @@ nonisolated struct Attachment: Identifiable, Codable, Sendable, Equatable {
 
     init(data: Data, name: String) throws {
         guard !data.isEmpty else { throw AttachmentError.empty(name) }
-        guard data.count <= Self.maxBytes else { throw AttachmentError.tooLarge(name) }
+        guard data.count <= Self.maxBytes else { throw AttachmentError.tooLarge(name, megabytes: Limits.chat.file) }
         guard let source = CGImageSourceCreateWithData(data as CFData, nil),
               let identifier = CGImageSourceGetType(source) as String?,
               let type = UTType(identifier),
@@ -72,7 +80,7 @@ nonisolated struct Attachment: Identifiable, Codable, Sendable, Equatable {
         defer { if isScoped { url.stopAccessingSecurityScopedResource() } }
         let values = try? url.resourceValues(forKeys: [.isDirectoryKey, .isPackageKey, .fileSizeKey])
         if values?.isDirectory == true || values?.isPackage == true { throw AttachmentError.folder(name) }
-        if (values?.fileSize ?? 0) > Self.maxBytes { throw AttachmentError.tooLarge(name) }
+        if (values?.fileSize ?? 0) > Self.maxBytes { throw AttachmentError.tooLarge(name, megabytes: Limits.chat.file) }
         do {
             try self.init(data: Data(contentsOf: url), name: name)
         } catch let error as AttachmentError {
@@ -82,25 +90,28 @@ nonisolated struct Attachment: Identifiable, Codable, Sendable, Equatable {
         }
     }
 
-    static func validated(_ attachments: [Attachment]) throws -> [Attachment] {
+    static func validated(_ attachments: [Attachment], limits: Limits = .chat) throws -> [Attachment] {
         guard attachments.count <= maxCount else { throw AttachmentError.tooMany }
-        guard attachments.reduce(0, { $0 + ($1.data?.count ?? 0) }) <= maxTotalBytes else { throw AttachmentError.tooLargeTotal }
+        if let large = attachments.first(where: { ($0.data?.count ?? 0) > limits.file * limits.megabyte }) {
+            throw AttachmentError.tooLarge(large.name, megabytes: limits.file)
+        }
+        guard attachments.reduce(0, { $0 + ($1.data?.count ?? 0) }) <= limits.total * limits.megabyte else { throw AttachmentError.tooLargeTotal(megabytes: limits.total) }
         return attachments
     }
 }
 
 nonisolated enum AttachmentError: LocalizedError {
     case empty(String)
-    case tooLarge(String)
-    case tooLargeTotal
+    case tooLarge(String, megabytes: Int)
+    case tooLargeTotal(megabytes: Int)
     case tooMany
     case folder(String)
     case unreadable(String)
 
     var errorDescription: String? {
         if case .empty(let name) = self { return String(localized: "\(name) is empty.") }
-        if case .tooLarge(let name) = self { return String(localized: "\(name) is larger than 25 MB.") }
-        if case .tooLargeTotal = self { return String(localized: "Attachments can add up to 50 MB per message.") }
+        if case .tooLarge(let name, let megabytes) = self { return String(localized: "\(name) is larger than \(megabytes) MB.") }
+        if case .tooLargeTotal(let megabytes) = self { return String(localized: "Attachments can add up to \(megabytes) MB per message.") }
         if case .tooMany = self { return String(localized: "You can attach up to 8 files per message.") }
         if case .folder(let name) = self { return String(localized: "\(name) is a folder. Attach the files inside it instead.") }
         if case .unreadable(let name) = self { return String(localized: "Crew couldn't read \(name).") }

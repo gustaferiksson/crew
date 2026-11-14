@@ -29,9 +29,9 @@ final class ChatDrafts {
         return draft
     }
 
-    func tray(for chat: String) -> AttachmentTray {
+    func tray(for chat: String, limits: Attachment.Limits = .chat) -> AttachmentTray {
         if let tray = trays[chat] { return tray }
-        let tray = AttachmentTray()
+        let tray = AttachmentTray(limits: limits)
         trays[chat] = tray
         return tray
     }

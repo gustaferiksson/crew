@@ -909,6 +909,110 @@ if phases.contains("room-routing") {
     exit(0)
 }
 
+if phases.contains("room-files") {
+    let store = BotStore(fixture: [], statuses: [:])
+    Task { await store.run(gateway, urlSession: urlSession) }
+    try await Task.sleep(for: .seconds(3))
+    let name = "crew-test-\(UUID().uuidString.prefix(6).lowercased())"
+    let roomID = "room-\(UUID().uuidString.lowercased())"
+    let pretty = JSONEncoder()
+    pretty.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+    func save(_ value: JSONValue, _ file: String) throws {
+        let url = URL(fileURLWithPath: #filePath).appending(path: "../../fixtures/rooms/\(file)").standardized
+        try (pretty.encode(value) + Data("\n".utf8)).write(to: url)
+        print("RECORDED", file)
+    }
+    var created = false
+    var failures: [String] = []
+    func check(_ ok: Bool, _ label: String) {
+        print(ok ? "PASS" : "FAIL", label)
+        if !ok { failures.append(label) }
+    }
+    do {
+        try await store.create(NewProfile(name: name, description: "Crew room probe: stays quiet unless named", soul: nil, cloneFrom: nil), via: gateway) { $0.title = "Crew Peer" }
+        await store.reload(gateway)
+        guard let peer = store.bots.first(where: { $0.name == name }), let test = store.bots.first(where: { $0.name == "crew-test" }) else { throw HermesError.invalidResponse }
+        let members: [JSONValue] = [test, peer].map { .object(["member_id": .string($0.name), "profile": .string($0.name), "handle": .string($0.handle), "display_name": .string($0.title)]) }
+        _ = try await gateway.call("groups.create", ["room_id": .string(roomID), "name": .string("Crew files room"), "members": .array(members)] as [String: JSONValue], as: JSONValue.self)
+        created = true
+        let roster = [test, peer].map { RoomMember(memberID: $0.name, profile: $0.name, handle: $0.handle, displayName: $0.title) }
+        let room = Room(id: roomID, name: "Crew files room", members: roster, createdAt: .now, updatedAt: .now)
+        let session = GroupSession(room: room, gateway: gateway)
+        Task { await session.run() }
+        func settle() async throws {
+            for tick in 0..<150 {
+                try await Task.sleep(for: .seconds(2))
+                if tick > 3, !session.isAwaitingReply { break }
+            }
+        }
+
+        let refused = UploadParams(roomID: roomID, uploadID: "crew-probe-\(UUID().uuidString.lowercased())", kind: "image", name: "fake.png", mime: "image/png", dataBase64: Data("not a png".utf8).base64EncodedString())
+        do {
+            _ = try await gateway.call("groups.attachment.upload", refused, as: JSONValue.self)
+            check(false, "a mismatched image upload is refused")
+        } catch {
+            print("REFUSED UPLOAD SAYS:", error.localizedDescription)
+        }
+
+        let swatch = CGContext(data: nil, width: 64, height: 64, bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+        swatch.setFillColor(red: 1, green: 0, blue: 0, alpha: 1)
+        swatch.fill(CGRect(x: 0, y: 0, width: 64, height: 64))
+        let png = NSMutableData()
+        let destination = CGImageDestinationCreateWithData(png, "public.png" as CFString, 1, nil)!
+        CGImageDestinationAddImage(destination, swatch.makeImage()!, nil)
+        CGImageDestinationFinalize(destination)
+        let image = try Attachment(data: png as Data, name: "swatch.png")
+        let note = try Attachment(data: Data("The code word is PELICAN.\n".utf8), name: "note.txt")
+        session.send("@\(test.handle) What colour is the attached image, and what code word is in the attached text file? Answer in one short sentence.", attachments: [image, note])
+        try await settle()
+        let sent = session.events.last { $0.kind == "message.user" }
+        check(sent?.payload.attachments?.map(\.kind) == ["image", "file"], "the logged message carries both files")
+        let answer = session.events.last { $0.kind == "message.member" && $0.payload.memberID == test.name }?.payload.text ?? ""
+        print("ANSWER:", answer)
+        check(answer.lowercased().contains("red"), "crew-test saw the image")
+        check(answer.uppercased().contains("PELICAN"), "crew-test read the text file")
+
+        let viewer = GroupSession(room: room, gateway: gateway)
+        let viewing = Task { await viewer.run() }
+        try await Task.sleep(for: .seconds(4))
+        let files = viewer.transcript.turns.compactMap(\.prompt).flatMap(\.attachments)
+        var downloaded: [Data?] = []
+        for file in files { downloaded.append(try await viewer.download(file)) }
+        check(downloaded == [image.data, note.data], "both files download byte-identical")
+
+        let state = try await gateway.call("groups.state", ["room_id": roomID], as: JSONValue.self)
+        var log: [JSONValue] = []
+        var cursor = 0
+        while true {
+            guard case .object(let page) = try await gateway.call("groups.log", ["room_id": .string(roomID), "since_seq": .number(Double(cursor))] as [String: JSONValue], as: JSONValue.self),
+                  case .array(let rows) = page["events"] ?? .null, case .number(let next) = page["cursor"] ?? .null else { throw HermesError.invalidResponse }
+            log += rows
+            cursor = Int(next)
+            guard page["has_more"] == .bool(true) else { break }
+        }
+        try save(.array(log), "files.log.json")
+        try save(state, "files.state.json")
+
+        var bytes = [UInt8](repeating: 0, count: 13_000_000)
+        for index in bytes.indices { bytes[index] = UInt8.random(in: 0...255) }
+        let large = Attachment(kind: .file, name: "large.bin", data: Data(bytes))
+        session.send("@\(test.handle) Ignore the attached file and reply with just OK.", attachments: [large])
+        try await settle()
+        try await Task.sleep(for: .seconds(4))
+        guard let largeFile = viewer.transcript.turns.compactMap(\.prompt).flatMap(\.attachments).last else { throw HermesError.invalidResponse }
+        check(try await viewer.download(largeFile) == large.data, "a 13 MB file round-trips over the socket")
+        viewing.cancel()
+        print(failures.isEmpty ? "PASS room-files" : "FAIL room-files \(failures)")
+    } catch {
+        print("ROOM FILES FAILED", error)
+    }
+    if created { _ = try? await gateway.call("groups.disband", ["room_id": roomID], as: JSONValue.self) }
+    await store.reload(gateway)
+    if let bot = store.bots.first(where: { $0.name == name }) { try? await store.delete(bot, via: gateway, urlSession: urlSession) }
+    await store.reload(gateway)
+    print(store.bots.contains { $0.name == name } ? "THROWAWAY NOT DELETED: \(name)" : "throwaway deleted")
+}
+
 if phases.contains("room-reply") {
     let store = BotStore(fixture: [], statuses: [:])
     Task { await store.run(gateway, urlSession: urlSession) }

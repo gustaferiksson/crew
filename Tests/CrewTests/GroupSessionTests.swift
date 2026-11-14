@@ -351,3 +351,57 @@ private let wake = RoomAction(kind: "retry", memberID: "ada, scout", taskID: "pr
     #expect(plain.transcript.turns.first { $0.id == "stop" }?.status == .interrupted)
     #expect(plain.transcript.turns.first { $0.id == "stop" }?.stopReason == nil)
 }
+
+@Test func aMessageWithFilesShowsThemOnTheBubbleAndDownloadsFromItsEvent() throws {
+    let session = try recordedRoom("files.log.json", state: "files.state.json")
+    let sent = try #require(session.transcript.turns.first { $0.prompt?.attachments.isEmpty == false })
+    let files = try #require(sent.prompt?.attachments)
+
+    #expect(sent.id.hasPrefix("user:"))
+    #expect(sent.prompt?.text.hasPrefix("@crew-test What colour") == true)
+    #expect(files.map(\.kind) == [.image, .file])
+    #expect(files.map(\.name) == ["swatch.png", "note.txt"])
+    #expect(files.map(\.id) == ["att_37e656c105367f0b8ccb49b30866019f", "att_20b45d203a713deed450882b2c3d737c"])
+
+    let params = try JSONSerialization.jsonObject(with: JSONEncoder().encode(session.downloadParams(for: files[1]))) as? NSDictionary
+    #expect(params == ["room_id": session.room.id, "event_id": sent.id, "attachment_id": "att_20b45d203a713deed450882b2c3d737c"])
+}
+
+@Test func aSendWithFilesCarriesTheExactManifestHermesAccepts() throws {
+    let session = GroupSession(fixture: room, events: [], driver: RoomState.Driver())
+    let file = RoomAttachment(attachmentID: "att_20b45d203a713deed450882b2c3d737c", kind: "file", name: "note.txt", size: 26, mime: "text/plain")
+    let sent = try JSONSerialization.jsonObject(with: JSONEncoder().encode(session.sendParams("", attachments: [file]))) as? NSDictionary
+    let id = try #require(sent?["event_id"] as? String)
+
+    #expect(sent?["payload"] as? NSDictionary == ["text": "", "thread_id": id, "attachments": [["attachment_id": file.attachmentID, "kind": "file", "name": "note.txt", "size": 26, "mime": "text/plain"]]])
+}
+
+@Test func uploadsDeclareKindAndAnImageMimeFromItsBytes() throws {
+    let session = GroupSession(fixture: room, events: [], driver: RoomState.Driver())
+    let png = try #require(Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="))
+    let image = session.uploadParams(for: Attachment(kind: .image, name: "Photo.jpg", data: png), data: png)
+    let pdf = session.uploadParams(for: Attachment(kind: .file, name: "Plan.pdf"), data: Data("%PDF-1.4".utf8))
+    let text = session.uploadParams(for: Attachment(kind: .file, name: "notes.txt"), data: Data("hi".utf8))
+
+    #expect([image.kind, image.mime] == ["image", "image/png"])
+    #expect([pdf.kind, pdf.mime] == ["pdf", "application/pdf"])
+    #expect([text.kind, text.mime] == ["file", "text/plain"])
+    #expect(text.dataBase64 == "aGk=")
+}
+
+@Test func roomTraysUseHermesRoomLimits() {
+    let file = Attachment(kind: .file, name: "dump.bin", data: Data(count: 15_000_001))
+    let halves = [Attachment(kind: .file, name: "a", data: Data(count: 13_000_000)), Attachment(kind: .file, name: "b", data: Data(count: 13_000_000))]
+
+    #expect((try? Attachment.validated([file])) != nil)
+    #expect(throws: AttachmentError.self) { try Attachment.validated([file], limits: .room) }
+    #expect(throws: AttachmentError.self) { try Attachment.validated(halves, limits: .room) }
+    #expect(AttachmentError.tooLarge("dump.bin", megabytes: Attachment.Limits.room.file).localizedDescription == "dump.bin is larger than 15 MB.")
+}
+
+@Test func aMemberOnAnotherServerSaysItCantReceiveFiles() {
+    let failed = event(6, "turn.failed", RoomEvent.Payload(memberID: "scout", error: "attachments_unsupported_on_route: this member's route cannot carry attached files", threadID: "t2"))
+    let session = GroupSession(fixture: room, events: events + [failed], driver: RoomState.Driver())
+
+    #expect(session.transcript.turns.last?.failure == "Scout can't receive files from another server.")
+}

@@ -509,6 +509,7 @@ struct ChatFixtureScreen: View {
             )
         )
         .environment(\.chatSession, session)
+        .environment(\.attachmentSource, session)
         .toolbar {
             if [.a2uiPinned, .a2uiPinnedSheet].contains(fixture) {
                 ToolbarItem(placement: .primaryAction) {

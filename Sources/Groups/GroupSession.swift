@@ -1,5 +1,20 @@
 import Foundation
+import ImageIO
 import Observation
+import UniformTypeIdentifiers
+
+nonisolated struct RoomAttachment: Codable, Sendable, Equatable {
+    let attachmentID: String
+    let kind: String
+    let name: String
+    let size: Int
+    let mime: String
+
+    private enum CodingKeys: String, CodingKey {
+        case kind, name, size, mime
+        case attachmentID = "attachment_id"
+    }
+}
 
 nonisolated struct RoomEvent: Decodable, Sendable, Equatable {
     struct Actor: Decodable, Sendable, Equatable {
@@ -30,13 +45,14 @@ nonisolated struct RoomEvent: Decodable, Sendable, Equatable {
         var everyone: Bool?
         var fallback: Bool?
         var reason: String?
+        var attachments: [RoomAttachment]?
 
         var context: RoomContext {
             RoomContext(purpose: purpose ?? "", notes: notes ?? "", routing: routing ?? "everyone", leadMemberID: leadMemberID ?? "")
         }
 
         private enum CodingKeys: String, CodingKey {
-            case text, error, name, status, purpose, notes, routing, everyone, fallback, reason
+            case text, error, name, status, purpose, notes, routing, everyone, fallback, reason, attachments
             case memberID = "member_id"
             case threadID = "thread_id"
             case taskID = "task_id"
@@ -151,9 +167,13 @@ nonisolated struct RoomParams: Encodable, Sendable {
     var memberID: String?
     var executionGeneration: Int?
     var discussionEventID: String?
+    var eventID: String?
+    var attachmentID: String?
 
     private enum CodingKeys: String, CodingKey {
         case roomID = "room_id"
+        case eventID = "event_id"
+        case attachmentID = "attachment_id"
         case sinceSeq = "since_seq"
         case cancelID = "cancel_id"
         case taskID = "task_id"
@@ -167,9 +187,10 @@ nonisolated struct SendParams: Encodable, Sendable {
     struct Payload: Encodable, Sendable {
         let text: String
         let threadID: String
+        var attachments: [RoomAttachment]?
 
         private enum CodingKeys: String, CodingKey {
-            case text
+            case text, attachments
             case threadID = "thread_id"
         }
     }
@@ -182,6 +203,30 @@ nonisolated struct SendParams: Encodable, Sendable {
         case payload
         case roomID = "room_id"
         case eventID = "event_id"
+    }
+}
+
+nonisolated struct UploadParams: Encodable, Sendable {
+    let roomID: String
+    let uploadID: String
+    let kind: String
+    let name: String
+    let mime: String
+    let dataBase64: String
+
+    private enum CodingKeys: String, CodingKey {
+        case kind, name, mime
+        case roomID = "room_id"
+        case uploadID = "upload_id"
+        case dataBase64 = "data_base64"
+    }
+}
+
+nonisolated private struct DownloadedFile: Decodable, Sendable {
+    let dataBase64: String
+
+    private enum CodingKeys: String, CodingKey {
+        case dataBase64 = "data_base64"
     }
 }
 
@@ -204,7 +249,7 @@ nonisolated private struct ApproveParams: Encodable, Sendable {
 }
 
 @Observable
-final class GroupSession {
+final class GroupSession: AttachmentSource {
     let room: Room
     var failure: String?
     private(set) var events: [RoomEvent] = []
@@ -215,6 +260,7 @@ final class GroupSession {
     private var retrying: Set<String> = []
     private var continuing: Set<String> = []
     private var cursor = 0
+    @ObservationIgnored private var files: [String: Data] = [:]
     private let gateway: Gateway
 
     init(room: Room, gateway: Gateway) {
@@ -222,11 +268,12 @@ final class GroupSession {
         self.gateway = gateway
     }
 
-    convenience init(fixture room: Room, events: [RoomEvent], driver: RoomState.Driver, context: RoomContext? = nil) {
+    convenience init(fixture room: Room, events: [RoomEvent], driver: RoomState.Driver, context: RoomContext? = nil, files: [String: Data] = [:]) {
         self.init(room: room, gateway: Gateway(server: URL(filePath: "/"), urlSession: .shared) { throw CancellationError() })
         self.events = events
         self.driver = driver
         self.context = context
+        self.files = files
     }
 
     var isWorking: Bool { driver.working }
@@ -311,27 +358,55 @@ final class GroupSession {
         }
     }
 
-    func sendParams(_ text: String, thread: String? = nil) -> SendParams {
+    func sendParams(_ text: String, thread: String? = nil, attachments: [RoomAttachment] = []) -> SendParams {
         let id = UUID().uuidString
-        return SendParams(roomID: room.id, eventID: id, payload: SendParams.Payload(text: text, threadID: thread ?? id))
+        return SendParams(roomID: room.id, eventID: id, payload: SendParams.Payload(text: text, threadID: thread ?? id, attachments: attachments.isEmpty ? nil : attachments))
     }
 
-    func send(_ text: String, thread: String? = nil) {
+    func uploadParams(for attachment: Attachment, data: Data) -> UploadParams {
+        let sniffed = CGImageSourceCreateWithData(data as CFData, nil).flatMap(CGImageSourceGetType).flatMap { UTType($0 as String)?.preferredMIMEType }
+        let mime = attachment.kind == .image ? sniffed ?? attachment.mimeType : attachment.mimeType
+        let kind = attachment.kind == .image ? "image" : mime == "application/pdf" ? "pdf" : "file"
+        return UploadParams(roomID: room.id, uploadID: attachment.id, kind: kind, name: attachment.name, mime: mime, dataBase64: data.base64EncodedString())
+    }
+
+    func downloadParams(for attachment: Attachment) -> RoomParams? {
+        guard let event = events.first(where: { $0.payload.attachments?.contains { $0.attachmentID == attachment.id } == true }) else { return nil }
+        return RoomParams(roomID: room.id, eventID: event.eventID, attachmentID: attachment.id)
+    }
+
+    func download(_ attachment: Attachment) async throws -> Data {
+        if let data = attachment.data ?? files[attachment.id] { return data }
+        guard let params = downloadParams(for: attachment) else { throw HermesError.invalidResponse }
+        let file = try await gateway.call("groups.attachment.download", params, as: DownloadedFile.self, timeout: .seconds(180))
+        guard let data = Data(base64Encoded: file.dataBase64) else { throw HermesError.invalidResponse }
+        files[attachment.id] = data
+        return data
+    }
+
+    func send(_ text: String, attachments: [Attachment] = [], thread: String? = nil) {
         let text = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else { return }
-        let params = sendParams(text, thread: thread)
-        let id = params.eventID
-        unsent.append(Turn(id: id, prompt: Prompt(text: text, sentAt: .now), status: .complete, startedAt: .now, finishedAt: .now))
+        guard !text.isEmpty || !attachments.isEmpty else { return }
+        let id = UUID().uuidString
+        unsent.append(Turn(id: id, prompt: Prompt(text: text, sentAt: .now, attachments: attachments), status: .complete, startedAt: .now, finishedAt: .now))
         Task {
             do {
-                let sent = try await gateway.call("groups.send", params, as: SentEvent.self).event
+                var manifest: [RoomAttachment] = []
+                for attachment in attachments {
+                    let data = try await download(attachment)
+                    let uploaded = try await gateway.call("groups.attachment.upload", uploadParams(for: attachment, data: data), as: RoomAttachment.self, timeout: .seconds(30 + data.count / 100_000))
+                    files[uploaded.attachmentID] = data
+                    manifest.append(uploaded)
+                }
+                let sent = try await gateway.call("groups.send", sendParams(text, thread: thread, attachments: manifest), as: SentEvent.self).event
                 if let index = unsent.firstIndex(where: { $0.id == id }) { unsent[index].id = sent.eventID }
                 driver.working = true
                 await refresh()
             } catch {
                 guard let index = unsent.firstIndex(where: { $0.id == id }) else { return }
+                let isRefusedFile = if case GatewayError.rpc(_, "invalid_params") = error { !attachments.isEmpty } else { false }
                 unsent[index].status = .error
-                unsent[index].failure = String(localized: "Not sent: \(error.localizedDescription)")
+                unsent[index].failure = isRefusedFile ? String(localized: "Not sent: The server refused one of the files.") : String(localized: "Not sent: \(error.localizedDescription)")
             }
         }
     }
@@ -475,13 +550,16 @@ final class GroupSession {
         let date = event.createdAt
         let speaker = event.actor.profile ?? room.members.first { $0.memberID == event.payload.memberID }?.profile
         if event.kind == "message.user" {
-            return Turn(id: event.eventID, prompt: Prompt(text: event.payload.text ?? "", sentAt: date), status: .complete, startedAt: date, finishedAt: date, thread: event.payload.threadID)
+            let attachments = (event.payload.attachments ?? []).map { Attachment(kind: $0.kind == "image" ? .image : .file, name: $0.name, id: $0.attachmentID) }
+            return Turn(id: event.eventID, prompt: Prompt(text: event.payload.text ?? "", sentAt: date, attachments: attachments), status: .complete, startedAt: date, finishedAt: date, thread: event.payload.threadID)
         }
         if event.kind == "message.member" {
             return Turn(id: event.eventID, reply: event.payload.text ?? "", status: .complete, startedAt: date, finishedAt: date, speaker: speaker, thread: event.payload.threadID)
         }
         if event.kind == "turn.failed" {
-            return Turn(id: event.eventID, status: .error, startedAt: date, finishedAt: date, failure: event.payload.error, speaker: speaker)
+            let name = room.members.first { $0.memberID == event.payload.memberID }.map { $0.displayName ?? $0.memberID } ?? String(localized: "This member")
+            let failure = event.payload.error?.hasPrefix("attachments_unsupported_on_route") == true ? String(localized: "\(name) can't receive files from another server.") : event.payload.error
+            return Turn(id: event.eventID, status: .error, startedAt: date, finishedAt: date, failure: failure, speaker: speaker)
         }
         if event.kind == "turn.deferred" {
             let retryID = event.payload.taskID.flatMap { retryable.contains($0) ? $0 : nil }

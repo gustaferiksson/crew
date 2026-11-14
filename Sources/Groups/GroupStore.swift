@@ -93,6 +93,7 @@ final class GroupStore {
     private(set) var rooms: [Room] = []
     private(set) var isSupported = false
     private(set) var isLoaded = false
+    private(set) var canAttach = false
 
     init() {}
 
@@ -100,6 +101,7 @@ final class GroupStore {
         self.rooms = rooms
         isSupported = true
         isLoaded = true
+        canAttach = true
     }
 
     func rooms(with bot: Bot) -> [Room] {
@@ -158,11 +160,13 @@ final class GroupStore {
         rooms = []
         isSupported = false
         isLoaded = false
+        canAttach = false
     }
 
     private func check(_ gateway: Gateway) async {
         let capabilities = try? await gateway.call("groups.capabilities", [String: String](), as: RoomCapabilities.self)
         isSupported = capabilities.map { $0.driver && requiredMethods.isSubset(of: $0.methods) } ?? false
+        canAttach = isSupported && capabilities?.methods.contains("groups.attachment.upload") == true
         guard isSupported else { return rooms = [] }
         await reload(gateway)
     }

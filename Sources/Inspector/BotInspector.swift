@@ -25,6 +25,7 @@ struct BotInspector: View {
     @State private var showsLook = false
     @State private var pokes = 0
     @State private var photoItem: PhotosPickerItem?
+    @State private var portrait = PortraitGenerator()
     @State private var capabilitySheet: CapabilityKind?
     @State private var deleting: Bot?
     @State private var pendingSave: Task<Void, Never>?
@@ -165,6 +166,7 @@ struct BotInspector: View {
         .onChange(of: draft.photoChange) { scheduleSave(after: .zero) }
         .onChange(of: bot.metaRevision) { draft.adopt(bot) }
         .onDisappear {
+            portrait.cancel()
             guard draft.isDirty else { return }
             pendingSave?.cancel()
             save()
@@ -178,15 +180,19 @@ struct BotInspector: View {
         .task(id: photoItem) {
             guard let item = photoItem else { return }
             photoItem = nil
-            guard let data = try? await item.loadTransferable(type: Data.self) else {
+            portrait.cancel()
+            guard let data = try? await item.loadTransferable(type: Data.self), await draft.pickPhoto(data) else {
                 draft.notice = String(localized: "Crew couldn't read that image. Try a JPEG, PNG or HEIC photo.")
                 return
             }
-            await draft.pickPhoto(data)
         }
         .task(id: [bot.id, connection.gateway.map { "\(ObjectIdentifier($0))" } ?? ""]) {
             guard let gateway = connection.gateway else { return }
             await routines.run(profile: bot.name, gateway: gateway, urlSession: connection.urlSession)
+        }
+        .task(id: connection.gateway.map(ObjectIdentifier.init)) {
+            guard Snapshot.requested == nil, let gateway = connection.gateway else { return }
+            await portrait.probe(gateway)
         }
         .task(id: connection.gateway.map(ObjectIdentifier.init)) {
             guard let gateway = connection.gateway else { return }
@@ -287,7 +293,7 @@ struct BotInspector: View {
                 .accessibilityAddTraits(.isButton)
                 .accessibilityAction { showsLook = true }
                 .popover(isPresented: $showsLook) {
-                    LookEditor(draft: draft, photoItem: $photoItem)
+                    LookEditor(draft: draft, photoItem: $photoItem, portrait: portrait)
                 }
         } else {
             image.accessibilityHidden(true)
@@ -490,7 +496,9 @@ struct BotInspector: View {
 struct LookEditor: View {
     @Bindable var draft: ProfileDraft
     @Binding var photoItem: PhotosPickerItem?
+    @Bindable var portrait: PortraitGenerator
 
+    @Environment(Connection.self) private var connection
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -501,15 +509,23 @@ struct LookEditor: View {
                         Label("Choose Photo…", systemImage: "photo.on.rectangle")
                     }
                     if draft.photo != nil {
-                        Button("Remove Photo", systemImage: "trash", role: .destructive) { draft.removePhoto() }
+                        Button("Remove Photo", systemImage: "trash", role: .destructive) {
+                            portrait.cancel()
+                            draft.removePhoto()
+                        }
                     }
                 }
+                if portrait.isAvailable {
+                    PortraitSection(draft: draft, portrait: portrait)
+                }
                 AvatarPicker(
-                    shape: Binding(get: { draft.fields.identity.shape }, set: { draft.pickShape($0) }),
-                    color: Binding(get: { draft.fields.identity.color }, set: { draft.pickColor($0) }),
-                    expression: $draft.fields.identity.expression,
-                    reset: draft.resetLook
-                )
+                    shape: Binding(get: { draft.fields.identity.shape }, set: { portrait.cancel(); draft.pickShape($0) }),
+                    color: Binding(get: { draft.fields.identity.color }, set: { portrait.cancel(); draft.pickColor($0) }),
+                    expression: $draft.fields.identity.expression
+                ) {
+                    portrait.cancel()
+                    draft.resetLook()
+                }
             }
             .formStyle(.grouped)
             .navigationTitle("Look")
@@ -521,6 +537,10 @@ struct LookEditor: View {
                     Button("Done", role: .confirm) { dismiss() }
                 }
             }
+        }
+        .task {
+            guard !portrait.isAvailable, Snapshot.requested == nil, let gateway = connection.gateway else { return }
+            await portrait.probe(gateway)
         }
         #if os(macOS)
         .frame(width: 340, height: 560)

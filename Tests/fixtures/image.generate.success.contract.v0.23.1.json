@@ -1,0 +1,23 @@
+{
+  "inline": {
+    "available": true,
+    "success": true,
+    "image": "https://fal.media/files/example/portrait.png",
+    "image_data": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAAEUlEQVR4nGN44zETjhiI4wAA8qIc0XMkhVAAAAAASUVORK5CYII="
+  },
+  "remote": {
+    "available": true,
+    "success": true,
+    "image": "https://fal.media/files/example/portrait.png"
+  },
+  "gateway_path": {
+    "available": true,
+    "success": true,
+    "image": "/home/hermes/.hermes/cache/images/portrait.png"
+  },
+  "failed": {
+    "available": true,
+    "success": false,
+    "error": "generation failed"
+  }
+}

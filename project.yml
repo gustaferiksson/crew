@@ -189,6 +189,7 @@ targets:
       - Sources/Chat/Mentions.swift
       - Sources/Chat/SlashCommands.swift
       - Sources/Profile/ProfileDraft.swift
+      - Sources/Profile/PortraitGenerator.swift
       - Sources/Profile/CrewUISkill.swift
       - Sources/AvatarShape.swift
       - Sources/BotAvatar.swift

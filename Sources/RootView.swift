@@ -44,7 +44,7 @@ struct RootView: View {
                 AvatarPickerFixture()
             } else if Snapshot.requested == .profileSkills {
                 ProfileSkillsFixture()
-            } else if Snapshot.requested == .inspectorLook {
+            } else if [.inspectorLook, .inspectorLookPortrait, .inspectorLookGenerating].contains(Snapshot.requested) {
                 LookFixture()
             } else if Snapshot.requested == .newBot {
                 NewBotFixture()

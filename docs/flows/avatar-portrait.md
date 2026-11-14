@@ -24,7 +24,7 @@ The bot inspector's avatar opens the Look editor (`LookEditor` in `BotInspector.
 - A "Generate Portrait" button (`sparkles`).
 - Footer: "Leave blank to use the bot's name and description." (Desktop's hint, shortened), or the failure text in red.
 
-Hidden state: the section only shows when the probe answered `available: true` on the current gateway. No backend, a failed probe, offline (no gateway) and not yet probed all show nothing, so the editor looks exactly like today. The inspector probes once per gateway and keeps a `true`; the editor re-checks a `false` each time it opens (Desktop's `probeImagen`), so a backend enabled later appears without the section popping in on every open.
+Hidden state: the section only shows when the probe answered `available: true` on the current gateway. No backend, a failed probe and not yet probed (including signed out or never connected) show nothing, so the editor looks exactly like today. Once a backend is known, going offline keeps the section with Generate disabled until the gateway reconnects. The inspector probes once per gateway and keeps a `true`; the editor re-checks a `false` each time it opens (Desktop's `probeImagen`), so a backend enabled later appears without the section popping in on every open.
 
 The generate belongs to the inspector (the container), like the chosen-photo task, not to the editor: the Mac popover closes on any click outside it, and a stray click must not throw away a 40 to 60 s render.
 

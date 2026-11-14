@@ -79,6 +79,12 @@ struct GroupChatFixtureScreen: View {
             event(2, "message.member", "scout", RoomEvent.Payload(text: "Three direct options, Widerøe is the cheapest.\n\n```a2ui\n\(ChatFixture.flightsBlock)\n```", memberID: "scout", threadID: "main")),
             event(3, "message.member", "ada", RoomEvent.Payload(text: "The Widerøe flight at 07:40 lands in time for the 10:00 kickoff, and its Sunday evening return is the cheapest of the three.", memberID: "ada", threadID: "main")),
         ]
+        let photo = RoomAttachment(attachmentID: "att_photo", kind: "image", name: "Store screenshot.png", size: ChatFixture.samplePhoto.count, mime: "image/png")
+        let pdf = RoomAttachment(attachmentID: "att_pdf", kind: "pdf", name: "Privacy label review.pdf", size: 48_210, mime: "application/pdf")
+        let files = [
+            event(1, "message.user", nil, RoomEvent.Payload(text: "The review flagged this screen. Can someone check the label against the PDF?", threadID: "main", attachments: [photo, pdf])),
+            event(2, "message.member", "scout", RoomEvent.Payload(text: "The screenshot still says crash data is linked to you; the PDF says it shouldn't be. I'll update the label.", memberID: "scout", threadID: "main")),
+        ]
         let working = RoomState.Driver(working: true, pendingActions: actions, memberActivity: [RoomState.Activity(memberID: "forge", status: "running", startedAt: start.addingTimeInterval(130), tool: "terminal")])
         let session = if Snapshot.requested == .groupWelcome {
             GroupSession(fixture: room, events: [], driver: RoomState.Driver(), context: RoomContext(purpose: "Ship 0.4.2 this week"))
@@ -90,6 +96,8 @@ struct GroupChatFixtureScreen: View {
             GroupSession(fixture: room, events: reply, driver: RoomState.Driver(pendingActions: [actions[0]]))
         } else if Snapshot.requested == .groupChatReplyPinned {
             GroupSession(fixture: room, events: reply, driver: RoomState.Driver())
+        } else if Snapshot.requested == .groupChatFiles {
+            GroupSession(fixture: room, events: files, driver: RoomState.Driver(), files: ["att_photo": ChatFixture.samplePhoto])
         } else if Snapshot.requested == .groupChatPaused {
             GroupSession(fixture: room, events: paused, driver: RoomState.Driver(maxContinues: 5))
         } else {
@@ -97,6 +105,9 @@ struct GroupChatFixtureScreen: View {
         }
         return GroupChatScreen(room: room, showsInspector: .constant(false), session: session) { _ in }
             .task {
+                if Snapshot.requested == .groupChatFiles {
+                    drafts.tray(for: room.selectionID, limits: .room).items = [Attachment(kind: .image, name: "Build log.png", data: ChatFixture.samplePhoto), Attachment(kind: .file, name: "crash-report.txt")]
+                }
                 guard [.groupChatReply, .groupChatReplyPinned].contains(Snapshot.requested), let target = session.reply(to: "e3", title: { profile in bots.bots.first { $0.name == profile }?.title }) else { return }
                 let draft = drafts.draft(for: room.selectionID)
                 draft.text = target.addressing("", replacing: nil)

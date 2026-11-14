@@ -33,6 +33,7 @@ struct GroupChatScreen: View {
 
     @Environment(Connection.self) private var connection
     @Environment(BotStore.self) private var bots
+    @Environment(GroupStore.self) private var groups
     @Environment(ChatDrafts.self) private var drafts
     @State private var session: GroupSession?
     @State private var showsOffline = false
@@ -62,14 +63,14 @@ struct GroupChatScreen: View {
             emptyState: welcome,
             mentionable: members,
             draft: drafts.draft(for: room.selectionID),
-            tray: drafts.tray(for: room.selectionID),
-            features: [],
+            tray: drafts.tray(for: room.selectionID, limits: .room),
+            features: groups.canAttach ? .attachments : [],
             request: session?.request,
             offlineReason: offlineReason,
             activity: session?.activity,
             pinKey: room.selectionID,
             actions: ChatActions(
-                send: { text, _, _, _ in session?.send(text, thread: drafts.draft(for: room.selectionID).reply?.thread) },
+                send: { text, files, _, _ in session?.send(text, attachments: files, thread: drafts.draft(for: room.selectionID).reply?.thread) },
                 stop: { session?.stop() },
                 openPersona: { showsInspector.toggle() },
                 respond: { session?.respond(to: $0, with: $1) },
@@ -78,6 +79,7 @@ struct GroupChatScreen: View {
                 reply: reply
             )
         )
+        .environment(\.attachmentSource, session)
         #if os(iOS)
         .navigationDestination(isPresented: $showsInspector) {
             GroupInspector(room: room, isPresented: $showsInspector, context: session?.context, routingModes: session?.driver.routingModes, select: select)

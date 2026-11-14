@@ -128,6 +128,7 @@ struct ConversationTranscript: View {
                 )
             )
             .environment(\.chatSession, session)
+            .environment(\.attachmentSource, session)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done", role: .confirm) { dismiss() }

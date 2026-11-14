@@ -7,9 +7,11 @@ import UniformTypeIdentifiers
 final class AttachmentTray {
     var items: [Attachment]
     var failure: String?
+    let limits: Attachment.Limits
 
-    init(items: [Attachment] = []) {
+    init(items: [Attachment] = [], limits: Attachment.Limits = .chat) {
         self.items = items
+        self.limits = limits
     }
 
     func add(_ urls: [URL]) {
@@ -67,7 +69,9 @@ final class AttachmentTray {
 
     private func append(_ load: () async throws -> Attachment) async {
         do {
-            items = try Attachment.validated(items + [try await load()])
+            items = try Attachment.validated(items + [try await load()], limits: limits)
+        } catch AttachmentError.tooLarge(let name, _) {
+            failure = AttachmentError.tooLarge(name, megabytes: limits.file).localizedDescription
         } catch {
             failure = error.localizedDescription
         }
@@ -103,15 +107,20 @@ nonisolated func thumbnail(of data: Data, side: CGFloat) async -> CGImage? {
     return CGImageSourceCreateThumbnailAtIndex(source, 0, options)
 }
 
+protocol AttachmentSource: AnyObject {
+    func download(_ attachment: Attachment) async throws -> Data
+}
+
 extension EnvironmentValues {
     @Entry var chatSession: ChatSession?
+    @Entry var attachmentSource: (any AttachmentSource)?
 }
 
 struct AttachmentThumbnail: View {
     let attachment: Attachment
     let side: CGFloat
 
-    @Environment(\.chatSession) private var session
+    @Environment(\.attachmentSource) private var source
     @State private var image: CGImage?
 
     var body: some View {
@@ -131,7 +140,7 @@ struct AttachmentThumbnail: View {
         .contentShape(.rect(cornerRadius: 12))
         .accessibilityLabel(attachment.name)
         .task(id: attachment.id) {
-            guard let data = try? await session?.download(attachment) ?? attachment.data else { return }
+            guard let data = try? await source?.download(attachment) ?? attachment.data else { return }
             image = await thumbnail(of: data, side: side)
         }
     }
@@ -157,7 +166,7 @@ struct FileChip: View {
 struct PromptAttachments: View {
     let attachments: [Attachment]
 
-    @Environment(\.chatSession) private var session
+    @Environment(\.attachmentSource) private var source
     @State private var preview: URL?
     @State private var failure: String?
 
@@ -209,7 +218,7 @@ struct PromptAttachments: View {
                 let folder = URL.temporaryDirectory.appending(path: "Attachments/\(UUID().uuidString)")
                 try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
                 let url = folder.appending(path: attachment.name)
-                guard let data = try await session?.download(attachment) ?? attachment.data else { throw HermesError.invalidResponse }
+                guard let data = try await source?.download(attachment) ?? attachment.data else { throw HermesError.invalidResponse }
                 try data.write(to: url)
                 preview = url
             } catch {

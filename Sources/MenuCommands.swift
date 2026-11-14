@@ -43,8 +43,21 @@ struct PinnedCardCommand: View {
     }
 }
 
+struct ActiveNowCommand: View {
+    @FocusedBinding(\.showsActiveOnly) private var isOn
+
+    var body: some View {
+        Button(isOn == true ? "Show All Bots" : "Show Only Active Bots") {
+            isOn?.toggle()
+        }
+        .keyboardShortcut("l")
+        .disabled(isOn == nil)
+    }
+}
+
 extension FocusedValues {
     @Entry var inspector: Binding<Bool>?
     @Entry var showsPinnedCard: Binding<Bool>?
+    @Entry var showsActiveOnly: Binding<Bool>?
 }
 #endif

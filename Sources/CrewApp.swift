@@ -44,6 +44,7 @@ struct CrewApp: App {
             }
             SidebarCommands()
             CommandGroup(after: .sidebar) {
+                ActiveNowCommand()
                 InspectorCommand()
                 PinnedCardCommand()
             }

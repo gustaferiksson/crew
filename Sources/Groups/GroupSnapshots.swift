@@ -23,6 +23,14 @@ extension Snapshot {
         createdAt: .now.addingTimeInterval(-6 * 24 * 60 * 60),
         updatedAt: .now.addingTimeInterval(-2 * 60 * 60)
     )
+
+    var roomLayout: [String: RoomLayout.Entry] {
+        guard self == .sidebarRooms else { return [:] }
+        return [
+            Snapshot.fixtureRoom.id: RoomLayout.Entry(pinned: true),
+            Snapshot.fixtureRoomPair.id: RoomLayout.Entry(section: SectionTag(id: "work", name: "Work")),
+        ]
+    }
 }
 
 struct GroupChatFixtureScreen: View {

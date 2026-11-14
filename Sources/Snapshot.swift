@@ -11,6 +11,7 @@ enum Snapshot: String {
     case sidebarHidden = "sidebar-hidden"
     case sidebarActive = "sidebar-active"
     case sidebarActiveEmpty = "sidebar-active-empty"
+    case sidebarRooms = "sidebar-rooms"
     case searchResult = "search-result"
     case otherConversation = "other-conversation"
     case unreachable

@@ -10,6 +10,7 @@ struct BotsView: View {
     @Environment(Connection.self) private var connection
     @Environment(BotStore.self) private var store
     @Environment(GroupStore.self) private var groups
+    @Environment(RoomLayout.self) private var layout
     @Environment(ChatSessions.self) private var chats
     @Environment(PushCenter.self) private var push
     @Environment(ChatDrafts.self) private var drafts
@@ -34,7 +35,7 @@ struct BotsView: View {
     @State private var isCreatingGroup = false
     @State private var deleting: Bot?
     @State private var toggles = 0
-    @State private var filing: Bot?
+    @State private var filing: String?
     @State private var sectionName = ""
     @State private var failure: String?
     @State private var showsConnectionPill = false
@@ -113,12 +114,16 @@ struct BotsView: View {
             Button("Cancel", role: .cancel) {}
             Button("Create") {
                 let name = sectionName.trimmingCharacters(in: .whitespacesAndNewlines)
-                guard let bot = filing, !name.isEmpty else { return }
+                guard !name.isEmpty else { return }
                 let id = "sec-\(String(Int(Date.now.timeIntervalSince1970 * 1000), radix: 36))-\(String(Int.random(in: 0..<36 * 36 * 36 * 36 * 36), radix: 36))"
-                perform { try await store.move(bot, to: SectionTag(id: id, name: name), via: $0) }
+                if let room = groups.rooms.first(where: { $0.selectionID == filing }) {
+                    layout.move(room, to: SectionTag(id: id, name: name))
+                } else if let bot = store.bots.first(where: { $0.id == filing }) {
+                    perform { try await store.move(bot, to: SectionTag(id: id, name: name), via: $0) }
+                }
             }
         } message: {
-            Text("Move \(filing?.title ?? "") to a new section.")
+            Text("Move \(store.bots.first { $0.id == filing }?.title ?? groups.rooms.first { $0.selectionID == filing }?.name ?? "") to a new section.")
         }
         .alert("Something Went Wrong", isPresented: Binding(get: { failure != nil }, set: { if !$0 { failure = nil } })) {
             Button("OK", role: .cancel) {}
@@ -244,7 +249,8 @@ struct BotsView: View {
         List(selection: $selection) {
             if isStrip {
                 ForEach(store.favourites) { stripTile(for: $0) }
-                ForEach(store.sections) { section in
+                ForEach(layout.pinned(groups.rooms)) { stripTile(for: $0) }
+                ForEach(sections) { section in
                     ForEach(rows(in: section)) { row in
                         if case .bot(let bot) = row {
                             stripTile(for: bot)
@@ -253,9 +259,6 @@ struct BotsView: View {
                         }
                     }
                 }
-                if !store.sections.contains(where: { $0.id.isEmpty }) {
-                    ForEach(groups.rooms) { stripTile(for: $0) }
-                }
             } else if query.isEmpty && showsActiveOnly {
                 Section {
                     ForEach(activeBots) { row(for: $0) }
@@ -263,10 +266,10 @@ struct BotsView: View {
                 }
                 .listSectionSeparator(.hidden, edges: .top)
             } else if query.isEmpty {
-                if !store.favourites.isEmpty {
+                if !store.favourites.isEmpty || !layout.pinned(groups.rooms).isEmpty {
                     favourites
                 }
-                ForEach(store.sections) { section in
+                ForEach(sections) { section in
                     Section {
                         ForEach(rows(in: section)) { row in
                             if case .bot(let bot) = row {
@@ -277,14 +280,6 @@ struct BotsView: View {
                         }
                     } header: {
                         if let name = section.name { Text(name) }
-                    }
-                    .listSectionSeparator(.hidden, edges: .top)
-                }
-                if !store.sections.contains(where: { $0.id.isEmpty }) && !groups.rooms.isEmpty {
-                    Section {
-                        ForEach(groups.rooms) { groupRow(for: $0) }
-                    } header: {
-                        if !store.sections.isEmpty { Text("Other") }
                     }
                     .listSectionSeparator(.hidden, edges: .top)
                 }
@@ -367,7 +362,11 @@ struct BotsView: View {
         .scrollEdgeEffectStyle(VoiceMessage.shared.attributes == nil ? nil : .hard, for: .bottom)
         #else
         .contextMenu(forSelectionType: String.self) { ids in
-            if ids.count == 1, let bot = ids.first.flatMap({ id in store.bots.first { $0.id == id } }) { menu(for: bot) }
+            if ids.count == 1, let bot = ids.first.flatMap({ id in store.bots.first { $0.id == id } }) {
+                menu(for: bot)
+            } else if ids.count == 1, let room = ids.first.flatMap({ id in groups.rooms.first { $0.selectionID == id } }) {
+                menu(for: room)
+            }
         } primaryAction: { ids in
             if ids.count == 1, let id = ids.first, store.bots.contains(where: { $0.id == id }) { openWindow(value: id) }
         }
@@ -410,6 +409,7 @@ struct BotsView: View {
                                 await connection.signOut()
                                 drafts.reset()
                                 pins.reset()
+                                layout.reset()
                                 cardState?.reset()
                                 cardTimers?.reset()
                                 await push.cancelTimers(chat: nil)
@@ -508,10 +508,13 @@ struct BotsView: View {
         .selectionDisabled()
     }
 
+    private var sections: [BotSection] {
+        layout.sections(merging: store.sections, rooms: groups.rooms)
+    }
+
     private func rows(in section: BotSection) -> [ListRow] {
         var rows = section.bots.map(ListRow.bot)
-        guard section.id.isEmpty else { return rows }
-        for room in groups.rooms {
+        for room in layout.rooms(in: section, of: groups.rooms) {
             let index = rows.firstIndex { row in
                 guard case .bot(let bot) = row else { return false }
                 return [BotStatus.idle, .failed].contains(store.statuses[bot.id] ?? .idle) && (bot.canonicalSession?.lastActive ?? .distantPast) < room.updatedAt
@@ -525,6 +528,14 @@ struct BotsView: View {
         GroupRow(room: room, isOpen: selection == room.selectionID)
             .tag(room.selectionID)
             .listRowInsets(EdgeInsets(top: rowPadding, leading: 0, bottom: rowPadding, trailing: 12))
+            #if os(iOS)
+            .contextMenu { menu(for: room) }
+            #endif
+            .swipeActions(edge: .leading) {
+                pinButton(for: room)
+                    .labelStyle(.iconOnly)
+                    .tint(.orange)
+            }
     }
 
     private func stripTile(for bot: Bot) -> some View {
@@ -560,6 +571,15 @@ struct BotsView: View {
                 .simultaneousGesture(TapGesture(count: 2).onEnded { openWindow(value: bot.id) })
                 #endif
                 .contextMenu { menu(for: bot) }
+            }
+            ForEach(layout.pinned(groups.rooms)) { room in
+                Button {
+                    selection = room.selectionID
+                } label: {
+                    FavouriteRoomTile(room: room, size: tileAvatarSize, isSelected: selection == room.selectionID)
+                }
+                .buttonStyle(.plain)
+                .contextMenu { menu(for: room) }
             }
         }
         .padding(.vertical, 8)
@@ -597,6 +617,13 @@ struct BotsView: View {
         .disabled(connection.state != .connected)
     }
 
+    private func pinButton(for room: Room) -> some View {
+        Button(layout.isPinned(room) ? "Unpin" : "Pin", systemImage: layout.isPinned(room) ? "pin.slash.fill" : "pin.fill") {
+            toggles += 1
+            layout.togglePin(room)
+        }
+    }
+
     private func pinButton(for bot: Bot) -> some View {
         Button(bot.meta.pinned == true ? "Unpin" : "Pin", systemImage: bot.meta.pinned == true ? "pin.slash.fill" : "pin.fill") {
             toggles += 1
@@ -618,7 +645,7 @@ struct BotsView: View {
                 perform { selection = try await store.duplicate(bot, via: $0) }
             }
             Menu("Move to Section", systemImage: "folder") {
-                ForEach(store.sectionTags, id: \.self) { section in
+                ForEach(sectionTags, id: \.self) { section in
                     Button(section.name) {
                         perform { try await store.move(bot, to: section, via: $0) }
                     }
@@ -626,7 +653,7 @@ struct BotsView: View {
                 }
                 Button("New Section…", systemImage: "folder.badge.plus") {
                     sectionName = ""
-                    filing = bot
+                    filing = bot.id
                 }
                 if bot.meta.sectionID != nil {
                     Divider()
@@ -641,6 +668,29 @@ struct BotsView: View {
             }
         }
         .disabled(connection.state != .connected)
+    }
+
+    @ViewBuilder
+    private func menu(for room: Room) -> some View {
+        pinButton(for: room)
+        Menu("Move to Section", systemImage: "folder") {
+            ForEach(sectionTags, id: \.self) { section in
+                Button(section.name) { layout.move(room, to: section) }
+                    .disabled(section.id == layout.section(of: room)?.id)
+            }
+            Button("New Section…", systemImage: "folder.badge.plus") {
+                sectionName = ""
+                filing = room.selectionID
+            }
+            if layout.section(of: room) != nil {
+                Divider()
+                Button("Remove from Section", systemImage: "folder.badge.minus") { layout.move(room, to: nil) }
+            }
+        }
+    }
+
+    private var sectionTags: [SectionTag] {
+        layout.sectionTags(merging: store.sectionTags, rooms: groups.rooms)
     }
 
     private func perform(_ action: @escaping (Gateway) async throws -> Void) {

@@ -56,6 +56,9 @@ def bot_chat(monkeypatch: pytest.MonkeyPatch, hermes_root: Path,
         def get_session(self, session_id: str) -> dict[str, Any] | None:
             return session_rows.get(session_id)
 
+        def get_conversation_root(self, session_id: str) -> str:
+            return str((session_rows.get(session_id) or {}).get("root") or session_id)
+
         def close(self) -> None:
             pass
 

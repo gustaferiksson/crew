@@ -84,6 +84,14 @@ def test_failed_and_interrupted_member_turns_are_silent(push: CrewPush, enqueued
     assert enqueued == []
 
 
+def test_compressed_room_session_pushes(push: CrewPush, enqueued: list,
+                                       session_rows: dict[str, dict[str, Any]]) -> None:
+    session_rows["20261114_120000_d00d00"] = {**RECORDED, "id": "20261114_120000_d00d00", "root": SESSION,
+                                              "title": f"Group: {ROOM['room_id']} #2"}
+    turn(push, "After compression.", session_id="20261114_120000_d00d00")
+    assert enqueued[0][2]["crew"]["room_id"] == ROOM["room_id"]
+
+
 def test_disbanded_room_is_silent(push: CrewPush, enqueued: list) -> None:
     turn(push, "Done.", session_id=RECORDED["id"])
     assert enqueued == []

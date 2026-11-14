@@ -138,7 +138,7 @@ struct BotsView: View {
         }
         #endif
         .onChange(of: store.bots.map(\.id)) { _, ids in
-            if store.isLoaded, let selection, !ids.contains(selection), selectedRoom == nil { self.selection = nil }
+            if store.isLoaded, let selection, !selection.hasPrefix("group:"), !ids.contains(selection) { self.selection = nil }
         }
         .onChange(of: groups.rooms.map(\.selectionID)) { _, ids in
             if let selection, selection.hasPrefix("group:"), !ids.contains(selection) { self.selection = nil }

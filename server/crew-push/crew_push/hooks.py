@@ -216,7 +216,7 @@ def room_of(profile: str, session_id: str) -> str:
 
     db = SessionDB(db_path=get_profile_dir(profile) / "state.db", read_only=True)
     try:
-        row = db.get_session(session_id) or {}
+        row = db.get_session(db.get_conversation_root(session_id)) or {}
     finally:
         db.close()
     title = str(row.get("title") or "")

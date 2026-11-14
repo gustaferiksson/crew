@@ -42,9 +42,9 @@ crew-push maps the session to its room read-only: the session row in the member'
 ## States
 
 - Room disbanded mid-turn: no push. Room renamed: the next push uses the new name. Hermes refuses an empty room name, so the title is never empty.
-- Tapping a stale push (room disbanded since, or a server whose `groups.capabilities` no longer gates rooms in): the selection is set, the room never appears in `groups.list`, so the existing rule clears the selection and the user sees the list.
+- Tapping a stale push (room disbanded since, or a server whose `groups.capabilities` no longer gates rooms in): the selection is set; the bot roster load leaves a room selection alone (it used to clear any selection that was not a bot before `groups.list` answered, which would have dropped a cold-launch tap), and the room rule clears it once the room list changes without it. Until then the detail shows "No Bot Selected" (a server with no rooms at all never changes the list, so it stays there).
 - Older crew-push: no room pushes (unchanged). Older Crew with new crew-push: the push shows, a tap selects the member bot (old `PushRoute` ignores `room_id`), viewing that bot's Bot Chat suppresses the banner, and opening the room does not clear its stack. Acceptable for one release; Crew and crew-push ship together.
-- Peer rooms (member on another gateway): the turn runs on that gateway; if crew-push runs there it pushes the same way (same session title rule), else nothing.
+- Peer rooms (member on another gateway): unverified. The turn runs on the member's gateway, whose `list_rooms` probably does not list a room owned elsewhere, so most likely nothing pushes.
 
 ## Verification
 

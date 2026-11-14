@@ -52,7 +52,7 @@ struct RootView: View {
                 NewBotAdvancedFixture()
             } else if Snapshot.requested == .newGroup {
                 NewGroupSheet { _ in }
-            } else if [.groupChat, .groupChatPaused, .groupChatContext, .groupChatRoutine, .groupChatReply, .groupChatReplyPinned, .groupWelcome].contains(Snapshot.requested) {
+            } else if [.groupChat, .groupChatPaused, .groupChatContext, .groupChatRoutine, .groupChatReply, .groupChatReplyPinned, .groupChatFiles, .groupWelcome].contains(Snapshot.requested) {
                 GroupChatFixtureScreen()
             } else if [.groupInspector, .groupInspectorMembers].contains(Snapshot.requested) {
                 GroupInspectorFixtureScreen()

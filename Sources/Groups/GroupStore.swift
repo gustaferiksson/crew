@@ -92,12 +92,14 @@ nonisolated private struct DisbandRoomParams: Encodable, Sendable {
 final class GroupStore {
     private(set) var rooms: [Room] = []
     private(set) var isSupported = false
+    private(set) var canAttach = false
 
     init() {}
 
     init(fixture rooms: [Room]) {
         self.rooms = rooms
         isSupported = true
+        canAttach = true
     }
 
     func rooms(with bot: Bot) -> [Room] {
@@ -151,11 +153,13 @@ final class GroupStore {
     func reset() {
         rooms = []
         isSupported = false
+        canAttach = false
     }
 
     private func check(_ gateway: Gateway) async {
         let capabilities = try? await gateway.call("groups.capabilities", [String: String](), as: RoomCapabilities.self)
         isSupported = capabilities.map { $0.driver && requiredMethods.isSubset(of: $0.methods) } ?? false
+        canAttach = isSupported && capabilities?.methods.contains("groups.attachment.upload") == true
         guard isSupported else { return rooms = [] }
         await reload(gateway)
     }

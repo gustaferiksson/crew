@@ -100,6 +100,7 @@ enum Snapshot: String {
     case groupChatRoutine = "group-chat-routine"
     case groupChatReply = "group-chat-reply"
     case groupChatReplyPinned = "group-chat-reply-pinned"
+    case groupChatFiles = "group-chat-files"
     case groupWelcome = "group-welcome"
     case groupInspector = "group-inspector"
     case groupInspectorMembers = "group-inspector-members"

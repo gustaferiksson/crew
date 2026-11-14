@@ -1,0 +1,129 @@
+[
+  {
+    "actor" : {
+      "id" : "desktop",
+      "kind" : "user"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794664880.829778,
+    "event_id" : "user:f692faf37ef9dc3edae0e98f2dcf230e2a7cc3c7caf2cea2fd3705801b53a360",
+    "idempotent" : false,
+    "kind" : "message.user",
+    "payload" : {
+      "attachments" : [
+        {
+          "attachment_id" : "att_37e656c105367f0b8ccb49b30866019f",
+          "kind" : "image",
+          "mime" : "image/png",
+          "name" : "swatch.png",
+          "size" : 277
+        },
+        {
+          "attachment_id" : "att_20b45d203a713deed450882b2c3d737c",
+          "kind" : "file",
+          "mime" : "text/plain",
+          "name" : "note.txt",
+          "size" : 26
+        }
+      ],
+      "text" : "@crew-test What colour is the attached image, and what code word is in the attached text file? Answer in one short sentence.",
+      "thread_id" : "86DE9BC7-E040-454C-9366-0F4BEBC549F9"
+    },
+    "room_id" : "room-7831349e-bf2e-49fa-a0f9-f608d9f85006",
+    "seq" : 1
+  },
+  {
+    "actor" : {
+      "display_name" : "Crew Test",
+      "id" : "crew-test",
+      "kind" : "member",
+      "profile" : "crew-test"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794664899.3361712,
+    "event_id" : "dmessage:60aa56fea6f738bf8cc7da477f24d67ca3a84c060f1903ce",
+    "idempotent" : false,
+    "kind" : "message.member",
+    "payload" : {
+      "discussion_event_id" : "user:f692faf37ef9dc3edae0e98f2dcf230e2a7cc3c7caf2cea2fd3705801b53a360",
+      "member_id" : "crew-test",
+      "member_index" : 0,
+      "round_index" : 0,
+      "task_id" : "dtask:60aa56fea6f738bf8cc7da477f24d67ca3a84c060f1903ce",
+      "text" : "@crew-test-51e10b, the image is red and the code word is PELICAN.",
+      "thread_id" : "86DE9BC7-E040-454C-9366-0F4BEBC549F9",
+      "turn_id" : "d1.r0.p0.s1.m46eb3c289a3ef56e56dcf71a"
+    },
+    "room_id" : "room-7831349e-bf2e-49fa-a0f9-f608d9f85006",
+    "seq" : 2
+  },
+  {
+    "actor" : {
+      "id" : "install:f990dea42fbd4536a995a0e6678730fb",
+      "kind" : "gateway"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794664899.3411858,
+    "event_id" : "dterminal:60aa56fea6f738bf8cc7da477f24d67ca3a84c060f1903ce",
+    "idempotent" : false,
+    "kind" : "turn.settled",
+    "payload" : {
+      "discussion_event_id" : "user:f692faf37ef9dc3edae0e98f2dcf230e2a7cc3c7caf2cea2fd3705801b53a360",
+      "member_id" : "crew-test",
+      "member_index" : 0,
+      "message_event_id" : "dmessage:60aa56fea6f738bf8cc7da477f24d67ca3a84c060f1903ce",
+      "passed" : false,
+      "round_index" : 0,
+      "seen_through_seq" : 1,
+      "task_id" : "dtask:60aa56fea6f738bf8cc7da477f24d67ca3a84c060f1903ce",
+      "thread_id" : "86DE9BC7-E040-454C-9366-0F4BEBC549F9",
+      "turn_id" : "d1.r0.p0.s1.m46eb3c289a3ef56e56dcf71a"
+    },
+    "room_id" : "room-7831349e-bf2e-49fa-a0f9-f608d9f85006",
+    "seq" : 3
+  },
+  {
+    "actor" : {
+      "id" : "install:f990dea42fbd4536a995a0e6678730fb",
+      "kind" : "gateway"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794664911.410514,
+    "event_id" : "dterminal:0ec15bfaf56b3adb699be5b6357722523098bb9f04e6437b",
+    "idempotent" : false,
+    "kind" : "turn.settled",
+    "payload" : {
+      "discussion_event_id" : "user:f692faf37ef9dc3edae0e98f2dcf230e2a7cc3c7caf2cea2fd3705801b53a360",
+      "member_id" : "crew-test-51e10b",
+      "member_index" : 0,
+      "message_event_id" : null,
+      "passed" : true,
+      "round_index" : 1,
+      "seen_through_seq" : 2,
+      "task_id" : "dtask:0ec15bfaf56b3adb699be5b6357722523098bb9f04e6437b",
+      "thread_id" : "86DE9BC7-E040-454C-9366-0F4BEBC549F9",
+      "turn_id" : "d1.r1.p0.s2.md252dd75d02f2073ad56498a"
+    },
+    "room_id" : "room-7831349e-bf2e-49fa-a0f9-f608d9f85006",
+    "seq" : 4
+  },
+  {
+    "actor" : {
+      "id" : "install:f990dea42fbd4536a995a0e6678730fb",
+      "kind" : "gateway"
+    },
+    "authority_epoch" : 1,
+    "created_at" : 1794664911.4559565,
+    "event_id" : "dactivity:user:f692faf37ef9dc3edae0e98f2dcf230e2a7cc3c7caf2cea2fd3705801b53a360:silent_round",
+    "idempotent" : false,
+    "kind" : "room.activity",
+    "payload" : {
+      "discussion_event_id" : "user:f692faf37ef9dc3edae0e98f2dcf230e2a7cc3c7caf2cea2fd3705801b53a360",
+      "reason_code" : "silent_round",
+      "status" : "settled",
+      "thread_id" : "86DE9BC7-E040-454C-9366-0F4BEBC549F9"
+    },
+    "room_id" : "room-7831349e-bf2e-49fa-a0f9-f608d9f85006",
+    "seq" : 5
+  }
+]

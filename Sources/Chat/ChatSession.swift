@@ -28,7 +28,7 @@ nonisolated extension TodoItem: Decodable {
 }
 
 @Observable
-final class ChatSession {
+final class ChatSession: AttachmentSource {
     private(set) var transcript = Transcript() {
         didSet { visible = transcript.visible }
     }

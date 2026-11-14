@@ -237,6 +237,7 @@ targets:
       - Sources/Voice/Speaker.swift
       - Sources/Tasks/Routines.swift
       - Sources/Tasks/RoutineList.swift
+      - Sources/Tasks/RoutineDestination.swift
       - Tests/CrewTests
     settings:
       base:

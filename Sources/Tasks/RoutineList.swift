@@ -4,6 +4,8 @@ struct RoutineList: View {
     let bot: Bot
     let store: RoutineStore
     let onCreate: () -> Void
+    let onEdit: (RoutineJob) -> Void
+    @Environment(GroupStore.self) private var groups
     @State private var pendingDeletion: RoutineJob?
 
     var body: some View {
@@ -29,7 +31,7 @@ struct RoutineList: View {
             } else {
                 Section {
                     ForEach(store.jobs) { job in
-                        RoutineRow(job: job, isRunning: store.isRunning(job), isStopping: store.stopping.contains(job.id), isBusy: store.inFlight.contains(job.id)) {
+                        RoutineRow(job: job, room: roomLabel(job.destination), isRunning: store.isRunning(job), isStopping: store.stopping.contains(job.id), isBusy: store.inFlight.contains(job.id)) {
                             Task { await store.stop(job) }
                         } actions: {
                             actions(job)
@@ -74,13 +76,21 @@ struct RoutineList: View {
         Button(job.isPaused ? "Resume" : "Pause", systemImage: job.isPaused ? "play.circle" : "pause.circle") {
             Task { await store.toggle(job) }
         }
+        Button("Edit…", systemImage: "pencil") { onEdit(job) }
         Divider()
         Button("Delete…", systemImage: "trash", role: .destructive) { pendingDeletion = job }
+    }
+
+    private func roomLabel(_ destination: RoutineDestination) -> String? {
+        guard case .room(let id) = destination else { return nil }
+        if let room = groups.rooms.first(where: { $0.id == id }) { return String(localized: "Posts to \(room.name)") }
+        return groups.isLoaded ? String(localized: "Posts to a removed room") : String(localized: "Posts to a room")
     }
 }
 
 private struct RoutineRow<Actions: View>: View {
     let job: RoutineJob
+    let room: String?
     let isRunning: Bool
     let isStopping: Bool
     let isBusy: Bool
@@ -112,6 +122,11 @@ private struct RoutineRow<Actions: View>: View {
                 Text(describeSchedule(job.schedule))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+                if let room {
+                    Label(room, systemImage: "bubble.left.and.bubble.right")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
                 if isStopping {
                     Label("Stopping…", systemImage: "stop.circle")
                         .font(.caption)
@@ -204,13 +219,16 @@ extension RoutineJob {
 struct RoutineEditor: View {
     let bot: Bot
     let store: RoutineStore
+    let job: RoutineJob?
     @Environment(\.dismiss) private var dismiss
-    @State private var title = ""
-    @State private var prompt = ""
-    @State private var frequency = Frequency.daily
-    @State private var time = Calendar.current.date(from: DateComponents(hour: 9, minute: 0)) ?? .now
-    @State private var weekday = 1
-    @State private var expression = ""
+    @Environment(GroupStore.self) private var groups
+    @State private var title: String
+    @State private var prompt: String
+    @State private var frequency: Frequency
+    @State private var time: Date
+    @State private var weekday: Int
+    @State private var expression: String
+    @State private var destination: RoutineDestination
     @State private var error: String?
     @State private var isSaving = false
 
@@ -219,13 +237,34 @@ struct RoutineEditor: View {
         var id: Self { self }
     }
 
+    init(bot: Bot, store: RoutineStore, job: RoutineJob? = nil) {
+        self.bot = bot
+        self.store = store
+        self.job = job
+        let fields = job?.schedule.split(separator: " ").map(String.init) ?? []
+        let preset: (frequency: Frequency, hour: Int, minute: Int, weekday: Int)? = if fields.count == 5, fields[2...3] == ["*", "*"],
+            let minute = Int(fields[0]), (0..<60).contains(minute), let hour = Int(fields[1]), (0..<24).contains(hour) {
+            if fields[4] == "*" { (.daily, hour, minute, 1) }
+            else if fields[4] == "1-5" { (.weekdays, hour, minute, 1) }
+            else if let day = Int(fields[4]), (0..<7).contains(day) { (.weekly, hour, minute, day) }
+            else { nil }
+        } else { nil }
+        _title = State(initialValue: job?.title ?? "")
+        _prompt = State(initialValue: job?.prompt ?? "")
+        _frequency = State(initialValue: job == nil ? .daily : preset?.frequency ?? .custom)
+        _time = State(initialValue: Calendar.current.date(from: DateComponents(hour: preset?.hour ?? 9, minute: preset?.minute ?? 0)) ?? .now)
+        _weekday = State(initialValue: preset?.weekday ?? 1)
+        _expression = State(initialValue: preset == nil ? job?.schedule ?? "" : "")
+        _destination = State(initialValue: job?.destination ?? .history)
+    }
+
     var body: some View {
         let clock = Calendar.current.dateComponents([.hour, .minute], from: time)
         let at = "\(clock.minute ?? 0) \(clock.hour ?? 9)"
         let schedule = [
             .hourly: "every 1h", .daily: "\(at) * * *", .weekdays: "\(at) * * 1-5", .weekly: "\(at) * * \(weekday)",
         ][frequency] ?? expression.trimmingCharacters(in: .whitespacesAndNewlines)
-        let isComplete = !title.trimmingCharacters(in: .whitespaces).isEmpty && !prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !schedule.isEmpty
+        let isComplete = !title.trimmingCharacters(in: .whitespaces).isEmpty && (!prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || job?.prompt.isEmpty == true) && !schedule.isEmpty
         NavigationStack {
             Form {
                 Section {
@@ -253,6 +292,9 @@ struct RoutineEditor: View {
                 } footer: {
                     Text(schedule.isEmpty ? "Use a cron expression, an interval like every 30m, or a phrase like every monday 9am." : "\(describeSchedule(schedule)), on the server's clock.")
                 }
+                if groups.isSupported || destination != .history {
+                    destinationSection
+                }
                 if let error {
                     Section {
                         Label(error, systemImage: "exclamationmark.triangle.fill")
@@ -261,21 +303,23 @@ struct RoutineEditor: View {
                 }
             }
             .formStyle(.grouped)
-            .navigationTitle("New Routine")
+            .navigationTitle(job == nil ? "New Routine" : "Edit Routine")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel", role: .cancel) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Create", role: .confirm) {
+                    Button(job == nil ? "Create" : "Save", role: .confirm) {
                         Task {
                             isSaving = true
+                            let title = title.trimmingCharacters(in: .whitespaces)
+                            let prompt = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
                             do {
-                                try await store.create(
-                                    title: title.trimmingCharacters(in: .whitespaces),
-                                    prompt: prompt.trimmingCharacters(in: .whitespacesAndNewlines),
-                                    schedule: schedule
-                                )
+                                if let job {
+                                    try await store.update(job, title: title, prompt: prompt, schedule: schedule, destination: destination)
+                                } else {
+                                    try await store.create(title: title, prompt: prompt, schedule: schedule, destination: destination)
+                                }
                                 dismiss()
                             } catch {
                                 self.error = error.localizedDescription
@@ -290,5 +334,41 @@ struct RoutineEditor: View {
         #if os(macOS)
         .frame(minWidth: 440, minHeight: 440)
         #endif
+    }
+
+    private var destinationSection: some View {
+        let rooms = groups.rooms(with: bot)
+        let saved = job?.destination ?? .history
+        let isListed = saved == .history || rooms.contains { .room($0.id) == saved }
+        return Section {
+            Picker("Post To", selection: $destination) {
+                Text("Don't Post").tag(RoutineDestination.history)
+                Divider()
+                ForEach(rooms) { room in
+                    Text(room.name).tag(RoutineDestination.room(room.id))
+                }
+                if !isListed {
+                    Text(name(of: saved)).tag(saved)
+                }
+            }
+        } footer: {
+            if case .room = destination {
+                Text("Each run posts its result in \(name(of: destination)). Members answer only when the result @mentions them or @all.")
+            } else if destination == .history, rooms.isEmpty {
+                Text("Each run's result stays in its own conversation under Conversations. Create a room with \(bot.title) to post results there.")
+            } else if destination == .history {
+                Text("Each run's result stays in its own conversation under Conversations.")
+            }
+        }
+    }
+
+    private func name(of destination: RoutineDestination) -> String {
+        if case .room(let id) = destination {
+            return groups.rooms.first { $0.id == id }?.name ?? (groups.isLoaded ? String(localized: "Removed Room") : String(localized: "Room"))
+        }
+        if case .other(let raw) = destination {
+            return raw == "bot-chat" ? String(localized: "Bot Chat") : raw
+        }
+        return String(localized: "Don't Post")
     }
 }

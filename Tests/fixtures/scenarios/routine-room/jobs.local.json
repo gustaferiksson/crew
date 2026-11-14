@@ -1,0 +1,17 @@
+{
+  "deliver" : "local",
+  "enabled" : true,
+  "id" : "72e45fb0c939",
+  "last_delivery_error" : null,
+  "last_error" : null,
+  "last_run_at" : null,
+  "last_status" : null,
+  "latest_execution" : null,
+  "live_execution" : null,
+  "name" : "[bot:crew-test-peer] Room post",
+  "next_run_at" : "2026-11-15T13:35:58.425748+00:00",
+  "paused_reason" : null,
+  "prompt" : "Reply with exactly this text and nothing else: Probe post from Crew.",
+  "schedule_display" : "every 1440m",
+  "state" : "scheduled"
+}

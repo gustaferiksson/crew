@@ -1,0 +1,24 @@
+{
+  "deliver" : "room:room-crew-probe@default",
+  "enabled" : true,
+  "id" : "72e45fb0c939",
+  "last_delivery_error" : "room:room-crew-probe@default: no live Group Chat with that id on this machine",
+  "last_error" : null,
+  "last_run_at" : "2026-11-14T13:36:21.923941+00:00",
+  "last_status" : "delivery_failed",
+  "latest_execution" : {
+    "claimed_at" : "2026-11-14T13:36:18.742640+00:00",
+    "error" : null,
+    "finished_at" : "2026-11-14T13:36:21.926786+00:00",
+    "id" : "5a82b02bd37740cea86f1665a748d638",
+    "scheduled_instant" : null,
+    "status" : "completed"
+  },
+  "live_execution" : null,
+  "name" : "[bot:crew-test-peer] Room post",
+  "next_run_at" : "2026-11-15T13:35:58.425748+00:00",
+  "paused_reason" : null,
+  "prompt" : "Reply with exactly this text and nothing else: Probe post from Crew.",
+  "schedule_display" : "every 1440m",
+  "state" : "scheduled"
+}

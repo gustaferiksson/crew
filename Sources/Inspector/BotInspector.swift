@@ -20,6 +20,7 @@ struct BotInspector: View {
     @State private var tab: InspectorTab
     @State private var routines: RoutineStore
     @State private var isCreatingRoutine = false
+    @State private var editingRoutine: RoutineJob?
     @State private var draft: ProfileDraft
     @State private var showsLook = false
     @State private var pokes = 0
@@ -87,7 +88,7 @@ struct BotInspector: View {
             } else if tab == .passwords {
                 PasswordsTab(bot: bot, vault: vault, canBrowse: draft.canBrowse, shops: shops, highlighted: highlightedLogins, editing: $editingLogin, isConnecting: $isConnectingOnePassword, isAddingShop: $isAddingShop, isEditingCard: $isEditingCard)
             } else {
-                RoutineList(bot: bot, store: routines) { isCreatingRoutine = true }
+                RoutineList(bot: bot, store: routines) { isCreatingRoutine = true } onEdit: { editingRoutine = $0 }
             }
         }
         .formStyle(.grouped)
@@ -106,6 +107,9 @@ struct BotInspector: View {
         #endif
         .sheet(isPresented: $isCreatingRoutine) {
             RoutineEditor(bot: bot, store: routines)
+        }
+        .sheet(item: $editingRoutine) { job in
+            RoutineEditor(bot: bot, store: routines, job: job)
         }
         .sheet(item: $capabilitySheet) { kind in
             CapabilityList(kind: kind, items: $draft.fields[dynamicMember: kind.items])

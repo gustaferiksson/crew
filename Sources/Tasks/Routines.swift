@@ -113,8 +113,9 @@ private struct CronContext {
     let gateway: Gateway
     let urlSession: URLSession
 
-    func request(_ path: String, post: Bool = false) -> URLRequest {
-        var request = hermesRequest("api/cron/jobs\(path)", on: gateway.server, json: post ? [:] : nil)
+    func request(_ path: String, method: String = "GET") -> URLRequest {
+        var request = hermesRequest("api/cron/jobs\(path)", on: gateway.server, json: method == "GET" ? nil : [:])
+        request.httpMethod = method
         request.url?.append(queryItems: [URLQueryItem(name: "profile", value: profile)])
         return request
     }
@@ -193,7 +194,7 @@ final class RoutineStore {
     func trigger(_ job: RoutineJob) async {
         guard let context, triggers[job.id] == nil, !inFlight.contains(job.id) else { return }
         triggers[job.id] = .now
-        var request = context.request("/\(job.id)/trigger", post: true)
+        var request = context.request("/\(job.id)/trigger", method: "POST")
         request.timeoutInterval = 7200
         let failure: (any Error)?
         do {
@@ -213,7 +214,7 @@ final class RoutineStore {
         guard !inFlight.contains(job.id) else { return }
         stopping.insert(job.id)
         await perform(job) { context in
-            let cancel = context.request("/\(job.id)/cancel", post: true)
+            let cancel = context.request("/\(job.id)/cancel", method: "POST")
             var reply = try await fetch(cancel, with: context.urlSession, as: CancelReply.self)
             if !reply.cancelled, self.triggers[job.id] != nil, (try? await Task.sleep(for: .seconds(1))) != nil {
                 reply = try await fetch(cancel, with: context.urlSession, as: CancelReply.self)
@@ -254,8 +255,7 @@ final class RoutineStore {
             "deliver": destination == job.destination ? nil : destination.deliver,
         ].compactMapValues { $0 }
         guard !updates.isEmpty else { return }
-        var request = context.request("/\(job.id)", post: true)
-        request.httpMethod = "PUT"
+        var request = context.request("/\(job.id)", method: "PUT")
         request.httpBody = try? JSONEncoder().encode(["updates": updates])
         do {
             _ = try await fetch(request, with: context.urlSession, as: JSONValue.self)

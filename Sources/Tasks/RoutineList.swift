@@ -82,9 +82,8 @@ struct RoutineList: View {
     }
 
     private func roomLabel(_ destination: RoutineDestination) -> String? {
-        guard case .room(let id) = destination else { return nil }
-        if let room = groups.rooms.first(where: { $0.id == id }) { return String(localized: "Posts to \(room.name)") }
-        return groups.isLoaded ? String(localized: "Posts to a removed room") : String(localized: "Posts to a room")
+        guard case .room(let id) = destination, let name = groups.name(ofRoom: id) else { return nil }
+        return String(localized: "Posts to \(name)")
     }
 }
 
@@ -241,14 +240,7 @@ struct RoutineEditor: View {
         self.bot = bot
         self.store = store
         self.job = job
-        let fields = job?.schedule.split(separator: " ").map(String.init) ?? []
-        let preset: (frequency: Frequency, hour: Int, minute: Int, weekday: Int)? = if fields.count == 5, fields[2...3] == ["*", "*"],
-            let minute = Int(fields[0]), (0..<60).contains(minute), let hour = Int(fields[1]), (0..<24).contains(hour) {
-            if fields[4] == "*" { (.daily, hour, minute, 1) }
-            else if fields[4] == "1-5" { (.weekdays, hour, minute, 1) }
-            else if let day = Int(fields[4]), (0..<7).contains(day) { (.weekly, hour, minute, day) }
-            else { nil }
-        } else { nil }
+        let preset = job.flatMap { Self.preset(of: $0.schedule) }
         _title = State(initialValue: job?.title ?? "")
         _prompt = State(initialValue: job?.prompt ?? "")
         _frequency = State(initialValue: job == nil ? .daily : preset?.frequency ?? .custom)
@@ -258,11 +250,23 @@ struct RoutineEditor: View {
         _destination = State(initialValue: job?.destination ?? .history)
     }
 
+    static func preset(of schedule: String) -> (frequency: Frequency, hour: Int, minute: Int, weekday: Int)? {
+        if schedule == "every 60m" { return (.hourly, 9, 0, 1) }
+        let fields = schedule.split(separator: " ").map(String.init)
+        guard fields.count == 5, fields[2...3] == ["*", "*"],
+              let minute = Int(fields[0]), (0..<60).contains(minute), let hour = Int(fields[1]), (0..<24).contains(hour)
+        else { return nil }
+        if fields[4] == "*" { return (.daily, hour, minute, 1) }
+        if fields[4] == "1-5" { return (.weekdays, hour, minute, 1) }
+        guard let day = Int(fields[4]), (0..<7).contains(day) else { return nil }
+        return (.weekly, hour, minute, day)
+    }
+
     var body: some View {
         let clock = Calendar.current.dateComponents([.hour, .minute], from: time)
         let at = "\(clock.minute ?? 0) \(clock.hour ?? 9)"
         let schedule = [
-            .hourly: "every 1h", .daily: "\(at) * * *", .weekdays: "\(at) * * 1-5", .weekly: "\(at) * * \(weekday)",
+            .hourly: "every 60m", .daily: "\(at) * * *", .weekdays: "\(at) * * 1-5", .weekly: "\(at) * * \(weekday)",
         ][frequency] ?? expression.trimmingCharacters(in: .whitespacesAndNewlines)
         let isComplete = !title.trimmingCharacters(in: .whitespaces).isEmpty && (!prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || job?.prompt.isEmpty == true) && !schedule.isEmpty
         NavigationStack {
@@ -364,7 +368,7 @@ struct RoutineEditor: View {
 
     private func name(of destination: RoutineDestination) -> String {
         if case .room(let id) = destination {
-            return groups.rooms.first { $0.id == id }?.name ?? (groups.isLoaded ? String(localized: "Removed Room") : String(localized: "Room"))
+            return groups.name(ofRoom: id) ?? String(localized: "Room")
         }
         if case .other(let raw) = destination {
             return raw == "bot-chat" ? String(localized: "Bot Chat") : raw

@@ -26,6 +26,11 @@ struct RoutineDestinationTests {
         #expect(edited.name == "[bot:crew-test-peer] Room post edited")
         #expect(edited.schedule == "0 9 * * 1-5")
 
+        let posted = try job("routine-room/jobs.room.posted")
+        #expect(posted.destination == .room("room-crew-probe"))
+        #expect(posted.result.text == "Succeeded")
+        #expect(posted.issue == nil)
+
         let disbanded = try job("routine-room/jobs.room.disbanded")
         #expect(disbanded.destination == .room("room-crew-probe"))
         #expect(disbanded.result.text == "Delivery failed")
@@ -41,6 +46,23 @@ struct RoutineDestinationTests {
         #expect(RoutineDestination(deliver: nil) == .history)
         #expect(RoutineDestination.room("ops").deliver == "room:ops@default")
         #expect(RoutineDestination.history.deliver == "local")
+    }
+
+    @Test func savedSchedulesOpenOnTheirPreset() throws {
+        let recorded = try #require(RoutineEditor.preset(of: try job("routine-room/jobs.room.edited").schedule))
+        #expect(recorded.frequency == .weekdays && recorded.hour == 9 && recorded.minute == 0)
+        #expect(RoutineEditor.preset(of: "every 60m")?.frequency == .hourly)
+        #expect(RoutineEditor.preset(of: "30 17 * * *")?.frequency == .daily)
+        #expect(RoutineEditor.preset(of: "0 8 * * 5").map { [$0.frequency == .weekly, $0.weekday == 5] } == [true, true])
+        #expect(RoutineEditor.preset(of: "every 1440m") == nil)
+        #expect(RoutineEditor.preset(of: "0 9 1 * *") == nil)
+    }
+
+    @Test func aRoomIsRemovedOnlyOnceTheListHasLoaded() {
+        let loaded = GroupStore(fixture: [Room(id: "room-launch", name: "Launch Crew", members: [], createdAt: .now, updatedAt: .now)])
+        #expect(loaded.name(ofRoom: "room-launch") == "Launch Crew")
+        #expect(loaded.name(ofRoom: "room-crew-probe") == "Removed Room")
+        #expect(GroupStore().name(ofRoom: "room-crew-probe") == nil)
     }
 }
 

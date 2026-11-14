@@ -214,17 +214,15 @@ final class ProfileDraft {
         removePhoto()
     }
 
-    func pickPhoto(_ data: Data) async {
+    func pickPhoto(_ data: Data) async -> Bool {
         guard let jpeg = await avatarJPEG(from: data),
               let source = CGImageSourceCreateWithData(jpeg as CFData, nil),
               let image = CGImageSourceCreateImageAtIndex(source, 0, nil)
-        else {
-            notice = String(localized: "Crew couldn't read that image. Try a JPEG, PNG or HEIC photo.")
-            return
-        }
+        else { return false }
         photo = image
         photoChange = .replace(jpeg)
         fields.identity.custom = true
+        return true
     }
 
     func removePhoto() {

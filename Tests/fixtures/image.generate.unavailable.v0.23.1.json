@@ -1,0 +1,5 @@
+{
+  "available" : false,
+  "error" : "No image generation backend configured (run `hermes tools` to enable one).",
+  "success" : false
+}

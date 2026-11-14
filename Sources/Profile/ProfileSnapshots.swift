@@ -87,14 +87,19 @@ struct ProfileSkillsFixture: View {
 
 struct LookFixture: View {
     @State private var draft = Snapshot.profileDraft
+    @State private var portrait = PortraitGenerator(
+        isAvailable: Snapshot.requested != .inspectorLook,
+        isGenerating: Snapshot.requested == .inspectorLookGenerating,
+        failure: Snapshot.requested == .inspectorLookPortrait ? "Crew couldn't generate a portrait. Check your connection and try again." : nil
+    )
 
     var body: some View {
         #if os(macOS)
-        LookEditor(draft: draft, photoItem: .constant(nil))
+        LookEditor(draft: draft, photoItem: .constant(nil), portrait: portrait)
         #else
         InspectorFixtureScreen(tab: .info)
             .sheet(isPresented: .constant(true)) {
-                LookEditor(draft: draft, photoItem: .constant(nil))
+                LookEditor(draft: draft, photoItem: .constant(nil), portrait: portrait)
             }
         #endif
     }

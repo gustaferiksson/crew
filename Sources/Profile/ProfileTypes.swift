@@ -226,6 +226,19 @@ nonisolated struct AssetReply: Decodable, Sendable {
     let data: String?
 }
 
+nonisolated struct GeneratedImage: Decodable, Sendable {
+    let available: Bool?
+    let success: Bool?
+    let image: String?
+    let imageData: String?
+    let error: String?
+
+    private enum CodingKeys: String, CodingKey {
+        case available, success, image, error
+        case imageData = "image_data"
+    }
+}
+
 nonisolated struct ProfileRoster: Decodable, Sendable {
     let profiles: [Bot]
 }

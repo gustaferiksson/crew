@@ -45,7 +45,7 @@ private func peekOutcome(_ transcript: Transcript) throws -> MentionExchange.Out
 }
 
 @Test func everyHermesReasonHasASentence() {
-    let codes = ["target_busy", "runtime_offline", "delivery_timeout", "queued_expired", "cancelled", "provider_rate_limit", "provider_server_error", "provider_auth_or_access", "provider_quota_limit", "context_overflow", "missing_config", "model_unavailable", "agent_blocked", "target_scope_unresolved"]
+    let codes = ["target_busy", "runtime_offline", "delivery_timeout", "queued_expired", "cancelled", "provider_rate_limit", "provider_server_error", "provider_auth_or_access", "provider_quota_limit", "context_overflow", "missing_config", "model_unavailable", "agent_blocked", "target_scope_unresolved", "runtime_unavailable", "runtime_coordination_required"]
     for code in codes {
         #expect(DeliveryFailure(reason: code).explanation(for: "Emil")?.contains("Emil") == true, "\(code)")
     }
@@ -113,6 +113,18 @@ private func peekOutcome(_ transcript: Transcript) throws -> MentionExchange.Out
     #expect(failure.isUnconfirmed)
     #expect(failure.headline(for: "Crew Peer") == "Delivery to Crew Peer couldn't be confirmed.")
     #expect(failure.explanation(for: "Crew Peer") == nil)
+}
+
+@Test func unavailableBotChatSaysNothingWasSentInEveryPlace() throws {
+    let error = "canonical Bot Chat target is unavailable \u{2014} the message was NOT sent; it is safe to resend once the target is up."
+    let refused = ToolCall(name: "message_agent", subject: "", arguments: #"{"target": "scout", "message": "Hi"}"#, result: #"{"reason": "runtime_unavailable", "delivery_id": "d1", "error": "\#(error)"}"#, status: .error)
+    #expect(refused.deliveryFailure == DeliveryFailure(reason: "runtime_unavailable", detail: error, target: "scout"))
+    #expect(refused.deliveryFailure?.headline(for: "Scout") == "Not delivered.")
+    #expect(refused.deliveryFailure?.explanation(for: "Scout") == "Scout isn't reachable right now. Ask again when it's back.")
+    let followUp = try #require(try sender(reason: "runtime_unavailable").visible.turns.last?.deliveryFailure)
+    #expect(followUp.headline(for: "Crew Peer") == "Not delivered.")
+    guard case .failed(let failure) = try peekOutcome(try sender(reason: "runtime_unavailable")) else { Issue.record("expected a failed delivery"); return }
+    #expect(failure.explanation(for: "Crew Peer") == "Crew Peer isn't reachable right now. Ask again when it's back.")
 }
 
 @Test func immediateErrorIgnoresReasonsHermesGuessedFromItsOwnText() {

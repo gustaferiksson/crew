@@ -27,7 +27,7 @@ struct InspectorFixtureScreen: View {
         RoutineJob(
             id: "a4", name: "[bot:ada] Literature scan", title: "Literature scan", prompt: "Scan new preprints.",
             schedule: "0 6 * * *", nextRun: .now.addingTimeInterval(20 * 3600), lastRun: .now.addingTimeInterval(-24 * 3600),
-            lastStatus: "ok", issue: nil, isPaused: false, liveRunID: "e4", tracksRuns: true
+            lastStatus: "ok", issue: nil, isPaused: false, destination: .room(Snapshot.fixtureRoom.id), liveRunID: "e4", tracksRuns: true
         ),
         RoutineJob(
             id: "a7", name: "[bot:ada] Dataset refresh", title: "Dataset refresh", prompt: "Refresh the datasets.",
@@ -37,7 +37,7 @@ struct InspectorFixtureScreen: View {
         RoutineJob(
             id: "a5", name: "[bot:ada] Citation check", title: "Citation check", prompt: "Check the draft's citations.",
             schedule: "every 1440m", nextRun: .now.addingTimeInterval(23 * 3600), lastRun: .now.addingTimeInterval(-50 * 60),
-            lastStatus: "cancelled", issue: nil, isPaused: false
+            lastStatus: "cancelled", issue: nil, isPaused: false, destination: .room("room-disbanded")
         ),
         RoutineJob(
             id: "a6", name: "[bot:ada] Lab notes", title: "Lab notes", prompt: "Tidy the lab notes.",
@@ -194,6 +194,9 @@ struct InspectorFixtureScreen: View {
             isPresented: .constant(true)
         )
             .environment(ChatSessions(fixture: [ada.id: ChatSession(fixture: ada, transcript: Transcript(), todos: adaTodos)]))
+            .sheet(isPresented: .constant(snapshot == .editRoutine)) {
+                RoutineEditor(bot: ada, store: RoutineStore(fixture: routines), job: routines.first)
+            }
             .overlay(alignment: .topLeading) {
                 Color.clear
                     .frame(width: 1, height: 1)

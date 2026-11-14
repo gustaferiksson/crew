@@ -103,6 +103,100 @@ func probeRunSessions(_ titles: [String] = ["Long check", "Minute check"]) async
     }
 }
 
+if CommandLine.arguments.contains("room") {
+    let bot = "crew-test-\(UUID().uuidString.prefix(6).lowercased())"
+    let roomID = "room-crew-probe-\(UUID().uuidString.prefix(8).lowercased())"
+    let roomFolder = folder.deletingLastPathComponent().appending(path: "routine-room")
+    try FileManager.default.createDirectory(at: roomFolder, withIntermediateDirectories: true)
+    func job(_ id: String) async throws -> JSONValue? {
+        var request = hermesRequest("api/cron/jobs", on: server)
+        request.url?.append(queryItems: [URLQueryItem(name: "profile", value: bot)])
+        guard case .array(let all) = try await fetch(request, with: urlSession, as: JSONValue.self) else { return nil }
+        return all.first { if case .object(let row) = $0, case .string(id) = row["id"] { true } else { false } }.map { trimmed($0, to: jobKeys.union(["deliver"])) }
+    }
+    func record(_ file: String, _ value: JSONValue?) throws {
+        let text = String(decoding: try pretty.encode(value ?? .null), as: UTF8.self).replacingOccurrences(of: bot, with: "crew-test-peer").replacingOccurrences(of: roomID, with: "room-crew-probe")
+        try Data((text + "\n").utf8).write(to: roomFolder.appending(path: "\(file).json"))
+        log("recorded \(file).json")
+    }
+    func roomPosts(by id: String) async throws -> [String] {
+        guard case .object(let page) = try await gateway.call("groups.log", ["room_id": .string(roomID), "since_seq": .number(0)] as [String: JSONValue], as: JSONValue.self),
+              case .array(let events) = page["events"] ?? .null else { return [] }
+        return events.compactMap { event in
+            guard case .object(let row) = event, case .object(let actor) = row["actor"] ?? .null, actor["id"] == .string("cron:\(id)"),
+                  case .object(let payload) = row["payload"] ?? .null, case .string(let text) = payload["text"] ?? .null else { return nil }
+            return text
+        }
+    }
+    var roomCreated = false
+    let routines = RoutineStore()
+    do {
+        _ = try await gateway.call("profiles.create", ["name": bot, "description": "Crew routine room probe"], as: JSONValue.self)
+        log("created \(bot)")
+        let members: [JSONValue] = ["crew-test", bot].map { .object(["member_id": .string($0), "profile": .string($0), "handle": .string($0), "display_name": .string($0)]) }
+        _ = try await gateway.call("groups.create", ["room_id": .string(roomID), "name": .string("Crew routine room"), "members": .array(members)] as [String: JSONValue], as: JSONValue.self)
+        roomCreated = true
+        Task { await routines.run(profile: bot, gateway: gateway, urlSession: urlSession) }
+        _ = try await waitFor(10) { routines.isLoaded }
+
+        try await routines.create(title: "Room post", prompt: "Reply with exactly this text and nothing else: Probe post from Crew.", schedule: "every 1440m", destination: .room(roomID))
+        guard let created = routines.jobs.first(where: { $0.title == "Room post" }) else { throw HermesError.invalidResponse }
+        let raw = try await job(created.id)
+        try record("jobs.room", raw)
+        check(created.destination == .room(roomID), "New Routine with a room reads back as that room")
+        check(raw.flatMap { if case .object(let row) = $0 { row["deliver"] } else { nil } } == .string("room:\(roomID)@default"), "server stored room:<id>@default")
+
+        let nextRun = created.nextRun
+        try await routines.update(created, title: created.title, prompt: created.prompt, schedule: created.schedule, destination: .history)
+        let local = routines.jobs.first { $0.id == created.id }
+        try record("jobs.local", try await job(created.id))
+        check(local?.destination == .history, "Edit to Don't Post reads back as local")
+        check(local?.nextRun == nextRun, "an edit of the destination leaves the next run alone")
+        if let local { try await routines.update(local, title: local.title, prompt: local.prompt, schedule: local.schedule, destination: .room(roomID)) }
+        check(routines.jobs.first { $0.id == created.id }?.destination == .room(roomID), "Edit back to the room reads back as the room")
+
+        if let current = routines.jobs.first(where: { $0.id == created.id }) {
+            try await routines.update(current, title: "Room post edited", prompt: current.prompt + " ", schedule: "0 9 * * 1-5", destination: current.destination)
+        }
+        let edited = routines.jobs.first { $0.id == created.id }
+        try record("jobs.room.edited", try await job(created.id))
+        check(edited?.name == "[bot:\(bot)] Room post edited", "a rename keeps the [bot:] prefix")
+        check(edited?.schedule == "0 9 * * 1-5", "a preset schedule reads back exactly as sent")
+        check(edited?.prompt.hasSuffix(" ") == true, "a prompt edit is stored")
+        if let edited {
+            try await routines.update(edited, title: edited.title, prompt: edited.prompt, schedule: edited.schedule, destination: edited.destination)
+            check(routines.jobs.first { $0.id == created.id }?.nextRun == edited.nextRun, "an untouched edit leaves the next run alone")
+        }
+
+        if let current = routines.jobs.first(where: { $0.id == created.id }) { await routines.trigger(current) }
+        check(try await waitFor(120) { try await !roomPosts(by: created.id).isEmpty }, "Run Now posts into the room")
+        log("room post: \(try await roomPosts(by: created.id).first ?? "-")")
+        _ = try await waitFor(20) { routines.jobs.first { $0.id == created.id }?.lastStatus == "ok" }
+        try record("jobs.room.posted", try await job(created.id))
+        check(routines.jobs.first { $0.id == created.id }?.lastStatus == "ok", "the room run succeeded")
+
+        _ = try await gateway.call("groups.disband", ["room_id": roomID], as: JSONValue.self)
+        roomCreated = false
+        if let current = routines.jobs.first(where: { $0.id == created.id }) { await routines.trigger(current) }
+        _ = try await waitFor(120) { routines.jobs.first { $0.id == created.id }?.lastStatus == "delivery_failed" }
+        let failed = routines.jobs.first { $0.id == created.id }
+        try record("jobs.room.disbanded", try await job(created.id))
+        check(failed?.lastStatus == "delivery_failed", "a disbanded room fails delivery")
+        log("disbanded issue: \(failed?.issue ?? "-")")
+        await routines.delete(failed ?? created)
+    } catch {
+        check(false, "room flow threw \(error)")
+    }
+    if roomCreated { _ = try? await gateway.call("groups.disband", ["room_id": roomID], as: JSONValue.self) }
+    var remove = hermesRequest("api/profiles/\(bot)", on: server)
+    remove.httpMethod = "DELETE"
+    remove.timeoutInterval = 45
+    let status = ((try? await urlSession.data(for: remove))?.1 as? HTTPURLResponse)?.statusCode ?? 0
+    check((200..<300).contains(status), "throwaway \(bot) deleted (\(status))")
+    log(failures.isEmpty ? "ALL OK" : "FAILURES: \(failures.joined(separator: "; "))")
+    exit(failures.isEmpty ? 0 : 1)
+}
+
 let store = RoutineStore()
 let cleanupOnly = CommandLine.arguments.contains("--cleanup")
 var created: [String] = CommandLine.arguments.dropFirst().filter { $0 != "--cleanup" }

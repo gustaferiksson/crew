@@ -8,6 +8,7 @@ struct GroupInspector: View {
     @Environment(Connection.self) private var connection
     @Environment(BotStore.self) private var bots
     @Environment(GroupStore.self) private var groups
+    @Environment(RoomLayout.self) private var layout
     @State private var name: String
     @State private var isRenaming = false
     @State private var renameFailure: String?
@@ -418,6 +419,7 @@ struct GroupInspector: View {
         guard let gateway = connection.gateway else { return }
         do {
             try await groups.disband(target, via: gateway)
+            layout.clear(target.id)
             isPresented = false
         } catch {
             disbandFailure = if case GatewayError.rpc(_, let message) = error { message } else { error.localizedDescription }

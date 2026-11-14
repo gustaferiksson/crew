@@ -224,6 +224,7 @@ targets:
       - Sources/Groups/GroupSession.swift
       - Sources/Groups/RoomHistory.swift
       - Sources/Groups/RoomContext.swift
+      - Sources/Groups/RoomLayout.swift
       - Sources/Groups/ReplyTarget.swift
       - Sources/Search/MessageSearch.swift
       - Sources/Links.swift

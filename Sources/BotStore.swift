@@ -219,7 +219,7 @@ nonisolated enum BotStatus: Hashable, Sendable {
     }
 }
 
-nonisolated struct SectionTag: Hashable, Sendable {
+nonisolated struct SectionTag: Codable, Hashable, Sendable {
     let id: String
     let name: String
 }

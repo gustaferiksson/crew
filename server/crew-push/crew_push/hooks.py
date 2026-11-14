@@ -19,6 +19,7 @@ Kind = Literal["reply", "turn_error", "approval", "clarify", "routine", "payment
 HOOK_NAMES = ("pre_llm_call", "post_llm_call", "on_session_end", "pre_tool_call", "post_tool_call",
               "pre_approval_request", "post_approval_response", "transform_tool_result", "subagent_start")
 BOT_CHAT_TITLE = "Bot Chat"
+ROOM_TITLE = "Group: "
 CLAIM_SECONDS = 60
 SHOP_PAY_ORIGINS = ("https://shop.app", "https://pay.shopify.com")
 CARD_FRAMES_JS = ("JSON.stringify([...new Set([...document.querySelectorAll('iframe')]"
@@ -98,12 +99,15 @@ class Event:
     subtitle: str = ""
     request_id: str = ""
     expires_at: float = 0.0
+    room_id: str = ""
 
 
 def build(event: Event, device: store.Device, *, install_id: str, now: float) -> tuple[dict[str, str], dict[str, Any]]:
     style = KINDS[event.kind]
     previews = bool(device.get("prefs", {}).get("previews", True))
-    collapse = event.request_id if event.kind == "payment" else event.session_id
+    collapse = (event.request_id if event.kind == "payment"
+                else f"{event.session_id}:{event.ref}" if event.room_id and event.kind == "reply"
+                else event.session_id)
     alert = {"title": event.title, "body": clip(event.body, 400) if previews else style.generic}
     if previews and event.subtitle:
         alert["subtitle"] = clip(event.subtitle, 120)
@@ -120,7 +124,10 @@ def build(event: Event, device: store.Device, *, install_id: str, now: float) ->
         crew["request_id"] = event.request_id
     if event.expires_at:
         crew["expires_at"] = event.expires_at
-    aps = {"alert": alert, "sound": "default", "thread-id": f"profile.{event.profile}",
+    if event.room_id:
+        crew["room_id"] = event.room_id
+    thread = f"group:{event.room_id}" if event.room_id else f"profile.{event.profile}"
+    aps = {"alert": alert, "sound": "default", "thread-id": thread,
            "category": style.category, "interruption-level": style.level}
     return headers, {"aps": aps, "crew": crew}
 
@@ -201,6 +208,25 @@ def is_bot_chat(profile: str, session_id: str) -> bool:
         return bool(row) and db.get_compression_tip(row["id"]) == session_id
     finally:
         db.close()
+
+
+def room_of(profile: str, session_id: str) -> str:
+    from hermes_cli.profiles import get_profile_dir
+    from hermes_state import SessionDB
+
+    db = SessionDB(db_path=get_profile_dir(profile) / "state.db", read_only=True)
+    try:
+        row = db.get_session(session_id) or {}
+    finally:
+        db.close()
+    title = str(row.get("title") or "")
+    return title.removeprefix(ROOM_TITLE) if row.get("source") == "bot_room" and title.startswith(ROOM_TITLE) else ""
+
+
+def listed_room(room_id: str) -> dict[str, Any] | None:
+    from gateway.hosted_rooms import default_db_path, list_rooms
+
+    return next((room for room in list_rooms(default_db_path()) if room.get("room_id") == room_id), None)
 
 
 def browser_open(task_id: str) -> bool:
@@ -336,6 +362,7 @@ class CrewPush:
         self.subagents = Recent()
         self.sent = Recent()
         self.bot_chats = Recent()
+        self.rooms = Recent()
         self.agent_turns = Recent()
         self.agent_processes = Recent()
         self.user_turns = Recent()
@@ -591,14 +618,36 @@ class CrewPush:
             self.bot_chats.remember(session_id, found)
         return found
 
+    def room(self, session_id: str) -> dict[str, Any] | None:
+        with self.lock:
+            room_id = self.rooms.get(session_id)
+        if room_id is None:
+            try:
+                room_id = room_of(self.profile, session_id)
+            except Exception:
+                log.debug("crew-push: could not resolve the room session", exc_info=True)
+                return None
+            with self.lock:
+                self.rooms.remember(session_id, room_id)
+        return listed_room(room_id) if room_id else None
+
     def notify(self, kind: Kind, session_id: str, ref: str, *, body: str, subtitle: str = "",
                request_id: str = "", expires_at: float = 0.0) -> None:
         if not session_id:
             return
+        title, room_id = bot_name(self.profile), ""
         if self.platforms.get(session_id) != "cron" and not self.in_bot_chat(session_id):
-            return
-        event = Event(kind, bot_name(self.profile), self.profile, session_id, ref, body, subtitle, request_id,
-                      expires_at)
+            room = self.room(session_id) if kind in ("reply", "approval") else None
+            if room is None:
+                return
+            from gateway.hosted_room_discussion import is_pass_text
+
+            if kind == "reply" and is_pass_text(body):
+                return
+            member = next((str(m.get("display_name") or "") for m in room.get("members") or []
+                           if m.get("profile") == self.profile), "") or title
+            title, room_id, subtitle = room["name"], room["room_id"], " · ".join(filter(None, (member, subtitle)))
+        event = Event(kind, title, self.profile, session_id, ref, body, subtitle, request_id, expires_at, room_id)
         event_key = f"{session_id}:{kind}:{ref}"
         with self.lock:
             if event_key in self.sent:

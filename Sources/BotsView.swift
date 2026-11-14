@@ -169,12 +169,12 @@ struct BotsView: View {
             }
         }
         .onChange(of: push.pendingRoute, initial: true) { _, route in
-            guard let route, !scenes.chatWindows.contains(route.profile) else { return }
+            guard let route, !scenes.chatWindows.contains(route.selectionID) else { return }
             push.pendingRoute = nil
             #if os(macOS)
             openWindow(id: "main")
             #endif
-            selection = route.profile
+            selection = route.selectionID
             if route.kind == "payment", let requestID = route.requestID { chats.expectPayment(requestID, for: route.profile) }
         }
         #if os(iOS)

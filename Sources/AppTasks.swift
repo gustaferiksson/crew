@@ -72,7 +72,7 @@ struct AppTasks: ViewModifier {
             #if os(macOS)
             .onChange(of: owns ? push.pendingRoute : nil, initial: true) { _, route in
                 guard let route else { return }
-                guard scenes.chatWindows.contains(route.profile) else { return openWindow(id: "main") }
+                guard scenes.chatWindows.contains(route.selectionID) else { return openWindow(id: "main") }
                 push.pendingRoute = nil
                 if route.kind == "payment", let requestID = route.requestID { chats.expectPayment(requestID, for: route.profile) }
                 openWindow(value: route.profile)

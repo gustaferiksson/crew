@@ -7,6 +7,11 @@ nonisolated struct PushRoute: Equatable, Sendable {
     let kind: String?
     let requestID: String?
     let expiresAt: Date?
+    let roomID: String?
+
+    var selectionID: String {
+        roomID.map { "group:\($0)" } ?? profile
+    }
 
     init?(userInfo: [AnyHashable: Any]) {
         guard let crew = userInfo["crew"] as? [String: Any], let profile = crew["profile"] as? String, !profile.isEmpty else { return nil }
@@ -16,6 +21,7 @@ nonisolated struct PushRoute: Equatable, Sendable {
         self.kind = crew["kind"] as? String
         self.requestID = (crew["request_id"] as? String).flatMap { $0.isEmpty ? nil : $0 }
         self.expiresAt = (crew["expires_at"] as? Double).map(Date.init(timeIntervalSince1970:))
+        self.roomID = (crew["room_id"] as? String).flatMap { $0.isEmpty ? nil : $0 }
     }
 
     init?(url: URL) {
@@ -26,6 +32,7 @@ nonisolated struct PushRoute: Equatable, Sendable {
         kind = nil
         requestID = nil
         expiresAt = nil
+        roomID = nil
     }
 
     func isStalePayment(at date: Date) -> Bool {

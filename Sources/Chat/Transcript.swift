@@ -675,11 +675,14 @@ extension Prompt {
         }
         var lines = raw.components(separatedBy: "\n")
         var attachments: [Attachment] = []
-        while let last = lines.last, last.trimmingCharacters(in: .whitespaces).isEmpty || last == "[image]" || last == "[screenshot]" {
-            lines.removeLast()
-        }
-        while let last = lines.last, let path = Self.reference(last, prefix: "@image:") ?? last.wholeMatch(of: /\[Image attached at: ([^\]\n]+)\]/).map({ String($0.1) }) {
-            attachments.insert(Attachment(kind: .image, name: URL(filePath: path).lastPathComponent, path: path), at: 0)
+        while let last = lines.last {
+            let path = Self.reference(last, prefix: "@image:") ?? last.wholeMatch(of: /\[Image attached at: ([^\]\n]+)\]/).map { String($0.1) }
+            let isTrailer = last.trimmingCharacters(in: .whitespaces).isEmpty || last == "[image]" || last == "[screenshot]" || last.hasPrefix("Note from Crew: ")
+            guard path != nil || isTrailer else { break }
+
+            if let path {
+                attachments.insert(Attachment(kind: .image, name: URL(filePath: path).lastPathComponent, path: path), at: 0)
+            }
             lines.removeLast()
         }
         while let first = lines.first, let path = Self.reference(first, prefix: "@file:") {

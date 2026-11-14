@@ -71,3 +71,22 @@ private func imageMemoryRows(caption: String = imageOnlyPrompt) throws -> [Histo
     let bot = try #require(store.bots.first)
     #expect(ChatSessions().summary(of: bot, in: store).preview == "Saturday still looks best, but aim for 13:00–14:00, not the morning. I checked dew point, wind and the forecast...")
 }
+
+@Test func sharedPromptKeepsItsAttachmentsWhenTheRetryNoteFollowsThem() throws {
+    let decoder = JSONDecoder()
+    decoder.keyDecodingStrategy = .convertFromSnakeCase
+    let file = URL(filePath: #filePath).deletingLastPathComponent().deletingLastPathComponent().appending(path: "fixtures/chat.share-retry-note.history.json")
+    let prompt = try #require(Transcript(history: decoder.decode(HistoryFile.self, from: Data(contentsOf: file)).messages).turns.first?.prompt)
+    #expect(prompt.text == "Shared from the probe. Reply with just the word share-02ac.\n\nhttps://example.com/share-02ac")
+    #expect(prompt.attachments.map(\.name) == ["upload_m7bnkf2h.png", "share-02ac.pdf"])
+}
+
+@Test func retryNoteStaysOutOfTheBubbleInAnyOrder() {
+    let note = "Note from Crew: the earlier payment_declined only cancelled that attempt. Do not ask for permission again first."
+    let marker = "[Image attached at: \(imagePath)]"
+    for stored in ["\(typed)\n\n\(marker)\n[screenshot]\n\(note)", "\(typed)\n\n\(note)\n\(marker)", "\(typed)\n\n\(note)"] {
+        let prompt = Prompt(raw: stored, sentAt: .now)
+        #expect(prompt.text == typed)
+        #expect(prompt.attachments.map(\.path) == (stored.contains(marker) ? [imagePath] : []))
+    }
+}

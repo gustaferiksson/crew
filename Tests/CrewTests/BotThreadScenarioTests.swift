@@ -67,7 +67,16 @@ private func rows(_ turns: [Turn]) -> [String] {
     #expect(refused.outgoingMessage?.body == "I saved the transcript to the shared folder.")
     #expect(refused.deliveryFailure?.target == "scout")
     #expect(refused.deliveryFailure?.isUnconfirmed == false)
-    #expect(refused.deliveryFailure?.headline(for: "Scout") == "Message to Scout failed.")
+    #expect(refused.deliveryFailure?.headline(for: "Scout") == "Not delivered.")
+    #expect(refused.deliveryFailure?.explanation(for: "Scout") == "Scout's chat is busy in another session. Ask again when it's free.")
+}
+
+@Test func heldChatRefusalSaysWhyInThePeek() throws {
+    let transcript = Transcript(history: try recorded("default"))
+    let turn = try #require(transcript.turns.first { !MessageAgentCall.all(in: $0).isEmpty })
+    guard case .failed(let failure) = mentionExchange(with: "scout", from: turn.id, in: transcript)?.outcome else { Issue.record("expected a failed delivery"); return }
+    #expect(failure.reason == "runtime_coordination_required")
+    #expect(failure.headline(for: "Scout") == "Not delivered.")
 }
 
 @Test func senderShowsMessageToAfterUserStartedRoutineAndRelayTurns() throws {

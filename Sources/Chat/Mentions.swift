@@ -43,7 +43,7 @@ nonisolated struct MessageAgentCall {
     var process: String? { call.status == .success ? result["process_id"] as? String : nil }
 
     var failure: DeliveryFailure {
-        DeliveryFailure(reason: result["reason"] as? String == "runtime_offline" ? "runtime_offline" : nil, detail: (result["error"] ?? result["detail"]) as? String ?? (call.status == .error ? call.outcome : nil), isUnconfirmed: result["status"] as? String == "ambiguous", target: target)
+        DeliveryFailure(reason: (result["reason"] as? String).flatMap { ["runtime_offline", "runtime_unavailable", "runtime_coordination_required"].contains($0) ? $0 : nil }, detail: (result["error"] ?? result["detail"]) as? String ?? (call.status == .error ? call.outcome : nil), isUnconfirmed: result["status"] as? String == "ambiguous", target: target)
     }
 
     init?(_ call: ToolCall) {

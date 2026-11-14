@@ -263,7 +263,7 @@ nonisolated extension DeliveryFailure {
 
     func headline(for bot: String) -> String {
         if isUnconfirmed { return String(localized: "Delivery to \(bot) couldn't be confirmed.") }
-        if ["runtime_offline", "queued_expired", "target_busy", "cancelled", "agent_blocked", "target_scope_unresolved"].contains(reason ?? "") { return String(localized: "Not delivered.") }
+        if ["runtime_offline", "queued_expired", "target_busy", "cancelled", "agent_blocked", "target_scope_unresolved", "runtime_unavailable", "runtime_coordination_required"].contains(reason ?? "") { return String(localized: "Not delivered.") }
         if explanation(for: bot) != nil { return String(localized: "\(bot) couldn't answer.") }
         return String(localized: "Message to \(bot) failed.")
     }
@@ -272,6 +272,8 @@ nonisolated extension DeliveryFailure {
         let sentences = [
             "target_busy": String(localized: "\(bot) is busy right now. Ask again later."),
             "runtime_offline": String(localized: "\(bot) is offline. Ask again when it's back."),
+            "runtime_unavailable": String(localized: "\(bot) isn't reachable right now. Ask again when it's back."),
+            "runtime_coordination_required": String(localized: "\(bot)'s chat is busy in another session. Ask again when it's free."),
             "delivery_timeout": String(localized: "\(bot) didn't answer in time. It may have seen the message; ask again if it matters."),
             "queued_expired": String(localized: "\(bot)'s computer wasn't reachable in time. Ask again when it's back online."),
             "cancelled": String(localized: "The message to \(bot) was cancelled. Ask again if you still need it."),

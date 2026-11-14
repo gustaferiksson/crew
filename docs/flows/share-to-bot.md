@@ -1,6 +1,6 @@
 # Share sheet: send a link, text, photo or file to a bot (#360)
 
-Getting a web page, a photo or a PDF to a bot today means copying it into the chat by hand. New: a Share extension, "Crew" in the system share sheet, with a compose sheet that picks a bot and takes an optional note, then sends the item into that bot's Bot Chat through the same attachment path the composer uses. Model: Notes' and Reminders' share extensions (a note, the item's preview, a destination row, Cancel and a confirm button) and Messages (Send, straight from the sheet).
+Getting a web page, a photo or a PDF to a bot today means copying it into the chat by hand. New: a Share extension, "Crew" in the system share sheet, with a compose sheet that picks a bot and takes an optional note, then sends the item into that bot's Bot Chat through the same attachment path the composer uses. Model: Notes' and Reminders' share extensions (a destination row, a note, the item's preview, Cancel and a confirm button) and Messages (Send, straight from the sheet).
 
 ## Decision: the extension sends itself
 

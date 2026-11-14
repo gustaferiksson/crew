@@ -1,4 +1,5 @@
 #if os(iOS)
+import ImageIO
 import SwiftUI
 
 struct ShareSheet: View {
@@ -163,8 +164,8 @@ private struct SharedItemRow: View {
             }
         case .file(let attachment):
             HStack(spacing: 12) {
-                if attachment.kind == .image, let image = attachment.data.flatMap(UIImage.init(data:)) {
-                    Image(uiImage: image)
+                if attachment.kind == .image, let image = thumbnail(of: attachment) {
+                    Image(decorative: image, scale: 1)
                         .resizable()
                         .scaledToFill()
                         .frame(width: 60, height: 60)
@@ -188,6 +189,12 @@ private struct SharedItemRow: View {
             }
             .accessibilityElement(children: .combine)
         }
+    }
+
+    private func thumbnail(of attachment: Attachment) -> CGImage? {
+        let options = [kCGImageSourceCreateThumbnailFromImageAlways: true, kCGImageSourceCreateThumbnailWithTransform: true, kCGImageSourceThumbnailMaxPixelSize: 180] as CFDictionary
+        guard let data = attachment.data, let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
+        return CGImageSourceCreateThumbnailAtIndex(source, 0, options)
     }
 }
 #endif

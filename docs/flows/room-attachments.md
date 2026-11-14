@@ -9,7 +9,7 @@ Room composers are text only. Hermes 0.23.1 rooms take files (`groups.attachment
 - **Limits** (room store): 8 files per message, 15 MB per file, 25 MB per message (decimal). Stricter than the Bot Chat (8, 25 MB, 50 MB).
 - **Download**: `groups.attachment.download {room_id, event_id, attachment_id}` returns the metadata plus `data_base64`.
 - **What members get**: images as native vision input; any other file as a `[Shared attachment] file: <path>` line in their prompt.
-- **Members on another gateway** (RoomLink peers) are text only (`attachments: false` in the peer catalog). A message with files fails that member's turn before it starts (`refused_before_submit`), logged as `turn.failed`.
+- **Members on another gateway** (RoomLink peers) are text only (`attachments: false` in the peer catalog). A message with files fails that member's turn before it starts (`AttachmentsUnsupportedError` in `tui_gateway/hosted_room_driver.py`), logged as `turn.failed` with the raw error "attachments_unsupported_on_route: this member's route cannot carry attached files".
 - **Member replies** are text only: the only `message.member` publisher (`hosted_room_discussion._settled_effects`) writes `text` alone. The schema allows `attachments` on `message.member` and the driver forwards them to other members (`_event_attachments`), but nothing in 0.23.1 produces one.
 - **Transport**: both RPCs carry the whole file base64 in one WebSocket frame (a 15 MB file is a ~20 MB frame). Crew caps inbound frames at 16 MiB today, so it raises the cap to 32 MiB; a bigger frame would drop the connection.
 - **Desktop** uploads each file when it is picked, holds Send while an upload runs, shows chips with Download, previews images up to 5 MB inline in the transcript and downloads any file to disk. It gates upload on `groups.capabilities.methods` listing `groups.attachment.upload` and download on `groups.attachment.download`.
@@ -29,15 +29,17 @@ Room composers are text only. Hermes 0.23.1 rooms take files (`groups.attachment
 ### Sending
 
 - Like the Bot Chat, files are staged when you press Send, not when you pick them, so removing a file from the tray never leaves an upload behind. Desktop uploads at pick; the difference is invisible to the room log.
-- On Send the bubble appears at once with the files (thumbnails from the local bytes) and the text, then Crew uploads each file (`upload_id` = the attachment's id, `kind` = `image`, `pdf` for `application/pdf`, else `file`; an image's `mime` from its bytes, since the server compares them, other files' from the name), then sends the message with the manifest and the thread as any send. The tray and draft clear on Send.
-- **Failure** (an upload or the send is refused, or the connection drops): the bubble stays, with its files, as "Not sent: <reason>", as any failed room send; the reason is whatever the gateway returns (the probe records what a refused upload says). Files already uploaded are left for the server's prune.
+- On Send the bubble appears at once with the files (thumbnails from the local bytes) and the text, then Crew uploads each file (`upload_id` = the attachment's id, `kind` = `image`, `pdf` for `application/pdf`, else `file`; an image's `mime` from its bytes, since the server compares them, other files' from the name, `application/octet-stream` when the extension is unknown, as Desktop), then sends the message with the manifest and the thread as any send. The tray and draft clear on Send.
+- **Failure** (an upload or the send is refused, or the connection drops): the bubble stays, with its files, as "Not sent: <reason>", as any failed room send. A refused upload comes back as a bare `invalid_params` (recorded on crew-test), so with files that reads "Not sent: The server refused one of the files."; other reasons show as the gateway words them (a `text/*` file that isn't UTF-8 is refused this way too). Files already uploaded are left for the server's prune; they count against the room's uncommitted quota (64 files or 100 MB) until then. There is no resend: as for a failed text send today, the user picks the files again (follow-up: put text and files back into the draft).
+- **Timeouts**: an upload waits 30 s plus 1 s per 100 KB (about 3 minutes for 15 MB), a download up to 3 minutes; other calls keep 30 s.
+- **Leaving the room mid-send**: the upload and send keep running (the task holds the session) and the message lands in the log; a failure after leaving is not shown anywhere, since the room's unsent bubbles live only while it is open (accepted limitation, as for text). No progress is shown on the bubble while files upload (follow-up).
 - **Too large or wrong type at the server** (a limit Crew did not catch, a `text/*` file that is not UTF-8): the same "Not sent" with the server's reason.
 
 ### The sent message in the transcript
 
 - Your message is a user bubble with its files above it, trailing, exactly like a Bot Chat prompt: one image at 200 pt, several in a 120 pt row that scrolls when it does not fit, other files as chips with a document icon (`doc.richtext` for PDF). A files-only message shows no empty bubble.
 - Files posted by you from Desktop or another Crew device are `message.user` too, so they show the same way.
-- Thumbnails load from `groups.attachment.download` when the row appears (the Bot Chat loads whole files for thumbnails too). Each file keeps its `attachment_id` as its id, so the 2 s room poll never reloads a thumbnail, and the open room keeps downloaded bytes in memory so scrolling back or opening a file does not fetch it again. A failed thumbnail keeps the placeholder; the tap still opens it.
+- Thumbnails load from `groups.attachment.download` when the row appears (the Bot Chat loads whole files for thumbnails too). Each file keeps its `attachment_id` as its id, so the 2 s room poll never reloads a thumbnail, and the open room keeps downloaded bytes in memory so scrolling back or opening a file does not fetch it again. A failed thumbnail keeps the placeholder; the tap still opens it. Unlike Desktop (inline previews only up to 5 MB, two at a time), every image thumbnail loads, as in a Bot Chat; Crew's own images are at most 2048 px and 5 MB, so only a large image posted from Desktop costs more (follow-up if it shows).
 
 ### Opening a file
 
@@ -47,7 +49,7 @@ Room composers are text only. Hermes 0.23.1 rooms take files (`groups.attachment
 ### Members
 
 - **This gateway's members** get the files with the message (images seen directly, documents as a path they can read), and answer in text as usual.
-- **A member on another gateway**: Crew does not block the send (Desktop doesn't); that member's turn fails visibly as the existing error row under its name with the server's reason, and the other members answer. Not reproducible live here (RoomLink is disabled on the test server), so it rests on the recorded `turn.failed` rendering.
+- **A member on another gateway**: Crew does not block the send (Desktop doesn't); that member's turn fails visibly as the existing error row under its name reading "<Name> can't receive files from another server.", and the other members answer. Not reproducible live here (RoomLink is disabled on the test server), so it rests on the recorded `turn.failed` rendering.
 - **A member posting a file**: not produced by Hermes 0.23.1, so not drawn in this change. When Hermes produces `message.member` attachments, they get leading-aligned thumbnails and chips under the reply (follow-up).
 
 ### Surfaces not touched
@@ -59,6 +61,6 @@ Room composers are text only. Hermes 0.23.1 rooms take files (`groups.attachment
 
 ## Verification
 
-- Unit tests over a recorded `crew-test` room (`Tests/chat_probe/run.sh room-files`: a throwaway room with crew-test, an image and a text file with a code word sent through `GroupSession.send`, crew-test's answer names the word and the colour, both files downloaded back byte-identical; writes `Tests/fixtures/rooms/files.*.json`): the manifest `groups.send` sends, the transcript turn's files, the download parameters, and the room tray limits.
+- Unit tests over a recorded `crew-test` room (`Tests/chat_probe/run.sh room-files`: a throwaway room with crew-test, an image and a text file with a code word sent through `GroupSession.send`, crew-test's answer names the word and the colour, both files downloaded back byte-identical; writes `Tests/fixtures/rooms/files.*.json`): the manifest `groups.send` sends, the transcript turn's files, the download parameters, upload kind and MIME, the room tray limits, and the remote-member failure (hand-built `turn.failed` with the server's string). The probe also round-trips a 13 MB file (a ~17 MB frame, over the old 16 MiB cap) and records what a refused upload says.
 - Renders: `group-chat-files` (a sent image and PDF, a pending tray) on iOS and Mac, light and dark.
 - iOS UI: `ComposerUITests` on a private simulator (shared composer).

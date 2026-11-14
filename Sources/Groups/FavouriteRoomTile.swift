@@ -21,7 +21,7 @@ struct FavouriteRoomTile: View {
                 if hasDraft {
                     Text("Draft").foregroundStyle(.red)
                 } else {
-                    Text("^[\(room.members.count) member](inflect: true)").foregroundStyle(.secondary)
+                    Text("^[\(room.members.count) member](inflect: true)").fontWeight(.regular).foregroundStyle(.secondary)
                 }
             }
             .font(.caption2.weight(.medium))

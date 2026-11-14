@@ -49,6 +49,15 @@ final class ChatSessions {
         return BotSummary(status: status(of: bot.id, in: store), preview: plain, time: last?.date ?? bot.canonicalSession?.lastActive)
     }
 
+    func isActive(_ bot: Bot, in store: BotStore, at now: Date) -> Bool {
+        let summary = summary(of: bot, in: store)
+        if case .waiting = summary.status { return true }
+        if summary.status == .working { return true }
+        // Hermes workers heartbeat every 60 s; 150 s bridges one missed beat, as in Hermes Desktop.
+        if let worker = bot.workerActive, now.timeIntervalSince(worker) < 150 { return true }
+        return summary.time.map { now.timeIntervalSince($0) < 90 } ?? false
+    }
+
     func reset() {
         for run in runs.values { run.cancel() }
         runs = [:]

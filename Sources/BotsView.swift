@@ -43,6 +43,8 @@ struct BotsView: View {
     @State private var modelsBot: Bot.ID?
     @State private var isNarrow = false
     @State private var showsHidden = Snapshot.requested == .sidebarHidden
+    @State private var showsActiveOnly = [.sidebarActive, .sidebarActiveEmpty].contains(Snapshot.requested)
+    @State private var now = Date.now
     @State private var columns = NavigationSplitViewVisibility.all
 
     var body: some View {
@@ -149,6 +151,7 @@ struct BotsView: View {
         }
         .focusedSceneValue(\.selectedBot, selected?.id)
         .focusedSceneValue(\.inspector, inspector)
+        .focusedSceneValue(\.showsActiveOnly, isStrip ? nil : $showsActiveOnly)
         .onChange(of: scenes.newChat, initial: true, presentNewChat)
         #endif
         .sheet(item: $reading) { hit in
@@ -210,6 +213,12 @@ struct BotsView: View {
             guard !isStrip else { return }
             await search.run(query, in: store.bots, on: connection.state == .connected ? connection.session?.server : nil, with: connection.urlSession)
         }
+        .task(id: showsActiveOnly) {
+            while showsActiveOnly && !Task.isCancelled {
+                now = .now
+                try? await Task.sleep(for: .seconds(5))
+            }
+        }
         .task(id: connection.state == .connected) {
             showsConnectionPill = false
             guard connection.state != .connected else { return }
@@ -218,6 +227,11 @@ struct BotsView: View {
         }
         .navigationTitle("Crew")
         #if os(macOS)
+        .toolbar {
+            if !isStrip {
+                ToolbarItem { activeToggle }
+            }
+        }
         // macOS 27 moves the system toggle into the toolbar overflow while the sidebar is hidden (#303).
         .toolbar(removing: columns == .detailOnly ? .sidebarToggle : nil)
         .navigationSplitViewColumnWidth(min: showsBot ? 240 : stripWidth, ideal: 320, max: 400)
@@ -242,6 +256,12 @@ struct BotsView: View {
                 if !store.sections.contains(where: { $0.id.isEmpty }) {
                     ForEach(groups.rooms) { stripTile(for: $0) }
                 }
+            } else if query.isEmpty && showsActiveOnly {
+                Section {
+                    ForEach(activeBots) { row(for: $0) }
+                    ForEach(activeRooms) { groupRow(for: $0) }
+                }
+                .listSectionSeparator(.hidden, edges: .top)
             } else if query.isEmpty {
                 if !store.favourites.isEmpty {
                     favourites
@@ -329,6 +349,14 @@ struct BotsView: View {
                 ContentUnavailableView("No Bots", systemImage: "person.2", description: Text("This server has no profiles yet."))
             } else if !store.isLoaded && connection.state == .connecting {
                 ProgressView()
+            } else if !isStrip && query.isEmpty && showsActiveOnly && activeBots.isEmpty && activeRooms.isEmpty {
+                ContentUnavailableView {
+                    Label("No Active Bots", systemImage: "line.3.horizontal.decrease")
+                } description: {
+                    Text("Bots that are working or wrote in the last 90 seconds show here.")
+                } actions: {
+                    Button("Show All Bots") { showsActiveOnly = false }
+                }
             } else if !isStrip && MessageSearch.isSearchable(query) && search.phase == .done && search.hits.isEmpty && search.failed == 0 && matchingBots.isEmpty && matchingRooms.isEmpty {
                 ContentUnavailableView.search(text: query)
             }
@@ -364,6 +392,8 @@ struct BotsView: View {
         }
         #if os(iOS)
         .toolbar {
+            ToolbarItem(placement: .bottomBar) { activeToggle }
+            DefaultToolbarItem(kind: .search, placement: .bottomBar)
             ToolbarItem(placement: .primaryAction) { newChatButton }
             ToolbarItem(placement: .primaryAction) {
                 Menu("Account", systemImage: "person.crop.circle") {
@@ -412,6 +442,19 @@ struct BotsView: View {
         if kind == .bot { isCreating = true } else { isCreatingGroup = true }
     }
     #endif
+
+    private var activeToggle: some View {
+        Toggle("Active Now", systemImage: "line.3.horizontal.decrease", isOn: $showsActiveOnly)
+            .help(showsActiveOnly ? "Show All Bots" : "Show Only Active Bots")
+    }
+
+    private var activeBots: [Bot] {
+        (store.favourites + store.sections.flatMap(\.bots)).filter { $0.id == selection || chats.isActive($0, in: store, at: now) }
+    }
+
+    private var activeRooms: [Room] {
+        groups.rooms.filter { $0.selectionID == selection || now.timeIntervalSince($0.updatedAt) < 90 }
+    }
 
     private var matchingBots: [Bot] {
         let name = query.trimmingCharacters(in: .whitespacesAndNewlines)

@@ -96,6 +96,7 @@ nonisolated struct Bot: Identifiable, Hashable, Sendable {
     var metaRevision: Int?
     var readPosition: ReadPosition?
     var readRevision: Int?
+    var workerActive: Date? = nil
 
     var id: String { name }
 
@@ -127,6 +128,7 @@ nonisolated extension Bot: Codable {
         case isDefault = "is_default"
         case hasAvatar = "has_avatar"
         case canonicalSession = "canonical_session"
+        case workerSession = "worker_session"
         case uiMeta = "ui_meta"
         case uiMetaRevisions = "ui_meta_revisions"
     }
@@ -134,6 +136,14 @@ nonisolated extension Bot: Codable {
     private enum Namespace: String, CodingKey {
         case bots = "hermes-bots"
         case crew
+    }
+
+    private struct WorkerSession: Codable {
+        let lastActive: Date?
+
+        private enum CodingKeys: String, CodingKey {
+            case lastActive = "last_active"
+        }
     }
 
     init(from decoder: any Decoder) throws {
@@ -149,6 +159,7 @@ nonisolated extension Bot: Codable {
         metaRevision = try? container.nestedContainer(keyedBy: Namespace.self, forKey: .uiMetaRevisions).decodeIfPresent(Int.self, forKey: .bots)
         readPosition = try? (try? container.nestedContainer(keyedBy: Namespace.self, forKey: .uiMeta))?.decodeIfPresent(ReadPosition.self, forKey: .crew)
         readRevision = try? container.nestedContainer(keyedBy: Namespace.self, forKey: .uiMetaRevisions).decodeIfPresent(Int.self, forKey: .crew)
+        workerActive = (try? container.decodeIfPresent(WorkerSession.self, forKey: .workerSession))?.lastActive
     }
 
     func encode(to encoder: any Encoder) throws {
@@ -160,6 +171,7 @@ nonisolated extension Bot: Codable {
         try container.encode(isDefault, forKey: .isDefault)
         try container.encode(hasAvatar, forKey: .hasAvatar)
         try container.encodeIfPresent(canonicalSession, forKey: .canonicalSession)
+        try container.encodeIfPresent(workerActive.map(WorkerSession.init), forKey: .workerSession)
         var uiMeta = container.nestedContainer(keyedBy: Namespace.self, forKey: .uiMeta)
         try uiMeta.encode(meta, forKey: .bots)
         try uiMeta.encodeIfPresent(readPosition, forKey: .crew)

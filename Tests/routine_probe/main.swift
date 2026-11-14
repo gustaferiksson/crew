@@ -150,10 +150,23 @@ if CommandLine.arguments.contains("room") {
         try await routines.update(created, title: created.title, prompt: created.prompt, schedule: created.schedule, destination: .history)
         let local = routines.jobs.first { $0.id == created.id }
         try record("jobs.local", try await job(created.id))
-        check(local?.destination == .history, "Edit to Don't Post reads back as Don't Post")
+        check(local?.destination == .history, "Edit to Don't Post reads back as local")
         check(local?.nextRun == nextRun, "an edit of the destination leaves the next run alone")
         if let local { try await routines.update(local, title: local.title, prompt: local.prompt, schedule: local.schedule, destination: .room(roomID)) }
         check(routines.jobs.first { $0.id == created.id }?.destination == .room(roomID), "Edit back to the room reads back as the room")
+
+        if let current = routines.jobs.first(where: { $0.id == created.id }) {
+            try await routines.update(current, title: "Room post edited", prompt: current.prompt + " ", schedule: "0 9 * * 1-5", destination: current.destination)
+        }
+        let edited = routines.jobs.first { $0.id == created.id }
+        try record("jobs.room.edited", try await job(created.id))
+        check(edited?.name == "[bot:\(bot)] Room post edited", "a rename keeps the [bot:] prefix")
+        check(edited?.schedule == "0 9 * * 1-5", "a preset schedule reads back exactly as sent")
+        check(edited?.prompt.hasSuffix(" ") == true, "a prompt edit is stored")
+        if let edited {
+            try await routines.update(edited, title: edited.title, prompt: edited.prompt, schedule: edited.schedule, destination: edited.destination)
+            check(routines.jobs.first { $0.id == created.id }?.nextRun == edited.nextRun, "an untouched edit leaves the next run alone")
+        }
 
         if let current = routines.jobs.first(where: { $0.id == created.id }) { await routines.trigger(current) }
         check(try await waitFor(120) { try await !roomPosts(by: created.id).isEmpty }, "Run Now posts into the room")

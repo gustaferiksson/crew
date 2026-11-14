@@ -21,6 +21,11 @@ struct RoutineDestinationTests {
         #expect(try job("routine-room/jobs.local").destination == .history)
         #expect(try job("routine-stop/jobs.idle").destination == .history)
 
+        let edited = try job("routine-room/jobs.room.edited")
+        #expect(edited.title == "Room post edited")
+        #expect(edited.name == "[bot:crew-test-peer] Room post edited")
+        #expect(edited.schedule == "0 9 * * 1-5")
+
         let disbanded = try job("routine-room/jobs.room.disbanded")
         #expect(disbanded.destination == .room("room-crew-probe"))
         #expect(disbanded.result.text == "Delivery failed")

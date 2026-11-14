@@ -37,7 +37,7 @@ struct InspectorFixtureScreen: View {
         RoutineJob(
             id: "a5", name: "[bot:ada] Citation check", title: "Citation check", prompt: "Check the draft's citations.",
             schedule: "every 1440m", nextRun: .now.addingTimeInterval(23 * 3600), lastRun: .now.addingTimeInterval(-50 * 60),
-            lastStatus: "cancelled", issue: nil, isPaused: false
+            lastStatus: "cancelled", issue: nil, isPaused: false, destination: .room("room-disbanded")
         ),
         RoutineJob(
             id: "a6", name: "[bot:ada] Lab notes", title: "Lab notes", prompt: "Tidy the lab notes.",

@@ -662,3 +662,47 @@ extension Transcript {
         turns[index].work[turns[index].work.count - 1].duration = date.timeIntervalSince(last.startedAt)
     }
 }
+
+extension Prompt {
+    nonisolated init(raw stored: String, sentAt: Date) {
+        let raw = stored.replacing(/(?i)<memory-context>.*?(?:<\/memory-context>|$)/.dotMatchesNewlines(), with: "")
+        if let skill = raw.prefixMatch(of: /\[IMPORTANT: The user has invoked the "\/?([^"]+)"/)?.1 {
+            let marker = "The user has provided the following instruction alongside the skill invocation: "
+            let instruction = raw.ranges(of: marker).last.map { String(raw[$0.upperBound...]).components(separatedBy: "\n\n[Runtime note:")[0] } ?? ""
+            let typed = instruction.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+            self.init(text: typed.isEmpty ? "/\(skill)" : "/\(skill) \(typed)", sentAt: sentAt)
+            return
+        }
+        var lines = raw.components(separatedBy: "\n")
+        var attachments: [Attachment] = []
+        while let last = lines.last, last.trimmingCharacters(in: .whitespaces).isEmpty || last == "[image]" || last == "[screenshot]" {
+            lines.removeLast()
+        }
+        while let last = lines.last, let path = Self.reference(last, prefix: "@image:") ?? last.wholeMatch(of: /\[Image attached at: ([^\]\n]+)\]/).map({ String($0.1) }) {
+            attachments.insert(Attachment(kind: .image, name: URL(filePath: path).lastPathComponent, path: path), at: 0)
+            lines.removeLast()
+        }
+        while let first = lines.first, let path = Self.reference(first, prefix: "@file:") {
+            attachments.append(Attachment(kind: .file, name: URL(filePath: path).lastPathComponent, path: path))
+            lines.removeFirst()
+        }
+        let body = lines.joined(separator: "\n")
+        let text = ["\n\n--- Context Warnings ---", "\n\n--- Attached Context ---", "\n\n[@mentions resolved from the Bot Mode roster"]
+            .compactMap { body.range(of: $0)?.lowerBound }
+            .min()
+            .map { String(body[..<$0]) }
+            ?? body
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let hidesCaption = trimmed == imageOnlyPrompt && attachments.contains { $0.kind == .image }
+        self.init(text: hidesCaption ? "" : trimmed, sentAt: sentAt, attachments: attachments)
+    }
+
+    private nonisolated static func reference(_ line: String, prefix: String) -> String? {
+        guard line.hasPrefix(prefix) else { return nil }
+        let value = line.dropFirst(prefix.count).trimmingCharacters(in: .whitespaces)
+        guard let quote = value.first, "`\"'".contains(quote), value.count > 1, value.last == quote else {
+            return value.isEmpty || value.contains(" ") ? nil : value
+        }
+        return String(value.dropFirst().dropLast())
+    }
+}

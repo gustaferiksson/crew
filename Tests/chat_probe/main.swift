@@ -517,6 +517,48 @@ if phases.contains("voice") {
     exit(1)
 }
 
+if phases.contains("share") {
+    let bot = try await crewTest()
+    let target = VoiceBot(name: bot.name, title: bot.title, session: bot.canonicalSession?.id.rawValue, lastActive: nil, shape: "blob", color: "#8b5cf6", expression: nil, hidden: false)
+    let word = "share-\(UUID().uuidString.prefix(4).lowercased())"
+    let pixel = CGContext(data: nil, width: 64, height: 64, bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+    pixel.setFillColor(CGColor(red: 1, green: 0, blue: 0, alpha: 1))
+    pixel.fill(CGRect(x: 0, y: 0, width: 64, height: 64))
+    let png = NSMutableData()
+    let destination = CGImageDestinationCreateWithData(png, "public.png" as CFString, 1, nil)!
+    CGImageDestinationAddImage(destination, pixel.makeImage()!, nil)
+    CGImageDestinationFinalize(destination)
+    let pdf = outDir.appending(path: "\(word).pdf")
+    try Data("%PDF-1.4\n% \(word)\n%%EOF\n".utf8).write(to: pdf)
+    let items: [SharedItem] = [
+        .link(URL(string: "https://example.com/\(word)")!, title: "Example"),
+        .file(try Attachment(data: png as Data, name: "\(word).png")),
+        .file(try Attachment(contentsOf: pdf)),
+    ]
+    let note = "Shared from the probe. Reply with just the word \(word)."
+    let message = SharedItem.message(note: note, items: items)
+    let started = ContinuousClock.now
+    try await share(message, attachments: try SharedItem.attachments(in: items), to: target, on: server, with: urlSession)
+    print("SHARE sent in \(ContinuousClock.now - started)")
+    guard let stored = try await crewTest().canonicalSession?.resolvedID else { print("SHARE no Bot Chat"); exit(1) }
+    for _ in 0..<40 {
+        try await Task.sleep(for: .seconds(3))
+        let rows = try await history(of: stored, profile: "crew-test", on: server, with: urlSession, limit: 20)
+        guard let turn = Transcript(history: rows).turns.last(where: { $0.prompt?.text.contains(word) == true }), let prompt = turn.prompt else { continue }
+        print("SHARE prompt text: \(prompt.text.replacingOccurrences(of: "\n", with: "⏎"))")
+        print("SHARE prompt attachments: \(prompt.attachments.map { "\($0.kind.rawValue):\($0.name)" })")
+        guard turn.status != .streaming, !turn.reply.isEmpty else { continue }
+        print("SHARE reply: \(turn.reply.prefix(80))")
+        let raw = try await fetchData(historyRequest(of: stored, profile: "crew-test", on: server, limit: 2), with: urlSession)
+        try raw.write(to: outDir.appending(path: "share.history.json"))
+        let ok = prompt.text.contains("https://example.com/\(word)") && prompt.attachments.contains { $0.name == "\(word).pdf" } && prompt.attachments.contains { $0.kind == .image }
+        print(ok ? "SHARE OK" : "SHARE MISMATCH")
+        exit(ok ? 0 : 1)
+    }
+    print("SHARE TIMEOUT: no turn in history")
+    exit(1)
+}
+
 if phases.contains("ask") {
     let bot = try await crewTest()
     let started = ContinuousClock.now

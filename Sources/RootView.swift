@@ -38,6 +38,10 @@ struct RootView: View {
                 #if os(iOS)
                 PinnedWidgetFixture(empty: Snapshot.requested == .widgetPinnedCardEmpty)
                 #endif
+            } else if Snapshot.requested == .shareSheet || Snapshot.requested == .shareSheetTooLarge {
+                #if os(iOS)
+                ShareSheetFixture(tooLarge: Snapshot.requested == .shareSheetTooLarge)
+                #endif
             } else if Snapshot.requested == .avatarEyes {
                 LivingEyesFixture()
             } else if Snapshot.requested == .avatarPicker {

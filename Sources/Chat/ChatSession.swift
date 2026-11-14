@@ -1,32 +1,6 @@
 import Foundation
 import Observation
 
-nonisolated struct TodoItem: Hashable, Identifiable, Sendable {
-    enum Status: String, Sendable {
-        case pending
-        case inProgress = "in_progress"
-        case completed
-        case cancelled
-    }
-
-    let id: String
-    let content: String
-    let status: Status
-}
-
-nonisolated extension TodoItem: Decodable {
-    private enum CodingKeys: String, CodingKey {
-        case id, content, status
-    }
-
-    init(from decoder: any Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        content = (try? container.decode(String.self, forKey: .content)) ?? ""
-        id = (try? container.decode(String.self, forKey: .id)) ?? (try? container.decode(Int.self, forKey: .id)).map(String.init) ?? content
-        status = (try? container.decode(String.self, forKey: .status)).flatMap(Status.init(rawValue:)) ?? .pending
-    }
-}
-
 @Observable
 final class ChatSession: AttachmentSource {
     private(set) var transcript = Transcript() {
@@ -354,25 +328,9 @@ final class ChatSession: AttachmentSource {
         }
         transcript.begin(prompt: prompt.text, attachments: prompt.attachments)
         Task {
-            var staged: [String] = []
             do {
-                var references: [String] = []
-                for attachment in prompt.attachments {
-                    guard let data = attachment.data else { continue }
-                    if attachment.kind == .image {
-                        let params = ["session_id": runtime.rawValue, "content_base64": data.base64EncodedString(), "filename": attachment.name]
-                        staged.append(try await gateway.call("image.attach_bytes", params, as: AttachResult.self).path)
-                    } else {
-                        let params = ["session_id": runtime.rawValue, "data_url": "data:\(attachment.mimeType);base64,\(data.base64EncodedString())", "name": attachment.name]
-                        references.append(try await gateway.call("file.attach", params, as: AttachResult.self).refText ?? "")
-                    }
-                }
-                let message = [references.joined(separator: "\n"), prompt.payload ?? prompt.text + prompt.mentionNote].filter { !$0.isEmpty }.joined(separator: "\n\n")
-                _ = try await gateway.call("prompt.submit", ["session_id": runtime.rawValue, "text": message.isEmpty ? imageOnlyPrompt : message], as: JSONValue.self)
+                try await submitPrompt(prompt.payload ?? prompt.text + prompt.mentionNote, attachments: prompt.attachments, in: runtime, via: gateway)
             } catch {
-                for path in staged {
-                    _ = try? await gateway.call("image.detach", ["session_id": runtime.rawValue, "path": path], as: JSONValue.self)
-                }
                 transcript.apply(.messageComplete(text: "", status: .error, error: error.localizedDescription))
             }
         }
@@ -740,43 +698,6 @@ nonisolated private struct ClarifyParams: Decodable {
     let questions: [Question]
 }
 
-nonisolated private struct ListParams: Encodable, Sendable {
-    let profile: String
-    let title = "Bot Chat"
-    let includeHidden = true
-
-    private enum CodingKeys: String, CodingKey {
-        case profile, title
-        case includeHidden = "include_hidden"
-    }
-}
-
-nonisolated private struct CreateParams: Encodable, Sendable {
-    let profile: String
-    let title = "Bot Chat"
-    let hidden = true
-    let followProfileConfig = true
-
-    private enum CodingKeys: String, CodingKey {
-        case profile, title, hidden
-        case followProfileConfig = "follow_profile_config"
-    }
-}
-
-nonisolated private struct ResumeParams: Encodable, Sendable {
-    let sessionID: StoredSessionID
-    let profile: String
-    let omitMessages = true
-    let inlineImages = false
-
-    private enum CodingKeys: String, CodingKey {
-        case profile
-        case sessionID = "session_id"
-        case omitMessages = "omit_messages"
-        case inlineImages = "inline_images"
-    }
-}
-
 nonisolated private struct ActivateParams: Encodable, Sendable {
     let sessionID: RuntimeSessionID
     let omitMessages = true
@@ -787,43 +708,12 @@ nonisolated private struct ActivateParams: Encodable, Sendable {
     }
 }
 
-nonisolated private struct AttachResult: Decodable, Sendable {
-    let path: String
-    let refText: String?
-
-    private enum CodingKeys: String, CodingKey {
-        case path
-        case refText = "ref_text"
-    }
-}
-
-nonisolated private struct StoredSessions: Decodable, Sendable {
-    struct Row: Decodable, Sendable {
-        let id: StoredSessionID
-    }
-
-    let sessions: [Row]
-}
-
 nonisolated private struct PathCompletions: Decodable, Sendable {
     let items: [PathCompletion]
 }
 
 nonisolated private struct HistoryPage: Decodable, Sendable {
     let messages: [HistoryRow]
-}
-
-nonisolated func openBotChat(_ known: StoredSessionID?, profile: String, via gateway: Gateway) async throws -> (stored: StoredSessionID?, snapshot: LiveSnapshot) {
-    let stored = if let known { known } else {
-        try await gateway.call("session.list", ListParams(profile: profile), as: StoredSessions.self).sessions.first?.id
-    }
-    if let stored {
-        return (stored, try await gateway.call("session.resume", ResumeParams(sessionID: stored, profile: profile), as: LiveSnapshot.self))
-    }
-    let snapshot = try await gateway.call("session.create", CreateParams(profile: profile), as: LiveSnapshot.self)
-    // session.create writes no row until the first prompt; a reaped runtime then resumes the key as an untitled, visible row.
-    _ = try await gateway.call("session.title", ["session_id": snapshot.sessionID.rawValue, "title": "Bot Chat"], as: JSONValue.self)
-    return (nil, snapshot)
 }
 
 nonisolated func history(of stored: StoredSessionID, profile: String, on server: URL, with urlSession: URLSession, limit: Int = 500, offset: Int = 0) async throws -> [HistoryRow] {
@@ -864,56 +754,6 @@ nonisolated func historyRequest(of stored: StoredSessionID, profile: String, on 
         URLQueryItem(name: "inline_images", value: "false"),
     ])
     return request
-}
-
-nonisolated struct LiveSnapshot: Decodable, Sendable {
-    struct Inflight: Decodable, Sendable {
-        let user: String?
-        let assistant: String?
-        let displayKind: String?
-
-        private enum CodingKeys: String, CodingKey {
-            case user, assistant
-            case displayKind = "display_kind"
-        }
-    }
-
-    struct TodoState: Decodable, Sendable {
-        let todos: [TodoItem]
-        let revision: Int
-    }
-
-    struct Info: Decodable, Sendable {
-        let usage: ContextUsage?
-
-        private enum CodingKeys: String, CodingKey {
-            case usage
-        }
-
-        init(from decoder: any Decoder) throws {
-            usage = try? decoder.container(keyedBy: CodingKeys.self).decodeIfPresent(ContextUsage.self, forKey: .usage)
-        }
-    }
-
-    let sessionID: RuntimeSessionID
-    let storedSessionID: StoredSessionID?
-    let messageCount: Int?
-    let running: Bool?
-    let turnStartedAt: Double?
-    let inflight: Inflight?
-    let todoState: TodoState?
-    let openRequests: [ServerRequest]?
-    let info: Info?
-
-    private enum CodingKeys: String, CodingKey {
-        case running, inflight, info
-        case sessionID = "session_id"
-        case storedSessionID = "stored_session_id"
-        case messageCount = "message_count"
-        case turnStartedAt = "turn_started_at"
-        case todoState = "todo_state"
-        case openRequests = "open_requests"
-    }
 }
 
 nonisolated private struct EventPayload: Sendable {

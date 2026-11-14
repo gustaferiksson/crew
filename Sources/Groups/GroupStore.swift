@@ -92,6 +92,7 @@ nonisolated private struct DisbandRoomParams: Encodable, Sendable {
 final class GroupStore {
     private(set) var rooms: [Room] = []
     private(set) var isSupported = false
+    private(set) var isLoaded = false
     private(set) var canAttach = false
 
     init() {}
@@ -99,11 +100,16 @@ final class GroupStore {
     init(fixture rooms: [Room]) {
         self.rooms = rooms
         isSupported = true
+        isLoaded = true
         canAttach = true
     }
 
     func rooms(with bot: Bot) -> [Room] {
         rooms.filter { room in room.members.contains { !$0.isPeer && $0.profile == bot.name } }
+    }
+
+    func name(ofRoom id: String) -> String? {
+        rooms.first { $0.id == id }?.name ?? (isLoaded ? String(localized: "Removed Room") : nil)
     }
 
     func run(_ gateway: Gateway) async {
@@ -153,6 +159,7 @@ final class GroupStore {
     func reset() {
         rooms = []
         isSupported = false
+        isLoaded = false
         canAttach = false
     }
 
@@ -167,5 +174,6 @@ final class GroupStore {
     private func reload(_ gateway: Gateway) async {
         guard isSupported, let list = try? await gateway.call("groups.list", [String: String](), as: RoomList.self) else { return }
         if list.rooms != rooms { rooms = list.rooms }
+        isLoaded = true
     }
 }

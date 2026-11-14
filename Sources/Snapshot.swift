@@ -78,6 +78,7 @@ enum Snapshot: String {
     case inspectorTasks = "inspector-tasks"
     case inspectorRoutines = "inspector-routines"
     case inspectorRoutinesEmpty = "inspector-routines-empty"
+    case editRoutine = "edit-routine"
     case inspectorLook = "inspector-look"
     case inspectorVoice = "inspector-voice"
     case inspectorRooms = "inspector-rooms"

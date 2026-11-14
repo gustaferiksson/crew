@@ -1,0 +1,24 @@
+{
+  "deliver" : "room:room-crew-probe@default",
+  "enabled" : true,
+  "id" : "602b089e1446",
+  "last_delivery_error" : null,
+  "last_error" : null,
+  "last_run_at" : "2026-11-14T13:48:43.127619+00:00",
+  "last_status" : "ok",
+  "latest_execution" : {
+    "claimed_at" : "2026-11-14T13:48:39.891880+00:00",
+    "error" : null,
+    "finished_at" : "2026-11-14T13:48:43.132306+00:00",
+    "id" : "b26340cef86c433aaa3cb98dffe42197",
+    "scheduled_instant" : null,
+    "status" : "completed"
+  },
+  "live_execution" : null,
+  "name" : "[bot:crew-test-peer] Room post edited",
+  "next_run_at" : "2026-11-16T09:00:00+00:00",
+  "paused_reason" : null,
+  "prompt" : "Reply with exactly this text and nothing else: Probe post from Crew. ",
+  "schedule_display" : "0 9 * * 1-5",
+  "state" : "scheduled"
+}

@@ -4,7 +4,7 @@ A routine with `deliver: "bot-chat"` (Hermes 0.22.5) hands its output to the bot
 
 Crew showed that row as the user's own bubble, because only `Message from …` internal notifications were recognised. The user did not write it, so like Messages' system lines it becomes a quiet centred notice, and the bot's reply under it is what the user reads.
 
-Who makes such routines: Crew's Routines sheet sends no `deliver`, so today they come from the bot itself (the `cronjob` tool) or the CLI. Crew does not add a delivery picker here.
+Who makes such routines: Crew's Routines sheet sends no `deliver`, so today they come from the bot itself (the `cronjob` tool) or the CLI. Crew offers no `bot-chat` choice; its Post To picker (#349, `routine-room.md`) offers the bot's rooms.
 
 ## Bot Chat (iPhone, Mac main window, Mac chat window)
 

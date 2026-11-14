@@ -12,6 +12,7 @@ nonisolated struct RoutineJob: Identifiable, Hashable, Sendable {
     let lastStatus: String?
     let issue: String?
     let isPaused: Bool
+    var destination = RoutineDestination.history
     var missedRuns: Int?
     var latestRun: RoutineRun?
     var liveRunID: String?
@@ -48,7 +49,7 @@ nonisolated private struct FireError: Decodable {
 nonisolated extension RoutineJob: Decodable {
     private enum CodingKeys: CodingKey {
         case id, name, prompt, enabled, state, scheduleDisplay, nextRunAt, lastRunAt, lastStatus
-        case lastFireError, lastDeliveryError, lastError, pausedReason, latestExecution, liveExecution
+        case lastFireError, lastDeliveryError, lastError, pausedReason, latestExecution, liveExecution, deliver
     }
 
     init(from decoder: any Decoder) throws {
@@ -69,6 +70,7 @@ nonisolated extension RoutineJob: Decodable {
         latestRun = try? container.decodeIfPresent(RoutineRun.self, forKey: .latestExecution)
         liveRunID = (try? container.decodeIfPresent(RoutineRun.self, forKey: .liveExecution))?.id
         tracksRuns = container.contains(.liveExecution)
+        destination = RoutineDestination(deliver: try? container.decodeIfPresent(String.self, forKey: .deliver))
 
         let ranAt = (try? container.decodeIfPresent(String.self, forKey: .lastRunAt)).flatMap { try? Date($0, strategy: .iso8601) }
         guard let missed = latestRun, missed.status == "missed", let finished = missed.finishedAt, ranAt.map({ finished > $0 }) ?? true else {
@@ -88,6 +90,7 @@ nonisolated private struct CronParams: Encodable {
     var name: String?
     var schedule: String?
     var prompt: String?
+    var deliver: String?
 }
 
 nonisolated private struct CronReply: Decodable {
@@ -110,8 +113,9 @@ private struct CronContext {
     let gateway: Gateway
     let urlSession: URLSession
 
-    func request(_ path: String, post: Bool = false) -> URLRequest {
-        var request = hermesRequest("api/cron/jobs\(path)", on: gateway.server, json: post ? [:] : nil)
+    func request(_ path: String, method: String = "GET") -> URLRequest {
+        var request = hermesRequest("api/cron/jobs\(path)", on: gateway.server, json: method == "GET" ? nil : [:])
+        request.httpMethod = method
         request.url?.append(queryItems: [URLQueryItem(name: "profile", value: profile)])
         return request
     }
@@ -190,7 +194,7 @@ final class RoutineStore {
     func trigger(_ job: RoutineJob) async {
         guard let context, triggers[job.id] == nil, !inFlight.contains(job.id) else { return }
         triggers[job.id] = .now
-        var request = context.request("/\(job.id)/trigger", post: true)
+        var request = context.request("/\(job.id)/trigger", method: "POST")
         request.timeoutInterval = 7200
         let failure: (any Error)?
         do {
@@ -210,7 +214,7 @@ final class RoutineStore {
         guard !inFlight.contains(job.id) else { return }
         stopping.insert(job.id)
         await perform(job) { context in
-            let cancel = context.request("/\(job.id)/cancel", post: true)
+            let cancel = context.request("/\(job.id)/cancel", method: "POST")
             var reply = try await fetch(cancel, with: context.urlSession, as: CancelReply.self)
             if !reply.cancelled, self.triggers[job.id] != nil, (try? await Task.sleep(for: .seconds(1))) != nil {
                 reply = try await fetch(cancel, with: context.urlSession, as: CancelReply.self)
@@ -230,11 +234,31 @@ final class RoutineStore {
         stopping.remove(job.id)
     }
 
-    func create(title: String, prompt: String, schedule: String) async throws {
+    func create(title: String, prompt: String, schedule: String, destination: RoutineDestination) async throws {
         guard let context else { throw RoutineError(errorDescription: String(localized: "Crew isn't connected to the server.")) }
         do {
-            let params = CronParams(action: "add", profile: context.profile, name: "[bot:\(context.profile)] \(title)", schedule: schedule, prompt: prompt)
+            let deliver = destination == .history ? nil : destination.deliver
+            let params = CronParams(action: "add", profile: context.profile, name: "[bot:\(context.profile)] \(title)", schedule: schedule, prompt: prompt, deliver: deliver)
             _ = try await manage(params, on: context.gateway)
+        } catch {
+            throw RoutineError(errorDescription: describe(error))
+        }
+        await reload()
+    }
+
+    func update(_ job: RoutineJob, title: String, prompt: String, schedule: String, destination: RoutineDestination) async throws {
+        guard let context else { throw RoutineError(errorDescription: String(localized: "Crew isn't connected to the server.")) }
+        let updates = [
+            "name": title == job.title ? nil : String(job.name.dropLast(job.title.count)) + title,
+            "prompt": prompt == job.prompt ? nil : prompt,
+            "schedule": schedule == job.schedule ? nil : schedule,
+            "deliver": destination == job.destination ? nil : destination.deliver,
+        ].compactMapValues { $0 }
+        guard !updates.isEmpty else { return }
+        var request = context.request("/\(job.id)", method: "PUT")
+        request.httpBody = try? JSONEncoder().encode(["updates": updates])
+        do {
+            _ = try await fetch(request, with: context.urlSession, as: JSONValue.self)
         } catch {
             throw RoutineError(errorDescription: describe(error))
         }

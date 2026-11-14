@@ -1,0 +1,17 @@
+{
+  "deliver" : "room:room-crew-probe@default",
+  "enabled" : true,
+  "id" : "602b089e1446",
+  "last_delivery_error" : null,
+  "last_error" : null,
+  "last_run_at" : null,
+  "last_status" : null,
+  "latest_execution" : null,
+  "live_execution" : null,
+  "name" : "[bot:crew-test-peer] Room post edited",
+  "next_run_at" : "2026-11-16T09:00:00+00:00",
+  "paused_reason" : null,
+  "prompt" : "Reply with exactly this text and nothing else: Probe post from Crew. ",
+  "schedule_display" : "0 9 * * 1-5",
+  "state" : "scheduled"
+}

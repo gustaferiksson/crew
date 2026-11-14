@@ -70,6 +70,8 @@ final class AttachmentTray {
     private func append(_ load: () async throws -> Attachment) async {
         do {
             items = try Attachment.validated(items + [try await load()], limits: limits)
+        } catch AttachmentError.tooLarge(let name, _) {
+            failure = AttachmentError.tooLarge(name, megabytes: limits.file).localizedDescription
         } catch {
             failure = error.localizedDescription
         }

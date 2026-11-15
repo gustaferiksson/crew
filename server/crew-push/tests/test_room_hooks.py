@@ -19,14 +19,16 @@ SESSION = "20261114_101500_c0ffee"
 
 
 @pytest.fixture(autouse=True)
-def rooms(monkeypatch: pytest.MonkeyPatch, session_rows: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
+def rooms(monkeypatch: pytest.MonkeyPatch, session_rows: dict[str, dict[str, Any]],
+          hermes_root: Path) -> list[dict[str, Any]]:
     listed = [dict(room) for room in LISTED]
     session_rows[SESSION] = {**RECORDED, "id": SESSION, "title": f"Group: {ROOM['room_id']}"}
     session_rows[RECORDED["id"]] = RECORDED
     session_rows["20261114_090000_aaaaaa"] = {"id": "20261114_090000_aaaaaa", "source": "tui", "title": f"Group: {ROOM['room_id']}"}
     monkeypatch.setitem(sys.modules, "gateway", types.ModuleType("gateway"))
     monkeypatch.setitem(sys.modules, "gateway.hosted_rooms", types.SimpleNamespace(
-        default_db_path=lambda: Path("shared-state.db"), list_rooms=lambda db_path: listed))
+        default_db_path=lambda: hermes_root / "shared-state.db",
+        list_rooms=lambda db_path: listed if db_path == hermes_root / "state.db" else []))
     monkeypatch.setitem(sys.modules, "gateway.hosted_room_discussion", types.SimpleNamespace(
         is_pass_text=lambda value: not str(value or "").strip()
         or re.fullmatch(r"\(?\s*pass\s*\)?\.?", str(value).strip(), re.IGNORECASE) is not None))

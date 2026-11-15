@@ -142,6 +142,7 @@ jobs:
           sparse-checkout: |
             agent
             cron
+            gateway
             hermes_cli
             tools
 

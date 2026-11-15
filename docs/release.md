@@ -30,7 +30,7 @@ A full `git log --all -p` audit before publishing found no `.env`, `.env.test`, 
 
 ### 1. Apple portal and secrets
 
-1. [me] Developer portal: confirm App ID `dev.gustaf.crew` has Push Notifications and Time Sensitive Notifications (it does for dev builds). Confirm the iPhone(s) are registered (`./device.sh` already registered the dev iPhone).
+1. [me] Developer portal: confirm App ID `dev.gustaf.crew` has Push Notifications and Time Sensitive Notifications (it does for dev builds). Confirm the iPhone(s) are registered.
 2. [me] Profiles > +: **Ad Hoc** for `dev.gustaf.crew` with the Apple Distribution cert and all devices, named `Crew Ad Hoc`. **Developer ID** for `dev.gustaf.crew` with the Developer ID Application cert, named `Crew Developer ID`. Download both.
 3. [me] Export the **Apple Distribution: Gustaf Eriksson (82K3YC8HVF)** cert as `.p12` with a password. In the 1Password release item, section "Crew iOS release": files `AppleDistribution.p12`, `Crew_Ad_Hoc.mobileprovision`, `Crew_DeveloperID.provisionprofile` and the field "AppleDistribution.p12 password". Done: `Crew Ad Hoc` covers the registered iPhone; `Crew Developer ID` includes `aps-environment` production and time-sensitive.
 4. [claude, after your OK] `gh secret set` on `gustaferiksson/crew` from `op read` (same source as rinse/amped/tinecast):
@@ -51,7 +51,7 @@ A full `git log --all -p` audit before publishing found no `.env`, `.env.test`, 
 1. [claude] macOS: drop `ENABLE_APP_SANDBOX` and `com.apple.security.app-sandbox`, `network.client`, `files.user-selected.read-only` from `Crew-macOS.entitlements`; keep `ENABLE_HARDENED_RUNTIME`, add `com.apple.security.device.audio-input`. Verify dictation, Keychain session and push on the Debug Mac build.
 2. [claude] Port `AppUpdater.swift` from Rinse (`releases/latest` HEAD with redirects blocked, `Crew-<v>.zip`, signature requirement `identifier "dev.gustaf.crew"` + team `82K3YC8HVF`, swap on quit or "Install and Relaunch"), macOS only. Hook it into a "Check for Updates…" menu command and an About/Settings row.
 3. [claude] iOS update check per decision 4: a small `UpdateCheck` (iOS only) plus a banner/row in the bot list; `UIApplication.shared.open(itms-services URL)`.
-4. [claude] Dev builds stamp `MARKETING_VERSION=<git describe>-local` in `build.sh`/`device.sh` (Rinse pattern) so they are distinguishable and never self-update; `DEBUG` skips both checks.
+4. [claude] Dev builds stamp `MARKETING_VERSION=<git describe>-local` in `build.sh` (Rinse pattern) so they are distinguishable and never self-update; `DEBUG` skips both checks.
 5. [claude] crew-push: bump `dashboard/manifest.json` to match `plugin.yaml`/`pyproject.toml`/`__init__.py` (0.2.0). README "Updates" section: download `crew-push-<v>.tar.gz` from the release, `rsync` into `~/.hermes/plugins/crew-push/` as today. Plugin versions move independently of the app.
 
 ### 4. Release scripts
@@ -91,14 +91,13 @@ From the first push on, `main` only moves through pull requests. How this plays 
 - Verification stays targeted as in `CLAUDE.md`: zero-warning `./build.sh`, only the affected snapshots, only the probes for the logic touched.
 - Releases are cut by the user: `git tag v0.x.y && git push origin v0.x.y` on a green `main`. Versions stay on 0.x.
 
-## Living with dev builds
+## Dev builds
 
-- **iOS:** `./device.sh` (Debug, Apple Development, sandbox APNs) and the Ad Hoc install share `dev.gustaf.crew` and team, so each install replaces the other in place and keeps data and the Keychain session. On the next connect `PushCenter` re-registers with the new environment (its fingerprint includes it); the plugin routes each token by its stored environment and prunes the stale one on the first `BadDeviceToken`/`Unregistered`. No plugin change needed. To go back to the release, reinstall from the Pages link; a dev build never shows the update banner.
-- **macOS:** the dev app in `.build/…/Debug/Crew.app` and `/Applications/Crew.app` share the bundle id; both register for push (sandbox vs production), so a notification may land on either and LaunchServices may open either. Quit one while testing the other; `build.sh`'s `lsregister -f` makes the dev copy win until the release one is launched again.
+The user's iPhone and Mac run only tagged releases (Ad Hoc IPA, notarized Mac zip). Dev builds stay on simulators and in agent worktrees, never on the user's devices.
 
 ## Maintenance
 
-- New iPhone/iPad: register in the portal (or `./device.sh` once), regenerate both Ad Hoc profiles, `Crew Ad Hoc` and `Crew Widgets Ad Hoc` [me], update `IOS_ADHOC_PROFILE` and `IOS_WIDGETS_ADHOC_PROFILE` [claude], tag a release; already-installed devices are unaffected.
+- New iPhone/iPad: register in the portal, regenerate both Ad Hoc profiles, `Crew Ad Hoc` and `Crew Widgets Ad Hoc` [me], update `IOS_ADHOC_PROFILE` and `IOS_WIDGETS_ADHOC_PROFILE` [claude], tag a release; already-installed devices are unaffected.
 - Distribution and Developer ID certs and the Developer ID profile expire: renew, re-export to 1Password, refresh the secrets and the committed profile.
 - The public IPA embeds the Ad Hoc profile, so registered device UDIDs are readable by anyone who downloads it. Low risk, but that is the cost of public OTA hosting.
 

@@ -224,9 +224,11 @@ def room_of(profile: str, session_id: str) -> str:
 
 
 def listed_room(room_id: str) -> dict[str, Any] | None:
-    from gateway.hosted_rooms import default_db_path, list_rooms
+    from gateway.hosted_rooms import list_rooms
+    from hermes_cli.profiles import get_profile_dir
 
-    return next((room for room in list_rooms(default_db_path()) if room.get("room_id") == room_id), None)
+    rooms = list_rooms(get_profile_dir("default") / "state.db")
+    return next((room for room in rooms if room.get("room_id") == room_id), None)
 
 
 def browser_open(task_id: str) -> bool:
@@ -629,7 +631,12 @@ class CrewPush:
                 return None
             with self.lock:
                 self.rooms.remember(session_id, room_id)
-        return listed_room(room_id) if room_id else None
+        if not room_id:
+            return None
+        room = listed_room(room_id)
+        if room is None:
+            log.info("crew-push: room %s is not in the gateway's room store, no push", room_id)
+        return room
 
     def notify(self, kind: Kind, session_id: str, ref: str, *, body: str, subtitle: str = "",
                request_id: str = "", expires_at: float = 0.0) -> None:

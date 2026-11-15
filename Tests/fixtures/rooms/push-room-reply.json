@@ -1,0 +1,22 @@
+{
+  "aps": {
+    "alert": {
+      "title": "Crew list two",
+      "body": "Build is green. Deploying v2.",
+      "subtitle": "Crew Test"
+    },
+    "sound": "default",
+    "thread-id": "group:room-9b04759b-41ca-4a2a-83a2-3092a4fbc686",
+    "category": "CREW_REPLY",
+    "interruption-level": "active"
+  },
+  "crew": {
+    "v": 1,
+    "kind": "reply",
+    "install_id": "9f2c41d07ab35e11",
+    "profile": "crew-test",
+    "session_id": "20261114_101500_c0ffee",
+    "event_id": "1b2a002ba681ce12",
+    "room_id": "room-9b04759b-41ca-4a2a-83a2-3092a4fbc686"
+  }
+}

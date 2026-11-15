@@ -17,6 +17,8 @@ RETURNED = [
     ("hermes_cli.plugins", "PluginManager", "iter_hook_callbacks"),
     ("hermes_state", "SessionDB", "get_session_by_title"),
     ("hermes_state", "SessionDB", "get_compression_tip"),
+    ("hermes_state", "SessionDB", "get_session"),
+    ("hermes_state", "SessionDB", "get_conversation_root"),
     ("hermes_state", "SessionDB", "close"),
     ("agent.vault_store", "VaultStore", "list_items"),
     ("agent.vault_store", "VaultStore", "add_item"),

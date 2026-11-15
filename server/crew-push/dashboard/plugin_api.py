@@ -101,7 +101,7 @@ def checked_profile(profile: str) -> None:
 def status() -> dict[str, Any]:
     return {"plugin_version": PLUGIN_VERSION, "install_id": store.install_id(),
             "apns_configured": store.apns_config() is not None, "http2": importlib.util.find_spec("h2") is not None,
-            "devices": len(store.read_devices()), "features": ["payments", "card", "card_vault"], "gate": store.read_gate()}
+            "devices": len(store.read_devices()), "features": ["payments", "card", "card_vault", "rooms"], "gate": store.read_gate()}
 
 
 @router.post("/devices")

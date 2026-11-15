@@ -234,7 +234,8 @@ final class PushCenter: NSObject {
     private func removeDelivered(of bot: Bot.ID) async {
         let center = UNUserNotificationCenter.current()
         let delivered = await center.deliveredNotifications()
-        let read = delivered.filter { $0.request.content.threadIdentifier == "profile.\(bot)" }
+        let thread = bot.hasPrefix("group:") ? bot : "profile.\(bot)"
+        let read = delivered.filter { $0.request.content.threadIdentifier == thread }
         center.removeDeliveredNotifications(withIdentifiers: read.map(\.request.identifier))
         guard read.count == delivered.count else { return }
         try? await center.setBadgeCount(0)
@@ -310,7 +311,7 @@ final class PushCenter: NSObject {
     }
 
     static func presentation(for route: PushRoute?, isActive: Bool, visibleBot: Bot.ID?) -> UNNotificationPresentationOptions {
-        guard let route, route.kind != "timer", isActive, route.profile == visibleBot else { return [.banner, .list, .sound] }
+        guard let route, route.kind != "timer", isActive, route.selectionID == visibleBot else { return [.banner, .list, .sound] }
         return []
     }
 

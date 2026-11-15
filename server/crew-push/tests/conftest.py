@@ -34,7 +34,13 @@ def hermes_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 
 
 @pytest.fixture(autouse=True)
-def bot_chat(monkeypatch: pytest.MonkeyPatch, hermes_root: Path) -> dict[str, str]:
+def session_rows() -> dict[str, dict[str, Any]]:
+    return {}
+
+
+@pytest.fixture(autouse=True)
+def bot_chat(monkeypatch: pytest.MonkeyPatch, hermes_root: Path,
+             session_rows: dict[str, dict[str, Any]]) -> dict[str, str]:
     chat = {"id": BOT_CHAT, "tip": BOT_CHAT}
 
     class SessionDB:
@@ -46,6 +52,12 @@ def bot_chat(monkeypatch: pytest.MonkeyPatch, hermes_root: Path) -> dict[str, st
 
         def get_compression_tip(self, session_id: str) -> str:
             return chat["tip"] if session_id == chat["id"] else session_id
+
+        def get_session(self, session_id: str) -> dict[str, Any] | None:
+            return session_rows.get(session_id)
+
+        def get_conversation_root(self, session_id: str) -> str:
+            return str((session_rows.get(session_id) or {}).get("root") or session_id)
 
         def close(self) -> None:
             pass

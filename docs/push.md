@@ -478,7 +478,7 @@ Body (well under the 4 KB limit with the 120/400 character clips):
 }
 ```
 
-`kind`: `reply | turn_error | approval | clarify | routine | payment`, plus the silent `read` and `payment_resolved`. Title is always the bot's display name; the kind shows through subtitle/body and the category. `thread-id` groups notifications per bot in Notification Center, like Messages threads.
+`kind`: `reply | turn_error | approval | clarify | routine | payment`, plus the silent `read` and `payment_resolved`. Title is always the bot's display name; the kind shows through subtitle/body and the category. `thread-id` groups notifications per bot in Notification Center, like Messages threads. Since crew-push 0.8.0 a room member's reply or approval carries `room_id`, the room name as title, the member as subtitle and `thread-id` `group:<room_id>` ([flows/room-push.md](flows/room-push.md)).
 
 ### 4.6 What is notified, and what is not
 

@@ -35,8 +35,7 @@ Replace `host` with the SSH name of the Hermes machine and run everything as the
 1. **Apple Developer > Identifiers > `dev.gustaf.crew`**: enable **Push Notifications** and **Time Sensitive Notifications** (step 1 above covers the first).
 2. Sign in to the team account in Xcode > Settings > Accounts, so `xcodebuild -allowProvisioningUpdates` can create the Mac and iOS development profiles.
 3. Add `CREW_PUSH=1` to `.env` and run `./build.sh`. The macOS build then signs with `Entitlements/Crew-macOS.entitlements` (`com.apple.developer.aps-environment`, time-sensitive) and lets Xcode fetch the profile. Running from Xcode uses the entitlements always (`Entitlements/Crew-iOS.entitlements` on iOS).
-4. `./device.sh` builds, installs and launches Crew on the connected iPhone (unlocked, Developer Mode on).
-5. Debug builds register as `sandbox`, Release builds as `production`; the iOS Simulator never gets a usable token, so test on a device and the Mac.
+4. Debug builds register as `sandbox`, Release builds as `production`; the iOS Simulator never gets a usable token, so test on a device and the Mac.
 
 ## Updates
 

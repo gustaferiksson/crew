@@ -46,9 +46,6 @@ build() {
 if [[ "$PLATFORM" != ios ]]; then
   echo "▸ Building macOS…"
   build -destination 'platform=macOS,arch=arm64' "${MAC_SIGNING[@]}"
-  # Xcode never bumps the bundle's mtime, so Finder and the Dock keep the generic icon cached before AppIcon existed.
-  touch .build/Build/Products/Debug/Crew.app
-  /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f .build/Build/Products/Debug/Crew.app
   echo "✅ Built .build/Build/Products/Debug/Crew.app"
 fi
 

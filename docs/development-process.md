@@ -78,7 +78,7 @@ After CI, a reviewer agent uses the change from the user's side and reports to t
 
 The orchestrator tags the next `v0.1.x` right after a merge whose PR CI passed. 24 releases went out in 5 days (v0.1.0 on 14 Oct to v0.1.24 on 18 Oct), five of them on 18 Oct. The tag workflow builds the notarized Mac zip, the Ad Hoc IPA, the GitHub Pages OTA manifest and the crew-push tarball (`docs/release.md`).
 
-crew-push is deployed separately when its version changes: rsync of `server/crew-push/` (without tests and caches) to the plugin directory on the server, then one ssh command that fixes ownership and restarts the Hermes service, then a check of the plugin version and the service journal. Both commands are exact-match allow rules, so they run as two separate calls. Then the flow is verified on the real server on `crew-test`. Finally the user gets `./device.sh` on the iPhone and a rebuilt Mac app.
+crew-push is deployed separately when its version changes: rsync of `server/crew-push/` (without tests and caches) to the plugin directory on the server, then one ssh command that fixes ownership and restarts the Hermes service, then a check of the plugin version and the service journal. Both commands are exact-match allow rules, so they run as two separate calls. Then the flow is verified on the real server on `crew-test`. The app side reaches the user's devices with the next tagged release.
 
 ## Guardrails
 

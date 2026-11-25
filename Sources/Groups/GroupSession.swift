@@ -338,14 +338,7 @@ final class GroupSession: AttachmentSource {
         driver.pendingActions.lazy.compactMap { action -> PendingRequest? in
             guard action.kind == "approval", let id = action.requestID, !self.answered.contains(id), let approval = action.approval else { return nil }
             let member = self.room.members.first { $0.memberID == action.memberID }
-            return .approval(ApprovalRequest(
-                id: id,
-                command: approval.command ?? "",
-                description: approval.description ?? "",
-                toolName: approval.toolName,
-                choices: (approval.choices ?? []).compactMap(ApprovalChoice.init(rawValue:)),
-                requester: member.map { $0.displayName ?? $0.memberID }
-            ))
+            return .approval(ApprovalRequest(id: id, params: approval, requester: member.map { $0.displayName ?? $0.memberID }))
         }.first
     }
 

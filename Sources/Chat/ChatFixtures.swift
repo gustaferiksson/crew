@@ -5,6 +5,7 @@ enum ChatFixture {
     case conversation, history, earlierLoading, earlierFailed, timestamps, workLog, workLogTools, question, questions, questionsSnacks, questionLong, offline, attachments, dictation, mentions, slash, slashOutput, agentMessage, routine, deliveryFailure, limitFailure, a2ui, a2uiCards, a2uiForm, a2uiTable, a2uiTableExpanded, a2uiChart, a2uiMap, a2uiCarousel, a2uiCarouselStates, a2uiPinned, a2uiPinnedSheet, a2uiExpanded, a2uiProducts, a2uiUpdates, a2uiStreaming, a2uiServings, a2uiServingsScaled, a2uiSaved, a2uiTimer, a2uiShopping
     case composerLine, composerLines, composerRunning, composerRunningText, steer, steerTaken, waiting
     case payment, paymentHolding, paymentApproved, paymentLoading, paymentFailed, paymentUnverified, paymentPunycode, paymentCountdown, paymentNotice, paymentOffer, paymentOfferHistory, paymentReceipts
+    case approvalFolder, approvalSite, approvalUnknown
 
     var isLive: Bool {
         [.mentions, .composerLine, .composerLines, .composerRunning, .composerRunningText, .steer, .steerTaken].contains(self)
@@ -63,6 +64,22 @@ enum ChatFixture {
             ))
         }
         if let paymentRequest { return paymentRequest }
+        if self == .approvalFolder {
+            return .approval(ApprovalRequest(
+                id: "srq-3d0a5e7c1b44", command: "", description: "The agent wants to read and write a folder outside its sandbox.", toolName: nil,
+                choices: [.once, .always, .deny], subject: .folder(path: "/Users/crew-test/Documents/Trips", readWrite: true),
+                risk: "The agent can change or delete files in this folder."
+            ))
+        }
+        if self == .approvalSite {
+            return .approval(ApprovalRequest(
+                id: "srq-6e2b9f1a8c05", command: "", description: "The agent wants to reach a site outside its sandbox.", toolName: nil,
+                choices: [.once, .always, .deny], subject: .site(name: "Open-Meteo weather"), risk: "The agent can send data to this site."
+            ))
+        }
+        if self == .approvalUnknown {
+            return .approval(ApprovalRequest(id: "srq-9b0e3d5a7c18", command: "", description: "", toolName: nil, choices: [.once, .session, .always, .deny], subject: .other))
+        }
         if self == .question {
             return .question(QuestionRequest(id: "srq-9f8e7d6c5b4a", questions: [
                 .init(id: "env", text: "Which environment should I deploy to?", choices: ["Staging", "Production", "Both, staging first"]),
@@ -499,7 +516,7 @@ struct ChatFixtureScreen: View {
             actions: ChatActions(
                 send: { text, _, _, mode in send(text, mode: mode) },
                 stop: stop,
-                respond: { _, choice in answer(choice) },
+                respond: { _, choice, _ in answer(choice) },
                 unqueue: { id in returnToDraft(transcript.dropWaiting { $0.id == id }) },
                 answer: { _, answers in answer(answers) },
                 dismissPaymentNotice: { paymentNotice = nil },

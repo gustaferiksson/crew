@@ -210,9 +210,9 @@ final class ChatSession: AttachmentSource {
         return try await gateway.call("session.context_breakdown", ["session_id": runtime.rawValue], as: ContextBreakdown.self).categories
     }
 
-    func respond(to id: ApprovalRequest.ID, with choice: ApprovalChoice) {
+    func respond(to id: ApprovalRequest.ID, with choice: ApprovalChoice, reason: String? = nil) {
         guard let request = openRequests.first(where: { $0.id == id }), case .approval(let approval) = PendingRequest(request), approval.isPayment else {
-            return reply(to: id, with: ["choice": choice.rawValue])
+            return reply(to: id, with: ApprovalAnswer(choice, reason: reason))
         }
         guard choice == .deny || choice == .once else { return }
         guard let runtime, let requestID = approval.requestID else {
@@ -632,14 +632,7 @@ extension PendingRequest {
     nonisolated init?(_ request: ServerRequest) {
         guard let data = try? JSONEncoder().encode(request.params) else { return nil }
         if request.method == "approval", let params = try? JSONDecoder().decode(ApprovalParams.self, from: data) {
-            self = .approval(ApprovalRequest(
-                id: request.id,
-                command: params.command ?? "",
-                description: params.description ?? "",
-                toolName: params.toolName,
-                choices: (params.choices ?? []).compactMap(ApprovalChoice.init(rawValue:)),
-                requestID: params.requestID
-            ))
+            self = .approval(ApprovalRequest(id: request.id, params: params))
             return
         }
         if request.method == "clarify", let params = try? JSONDecoder().decode(ClarifyParams.self, from: data) {
@@ -658,11 +651,47 @@ nonisolated struct ApprovalParams: Decodable, Sendable {
     let choices: [String]?
     let toolName: String?
     let requestID: String?
+    let kind: String?
+    let path: String?
+    let access: String?
+    let host: String?
+    let label: String?
+    let risk: String?
 
     private enum CodingKeys: String, CodingKey {
-        case command, description, choices
+        case command, description, choices, kind, path, access, host, label, risk
         case toolName = "tool_name"
         case requestID = "request_id"
+    }
+
+    var subject: ApprovalSubject {
+        let command = (command ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let path = (path ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let host = (host ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let label = (label ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        if kind == "access", !path.isEmpty {
+            return .folder(path: path, readWrite: access.map { $0 == "read_write" })
+        }
+        if kind == "network", !host.isEmpty { return .site(name: label.isEmpty ? host : label) }
+        if (kind == nil || kind == "command"), !command.isEmpty { return .command }
+        return .other
+    }
+}
+
+extension ApprovalRequest {
+    nonisolated init(id: String, params: ApprovalParams, requester: String? = nil) {
+        let risk = params.risk?.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.init(
+            id: id,
+            command: params.command ?? "",
+            description: params.description ?? "",
+            toolName: params.toolName,
+            choices: (params.choices ?? []).compactMap(ApprovalChoice.init(rawValue:)),
+            requester: requester,
+            requestID: params.requestID,
+            subject: params.subject,
+            risk: risk?.isEmpty == false ? risk : nil
+        )
     }
 }
 

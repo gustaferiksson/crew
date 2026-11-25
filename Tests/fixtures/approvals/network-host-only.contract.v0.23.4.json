@@ -1,0 +1,17 @@
+{
+  "jsonrpc": "2.0",
+  "id": "srq-1f7c4a9d2e63",
+  "method": "approval",
+  "params": {
+    "session_id": "rt-7f3a91c2",
+    "command": "",
+    "description": "",
+    "request_id": "e5a2b8c0d7f14936a1c4e9b30d6f2a85",
+    "choices": [
+      "once",
+      "deny"
+    ],
+    "kind": "network",
+    "host": "files.example.org"
+  }
+}

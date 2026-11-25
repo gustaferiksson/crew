@@ -188,14 +188,25 @@ def job_name(session_id: str) -> str:
     return str((job or {}).get("name") or "")
 
 
-def pending_request_id(session_key: str) -> str:
+def pending_approval(session_key: str) -> dict[str, Any]:
     try:
         from tools.approval import list_gateway_approvals
 
         pending = list_gateway_approvals(session_key)
     except Exception:
-        return ""
-    return str(pending[-1].get("request_id") or "") if pending else ""
+        return {}
+    return pending[-1] if pending else {}
+
+
+def sandbox_ask(approval: dict[str, Any]) -> tuple[str, str] | None:
+    kind, path, host = approval.get("kind"), str(approval.get("path") or ""), str(approval.get("host") or "")
+    if kind == "access" and path:
+        level = {"read": "Read only", "read_write": "Read and write"}.get(str(approval.get("access")))
+        return "Allow folder access?", f"{path} · {level}" if level else path
+    if kind == "network" and host:
+        label = str(approval.get("label") or "")
+        return "Allow site access?", f"{label} · {host}" if label else host
+    return None
 
 
 def is_bot_chat(profile: str, session_id: str) -> bool:
@@ -549,9 +560,10 @@ class CrewPush:
             return
         if surface == "smart":
             return
+        pending = pending_approval(session_key)
+        subtitle, body = sandbox_ask(pending) or (description, redact(command) or "Needs your approval.")
         self.notify("approval", session_id or session_key, tool_call_id or str(int(time.time())),
-                    body=redact(command) or "Needs your approval.", subtitle=description,
-                    request_id=pending_request_id(session_key))
+                    body=body, subtitle=subtitle, request_id=str(pending.get("request_id") or ""))
 
     def bind_payment(self, command: str, session_key: str, tool_call_id: str) -> None:
         from tools.approval import list_gateway_approvals

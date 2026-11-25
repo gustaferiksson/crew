@@ -8,7 +8,8 @@ struct ChatActions {
     var transcribe: (Data) async throws -> String = { _ in "" }
     var openPersona: () -> Void = {}
     var changeModel: (ModelChoice) -> Void = { _ in }
-    var respond: (ApprovalRequest.ID, ApprovalChoice) -> Void = { _, _ in }
+    var respond: (ApprovalRequest.ID, ApprovalChoice, String?) -> Void = { _, _, _ in }
+    var asksDenyReason = true
     var retry: (String) -> Void = { _ in }
     var continueDiscussion: (String) -> Void = { _ in }
     var unqueue: (Turn.ID) -> Void = { _ in }
@@ -475,7 +476,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
                         botName: botName,
                         avatar: avatar.scaleEffect(20 / 28).frame(width: 20, height: 20),
                         holdProgress: presentation.holdProgress,
-                        respond: { actions.respond(approval.id, $0) },
+                        respond: { actions.respond(approval.id, $0, nil) },
                         retry: { actions.retryPayment(approval.id) },
                         expire: { actions.expirePayment(approval.id) }
                     )
@@ -490,9 +491,9 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
                     .simultaneousGesture(DragGesture(minimumDistance: 10).onEnded { if $0.translation.height > 0 { isComposerFocused = false } })
                     #endif
                 } else if case .approval(let approval) = request {
-                    ApprovalCard(request: approval, botName: botName) { choice in
+                    ApprovalCard(request: approval, botName: botName, asksDenyReason: actions.asksDenyReason) { choice, reason in
                         responses.append(choice == .deny ? .impact(flexibility: .rigid) : .success)
-                        actions.respond(approval.id, choice)
+                        actions.respond(approval.id, choice, reason)
                     }
                         .frame(maxWidth: 560)
                         .padding(.horizontal, 16)

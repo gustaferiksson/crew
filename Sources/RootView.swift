@@ -54,6 +54,8 @@ struct RootView: View {
                 NewBotFixture()
             } else if Snapshot.requested == .newBotAdvanced {
                 NewBotAdvancedFixture()
+            } else if let snapshot = Snapshot.requested, [.modelForAllBots, .modelForAllBotsRunning, .modelForAllBotsFailed].contains(snapshot) {
+                ModelForAllBotsFixture(snapshot: snapshot)
             } else if Snapshot.requested == .newGroup {
                 NewGroupSheet { _ in }
             } else if [.groupChat, .groupChatPaused, .groupChatContext, .groupChatRoutine, .groupChatReply, .groupChatReplyPinned, .groupChatFiles, .groupWelcome].contains(Snapshot.requested) {

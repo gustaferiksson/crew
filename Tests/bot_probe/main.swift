@@ -74,6 +74,52 @@ if CommandLine.arguments.dropFirst().first == "rich" {
     exit(failures.isEmpty ? 0 : 1)
 }
 
+if CommandLine.arguments.dropFirst().first == "model-all" {
+    let store = BotStore(fixture: [], statuses: [:])
+    await store.reload(gateway)
+    let names = ["crew-test-all-1", "crew-test-all-2"]
+    guard !store.bots.contains(where: { names.contains($0.name) }) else { print("probe bots already exist, aborting"); exit(1) }
+    var failures: [String] = []
+    func check(_ condition: Bool, _ label: String) {
+        print(condition ? "ok  " : "FAIL", label)
+        if !condition { failures.append(label) }
+    }
+    do {
+        for name in names {
+            try await store.create(NewProfile(name: name, description: "Crew probe bot", soul: "You are a temporary probe bot.", cloneFrom: nil), via: gateway) { $0 = BotMeta(title: "Crew All Probe") }
+        }
+        let options = try await gateway.call("model.options", ["profile": names[0]], as: ModelOptions.self)
+        let choices = options.providers.flatMap { provider in provider.models.map { ModelChoice(provider: provider.slug, model: $0) } }
+        guard let choice = choices.first(where: { $0 != options.current }) else { print("no model to switch to"); exit(1) }
+        let created = names.compactMap { name in store.bots.first { $0.name == name } }
+        check(created.count == 2, "both throwaways in the roster")
+        let missing = Bot(name: "crew-test-all-gone", displayName: nil, description: nil, model: nil, isDefault: false, hasAvatar: false, canonicalSession: nil, meta: BotMeta(title: "Gone"), metaRevision: nil)
+        let run = ModelForAllBots()
+        run.choice = choice
+        let apply: ModelForAllBots.Apply = { bot, choice, confirmation in try await changeModel(of: bot, to: choice, confirmation: confirmation, via: gateway) }
+        await run.start(on: created + [missing], apply: apply, roster: { created + [missing] })
+        if case .confirming = run.phase { await run.confirm(apply: apply, roster: { created + [missing] }) }
+        check(run.changed == 2, "two throwaways changed (\(run.changed))")
+        check(run.failures.map(\.bot) == ["Gone"], "the missing bot is a per-bot failure (\(run.failures))")
+        check(run.remaining.map(\.name) == ["crew-test-all-gone"], "only the failed bot is left for Try Again")
+        await store.reload(gateway)
+        for name in names {
+            check(store.bots.first { $0.name == name }?.model == choice.model, "\(name): profiles.list shows \(choice.model)")
+        }
+    } catch {
+        failures.append("error: \(error)")
+        print("FAIL", error)
+    }
+    for name in names {
+        guard let target = store.bots.first(where: { $0.name == name }) else { continue }
+        try? await store.delete(target, via: gateway, urlSession: urlSession)
+    }
+    await store.reload(gateway)
+    check(!store.bots.contains { names.contains($0.name) }, "throwaways deleted")
+    print(failures.isEmpty ? "ALL OK" : "FAILURES: \(failures)")
+    exit(failures.isEmpty ? 0 : 1)
+}
+
 if let path = CommandLine.arguments.dropFirst().first {
     let audio = try Data(contentsOf: URL(fileURLWithPath: path))
     var request = hermesRequest("api/audio/transcribe", on: server, json: ["data_url": "data:audio/m4a;base64,\(audio.base64EncodedString())", "mime_type": "audio/m4a"])

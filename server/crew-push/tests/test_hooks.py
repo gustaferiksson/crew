@@ -119,6 +119,7 @@ def test_compressed_bot_chat_pushes(push: CrewPush, enqueued: list, bot_chat: di
 def test_unresolvable_bot_chat_fails_closed(push: CrewPush, enqueued: list,
                                             monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setitem(sys.modules, "hermes_state", None)
+    monkeypatch.setitem(sys.modules, "persistence_assembly", None)
     turn(push)
     assert enqueued == []
 

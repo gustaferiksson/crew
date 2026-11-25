@@ -7,6 +7,7 @@ References: `docs/hermes-api.md`, `docs/hermex-features.md`, `docs/swiftui-guide
 ## Decisions
 
 - XcodeGen `project.yml`, single target, `supportedDestinations: [iOS, macOS]`, bundle `dev.gustaf.crew`, `.env` signing (team 82K3YC8HVF) via `build.sh`, like tinecast/rinse/knyt.
+- macOS builds arm64 only (`ARCHS[sdk=macosx*]: arm64` in `project.yml`): macOS 27 doesn't run on Intel. Xcode 27's default is already arm64, so this pins it against an older toolchain.
 - Swift 6, default MainActor isolation, `@Observable` stores in the environment, no per-view view models.
 - SwiftUI drawing conformances (`Shape`, `TextRenderer`, `TextAttribute` and what their draw path calls) are `nonisolated`: SwiftUI draws them on its async render thread when the main thread falls behind, and a MainActor one traps there (#124: `MentionTagRenderer` crashed Crew on iPhone twice on 2026-10-22).
 - Auth: path A (cookie login via `/auth/password-login`). Persist the session cookies (refresh token lasts 30 d, server refreshes itself) in Keychain; never store the password. On `401 session_expired|unauthenticated` show the login sheet again. Path B (PKCE bearer tokens) is the later upgrade.

@@ -11,6 +11,7 @@ packages:
     revision: 4ca7353f81ce5339bb4a4d718af027dbff60e2ef
 settings:
   base:
+    ARCHS[sdk=macosx*]: arm64
     SWIFT_VERSION: "6.0"
     SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
     SWIFT_APPROACHABLE_CONCURRENCY: YES

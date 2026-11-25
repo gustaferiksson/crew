@@ -26,9 +26,11 @@ private func approval(_ name: String) throws -> ApprovalRequest {
     let labelled = try approval("network")
     #expect(labelled.subject.title == "Allow site access")
     #expect(labelled.subject.target == "Open-Meteo weather")
+    #expect(labelled.subject.host == "api.open-meteo.com")
     #expect(labelled.risk == "The agent can send data to this site.")
     let bare = try approval("network-host-only")
     #expect(bare.subject.target == "files.example.org")
+    #expect(bare.subject.host == nil)
     #expect(bare.risk == nil)
 }
 

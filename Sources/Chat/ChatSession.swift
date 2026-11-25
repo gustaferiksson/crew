@@ -672,7 +672,7 @@ nonisolated struct ApprovalParams: Decodable, Sendable {
         if kind == "access", !path.isEmpty {
             return .folder(path: path, readWrite: access.map { $0 == "read_write" })
         }
-        if kind == "network", !host.isEmpty { return .site(name: label.isEmpty ? host : label) }
+        if kind == "network", !host.isEmpty { return .site(name: label.isEmpty ? host : label, host: label.isEmpty ? nil : host) }
         if (kind == nil || kind == "command"), !command.isEmpty { return .command }
         return .other
     }

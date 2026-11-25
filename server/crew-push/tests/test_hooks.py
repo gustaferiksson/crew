@@ -91,7 +91,7 @@ def sandbox_approval(monkeypatch: pytest.MonkeyPatch, **entry: Any) -> None:
     ({"kind": "access", "path": "/Users/crew-test/Documents/Trips", "access": "read"},
      "Allow folder access?", "/Users/crew-test/Documents/Trips · Read only"),
     ({"kind": "network", "host": "api.open-meteo.com", "label": "Open-Meteo weather"},
-     "Allow site access?", "Open-Meteo weather"),
+     "Allow site access?", "Open-Meteo weather · api.open-meteo.com"),
     ({"kind": "network", "host": "files.example.org"}, "Allow site access?", "files.example.org"),
     ({"kind": "microphone"}, "", "Needs your approval."),
 ])

@@ -29,7 +29,7 @@ nonisolated struct ApprovalRequest: Identifiable, Sendable, Equatable {
 nonisolated enum ApprovalSubject: Sendable, Equatable {
     case command
     case folder(path: String, readWrite: Bool?)
-    case site(name: String)
+    case site(name: String, host: String?)
     case other
 
     var title: String? {
@@ -44,7 +44,7 @@ nonisolated enum ApprovalSubject: Sendable, Equatable {
     var target: String? {
         switch self {
         case .folder(let path, _): path
-        case .site(let name): name
+        case .site(let name, _): name
         case .command, .other: nil
         }
     }
@@ -52,6 +52,11 @@ nonisolated enum ApprovalSubject: Sendable, Equatable {
     var access: String? {
         guard case .folder(_, let readWrite?) = self else { return nil }
         return readWrite ? String(localized: "Read and write") : String(localized: "Read only")
+    }
+
+    var host: String? {
+        guard case .site(_, let host) = self else { return nil }
+        return host
     }
 
     var isSandbox: Bool {
@@ -205,8 +210,8 @@ struct ApprovalCard: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(.fill.tertiary, in: .rect(cornerRadius: 12))
             }
-            if let access = request.subject.access {
-                Text(access)
+            if let secondary = request.subject.access ?? request.subject.host {
+                Text(secondary)
                     .font(.footnote.weight(.medium))
             }
             if let risk = request.risk {

@@ -74,7 +74,7 @@ enum ChatFixture {
         if self == .approvalSite {
             return .approval(ApprovalRequest(
                 id: "srq-6e2b9f1a8c05", command: "", description: "The agent wants to reach a site outside its sandbox.", toolName: nil,
-                choices: [.once, .always, .deny], subject: .site(name: "Open-Meteo weather"), risk: "The agent can send data to this site."
+                choices: [.once, .always, .deny], subject: .site(name: "Open-Meteo weather", host: "api.open-meteo.com"), risk: "The agent can send data to this site."
             ))
         }
         if self == .approvalUnknown {

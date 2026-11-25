@@ -204,7 +204,8 @@ def sandbox_ask(approval: dict[str, Any]) -> tuple[str, str] | None:
         level = {"read": "Read only", "read_write": "Read and write"}.get(str(approval.get("access")))
         return "Allow folder access?", f"{path} · {level}" if level else path
     if kind == "network" and host:
-        return "Allow site access?", str(approval.get("label") or host)
+        label = str(approval.get("label") or "")
+        return "Allow site access?", f"{label} · {host}" if label else host
     return None
 
 

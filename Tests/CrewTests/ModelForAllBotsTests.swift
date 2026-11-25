@@ -141,3 +141,11 @@ private final class Server {
     #expect(server.names == ["ada", "scout"])
     #expect(result.added == 1)
 }
+
+@MainActor @Test func countsReadRightForOneAndMany() {
+    #expect(ModelForAllBots.bots(1) == "1 bot")
+    #expect(ModelForAllBots.bots(2) == "2 bots")
+    #expect(ModelForAllBots.hiddenBots(1) == "1 hidden bot")
+    #expect(ModelForAllBots.hiddenBots(2) == "2 hidden bots")
+    #expect(ModelForAllBots.bots(1).capitalized == "1 Bot")
+}

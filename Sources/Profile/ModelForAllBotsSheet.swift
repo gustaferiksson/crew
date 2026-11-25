@@ -86,7 +86,7 @@ struct ModelForAllBotsSheet: View {
             footer
         }
         Section {
-            Button("Set Model for ^[\(targets.count) Bot](inflect: true)") {
+            Button("Set Model for \(ModelForAllBots.bots(targets.count).capitalized)") {
                 start { await run.start(on: store.bots, apply: apply, roster: { store.bots }) }
             }
             .frame(maxWidth: .infinity)
@@ -99,11 +99,11 @@ struct ModelForAllBotsSheet: View {
             if let choice = run.choice, targets.isEmpty {
                 Text("All bots already use \(choice.model).")
             } else {
-                Text("Changes the model on ^[\(targets.count) bot](inflect: true). Each can be changed again. Bots in the middle of a turn change too, from their next turn.")
+                Text("Changes the model on \(ModelForAllBots.bots(targets.count)). Each can be changed again. Bots in the middle of a turn change too, from their next turn.")
             }
             let hidden = ModelForAllBots.hiddenCount(in: store.bots)
             if hidden > 0 {
-                Text("Not changed: ^[\(hidden) hidden bot](inflect: true).")
+                Text("Not changed: \(ModelForAllBots.hiddenBots(hidden)).")
             }
         }
     }
@@ -130,7 +130,7 @@ struct ModelForAllBotsSheet: View {
                 Text("Stopped")
                     .font(.headline)
             }
-            Text("Changed \(run.changed) of ^[\(run.total) bot](inflect: true).")
+            Text("Changed \(run.changed) of \(ModelForAllBots.bots(run.total)).")
                 .font(run.wasStopped ? .body : .headline)
             ForEach(Array(run.failures.prefix(3).enumerated()), id: \.offset) { _, failure in
                 Label {
@@ -145,7 +145,7 @@ struct ModelForAllBotsSheet: View {
                     .foregroundStyle(.secondary)
             }
             if run.added > 0 {
-                Text("^[\(run.added) bot](inflect: true) added during the run, not changed.")
+                Text("\(ModelForAllBots.bots(run.added)) added during the run, not changed.")
                     .foregroundStyle(.secondary)
             }
         }

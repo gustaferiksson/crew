@@ -1,3 +1,4 @@
+import Foundation
 import Observation
 
 @Observable
@@ -49,6 +50,14 @@ final class ModelForAllBots {
             return bot.model != choice.model || bot.provider != choice.provider
         }
         return candidates.filter(\.isDefault) + candidates.filter { !$0.isDefault }
+    }
+
+    static func bots(_ count: Int) -> String {
+        String(AttributedString(localized: "^[\(count) bot](inflect: true)").characters)
+    }
+
+    static func hiddenBots(_ count: Int) -> String {
+        String(AttributedString(localized: "^[\(count) hidden bot](inflect: true)").characters)
     }
 
     static func hiddenCount(in bots: [Bot]) -> Int {

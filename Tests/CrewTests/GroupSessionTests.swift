@@ -463,20 +463,16 @@ private func settle(until done: () -> Bool) async {
     #expect(session.events.map(\.seq) == [1, 2, 3])
 }
 
-@Test func aBroadcastThatNamesAnotherRoomOrWasAlreadyReadCostsNoRead() async throws {
+@Test func aBroadcastThatNamesAnotherRoomCostsNoRead() async throws {
     let server = try RoomServer(log: rooms.appending(path: "reply.log.json"))
     let (_, pushes, run) = openRoom(server)
     defer { run.cancel() }
     await settle { server.readCount == 1 }
-    let frames = try changedFrames()
 
-    pushes.yield(frames[0])
+    pushes.yield(try JSONDecoder().decode(GatewayEvent.self, from: Data(#"{"type":"groups.changed","payload":{"room_ids":["room-other"]}}"#.utf8)))
+    pushes.yield(try changedFrames()[0])
     await settle { server.readCount == 2 }
-    pushes.yield(frames[0])
-    pushes.yield(try JSONDecoder().decode(GatewayEvent.self, from: Data(#"{"type":"groups.changed","payload":{"room_ids":["room-other"],"broadcast_id":"other:1"}}"#.utf8)))
-    pushes.yield(frames[1])
-    await settle { server.readCount == 3 }
     try? await Task.sleep(for: .milliseconds(200))
 
-    #expect(server.readCount == 3)
+    #expect(server.readCount == 2)
 }

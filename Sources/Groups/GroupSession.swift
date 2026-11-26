@@ -263,7 +263,7 @@ final class GroupSession: AttachmentSource {
     private var continuing: Set<String> = []
     private var cursor = 0
     private var hasChangeEvents = false
-    @ObservationIgnored private var seenBroadcasts: [String] = []
+    private var isReading = false
     @ObservationIgnored private var files: [String: Data] = [:]
     private let gateway: Gateway
     private let changes: AsyncStream<GatewayEvent>
@@ -375,7 +375,7 @@ final class GroupSession: AttachmentSource {
     private func poll() async {
         var tick = 0
         while !Task.isCancelled {
-            if hasChangeEvents || isAwaitingReply || tick % 5 == 0 { await refresh() }
+            if hasChangeEvents || isAwaitingReply || tick % 5 == 0 { await refreshUnlessReading() }
             tick += 1
             try? await Task.sleep(for: hasChangeEvents ? backstop : .seconds(2))
         }
@@ -384,7 +384,7 @@ final class GroupSession: AttachmentSource {
     private func follow() async {
         for await event in changes {
             if event.type == "gateway.ready" {
-                await refresh()
+                await refreshUnlessReading()
                 continue
             }
             guard event.type == "groups.changed" else { continue }
@@ -392,12 +392,7 @@ final class GroupSession: AttachmentSource {
 
             if case .array(let rooms) = payload["room_ids"] ?? .null, !rooms.contains(.string(room.id)) { continue }
 
-            if case .string(let broadcast) = payload["broadcast_id"] ?? .null {
-                guard !seenBroadcasts.contains(broadcast) else { continue }
-                seenBroadcasts = Array((seenBroadcasts + [broadcast]).suffix(64))
-            }
-
-            await refresh()
+            await refreshUnlessReading()
         }
     }
 
@@ -532,6 +527,13 @@ final class GroupSession: AttachmentSource {
                 failure = error.localizedDescription
             }
         }
+    }
+
+    private func refreshUnlessReading() async {
+        guard !isReading else { return }
+        isReading = true
+        defer { isReading = false }
+        await refresh()
     }
 
     private func refresh() async {

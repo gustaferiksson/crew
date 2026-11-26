@@ -312,6 +312,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
                             }
                         }
                     }
+                    .padding(.horizontal, 16)
                     .id(turn.id)
                 }
             }
@@ -329,7 +330,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
             #endif
             .environment(\.transcriptTaps, transcriptTaps)
             .animation(.interactiveSpring, value: reveal)
-            .padding(16)
+            .padding(.vertical, 16)
         }
         .onScrollTargetVisibilityChange(idType: Turn.ID.self, threshold: 0.01) { ids in
             guard earlier == .more, transcript.turns.prefix(earlierLead).contains(where: { ids.contains($0.id) }) else { return }

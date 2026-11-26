@@ -77,7 +77,7 @@ struct ChatScreen: View {
                 transcribe: transcribe,
                 openPersona: { showsBot.toggle() },
                 changeModel: { changeModel(to: $0) },
-                respond: { session?.respond(to: $0, with: $1) },
+                respond: { session?.respond(to: $0, with: $1, reason: $2) },
                 unqueue: { session?.unqueue($0) },
                 answer: { session?.answer($0, with: $1) },
                 retryPayment: { session?.retryPayment($0) },

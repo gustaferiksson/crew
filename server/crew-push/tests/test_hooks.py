@@ -80,6 +80,33 @@ def test_approval(push: CrewPush, enqueued: list, hermes_helpers: None) -> None:
     assert int(headers["apns-expiration"]) - int(__import__("time").time()) <= 300
 
 
+def sandbox_approval(monkeypatch: pytest.MonkeyPatch, **entry: Any) -> None:
+    pending = types.SimpleNamespace(list_gateway_approvals=lambda key: [{"request_id": "c0ffee", "command": "", **entry}])
+    monkeypatch.setitem(sys.modules, "tools.approval", pending)
+
+
+@pytest.mark.parametrize(("entry", "subtitle", "body"), [
+    ({"kind": "access", "path": "/Users/crew-test/Documents/Trips", "access": "read_write"},
+     "Allow folder access?", "/Users/crew-test/Documents/Trips · Read and write"),
+    ({"kind": "access", "path": "/Users/crew-test/Documents/Trips", "access": "read"},
+     "Allow folder access?", "/Users/crew-test/Documents/Trips · Read only"),
+    ({"kind": "network", "host": "api.open-meteo.com", "label": "Open-Meteo weather"},
+     "Allow site access?", "Open-Meteo weather · api.open-meteo.com"),
+    ({"kind": "network", "host": "files.example.org"}, "Allow site access?", "files.example.org"),
+    ({"kind": "microphone"}, "", "Needs your approval."),
+])
+def test_sandbox_approval_names_the_folder_or_site(push: CrewPush, enqueued: list, hermes_helpers: None,
+                                                   monkeypatch: pytest.MonkeyPatch, entry: dict, subtitle: str,
+                                                   body: str) -> None:
+    push.pre_llm_call(session_id=SESSION, platform="tui")
+    sandbox_approval(monkeypatch, **entry)
+    push.pre_approval_request(command="", description="", session_key=SESSION, session_id=SESSION, surface="gateway")
+    [(_, _, payload)] = enqueued
+    assert payload["aps"]["alert"].get("subtitle", "") == subtitle
+    assert payload["aps"]["alert"]["body"] == body
+    assert payload["aps"]["category"] == "CREW_APPROVAL"
+
+
 def test_approval_without_redaction_hides_the_command(push: CrewPush, enqueued: list,
                                                       monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setitem(sys.modules, "agent.redact", None)
@@ -119,6 +146,7 @@ def test_compressed_bot_chat_pushes(push: CrewPush, enqueued: list, bot_chat: di
 def test_unresolvable_bot_chat_fails_closed(push: CrewPush, enqueued: list,
                                             monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setitem(sys.modules, "hermes_state", None)
+    monkeypatch.setitem(sys.modules, "persistence_assembly", None)
     turn(push)
     assert enqueued == []
 

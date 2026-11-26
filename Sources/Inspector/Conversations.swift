@@ -119,7 +119,7 @@ struct ConversationTranscript: View {
                     sendHidden: { session?.sendHidden($0) },
                     completePath: { await session?.completePath($0) ?? [] },
                     stop: { session?.stop() },
-                    respond: { session?.respond(to: $0, with: $1) },
+                    respond: { session?.respond(to: $0, with: $1, reason: $2) },
                     unqueue: { session?.unqueue($0) },
                     answer: { session?.answer($0, with: $1) },
                     retryPayment: { session?.retryPayment($0) },

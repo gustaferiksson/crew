@@ -188,46 +188,81 @@ def job_name(session_id: str) -> str:
     return str((job or {}).get("name") or "")
 
 
-def pending_request_id(session_key: str) -> str:
+def pending_approval(session_key: str) -> dict[str, Any]:
     try:
         from tools.approval import list_gateway_approvals
 
         pending = list_gateway_approvals(session_key)
     except Exception:
-        return ""
-    return str(pending[-1].get("request_id") or "") if pending else ""
+        return {}
+    return pending[-1] if pending else {}
+
+
+def sandbox_ask(approval: dict[str, Any]) -> tuple[str, str] | None:
+    kind, path, host = approval.get("kind"), str(approval.get("path") or ""), str(approval.get("host") or "")
+    if kind == "access" and path:
+        level = {"read": "Read only", "read_write": "Read and write"}.get(str(approval.get("access")))
+        return "Allow folder access?", f"{path} · {level}" if level else path
+    if kind == "network" and host:
+        label = str(approval.get("label") or "")
+        return "Allow site access?", f"{label} · {host}" if label else host
+    return None
 
 
 def is_bot_chat(profile: str, session_id: str) -> bool:
     from hermes_cli.profiles import get_profile_dir
-    from hermes_state import SessionDB
 
-    db = SessionDB(db_path=get_profile_dir(profile) / "state.db", read_only=True)
+    state_db = get_profile_dir(profile) / "state.db"
     try:
-        row = db.get_session_by_title(BOT_CHAT_TITLE)
-        return bool(row) and db.get_compression_tip(row["id"]) == session_id
-    finally:
-        db.close()
+        from persistence_assembly import open_persistence_reader
+    except ImportError:
+        from hermes_state import SessionDB
+
+        db = SessionDB(db_path=state_db, read_only=True)
+        try:
+            row = db.get_session_by_title(BOT_CHAT_TITLE)
+            return bool(row) and db.get_compression_tip(row["id"]) == session_id
+        finally:
+            db.close()
+    with open_persistence_reader(state_db) as store:
+        row = store.sessions.get_by_title(BOT_CHAT_TITLE)
+        return row is not None and store.lineage.tip(row.session_id) == session_id
 
 
 def room_of(profile: str, session_id: str) -> str:
     from hermes_cli.profiles import get_profile_dir
-    from hermes_state import SessionDB
 
-    db = SessionDB(db_path=get_profile_dir(profile) / "state.db", read_only=True)
+    state_db = get_profile_dir(profile) / "state.db"
     try:
-        row = db.get_session(db.get_conversation_root(session_id)) or {}
-    finally:
-        db.close()
-    title = str(row.get("title") or "")
-    return title.removeprefix(ROOM_TITLE) if row.get("source") == "bot_room" and title.startswith(ROOM_TITLE) else ""
+        from persistence_assembly import open_persistence_reader
+    except ImportError:
+        from hermes_state import SessionDB
+
+        db = SessionDB(db_path=state_db, read_only=True)
+        try:
+            row = db.get_session(db.get_conversation_root(session_id)) or {}
+        finally:
+            db.close()
+        source, title = row.get("source"), str(row.get("title") or "")
+    else:
+        with open_persistence_reader(state_db) as store:
+            row = store.sessions.get(store.lineage.conversation_root(session_id))
+        source, title = (row.source, str(row.title or "")) if row else (None, "")
+    return title.removeprefix(ROOM_TITLE) if source == "bot_room" and title.startswith(ROOM_TITLE) else ""
 
 
 def listed_room(room_id: str) -> dict[str, Any] | None:
     from gateway.hosted_rooms import list_rooms
     from hermes_cli.profiles import get_profile_dir
 
-    rooms = list_rooms(get_profile_dir("default") / "state.db")
+    state_db = get_profile_dir("default") / "state.db"
+    try:
+        from persistence_assembly import open_persistence_reader
+    except ImportError:
+        rooms = list_rooms(state_db)
+    else:
+        with open_persistence_reader(state_db) as store:
+            rooms = list_rooms(store, placement="profile")
     return next((room for room in rooms if room.get("room_id") == room_id), None)
 
 
@@ -525,9 +560,10 @@ class CrewPush:
             return
         if surface == "smart":
             return
+        pending = pending_approval(session_key)
+        subtitle, body = sandbox_ask(pending) or (description, redact(command) or "Needs your approval.")
         self.notify("approval", session_id or session_key, tool_call_id or str(int(time.time())),
-                    body=redact(command) or "Needs your approval.", subtitle=description,
-                    request_id=pending_request_id(session_key))
+                    body=body, subtitle=subtitle, request_id=str(pending.get("request_id") or ""))
 
     def bind_payment(self, command: str, session_key: str, tool_call_id: str) -> None:
         from tools.approval import list_gateway_approvals

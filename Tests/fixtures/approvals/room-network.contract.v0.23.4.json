@@ -1,0 +1,21 @@
+{
+  "kind": "approval",
+  "member_id": "scout",
+  "task_id": "t5",
+  "execution_generation": 2,
+  "request_id": "c3d95b0a7e1f4286b4a09d6e2f18c753",
+  "approval": {
+    "command": "",
+    "description": "The agent wants to reach a site outside its sandbox.",
+    "choices": [
+      "once",
+      "always",
+      "deny"
+    ],
+    "kind": "network",
+    "host": "api.open-meteo.com",
+    "label": "Open-Meteo weather",
+    "risk": "The agent can send data to this site.",
+    "request_id": "c3d95b0a7e1f4286b4a09d6e2f18c753"
+  }
+}

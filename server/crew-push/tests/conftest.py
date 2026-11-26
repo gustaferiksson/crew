@@ -3,10 +3,11 @@ import json
 import sys
 import types
 import uuid
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Iterator
 
 import httpx
 import pytest
@@ -38,10 +39,10 @@ def session_rows() -> dict[str, dict[str, Any]]:
     return {}
 
 
-@pytest.fixture(autouse=True)
-def bot_chat(monkeypatch: pytest.MonkeyPatch, hermes_root: Path,
+@pytest.fixture(autouse=True, params=["session_db", "persistence"])
+def bot_chat(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch, hermes_root: Path,
              session_rows: dict[str, dict[str, Any]]) -> dict[str, str]:
-    chat = {"id": BOT_CHAT, "tip": BOT_CHAT}
+    chat = {"id": BOT_CHAT, "tip": BOT_CHAT, "storage": request.param}
 
     class SessionDB:
         def __init__(self, db_path: Path, read_only: bool) -> None:
@@ -62,7 +63,24 @@ def bot_chat(monkeypatch: pytest.MonkeyPatch, hermes_root: Path,
         def close(self) -> None:
             pass
 
+    def record(row: dict[str, Any] | None) -> types.SimpleNamespace | None:
+        return row and types.SimpleNamespace(session_id=row.get("id"), source=row.get("source"), title=row.get("title"))
+
+    @contextmanager
+    def open_persistence_reader(target: Path) -> Iterator[types.SimpleNamespace]:
+        assert target.name == "state.db"
+        yield types.SimpleNamespace(
+            state_db=target,
+            sessions=types.SimpleNamespace(
+                get_by_title=lambda title: types.SimpleNamespace(session_id=chat["id"]) if title == "Bot Chat" else None,
+                get=lambda session_id: record(session_rows.get(session_id))),
+            lineage=types.SimpleNamespace(
+                tip=lambda session_id: chat["tip"] if session_id == chat["id"] else session_id,
+                conversation_root=lambda session_id: str((session_rows.get(session_id) or {}).get("root") or session_id)))
+
     monkeypatch.setitem(sys.modules, "hermes_state", types.SimpleNamespace(SessionDB=SessionDB))
+    monkeypatch.setitem(sys.modules, "persistence_assembly", types.SimpleNamespace(
+        open_persistence_reader=open_persistence_reader) if request.param == "persistence" else None)
     monkeypatch.setitem(sys.modules, "hermes_cli", types.ModuleType("hermes_cli"))
     monkeypatch.setitem(sys.modules, "hermes_cli.profiles", types.SimpleNamespace(
         get_profile_dir=lambda name: hermes_root if name == "default" else hermes_root / "profiles" / name,

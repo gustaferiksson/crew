@@ -12,9 +12,66 @@ nonisolated struct ApprovalRequest: Identifiable, Sendable, Equatable {
     let choices: [ApprovalChoice]
     var requester: String?
     var requestID: String?
+    var subject = ApprovalSubject.command
+    var risk: String?
 
     var isPayment: Bool {
         command.hasPrefix(paymentCommandPrefix)
+    }
+
+    func offers(_ choice: ApprovalChoice) -> Bool {
+        if choice == .once || choice == .deny { return true }
+        guard choices.contains(choice) else { return false }
+        return subject == .command || (choice == .always && subject != .other)
+    }
+}
+
+nonisolated enum ApprovalSubject: Sendable, Equatable {
+    case command
+    case folder(path: String, readWrite: Bool?)
+    case site(name: String, host: String?)
+    case other
+
+    var title: String? {
+        switch self {
+        case .command: nil
+        case .folder: String(localized: "Allow folder access")
+        case .site: String(localized: "Allow site access")
+        case .other: String(localized: "Permission needed")
+        }
+    }
+
+    var target: String? {
+        switch self {
+        case .folder(let path, _): path
+        case .site(let name, _): name
+        case .command, .other: nil
+        }
+    }
+
+    var access: String? {
+        guard case .folder(_, let readWrite?) = self else { return nil }
+        return readWrite ? String(localized: "Read and write") : String(localized: "Read only")
+    }
+
+    var host: String? {
+        guard case .site(_, let host) = self else { return nil }
+        return host
+    }
+
+    var isSandbox: Bool {
+        target != nil
+    }
+}
+
+nonisolated struct ApprovalAnswer: Encodable, Sendable {
+    let choice: String
+    let reason: String?
+
+    init(_ choice: ApprovalChoice, reason: String? = nil) {
+        let trimmed = String((reason ?? "").trimmingCharacters(in: .whitespacesAndNewlines).prefix(500))
+        self.choice = choice.rawValue
+        self.reason = choice == .deny && !trimmed.isEmpty ? trimmed : nil
     }
 }
 
@@ -93,13 +150,17 @@ nonisolated enum PendingRequest: Identifiable, Sendable, Equatable {
 struct ApprovalCard: View {
     let request: ApprovalRequest
     let botName: String
-    let respond: (ApprovalChoice) -> Void
+    var asksDenyReason = true
+    let respond: (ApprovalChoice, String?) -> Void
 
+    @State private var isDenying = false
+    @State private var reason = ""
+    @FocusState private var isReasonFocused: Bool
     @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Label("\(request.requester ?? botName) wants to run a command", systemImage: "exclamationmark.shield.fill")
+            Label(request.subject.title ?? String(localized: "\(request.requester ?? botName) wants to run a command"), systemImage: symbol)
                 .font(.subheadline.weight(.semibold))
                 .symbolRenderingMode(.multicolor)
                 #if os(iOS)
@@ -115,28 +176,92 @@ struct ApprovalCard: View {
                 .scrollIndicatorsFlash(onAppear: true)
             }
             .layoutPriority(1)
-            buttons
-                .layoutPriority(2)
+            if isDenying {
+                denyForm
+                    .layoutPriority(2)
+            } else {
+                buttons
+                    .layoutPriority(2)
+            }
         }
         .padding(16)
         .background { Color.clear.glassEffect(in: .rect(cornerRadius: 28)) }
         .dynamicTypeSize(...DynamicTypeSize.accessibility3)
     }
 
+    private var symbol: String {
+        if case .folder = request.subject { return "folder.fill" }
+        if case .site = request.subject { return "globe" }
+        return "exclamationmark.shield.fill"
+    }
+
+    private var shownText: String {
+        request.subject.target ?? request.command
+    }
+
     private var details: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(request.command)
-                .font(.footnote.monospaced())
-                .lineLimit(typeSize.isAccessibilitySize ? nil : 4)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(.fill.tertiary, in: .rect(cornerRadius: 12))
+            if !shownText.isEmpty {
+                Text(shownText)
+                    .font(.footnote.monospaced())
+                    .lineLimit(typeSize.isAccessibilitySize ? nil : 4)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(.fill.tertiary, in: .rect(cornerRadius: 12))
+            }
+            if let secondary = request.subject.access ?? request.subject.host {
+                Text(secondary)
+                    .font(.footnote.weight(.medium))
+            }
+            if let risk = request.risk {
+                Text(risk)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
             if !request.description.isEmpty {
                 Text(request.description)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
+            } else if request.subject == .other {
+                Text("Hermes asked for something Crew can't show. Deny it unless you expect it.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
             }
+            if request.subject.isSandbox {
+                Text(request.offers(.always) ? "Allow lasts until the sandbox is switched off. Always Allow saves a rule for every chat." : "Allow lasts until the sandbox is switched off.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private var denyForm: some View {
+        VStack(spacing: 8) {
+            TextField("Tell Hermes why (optional)", text: $reason, axis: .vertical)
+                .textFieldStyle(.plain)
+                .lineLimit(1...3)
+                .focused($isReasonFocused)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(.fill.tertiary, in: .rect(cornerRadius: 12))
+            Grid(horizontalSpacing: 8) {
+                GridRow {
+                    Button("Cancel") {
+                        isDenying = false
+                        reason = ""
+                    }
+                    Button(role: .destructive) {
+                        respond(.deny, reason)
+                    } label: {
+                        Text("Deny")
+                            .foregroundStyle(.red)
+                    }
+                }
+            }
+            .buttonStyle(.bordered)
+            .buttonBorderShape(.capsule)
+            .buttonSizing(.flexible)
         }
     }
 
@@ -145,10 +270,10 @@ struct ApprovalCard: View {
             if typeSize.isAccessibilitySize {
                 VStack(spacing: 8) {
                     button(.once)
-                    if request.choices.contains(.session) {
+                    if request.offers(.session) {
                         button(.session)
                     }
-                    if request.choices.contains(.always) {
+                    if request.offers(.always) {
                         button(.always)
                     }
                     button(.deny)
@@ -156,10 +281,10 @@ struct ApprovalCard: View {
             } else {
                 Grid(horizontalSpacing: 8, verticalSpacing: 8) {
                     GridRow {
-                        if request.choices.contains(.session) {
+                        if request.offers(.session) {
                             button(.session)
                         }
-                        if request.choices.contains(.always) {
+                        if request.offers(.always) {
                             button(.always)
                         }
                     }
@@ -179,16 +304,18 @@ struct ApprovalCard: View {
     private func button(_ choice: ApprovalChoice) -> some View {
         if choice == .deny {
             Button(role: .destructive) {
-                respond(.deny)
+                guard asksDenyReason, request.subject.isSandbox else { return respond(.deny, nil) }
+                isDenying = true
+                isReasonFocused = true
             } label: {
                 Text("Deny")
                     .foregroundStyle(.red)
             }
         } else if choice == .once {
-            Button("Allow Once") { respond(.once) }
+            Button(request.subject == .command ? "Allow Once" : "Allow") { respond(.once, nil) }
                 .buttonStyle(.borderedProminent)
         } else {
-            Button(choice == .session ? "Allow for Session" : "Always Allow") { respond(choice) }
+            Button(choice == .session ? "Allow for Session" : "Always Allow") { respond(choice, nil) }
         }
     }
 }

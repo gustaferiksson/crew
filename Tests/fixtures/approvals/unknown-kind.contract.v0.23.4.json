@@ -1,0 +1,18 @@
+{
+  "jsonrpc": "2.0",
+  "id": "srq-9b0e3d5a7c18",
+  "method": "approval",
+  "params": {
+    "session_id": "rt-7f3a91c2",
+    "command": "",
+    "description": "",
+    "request_id": "f1b7a3c9e5d24068b2e8a4c60d9f3b71",
+    "choices": [
+      "once",
+      "session",
+      "always",
+      "deny"
+    ],
+    "kind": "microphone"
+  }
+}

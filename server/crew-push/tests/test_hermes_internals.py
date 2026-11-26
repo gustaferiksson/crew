@@ -15,11 +15,6 @@ RETURNED = [
     ("hermes_cli.plugins", "PluginManager", "invoke_hook"),
     ("hermes_cli.plugins", "PluginManager", "has_hook"),
     ("hermes_cli.plugins", "PluginManager", "iter_hook_callbacks"),
-    ("hermes_state", "SessionDB", "get_session_by_title"),
-    ("hermes_state", "SessionDB", "get_compression_tip"),
-    ("hermes_state", "SessionDB", "get_session"),
-    ("hermes_state", "SessionDB", "get_conversation_root"),
-    ("hermes_state", "SessionDB", "close"),
     ("agent.vault_store", "VaultStore", "list_items"),
     ("agent.vault_store", "VaultStore", "add_item"),
     ("agent.vault_store", "VaultStore", "remove_item"),
@@ -29,7 +24,37 @@ RETURNED = [
     ("tools.browser_supervisor_capture", "CapturedCDP", "task_id"),
 ]
 
+SESSION_DB = [
+    ("hermes_state", "SessionDB", "get_session_by_title"),
+    ("hermes_state", "SessionDB", "get_compression_tip"),
+    ("hermes_state", "SessionDB", "get_session"),
+    ("hermes_state", "SessionDB", "get_conversation_root"),
+    ("hermes_state", "SessionDB", "close"),
+]
+PERSISTENCE = [
+    ("persistence.core.backend", "PersistenceStore", "sessions"),
+    ("persistence.core.backend", "PersistenceStore", "lineage"),
+    ("persistence.core.backend", "PersistenceStore", "hosted_rooms"),
+    ("persistence.conversation.sessions", "SessionRecord", "session_id"),
+    ("persistence.conversation.sessions", "SessionRecord", "source"),
+    ("persistence.conversation.sessions", "SessionRecord", "title"),
+]
+SIGNATURES = [
+    ("persistence_assembly", "open_persistence_reader", ["target"], []),
+    ("gateway.hosted_rooms", "list_rooms", ["store"], ["placement"]),
+    ("persistence.conversation.sessions", "SessionRepository.get_by_title", ["title"], []),
+    ("persistence.conversation.sessions", "SessionRepository.get", ["session_id"], []),
+    ("persistence.conversation.lineage", "LineageRepository.tip", ["session_id"], []),
+    ("persistence.conversation.lineage", "LineageRepository.conversation_root", ["session_id"], []),
+    ("persistence.gateway.hosted_rooms", "HostedRoomRepository.list_rooms", [], ["placement"]),
+]
+
 pytestmark = pytest.mark.skipif(not HERMES_SRC, reason="set CREW_PUSH_HERMES_PINNED to a Hermes source tree")
+
+
+@pytest.fixture(autouse=True)
+def bot_chat() -> None:
+    return None
 
 
 def plugin_uses() -> list[tuple[str, str, str, str]]:
@@ -122,7 +147,18 @@ def members(module: str, node: ast.stmt | None) -> set[str]:
     return names
 
 
-USES = plugin_uses()
+def function_of(module: str, qualified: str) -> ast.FunctionDef | None:
+    owner, _, name = qualified.rpartition(".")
+    body = top_level(ast.parse(source(module).read_text()).body)
+    if owner:
+        body = next((top_level(node.body) for node in body if isinstance(node, ast.ClassDef) and node.name == owner), [])
+    return next((node for node in body if isinstance(node, ast.FunctionDef) and node.name == name), None)
+
+
+PERSISTENCE_API = bool(HERMES_SRC) and source("persistence_assembly") is not None
+UNUSED = ("hermes_state", "SessionDB") if PERSISTENCE_API else ("persistence_assembly", "open_persistence_reader")
+USES = [use for use in plugin_uses() if use[1:3] != UNUSED]
+RETURNED_BY_VERSION = RETURNED + (PERSISTENCE if PERSISTENCE_API else SESSION_DB)
 
 
 def test_hermes_tree_is_present() -> None:
@@ -138,10 +174,20 @@ def test_plugin_uses_exist_in_pinned_hermes(where: str, module: str, name: str, 
         assert attribute in members(*found), f"{where} uses {module}.{name}.{attribute}, which Hermes no longer has"
 
 
-@pytest.mark.parametrize("module, name, attribute", RETURNED, ids=[".".join(use) for use in RETURNED])
+@pytest.mark.parametrize("module, name, attribute", RETURNED_BY_VERSION, ids=[".".join(use) for use in RETURNED_BY_VERSION])
 def test_returned_objects_keep_their_attributes(module: str, name: str, attribute: str) -> None:
     found = binding(module, name)
     assert found and attribute in members(*found), f"Hermes' {module}.{name} has no {attribute}"
+
+
+@pytest.mark.skipif(not PERSISTENCE_API, reason="Hermes before 0.23.3 has no persistence interface")
+@pytest.mark.parametrize("module, qualified, positional, keyword", SIGNATURES, ids=[f"{m}.{q}" for m, q, _, _ in SIGNATURES])
+def test_storage_calls_match_signatures(module: str, qualified: str, positional: list[str], keyword: list[str]) -> None:
+    function = function_of(module, qualified)
+    assert function, f"Hermes' {module} has no {qualified}"
+    arguments = function.args
+    assert [arg.arg for arg in arguments.args if arg.arg != "self"][:len(positional)] == positional
+    assert set(keyword) <= {arg.arg for arg in arguments.kwonlyargs}
 
 
 def test_hooks_are_valid_hermes_hooks() -> None:

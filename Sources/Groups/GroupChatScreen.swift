@@ -73,7 +73,8 @@ struct GroupChatScreen: View {
                 send: { text, files, _, _ in session?.send(text, attachments: files, thread: drafts.draft(for: room.selectionID).reply?.thread) },
                 stop: { session?.stop() },
                 openPersona: { showsInspector.toggle() },
-                respond: { session?.respond(to: $0, with: $1) },
+                respond: { id, choice, _ in session?.respond(to: id, with: choice) },
+                asksDenyReason: false,
                 retry: { session?.retry($0) },
                 continueDiscussion: { session?.continueDiscussion($0) },
                 reply: reply

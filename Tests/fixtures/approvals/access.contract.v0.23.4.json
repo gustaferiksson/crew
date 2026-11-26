@@ -1,0 +1,20 @@
+{
+  "jsonrpc": "2.0",
+  "id": "srq-3d0a5e7c1b44",
+  "method": "approval",
+  "params": {
+    "session_id": "rt-7f3a91c2",
+    "command": "",
+    "description": "The agent wants to read and write a folder outside its sandbox.",
+    "request_id": "8a41c6d0e2b94f37a5c1d7e03b9f6a28",
+    "choices": [
+      "once",
+      "always",
+      "deny"
+    ],
+    "kind": "access",
+    "path": "/Users/crew-test/Documents/Trips",
+    "access": "read_write",
+    "risk": "The agent can change or delete files in this folder."
+  }
+}

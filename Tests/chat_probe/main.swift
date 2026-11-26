@@ -2,6 +2,7 @@ import Foundation
 import CoreGraphics
 import CoreText
 import ImageIO
+import Synchronization
 
 nonisolated struct Ticket: Decodable, Sendable { let ticket: String }
 nonisolated struct BotRoster: Decodable, Sendable { let profiles: [Bot] }
@@ -900,6 +901,66 @@ if phases.contains("room-context") {
         print("ROOM CONTEXT FAILED", error)
     }
     if let jobID { _ = try? await gateway.call("cron.manage", ["action": "remove", "profile": name, "name": jobID], as: JSONValue.self) }
+    if created { _ = try? await gateway.call("groups.disband", ["room_id": roomID], as: JSONValue.self) }
+    await store.reload(gateway)
+    if let bot = store.bots.first(where: { $0.name == name }) { try? await store.delete(bot, via: gateway, urlSession: urlSession) }
+    await store.reload(gateway)
+    print(store.bots.contains { $0.name == name } ? "THROWAWAY NOT DELETED: \(name)" : "throwaway deleted")
+    exit(0)
+}
+
+if phases.contains("room-changed") {
+    let store = BotStore(fixture: [], statuses: [:])
+    Task { await store.run(gateway, urlSession: urlSession) }
+    try await Task.sleep(for: .seconds(3))
+    let name = "crew-test-\(UUID().uuidString.prefix(6).lowercased())"
+    let roomID = "room-\(UUID().uuidString.lowercased())"
+    let scrubs = [(roomID, "room-changed-probe"), (name, "crew-test-peer")]
+    func scrubbed(_ value: JSONValue) -> JSONValue {
+        switch value {
+        case .string(let text): .string(scrubs.reduce(text) { $0.replacingOccurrences(of: $1.0, with: $1.1) })
+        case .array(let items): .array(items.map(scrubbed))
+        case .object(let fields): .object(fields.mapValues(scrubbed))
+        default: value
+        }
+    }
+    var created = false
+    do {
+        try await store.create(NewProfile(name: name, description: "Crew room probe: answers questions about travel", soul: nil, cloneFrom: nil), via: gateway) { $0.title = "Crew Peer" }
+        await store.reload(gateway)
+        guard let peer = store.bots.first(where: { $0.name == name }), let test = store.bots.first(where: { $0.name == "crew-test" }) else { throw HermesError.invalidResponse }
+        let members: [JSONValue] = [test, peer].map { .object(["member_id": .string($0.name), "profile": .string($0.name), "handle": .string($0.handle), "display_name": .string($0.title)]) }
+        _ = try await gateway.call("groups.create", ["room_id": .string(roomID), "name": .string("Crew changed room"), "members": .array(members)] as [String: JSONValue], as: JSONValue.self)
+        created = true
+        let frames = Mutex<[JSONValue]>([])
+        let started = Date.now
+        let listener = Task {
+            for await event in gateway.events() where event.type == "groups.changed" {
+                let at = (Date.now.timeIntervalSince(started) * 100).rounded() / 100
+                frames.withLock { $0.append(.object(["type": .string(event.type), "payload": scrubbed(event.payload ?? .null), "at": .number(at)])) }
+            }
+        }
+        let state = try await gateway.call("groups.state", ["room_id": roomID], as: JSONValue.self)
+        if case .object(let fields) = state { print("CHANGE_EVENTS", fields["change_events"] ?? JSONValue.null) }
+        _ = try await gateway.call("groups.send", ["room_id": .string(roomID), "event_id": .string("crew-probe-\(UUID().uuidString.lowercased())"), "payload": .object(["text": .string("@\(test.handle) Which day should we fly out? One short sentence."), "thread_id": .string("crew-probe")])] as [String: JSONValue], as: JSONValue.self)
+        var trace: [String] = []
+        for tick in 0..<240 {
+            try await Task.sleep(for: .milliseconds(250))
+            guard case .object(let o) = try await gateway.call("groups.state", ["room_id": .string(roomID)] as [String: JSONValue], as: JSONValue.self), case .object(let driver) = o["driver_status"] ?? .null, case .object(let room) = o["room"] ?? .null else { continue }
+            trace.append("t=\(Double(tick) / 4) working=\(driver["working"] ?? .null) latest_seq=\(room["latest_seq"] ?? .null)")
+            if tick > 8, driver["working"] == .bool(false), tick > 40 { break }
+        }
+        try await Task.sleep(for: .seconds(3))
+        listener.cancel()
+        for line in trace { print(line) }
+        let recorded = frames.withLock { $0 }
+        for frame in recorded { print("FRAME", String(decoding: try encoder.encode(frame), as: UTF8.self)) }
+        let url = URL(fileURLWithPath: #filePath).appending(path: "../../fixtures/rooms/changed.events.json").standardized
+        try JSONEncoder().encode(JSONValue.array(recorded)).write(to: url)
+        print(recorded.isEmpty ? "FAIL no groups.changed" : "PASS \(recorded.count) groups.changed frames")
+    } catch {
+        print("ROOM CHANGED FAILED", error)
+    }
     if created { _ = try? await gateway.call("groups.disband", ["room_id": roomID], as: JSONValue.self) }
     await store.reload(gateway)
     if let bot = store.bots.first(where: { $0.name == name }) { try? await store.delete(bot, via: gateway, urlSession: urlSession) }

@@ -137,10 +137,12 @@ nonisolated struct RoomState: Decodable, Sendable {
 
     let driverStatus: Driver?
     var context: RoomContext?
+    var changeEvents: Bool?
 
     private enum CodingKeys: String, CodingKey {
         case context
         case driverStatus = "driver_status"
+        case changeEvents = "change_events"
     }
 }
 
@@ -148,7 +150,7 @@ nonisolated private struct SentEvent: Decodable, Sendable {
     let event: RoomEvent
 }
 
-nonisolated private struct RoomLogPage: Decodable, Sendable {
+nonisolated struct RoomLogPage: Decodable, Sendable {
     let events: [RoomEvent]
     let cursor: Int
     let hasMore: Bool
@@ -260,12 +262,34 @@ final class GroupSession: AttachmentSource {
     private var retrying: Set<String> = []
     private var continuing: Set<String> = []
     private var cursor = 0
+    private var hasChangeEvents = false
+    private var isReading = false
+    private var needsReread = false
     @ObservationIgnored private var files: [String: Data] = [:]
     private let gateway: Gateway
+    private let changes: AsyncStream<GatewayEvent>
+    private let backstop: Duration
+    private let readState: @Sendable () async throws -> RoomState
+    private let readLog: @Sendable (Int) async throws -> RoomLogPage
 
-    init(room: Room, gateway: Gateway) {
+    convenience init(room: Room, gateway: Gateway) {
+        self.init(
+            room: room,
+            gateway: gateway,
+            changes: gateway.events(),
+            backstop: .seconds(15),
+            readState: { try await gateway.call("groups.state", RoomParams(roomID: room.id), as: RoomState.self) },
+            readLog: { try await gateway.call("groups.log", RoomParams(roomID: room.id, sinceSeq: $0), as: RoomLogPage.self) }
+        )
+    }
+
+    init(room: Room, gateway: Gateway, changes: AsyncStream<GatewayEvent>, backstop: Duration, readState: @escaping @Sendable () async throws -> RoomState, readLog: @escaping @Sendable (Int) async throws -> RoomLogPage) {
         self.room = room
         self.gateway = gateway
+        self.changes = changes
+        self.backstop = backstop
+        self.readState = readState
+        self.readLog = readLog
     }
 
     convenience init(fixture room: Room, events: [RoomEvent], driver: RoomState.Driver, context: RoomContext? = nil, files: [String: Data] = [:]) {
@@ -343,11 +367,33 @@ final class GroupSession: AttachmentSource {
     }
 
     func run() async {
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask { await self.poll() }
+            group.addTask { await self.follow() }
+        }
+    }
+
+    private func poll() async {
         var tick = 0
         while !Task.isCancelled {
-            if isAwaitingReply || tick % 5 == 0 { await refresh() }
+            if hasChangeEvents || isAwaitingReply || tick % 5 == 0 { await refreshUnlessReading() }
             tick += 1
-            try? await Task.sleep(for: .seconds(2))
+            try? await Task.sleep(for: hasChangeEvents ? backstop : .seconds(2))
+        }
+    }
+
+    private func follow() async {
+        for await event in changes {
+            if event.type == "gateway.ready" {
+                await refreshUnlessReading()
+                continue
+            }
+            guard event.type == "groups.changed" else { continue }
+            guard case .object(let payload) = event.payload ?? .null else { continue }
+
+            if case .array(let rooms) = payload["room_ids"] ?? .null, !rooms.contains(.string(room.id)) { continue }
+
+            await refreshUnlessReading()
         }
     }
 
@@ -484,11 +530,25 @@ final class GroupSession: AttachmentSource {
         }
     }
 
+    private func refreshUnlessReading() async {
+        guard !isReading else {
+            needsReread = true
+            return
+        }
+        isReading = true
+        defer { isReading = false }
+
+        repeat {
+            needsReread = false
+            await refresh()
+        } while needsReread
+    }
+
     private func refresh() async {
         do {
-            let state = try await gateway.call("groups.state", RoomParams(roomID: room.id), as: RoomState.self)
+            let state = try await readState()
             while true {
-                let page = try await gateway.call("groups.log", RoomParams(roomID: room.id, sinceSeq: cursor), as: RoomLogPage.self)
+                let page = try await readLog(cursor)
                 let last = events.last?.seq ?? 0
                 events += page.events.filter { $0.seq > last }
                 unsent.removeAll { turn in page.events.contains { $0.eventID == turn.id } }
@@ -497,6 +557,7 @@ final class GroupSession: AttachmentSource {
             }
             driver = state.driverStatus ?? RoomState.Driver()
             context = state.context
+            hasChangeEvents = state.changeEvents == true
         } catch {}
     }
 

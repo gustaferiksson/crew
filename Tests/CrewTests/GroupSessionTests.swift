@@ -1,4 +1,5 @@
 import Foundation
+import Synchronization
 import Testing
 
 private let room = Room(
@@ -404,4 +405,78 @@ private let wake = RoomAction(kind: "retry", memberID: "ada, scout", taskID: "pr
     let session = GroupSession(fixture: room, events: events + [failed], driver: RoomState.Driver())
 
     #expect(session.transcript.turns.last?.failure == "Scout can't receive files from another server.")
+}
+
+nonisolated private final class RoomServer: Sendable {
+    private let visible = Mutex(0)
+    private let reads = Mutex(0)
+    private let log: [(seq: Int, json: Data)]
+
+    init(log url: URL) throws {
+        let events = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [[String: Any]])
+        log = try events.map { (seq: $0["seq"] as? Int ?? 0, json: try JSONSerialization.data(withJSONObject: $0)) }
+    }
+
+    var readCount: Int { reads.withLock { $0 } }
+    func reveal(_ count: Int) { visible.withLock { $0 = count } }
+
+    func state() -> RoomState {
+        reads.withLock { $0 += 1 }
+        return try! JSONDecoder().decode(RoomState.self, from: Data(#"{"change_events": true}"#.utf8))
+    }
+
+    func page(after cursor: Int) -> RoomLogPage {
+        let shown = log.prefix(visible.withLock { $0 }).filter { $0.seq > cursor }
+        let events = shown.map { String(decoding: $0.json, as: UTF8.self) }.joined(separator: ",")
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .secondsSince1970
+        return try! decoder.decode(RoomLogPage.self, from: Data(#"{"events":[\#(events)],"cursor":\#(shown.last?.seq ?? cursor),"has_more":false}"#.utf8))
+    }
+}
+
+private func changedFrames() throws -> [GatewayEvent] {
+    try JSONDecoder().decode([GatewayEvent].self, from: Data(contentsOf: rooms.appending(path: "changed.events.json")))
+}
+
+private func openRoom(_ server: RoomServer) -> (GroupSession, AsyncStream<GatewayEvent>.Continuation, Task<Void, Never>) {
+    let (stream, pushes) = AsyncStream.makeStream(of: GatewayEvent.self)
+    let probe = Room(id: "room-changed-probe", name: "Changed", members: room.members, createdAt: .now, updatedAt: .now)
+    let session = GroupSession(room: probe, gateway: Gateway(server: URL(filePath: "/"), urlSession: .shared) { throw CancellationError() }, changes: stream, backstop: .seconds(3600), readState: { server.state() }, readLog: { server.page(after: $0) })
+    return (session, pushes, Task { await session.run() })
+}
+
+private func settle(until done: () -> Bool) async {
+    for _ in 0..<100 where !done() { try? await Task.sleep(for: .milliseconds(20)) }
+}
+
+@Test func openRoomReadsTheLogWhenGroupsChangedNamesItWithoutAPollTick() async throws {
+    let server = try RoomServer(log: rooms.appending(path: "reply.log.json"))
+    let (session, pushes, run) = openRoom(server)
+    defer { run.cancel() }
+    await settle { server.readCount == 1 }
+    #expect(session.events.isEmpty)
+
+    server.reveal(3)
+    pushes.yield(try changedFrames()[0])
+    await settle { session.events.count == 3 }
+
+    #expect(session.events.map(\.seq) == [1, 2, 3])
+}
+
+@Test func aBroadcastThatNamesAnotherRoomOrWasAlreadyReadCostsNoRead() async throws {
+    let server = try RoomServer(log: rooms.appending(path: "reply.log.json"))
+    let (_, pushes, run) = openRoom(server)
+    defer { run.cancel() }
+    await settle { server.readCount == 1 }
+    let frames = try changedFrames()
+
+    pushes.yield(frames[0])
+    await settle { server.readCount == 2 }
+    pushes.yield(frames[0])
+    pushes.yield(try JSONDecoder().decode(GatewayEvent.self, from: Data(#"{"type":"groups.changed","payload":{"room_ids":["room-other"],"broadcast_id":"other:1"}}"#.utf8)))
+    pushes.yield(frames[1])
+    await settle { server.readCount == 3 }
+    try? await Task.sleep(for: .milliseconds(200))
+
+    #expect(server.readCount == 3)
 }

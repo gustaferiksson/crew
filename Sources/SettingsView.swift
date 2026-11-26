@@ -34,6 +34,7 @@ private struct AccountSettings: View {
     @Environment(PushCenter.self) private var push
     @Environment(ChatDrafts.self) private var drafts
     @Environment(ChatPins.self) private var pins
+    @Environment(DismissedDeliveries.self) private var dismissedDeliveries
     @Environment(RoomLayout.self) private var layout
     @Environment(CardState.self) private var cardState: CardState?
     @Environment(CardTimers.self) private var cardTimers: CardTimers?
@@ -89,6 +90,7 @@ private struct AccountSettings: View {
                         await connection.signOut()
                         drafts.reset()
                         pins.reset()
+                        dismissedDeliveries.reset()
                         layout.reset()
                         cardState?.reset()
                         cardTimers?.reset()

@@ -3,7 +3,7 @@ import UniformTypeIdentifiers
 
 enum ChatFixture {
     case conversation, history, earlierLoading, earlierFailed, timestamps, workLog, workLogTools, question, questions, questionsSnacks, questionLong, offline, attachments, dictation, mentions, slash, slashOutput, agentMessage, routine, deliveryFailure, limitFailure, a2ui, a2uiCards, a2uiForm, a2uiTable, a2uiTableExpanded, a2uiChart, a2uiMap, a2uiCarousel, a2uiCarouselStates, a2uiPinned, a2uiPinnedSheet, a2uiExpanded, a2uiProducts, a2uiUpdates, a2uiStreaming, a2uiServings, a2uiServingsScaled, a2uiSaved, a2uiTimer, a2uiShopping
-    case composerLine, composerLines, composerRunning, composerRunningText, steer, steerTaken, waiting
+    case composerLine, composerLines, composerRunning, composerRunningText, steer, steerTaken, waiting, teammateWaits, teammateWaitsFailed
     case payment, paymentHolding, paymentApproved, paymentLoading, paymentFailed, paymentUnverified, paymentPunycode, paymentCountdown, paymentNotice, paymentOffer, paymentOfferHistory, paymentReceipts
     case approvalFolder, approvalSite, approvalUnknown
 
@@ -512,6 +512,8 @@ struct ChatFixtureScreen: View {
             models: fixture == .limitFailure ? Snapshot.limitModels : nil,
             earlier: earlier,
             pinKey: [.a2uiPinned, .a2uiPinnedSheet, .a2uiUpdates, .a2uiSaved, .a2uiTimer].contains(fixture) ? "default" : nil,
+            teammates: Self.teammates(for: fixture),
+            teammatesAreStale: fixture == .teammateWaitsFailed,
             presentation: fixture.presentation,
             actions: ChatActions(
                 send: { text, _, _, mode in send(text, mode: mode) },
@@ -656,6 +658,26 @@ struct ChatFixtureScreen: View {
             try? await Task.sleep(for: .seconds(0.8))
             request = nil
         }
+    }
+}
+
+extension ChatFixtureScreen {
+    static func teammates(for fixture: ChatFixture) -> [TeammateDelivery] {
+        let now = Date.now
+        if fixture == .teammateWaitsFailed {
+            return [
+                TeammateDelivery(id: "d3", target: "quill", state: .waitingOnYou, since: now.addingTimeInterval(-90), preview: "Deploy to staging.", waitingOn: "approval"),
+                TeammateDelivery(id: "d1", target: "scout", state: .failed, since: now.addingTimeInterval(-2 * 3600), preview: "Book the 07:10 flight.", reason: "runtime_offline"),
+                TeammateDelivery(id: "d2", target: "relay-with-a-very-long-profile-name", state: .failed, since: now.addingTimeInterval(-9 * 60), preview: "Forward the invoice.", reason: "unknown_outcome"),
+            ]
+        }
+        guard fixture == .teammateWaits else { return [] }
+        return [
+            TeammateDelivery(id: "d2", target: "quill", state: .waitingOnYou, since: now.addingTimeInterval(-140), preview: "Draft the release notes.", waitingOn: "clarify"),
+            TeammateDelivery(id: "d1", target: "scout", state: .working, since: now.addingTimeInterval(-5 * 60), preview: "Find three direct flights to Lisbon for the long weekend."),
+            TeammateDelivery(id: "d3", target: "ada", state: .queued, since: now.addingTimeInterval(-20), preview: "Summarise the survey results."),
+            TeammateDelivery(id: "d4", target: "forge", state: .claimed, since: now.addingTimeInterval(-3600), preview: "Tag the release."),
+        ]
     }
 }
 

@@ -1,0 +1,13 @@
+{
+  "deliveries" : [
+    {
+      "delivery_id" : "d69f2619553fba2fdef9af74decfa6b3179ad0b42bb297643573732781218d73",
+      "preview" : "Hello, Crew Peer. Sending a greeting your way. Constraints: One short line. Reply needed: A brief greeting.",
+      "since" : 1795679869.1336746,
+      "state" : "working",
+      "target" : "crew-test-peer",
+      "target_handle" : "crew-test-peer"
+    }
+  ],
+  "sender" : "crew-test"
+}

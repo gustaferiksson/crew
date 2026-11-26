@@ -98,6 +98,7 @@ enum Snapshot: String {
     case modelForAllBots = "model-for-all-bots"
     case modelForAllBotsRunning = "model-for-all-bots-running"
     case modelForAllBotsFailed = "model-for-all-bots-failed"
+    case modelForAllBotsOne = "model-for-all-bots-one"
     case newGroup = "new-group"
     case settingsAccount = "settings-account"
     case settingsAccountSignedOut = "settings-account-signed-out"

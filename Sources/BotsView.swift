@@ -189,7 +189,7 @@ struct BotsView: View {
             ModelForAllBotsSheet()
         }
         #endif
-        .task(id: [selected?.id, selected?.model, connection.gateway.map { "\(ObjectIdentifier($0))" }]) {
+        .task(id: [selected?.id, selected?.model, selected?.provider, connection.gateway.map { "\(ObjectIdentifier($0))" }]) {
             if modelsBot != selected?.id {
                 models = ModelSwitcher()
                 modelsBot = selected?.id

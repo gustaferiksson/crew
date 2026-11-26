@@ -17,17 +17,6 @@ struct ModelForAllBotsSheet: View {
 
     private var targets: [Bot] { ModelForAllBots.targets(in: store.bots, for: run.choice) }
 
-    private var isConfirming: Binding<Bool> {
-        Binding(
-            get: { if case .confirming = run.phase { true } else { false } },
-            set: { if !$0, case .confirming = run.phase { run.cancelConfirmation() } }
-        )
-    }
-
-    private var confirmationMessage: String {
-        if case .confirming(let message) = run.phase { message } else { "" }
-    }
-
     var body: some View {
         NavigationStack {
             Form {
@@ -52,11 +41,15 @@ struct ModelForAllBotsSheet: View {
                 }
             }
             .interactiveDismissDisabled(run.phase == .running)
-            .alert("Use \(run.choice?.model ?? "this model")?", isPresented: isConfirming) {
+            .alert(
+                "Use \(run.choice?.model ?? "this model")?",
+                isPresented: Binding(get: { run.phase == .confirming }, set: { if !$0, run.phase == .confirming { run.cancelConfirmation() } }),
+                presenting: run.confirmationMessage
+            ) { _ in
                 Button("Use Anyway") { start { await run.confirm(apply: apply, roster: { store.bots }) } }
                 Button("Cancel", role: .cancel) {}
-            } message: {
-                Text(confirmationMessage)
+            } message: { message in
+                Text(message)
             }
         }
         #if os(macOS)
@@ -86,7 +79,7 @@ struct ModelForAllBotsSheet: View {
             footer
         }
         Section {
-            Button("Set Model for \(ModelForAllBots.bots(targets.count).capitalized)") {
+            Button("Set Model for ^[\(targets.count) Bot](inflect: true)") {
                 start { await run.start(on: store.bots, apply: apply, roster: { store.bots }) }
             }
             .frame(maxWidth: .infinity)
@@ -99,11 +92,11 @@ struct ModelForAllBotsSheet: View {
             if let choice = run.choice, targets.isEmpty {
                 Text("All bots already use \(choice.model).")
             } else {
-                Text("Changes the model on \(ModelForAllBots.bots(targets.count)). Each can be changed again. Bots in the middle of a turn change too, from their next turn.")
+                Text("Changes the model on ^[\(targets.count) bot](inflect: true). Each can be changed again. Bots in the middle of a turn change too, from their next turn.")
             }
-            let hidden = ModelForAllBots.hiddenCount(in: store.bots)
+            let hidden = store.bots.count { !$0.isDefault && $0.meta.hidden == true }
             if hidden > 0 {
-                Text("Not changed: \(ModelForAllBots.hiddenBots(hidden)).")
+                Text("Not changed: ^[\(hidden) hidden bot](inflect: true).")
             }
         }
     }
@@ -130,9 +123,9 @@ struct ModelForAllBotsSheet: View {
                 Text("Stopped")
                     .font(.headline)
             }
-            Text("Changed \(run.changed) of \(ModelForAllBots.bots(run.total)).")
+            Text("Changed \(run.changed) of ^[\(run.total) bot](inflect: true).")
                 .font(run.wasStopped ? .body : .headline)
-            ForEach(Array(run.failures.prefix(3).enumerated()), id: \.offset) { _, failure in
+            ForEach(run.failures.prefix(3)) { failure in
                 Label {
                     Text("Couldn't change \(failure.bot): \(failure.message)")
                 } icon: {
@@ -145,7 +138,7 @@ struct ModelForAllBotsSheet: View {
                     .foregroundStyle(.secondary)
             }
             if run.added > 0 {
-                Text("\(ModelForAllBots.bots(run.added)) added during the run, not changed.")
+                Text("^[\(run.added) bot](inflect: true) added during the run, not changed.")
                     .foregroundStyle(.secondary)
             }
         }

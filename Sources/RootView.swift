@@ -54,7 +54,7 @@ struct RootView: View {
                 NewBotFixture()
             } else if Snapshot.requested == .newBotAdvanced {
                 NewBotAdvancedFixture()
-            } else if let snapshot = Snapshot.requested, [.modelForAllBots, .modelForAllBotsRunning, .modelForAllBotsFailed].contains(snapshot) {
+            } else if let snapshot = Snapshot.requested, [.modelForAllBots, .modelForAllBotsRunning, .modelForAllBotsFailed, .modelForAllBotsOne].contains(snapshot) {
                 ModelForAllBotsFixture(snapshot: snapshot)
             } else if Snapshot.requested == .newGroup {
                 NewGroupSheet { _ in }

@@ -53,7 +53,7 @@ extension Snapshot {
         if isShops || chatFixture?.isPayment == true {
             return Connection(fixture: .connected, server: self == .addCardHTTP ? URL(string: "http://hermes.local:9119")! : server, crewPush: PluginStatus(pluginVersion: "0.5.0", installId: "fixture", apnsConfigured: true, http2: true, devices: 2, features: ["payments", "card"], gate: true))
         }
-        if [.sidebar, .sidebarRooms, .sidebarVoice, .sidebarHidden, .sidebarActive, .sidebarActiveEmpty, .sidebarFlat, .sidebarCompact, .sidebarDraft, .sidebarSearch, .searchResult, .otherConversation, .layout, .layoutInspector, .readme, .chatWindow, .chatWindowInspector, .chatWindowMissing, .inspectorLook, .inspectorLookPortrait, .inspectorLookGenerating, .profileSkills, .botPage, .chatOptions, .notifications, .newBot, .newBotAdvanced, .modelForAllBots, .modelForAllBotsRunning, .modelForAllBotsFailed, .newGroup, .settingsAccount, .settingsNotifications, .settingsNotificationsAsk, .groupChat, .groupChatPaused, .groupChatContext, .groupChatRoutine, .groupChatReply, .groupChatReplyPinned, .groupChatFiles, .groupWelcome, .groupInspector, .groupInspectorMembers].contains(self) || chatFixture != nil || inspectorTab != nil { return Connection(fixture: .connected, server: server) }
+        if [.sidebar, .sidebarRooms, .sidebarVoice, .sidebarHidden, .sidebarActive, .sidebarActiveEmpty, .sidebarFlat, .sidebarCompact, .sidebarDraft, .sidebarSearch, .searchResult, .otherConversation, .layout, .layoutInspector, .readme, .chatWindow, .chatWindowInspector, .chatWindowMissing, .inspectorLook, .inspectorLookPortrait, .inspectorLookGenerating, .profileSkills, .botPage, .chatOptions, .notifications, .newBot, .newBotAdvanced, .modelForAllBots, .modelForAllBotsRunning, .modelForAllBotsFailed, .modelForAllBotsOne, .newGroup, .settingsAccount, .settingsNotifications, .settingsNotificationsAsk, .groupChat, .groupChatPaused, .groupChatContext, .groupChatRoutine, .groupChatReply, .groupChatReplyPinned, .groupChatFiles, .groupWelcome, .groupInspector, .groupInspectorMembers].contains(self) || chatFixture != nil || inspectorTab != nil { return Connection(fixture: .connected, server: server) }
         if self == .unreachable { return Connection(fixture: .unreachable, server: server) }
         return Connection(fixture: .signedOut, server: server)
     }
@@ -68,6 +68,9 @@ extension Snapshot {
                 ),
                 meta: meta, metaRevision: 1
             )
+        }
+        if self == .modelForAllBotsOne {
+            return BotStore(fixture: [bot("default", 3, "Done.", BotMeta())], statuses: [:])
         }
         if self == .sidebarFlat || self == .sidebarActiveEmpty {
             return BotStore(fixture: [

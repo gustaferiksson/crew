@@ -115,7 +115,7 @@ struct ModelForAllBotsFixture: View {
             return ModelForAllBots(choice: choice, phase: .running, total: 12, changed: 4, current: "Scout")
         }
         if snapshot == .modelForAllBotsFailed {
-            return ModelForAllBots(choice: choice, phase: .finished, total: 12, changed: 11, failures: [.init(bot: "Vera", message: "Model gpt-6-astra is not available for this bot.")], remaining: [vera], added: 1)
+            return ModelForAllBots(choice: choice, phase: .finished, total: 12, changed: 11, failures: [.init(id: "vera", bot: "Vera", message: "Model gpt-6-astra is not available for this bot.")], remaining: [vera], added: 1)
         }
         return ModelForAllBots(choice: choice, phase: .choosing, total: 0, changed: 0)
     }

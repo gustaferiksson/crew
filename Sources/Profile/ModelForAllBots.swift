@@ -1,4 +1,3 @@
-import Foundation
 import Observation
 
 @Observable
@@ -6,11 +5,11 @@ final class ModelForAllBots {
     typealias Apply = (_ bot: String, _ choice: ModelChoice, _ confirmation: ModelConfirmation) async throws -> ModelChangeOutcome
 
     enum Phase: Equatable {
-        case choosing, running, finished
-        case confirming(String)
+        case choosing, running, confirming, finished
     }
 
-    struct Failure: Equatable {
+    struct Failure: Equatable, Identifiable {
+        let id: String
         let bot: String
         let message: String
     }
@@ -21,6 +20,7 @@ final class ModelForAllBots {
     private(set) var changed = 0
     private(set) var failures: [Failure] = []
     private(set) var current = ""
+    private(set) var confirmationMessage = ""
     private(set) var remaining: [Bot] = []
     private(set) var added = 0
     private(set) var isStopping = false
@@ -50,18 +50,6 @@ final class ModelForAllBots {
             return bot.model != choice.model || bot.provider != choice.provider
         }
         return candidates.filter(\.isDefault) + candidates.filter { !$0.isDefault }
-    }
-
-    static func bots(_ count: Int) -> String {
-        String(AttributedString(localized: "^[\(count) bot](inflect: true)").characters)
-    }
-
-    static func hiddenBots(_ count: Int) -> String {
-        String(AttributedString(localized: "^[\(count) hidden bot](inflect: true)").characters)
-    }
-
-    static func hiddenCount(in bots: [Bot]) -> Int {
-        bots.count { !$0.isDefault && $0.meta.hidden == true }
     }
 
     func start(on bots: [Bot], apply: Apply, roster: () -> [Bot]) async {
@@ -111,7 +99,8 @@ final class ModelForAllBots {
                     changed += 1
                 case .needsConfirmation(let message) where !isConfirmed && changed == 0 && failures.isEmpty:
                     remaining = Array(queue[index...])
-                    phase = .confirming(message)
+                    confirmationMessage = message
+                    phase = .confirming
                     return
                 case .needsConfirmation(let message):
                     fail(bot, message)
@@ -129,7 +118,7 @@ final class ModelForAllBots {
     }
 
     private func fail(_ bot: Bot, _ message: String) {
-        failures.append(Failure(bot: bot.title, message: message))
+        failures.append(Failure(id: bot.name, bot: bot.title, message: message))
         remaining.append(bot)
     }
 }

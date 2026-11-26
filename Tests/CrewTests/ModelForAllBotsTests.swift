@@ -52,7 +52,6 @@ private final class Server {
     _ = await run(bots, on: server)
 
     #expect(server.names == ["ada", "otherProvider", "unknown"])
-    #expect(ModelForAllBots.hiddenCount(in: bots) == 1)
 }
 
 @MainActor @Test func aHiddenDefaultBotStillChanges() async {
@@ -69,7 +68,7 @@ private final class Server {
     let result = await run(bots, on: server)
 
     #expect(result.changed == 2 && result.total == 3)
-    #expect(result.failures == [.init(bot: "Vera", message: "Model not available for this bot.")])
+    #expect(result.failures == [.init(id: "vera", bot: "Vera", message: "Model not available for this bot.")])
     #expect(result.remaining.map(\.name) == ["vera"])
 
     server.calls = []
@@ -86,7 +85,7 @@ private final class Server {
     let bots = [bot("ada"), bot("vera"), bot("scout")]
     let result = await run(bots, on: server)
 
-    #expect(result.phase == .confirming("This model may train on your data."))
+    #expect(result.phase == .confirming && result.confirmationMessage == "This model may train on your data.")
     #expect(server.names == ["ada"])
 
     await result.confirm(apply: server.apply, roster: { bots })
@@ -140,12 +139,4 @@ private final class Server {
 
     #expect(server.names == ["ada", "scout"])
     #expect(result.added == 1)
-}
-
-@MainActor @Test func countsReadRightForOneAndMany() {
-    #expect(ModelForAllBots.bots(1) == "1 bot")
-    #expect(ModelForAllBots.bots(2) == "2 bots")
-    #expect(ModelForAllBots.hiddenBots(1) == "1 hidden bot")
-    #expect(ModelForAllBots.hiddenBots(2) == "2 hidden bots")
-    #expect(ModelForAllBots.bots(1).capitalized == "1 Bot")
 }

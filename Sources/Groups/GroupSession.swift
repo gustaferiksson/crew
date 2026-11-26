@@ -264,6 +264,7 @@ final class GroupSession: AttachmentSource {
     private var cursor = 0
     private var hasChangeEvents = false
     private var isReading = false
+    private var needsReread = false
     @ObservationIgnored private var files: [String: Data] = [:]
     private let gateway: Gateway
     private let changes: AsyncStream<GatewayEvent>
@@ -530,10 +531,17 @@ final class GroupSession: AttachmentSource {
     }
 
     private func refreshUnlessReading() async {
-        guard !isReading else { return }
+        guard !isReading else {
+            needsReread = true
+            return
+        }
         isReading = true
         defer { isReading = false }
-        await refresh()
+
+        repeat {
+            needsReread = false
+            await refresh()
+        } while needsReread
     }
 
     private func refresh() async {

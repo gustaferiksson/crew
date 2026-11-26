@@ -410,6 +410,9 @@ private let wake = RoomAction(kind: "retry", memberID: "ada, scout", taskID: "pr
 nonisolated private final class RoomServer: Sendable {
     private let visible = Mutex(0)
     private let reads = Mutex(0)
+    private let hold = Mutex(false)
+    private let holding = Mutex(false)
+    private let release = AsyncStream.makeStream(of: Void.self)
     private let log: [(seq: Int, json: Data)]
 
     init(log url: URL) throws {
@@ -418,19 +421,28 @@ nonisolated private final class RoomServer: Sendable {
     }
 
     var readCount: Int { reads.withLock { $0 } }
+    var isHolding: Bool { holding.withLock { $0 } }
     func reveal(_ count: Int) { visible.withLock { $0 = count } }
+    func holdNextLogRead() { hold.withLock { $0 = true } }
+    func releaseLogRead() { release.continuation.yield() }
 
     func state() -> RoomState {
         reads.withLock { $0 += 1 }
         return try! JSONDecoder().decode(RoomState.self, from: Data(#"{"change_events": true}"#.utf8))
     }
 
-    func page(after cursor: Int) -> RoomLogPage {
+    func page(after cursor: Int) async -> RoomLogPage {
         let shown = log.prefix(visible.withLock { $0 }).filter { $0.seq > cursor }
         let events = shown.map { String(decoding: $0.json, as: UTF8.self) }.joined(separator: ",")
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .secondsSince1970
-        return try! decoder.decode(RoomLogPage.self, from: Data(#"{"events":[\#(events)],"cursor":\#(shown.last?.seq ?? cursor),"has_more":false}"#.utf8))
+        let page = try! decoder.decode(RoomLogPage.self, from: Data(#"{"events":[\#(events)],"cursor":\#(shown.last?.seq ?? cursor),"has_more":false}"#.utf8))
+        if hold.withLock({ let armed = $0; $0 = false; return armed }) {
+            holding.withLock { $0 = true }
+            for await _ in release.stream { break }
+            holding.withLock { $0 = false }
+        }
+        return page
     }
 }
 
@@ -438,15 +450,15 @@ private func changedFrames() throws -> [GatewayEvent] {
     try JSONDecoder().decode([GatewayEvent].self, from: Data(contentsOf: rooms.appending(path: "changed.events.json")))
 }
 
-private func openRoom(_ server: RoomServer) -> (GroupSession, AsyncStream<GatewayEvent>.Continuation, Task<Void, Never>) {
+private func openRoom(_ server: RoomServer, backstop: Duration = .seconds(3600)) -> (GroupSession, AsyncStream<GatewayEvent>.Continuation, Task<Void, Never>) {
     let (stream, pushes) = AsyncStream.makeStream(of: GatewayEvent.self)
     let probe = Room(id: "room-changed-probe", name: "Changed", members: room.members, createdAt: .now, updatedAt: .now)
-    let session = GroupSession(room: probe, gateway: Gateway(server: URL(filePath: "/"), urlSession: .shared) { throw CancellationError() }, changes: stream, backstop: .seconds(3600), readState: { server.state() }, readLog: { server.page(after: $0) })
+    let session = GroupSession(room: probe, gateway: Gateway(server: URL(filePath: "/"), urlSession: .shared) { throw CancellationError() }, changes: stream, backstop: backstop, readState: { server.state() }, readLog: { await server.page(after: $0) })
     return (session, pushes, Task { await session.run() })
 }
 
-private func settle(until done: () -> Bool) async {
-    for _ in 0..<100 where !done() { try? await Task.sleep(for: .milliseconds(20)) }
+private func settle(polls: Int = 100, until done: () -> Bool) async {
+    for _ in 0..<polls where !done() { try? await Task.sleep(for: .milliseconds(20)) }
 }
 
 @Test func openRoomReadsTheLogWhenGroupsChangedNamesItWithoutAPollTick() async throws {
@@ -475,4 +487,21 @@ private func settle(until done: () -> Bool) async {
     try? await Task.sleep(for: .milliseconds(200))
 
     #expect(server.readCount == 2)
+}
+
+@Test func aGroupsChangedLandingDuringAPollReadIsReadOnceItEnds() async throws {
+    let server = try RoomServer(log: rooms.appending(path: "reply.log.json"))
+    let (session, pushes, run) = openRoom(server, backstop: .seconds(1))
+    defer { run.cancel() }
+    await settle { server.readCount == 1 }
+
+    server.holdNextLogRead()
+    await settle { server.isHolding }
+    server.reveal(3)
+    pushes.yield(try changedFrames()[1])
+    try? await Task.sleep(for: .milliseconds(100))
+    server.releaseLogRead()
+    await settle(polls: 25) { session.events.count == 3 }
+
+    #expect(session.events.map(\.seq) == [1, 2, 3])
 }

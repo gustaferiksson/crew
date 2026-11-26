@@ -41,6 +41,7 @@ private struct AccountSettings: View {
     @AppStorage("username") private var username = ""
     @State private var confirmsSignOut = false
     @State private var isSigningOut = false
+    @State private var showsModelForAll = false
 
     var body: some View {
         if let host = connection.session?.server.host(), connection.state != .signedOut {
@@ -63,6 +64,8 @@ private struct AccountSettings: View {
                 }
                 Section {
                     HStack(spacing: 8) {
+                        Button("Set Model for All Bots…") { showsModelForAll = true }
+                            .disabled(connection.state != .connected || isSigningOut)
                         Spacer()
                         if isSigningOut {
                             ProgressView()
@@ -75,6 +78,9 @@ private struct AccountSettings: View {
             }
             .formStyle(.grouped)
             .lineLimit(1)
+            .sheet(isPresented: $showsModelForAll) {
+                ModelForAllBotsSheet()
+            }
             .confirmationDialog("Sign out of \(host)?", isPresented: $confirmsSignOut) {
                 Button("Sign Out", role: .destructive) {
                     isSigningOut = true

@@ -97,6 +97,7 @@ nonisolated struct Bot: Identifiable, Hashable, Sendable {
     var readPosition: ReadPosition?
     var readRevision: Int?
     var workerActive: Date? = nil
+    var provider: String? = nil
 
     var id: String { name }
 
@@ -123,7 +124,7 @@ nonisolated struct Bot: Identifiable, Hashable, Sendable {
 
 nonisolated extension Bot: Codable {
     private enum CodingKeys: String, CodingKey {
-        case name, description, model
+        case name, description, model, provider
         case displayName = "display_name"
         case isDefault = "is_default"
         case hasAvatar = "has_avatar"
@@ -152,6 +153,7 @@ nonisolated extension Bot: Codable {
         displayName = try container.decodeIfPresent(String.self, forKey: .displayName)
         description = try container.decodeIfPresent(String.self, forKey: .description)
         model = try container.decodeIfPresent(String.self, forKey: .model)
+        provider = try container.decodeIfPresent(String.self, forKey: .provider)
         isDefault = try container.decodeIfPresent(Bool.self, forKey: .isDefault) ?? false
         hasAvatar = try container.decodeIfPresent(Bool.self, forKey: .hasAvatar) ?? false
         canonicalSession = try container.decodeIfPresent(CanonicalSession.self, forKey: .canonicalSession)
@@ -168,6 +170,7 @@ nonisolated extension Bot: Codable {
         try container.encodeIfPresent(displayName, forKey: .displayName)
         try container.encodeIfPresent(description, forKey: .description)
         try container.encodeIfPresent(model, forKey: .model)
+        try container.encodeIfPresent(provider, forKey: .provider)
         try container.encode(isDefault, forKey: .isDefault)
         try container.encode(hasAvatar, forKey: .hasAvatar)
         try container.encodeIfPresent(canonicalSession, forKey: .canonicalSession)

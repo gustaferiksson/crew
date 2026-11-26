@@ -24,6 +24,7 @@ struct BotsView: View {
     #else
     @Environment(UpdateCheck.self) private var updates
     @State private var showsNotifications = false
+    @State private var showsModelForAll = false
     #endif
     @State private var selection = Snapshot.requested?.selectedBot
     @State private var query = Snapshot.requested?.searchQuery ?? ""
@@ -184,8 +185,11 @@ struct BotsView: View {
         .sheet(isPresented: $showsNotifications) {
             NotificationSettings()
         }
+        .sheet(isPresented: $showsModelForAll) {
+            ModelForAllBotsSheet()
+        }
         #endif
-        .task(id: [selected?.id, selected?.model, connection.gateway.map { "\(ObjectIdentifier($0))" }]) {
+        .task(id: [selected?.id, selected?.model, selected?.provider, connection.gateway.map { "\(ObjectIdentifier($0))" }]) {
             if modelsBot != selected?.id {
                 models = ModelSwitcher()
                 modelsBot = selected?.id
@@ -403,6 +407,8 @@ struct BotsView: View {
                         }
                         .disabled(updates.isChecking)
                         Text("Crew \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "") (\(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? ""))")
+                        Button("Set Model for All Bots…", systemImage: "cpu") { showsModelForAll = true }
+                            .disabled(connection.state != .connected)
                         Button("Sign Out", systemImage: "rectangle.portrait.and.arrow.right", role: .destructive) {
                             Task {
                                 await push.unregister(on: connection)

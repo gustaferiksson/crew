@@ -104,3 +104,23 @@ struct LookFixture: View {
         #endif
     }
 }
+
+struct ModelForAllBotsFixture: View {
+    let snapshot: Snapshot
+
+    private var run: ModelForAllBots {
+        let choice = ModelChoice(provider: "openai-codex", model: "gpt-6-astra")
+        let vera = Bot(name: "vera", displayName: nil, description: nil, model: nil, isDefault: false, hasAvatar: false, canonicalSession: nil, meta: BotMeta(title: "Vera"), metaRevision: nil)
+        if snapshot == .modelForAllBotsRunning {
+            return ModelForAllBots(choice: choice, phase: .running, total: 12, changed: 4, current: "Scout")
+        }
+        if snapshot == .modelForAllBotsFailed {
+            return ModelForAllBots(choice: choice, phase: .finished, total: 12, changed: 11, failures: [.init(id: "vera", bot: "Vera", message: "Model gpt-6-astra is not available for this bot.")], remaining: [vera], added: 1)
+        }
+        return ModelForAllBots(choice: choice, phase: .choosing, total: 0, changed: 0)
+    }
+
+    var body: some View {
+        ModelForAllBotsSheet(run: run, models: Snapshot.profileModels)
+    }
+}

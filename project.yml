@@ -234,6 +234,7 @@ targets:
       - Sources/Chat/TrackpadSwipe.swift
       - Sources/Chat/MentionPeek.swift
       - Sources/Profile/ModelSwitcher.swift
+      - Sources/Profile/ModelForAllBots.swift
       - Sources/Snapshot.swift
       - Sources/MenuCommands.swift
       - Sources/Connection.swift

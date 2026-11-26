@@ -225,6 +225,11 @@ targets:
       - Sources/Chat/TranscriptScroll.swift
       - Sources/Chat/ChatView.swift
       - Sources/Chat/ReplyChip.swift
+      - Sources/Chat/TeammateDelivery.swift
+      - Sources/Chat/TeammateWaits.swift
+      - Sources/Chat/TeammateWaitsCard.swift
+      - Sources/Chat/TeammateWaitRow.swift
+      - Sources/Chat/DismissedDeliveries.swift
       - Sources/Chat/EarlierHistoryRow.swift
       - Sources/Chat/WorkLog.swift
       - Sources/Chat/UserBubble.swift

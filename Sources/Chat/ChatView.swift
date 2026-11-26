@@ -21,6 +21,7 @@ struct ChatActions {
     var dismissShopOffer: () -> Void = {}
     var loadEarlier: () -> Void = {}
     var reply: ((Turn.ID) -> Void)?
+    var openTeammate: (Bot.ID) -> Void = { _ in }
 }
 
 struct ChatPresentation {
@@ -99,6 +100,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
     var focus: SearchFocus?
     var earlier = EarlierHistory.complete
     var pinKey: String?
+    var waits: TeammateWaits?
     var actions = ChatActions()
 
     let draft: Draft
@@ -146,9 +148,10 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
     @FocusState private var isComposerFocused: Bool
     private let presentation: ChatPresentation
 
-    init(botName: String, profile: String? = nil, title: String? = nil, avatar: Avatar, transcript: Transcript, emptyState: EmptyState, mentionable: [Bot], slashCommands: [SlashCommand] = [], draft: Draft, tray: AttachmentTray, features: ComposerFeatures = .all, request: PendingRequest? = nil, payment: PaymentCardState? = nil, paymentNotice: String? = nil, shopOffer: String? = nil, offlineReason: String? = nil, activity: String? = nil, models: ModelSwitcher? = nil, focus: SearchFocus? = nil, earlier: EarlierHistory = .complete, pinKey: String? = nil, presentation: ChatPresentation = ChatPresentation(), actions: ChatActions = ChatActions()) {
+    init(botName: String, profile: String? = nil, title: String? = nil, avatar: Avatar, transcript: Transcript, emptyState: EmptyState, mentionable: [Bot], slashCommands: [SlashCommand] = [], draft: Draft, tray: AttachmentTray, features: ComposerFeatures = .all, request: PendingRequest? = nil, payment: PaymentCardState? = nil, paymentNotice: String? = nil, shopOffer: String? = nil, offlineReason: String? = nil, activity: String? = nil, models: ModelSwitcher? = nil, focus: SearchFocus? = nil, earlier: EarlierHistory = .complete, pinKey: String? = nil, waits: TeammateWaits? = nil, presentation: ChatPresentation = ChatPresentation(), actions: ChatActions = ChatActions()) {
         self.botName = botName
         self.profile = profile
+        self.waits = waits
         self.title = title
         self.avatar = avatar
         self.transcript = transcript
@@ -463,6 +466,14 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
         }
     }
 
+    private var isRecordingHere: Bool {
+        #if os(iOS)
+        VoiceMessage.shared.attributes?.bot.name == profile
+        #else
+        false
+        #endif
+    }
+
     private var bottomBar: some View {
         HeightCap(cap: barRoom) {
             VStack(spacing: 8) {
@@ -512,6 +523,12 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
                         .frame(maxWidth: 560)
                         .padding(.horizontal, 16)
                 }
+                if request == nil, !isRecordingHere, let waits, !waits.visible.isEmpty {
+                    TeammateWaitsCard(rows: waits.visible, isStale: waits.isStale, bots: bots.bots, photos: bots.photos, sender: profile, open: { actions.openTeammate($0.id) }, dismiss: waits.dismiss)
+                        .frame(maxWidth: 560)
+                        .padding(.horizontal, 16)
+                        .transition(.blurReplace)
+                }
                 if let reply = draft.reply {
                     ReplyChip(reply: reply) { draft.reply = nil }
                         .transition(.scale(0.5, anchor: .leading).combined(with: .opacity))
@@ -555,6 +572,8 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
         }
         .animation(.smooth, value: request?.id)
         .animation(.smooth, value: pinnedCard)
+        .animation(.smooth, value: waits?.visible)
+        .animation(.smooth, value: waits?.isStale)
         .animation(.smooth, value: draft.reply)
         .onChange(of: draft.reply?.messageID) { _, id in
             if id != nil { isComposerFocused = true }

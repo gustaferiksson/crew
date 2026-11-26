@@ -89,6 +89,7 @@ private struct AccountSettings: View {
                         await connection.signOut()
                         drafts.reset()
                         pins.reset()
+                        DismissedDeliveries.shared.reset()
                         layout.reset()
                         cardState?.reset()
                         cardTimers?.reset()

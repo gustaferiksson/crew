@@ -2016,7 +2016,7 @@ if phases.contains("mention") {
 
 if phases.contains("record") {
     let scenario = CommandLine.arguments.last ?? ""
-    guard ["bot-mention", "open-target", "delivery-failure"].contains(scenario) else { print("unknown scenario \(scenario)"); exit(1) }
+    guard ["bot-mention", "open-target", "delivery-failure", "teammate-waits", "teammate-waits-failed"].contains(scenario) else { print("unknown scenario \(scenario)"); exit(1) }
     let folder = URL(fileURLWithPath: #filePath).appending(path: "../../fixtures/scenarios/\(scenario)").standardized
     try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
     let peerName = "crew-test-\(UUID().uuidString.prefix(6).lowercased())"
@@ -2056,7 +2056,7 @@ if phases.contains("record") {
     Task { await store.run(gateway, urlSession: urlSession) }
     try await Task.sleep(for: .seconds(3))
     do {
-        try await store.create(NewProfile(name: peerName, description: "Crew scenario peer", soul: "You are Crew Peer, a temporary probe bot. When another agent messages you, answer it by sending one short greeting back with your message_agent tool.", cloneFrom: nil), via: gateway) { meta in
+        try await store.create(NewProfile(name: peerName, description: "Crew scenario peer", soul: scenario == "teammate-waits" ? "You are Crew Peer, a temporary probe bot. When another agent messages you, do not answer it yet: first ask your user which of two options they prefer, using your clarify tool, and wait for the answer." : "You are Crew Peer, a temporary probe bot. When another agent messages you, answer it by sending one short greeting back with your message_agent tool.", cloneFrom: nil), via: gateway) { meta in
             meta = BotMeta(title: "Crew Peer", shape: "hexagon", color: "#14b8a6", custom: true, imageKind: "shape", expression: "happy")
         }
         guard let peer = store.bots.first(where: { $0.name == peerName }), let sender = store.bots.first(where: { $0.name == "crew-test" }), let senderSession = sender.canonicalSession else { throw HermesError.invalidResponse }
@@ -2069,7 +2069,7 @@ if phases.contains("record") {
         try save("profiles.before", before.raw)
         let firstRow = try await history(of: senderSession.resolvedID, profile: sender.name, on: server, with: urlSession, limit: 1).map(\.id).max() ?? 0
         let peerChats = ChatSessions()
-        if scenario == "delivery-failure" {
+        if ["delivery-failure", "teammate-waits-failed"].contains(scenario) {
             var changes = ProfileChanges(name: peerName)
             changes.model = "gpt-crew-test-missing"
             changes.provider = "openai-codex"
@@ -2081,6 +2081,7 @@ if phases.contains("record") {
             try await Task.sleep(for: .seconds(3))
         }
         var peerState = ""
+        var savedStates = Set<String>()
 
         chat.send("@\(peerName) hi", mentioning: [peer], mode: .send)
         var duringSaved = false
@@ -2091,6 +2092,13 @@ if phases.contains("record") {
             let current = try await roster()
             let active = try await live(of: current.bots)
             peerChats.sync(with: current.bots)
+            if scenario.hasPrefix("teammate-waits") {
+                let list = try await gateway.call("bot_delivery.list", ["profile": "crew-test"], as: JSONValue.self)
+                if case .object(let object) = list, case .array(let deliveries) = object["deliveries"], case .object(let first)? = deliveries.first, case .string(let state)? = first["state"], savedStates.insert(state).inserted {
+                    try save("deliveries.\(state)", list)
+                }
+                if savedStates.contains(scenario == "teammate-waits" ? "waiting_on_you" : "failed") { break }
+            }
             if let peerChat = peerChats.sessions[peerName] {
                 let state = "open peer chat: \(peerChat.transcript.visible.turns.count) rows, running \(peerChat.isRunning), roster \(current.bots.first { $0.name == peerName }?.canonicalSession?.messageCount ?? 0) messages, \(active.sessions.first { $0.sessionKey == current.bots.first { $0.name == peerName }?.canonicalSession?.resolvedID }?.status ?? "-")"
                 if state != peerState { print(String(format: "+%.1fs ", Date.now.timeIntervalSince(started)) + state) }

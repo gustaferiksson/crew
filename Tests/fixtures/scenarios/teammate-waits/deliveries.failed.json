@@ -1,0 +1,14 @@
+{
+  "deliveries" : [
+    {
+      "delivery_id" : "559c54ee0e14563b7157cbf03e709aaa05831f757160a350be8ccdddea647e82",
+      "preview" : "Hello, Crew Peer. A friendly greeting from this chat. Constraints: Reply with one short greeting. Reply needed: A brief greeting.",
+      "reason" : "unknown_outcome",
+      "since" : 1795680010.8441646,
+      "state" : "failed",
+      "target" : "crew-test-peer",
+      "target_handle" : "crew-test-peer"
+    }
+  ],
+  "sender" : "crew-test"
+}

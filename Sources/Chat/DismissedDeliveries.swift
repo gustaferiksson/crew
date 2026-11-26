@@ -3,7 +3,6 @@ import Observation
 
 @Observable
 final class DismissedDeliveries {
-    static let shared = DismissedDeliveries()
     static let window: TimeInterval = 24 * 3600
 
     private(set) var dismissed: [String: Date]

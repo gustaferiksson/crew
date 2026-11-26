@@ -512,7 +512,8 @@ struct ChatFixtureScreen: View {
             models: fixture == .limitFailure ? Snapshot.limitModels : nil,
             earlier: earlier,
             pinKey: [.a2uiPinned, .a2uiPinnedSheet, .a2uiUpdates, .a2uiSaved, .a2uiTimer].contains(fixture) ? "default" : nil,
-            waits: [.teammateWaits: Self.teammateWaits, .teammateWaitsFailed: Self.teammateWaitsFailed][fixture],
+            teammates: Self.teammates(for: fixture),
+            teammatesAreStale: fixture == .teammateWaitsFailed,
             presentation: fixture.presentation,
             actions: ChatActions(
                 send: { text, _, _, mode in send(text, mode: mode) },
@@ -661,23 +662,22 @@ struct ChatFixtureScreen: View {
 }
 
 extension ChatFixtureScreen {
-    static var teammateWaits: TeammateWaits {
+    static func teammates(for fixture: ChatFixture) -> [TeammateDelivery] {
         let now = Date.now
-        return TeammateWaits(rows: [
-            TeammateDelivery(id: "d1", target: "scout", state: .working, since: now.addingTimeInterval(-5 * 60), preview: "Find three direct flights to Lisbon for the long weekend."),
+        if fixture == .teammateWaitsFailed {
+            return [
+                TeammateDelivery(id: "d3", target: "quill", state: .waitingOnYou, since: now.addingTimeInterval(-90), preview: "Deploy to staging.", waitingOn: "approval"),
+                TeammateDelivery(id: "d1", target: "scout", state: .failed, since: now.addingTimeInterval(-2 * 3600), preview: "Book the 07:10 flight.", reason: "runtime_offline"),
+                TeammateDelivery(id: "d2", target: "relay-with-a-very-long-profile-name", state: .failed, since: now.addingTimeInterval(-9 * 60), preview: "Forward the invoice.", reason: "unknown_outcome"),
+            ]
+        }
+        guard fixture == .teammateWaits else { return [] }
+        return [
             TeammateDelivery(id: "d2", target: "quill", state: .waitingOnYou, since: now.addingTimeInterval(-140), preview: "Draft the release notes.", waitingOn: "clarify"),
+            TeammateDelivery(id: "d1", target: "scout", state: .working, since: now.addingTimeInterval(-5 * 60), preview: "Find three direct flights to Lisbon for the long weekend."),
             TeammateDelivery(id: "d3", target: "ada", state: .queued, since: now.addingTimeInterval(-20), preview: "Summarise the survey results."),
             TeammateDelivery(id: "d4", target: "forge", state: .claimed, since: now.addingTimeInterval(-3600), preview: "Tag the release."),
-        ], dismissed: DismissedDeliveries(fileURL: nil))
-    }
-
-    static var teammateWaitsFailed: TeammateWaits {
-        let now = Date.now
-        return TeammateWaits(rows: [
-            TeammateDelivery(id: "d1", target: "scout", state: .failed, since: now.addingTimeInterval(-2 * 3600), preview: "Book the 07:10 flight.", reason: "runtime_offline"),
-            TeammateDelivery(id: "d2", target: "relay-with-a-very-long-profile-name", targetHandle: "relay-with-a-very-long-profile-name", state: .failed, since: now.addingTimeInterval(-9 * 60), preview: "Forward the invoice.", reason: "unknown_outcome"),
-            TeammateDelivery(id: "d3", target: "quill", state: .waitingOnYou, since: now.addingTimeInterval(-90), preview: "Deploy to staging.", waitingOn: "approval"),
-        ], isStale: true, dismissed: DismissedDeliveries(fileURL: nil))
+        ]
     }
 }
 

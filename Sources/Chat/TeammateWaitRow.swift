@@ -12,14 +12,16 @@ struct TeammateWaitRow: View {
 
     private var name: String { teammate?.title ?? row.targetHandle }
 
+    private var avatarBot: Bot {
+        teammate ?? Bot(name: row.target, displayName: nil, description: nil, model: nil, isDefault: false, hasAvatar: false, canonicalSession: nil, meta: BotMeta(), metaRevision: nil)
+    }
+
     private var tint: HierarchicalShapeStyle { row.state == .waitingOnYou ? .primary : .secondary }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 8) {
-                if let teammate {
-                    BotAvatar(bot: teammate, status: nil, photo: photo, size: avatarSize)
-                }
+                BotAvatar(bot: avatarBot, status: nil, photo: photo, size: avatarSize)
                 Text(name)
                     .font(.subheadline.weight(.medium))
                     .lineLimit(1)
@@ -54,7 +56,7 @@ struct TeammateWaitRow: View {
                     .lineLimit(row.isUnknownOutcome ? nil : 2)
             }
             .font(.footnote)
-            .padding(.leading, teammate == nil ? 0 : avatarSize + 8)
+            .padding(.leading, avatarSize + 8)
         }
         .help(row.preview)
         .contextMenu {

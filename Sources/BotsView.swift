@@ -15,6 +15,7 @@ struct BotsView: View {
     @Environment(PushCenter.self) private var push
     @Environment(ChatDrafts.self) private var drafts
     @Environment(ChatPins.self) private var pins
+    @Environment(DismissedDeliveries.self) private var dismissedDeliveries
     @Environment(CardState.self) private var cardState: CardState?
     @Environment(CardTimers.self) private var cardTimers: CardTimers?
     @Environment(Scenes.self) private var scenes
@@ -415,7 +416,7 @@ struct BotsView: View {
                                 await connection.signOut()
                                 drafts.reset()
                                 pins.reset()
-                                DismissedDeliveries.shared.reset()
+                                dismissedDeliveries.reset()
                                 layout.reset()
                                 cardState?.reset()
                                 cardTimers?.reset()

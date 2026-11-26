@@ -11,7 +11,9 @@ struct TeammateWaitsCard: View {
     let open: (Bot) -> Void
     let dismiss: (String) -> Void
 
-    private var shown: [TeammateDelivery] { Array(rows.prefix(Self.limit)) }
+    @State private var showsAll = false
+
+    private var shown: [TeammateDelivery] { showsAll ? rows : Array(rows.prefix(Self.limit)) }
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 30)) { context in
@@ -27,14 +29,10 @@ struct TeammateWaitsCard: View {
                 }
                 .opacity(isStale ? 0.6 : 1)
                 if rows.count > Self.limit {
-                    Text("+\(rows.count - Self.limit) more")
+                    Button(showsAll ? "Show Less" : "+\(rows.count - Self.limit) more") { showsAll.toggle() }
                         .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-                if rows.contains(where: \.isUnknownOutcome) {
-                    Text("Crew never resends a message.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .buttonStyle(.borderless)
+                        .accessibilityValue(showsAll ? Text("Expanded") : Text("Collapsed"))
                 }
                 if isStale {
                     Text("Couldn't refresh. Showing the last known state.")

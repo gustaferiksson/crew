@@ -18,6 +18,7 @@ struct ChatScreen: View {
     @State private var showsContext = false
     @State private var compactsAfterContext = false
     @State private var waits = TeammateWaits()
+    @Environment(DismissedDeliveries.self) private var dismissedDeliveries
     @Environment(\.scenePhase) private var scenePhase
     #if os(macOS)
     @Environment(\.openWindow) private var openWindow
@@ -81,7 +82,8 @@ struct ChatScreen: View {
             focus: focus,
             earlier: session?.earlier ?? .complete,
             pinKey: bot.id,
-            waits: waits,
+            teammates: waits.visible(excluding: dismissedDeliveries),
+            teammatesAreStale: waits.isStale,
             presentation: Snapshot.requested == .layoutInspector ? ChatPresentation(scrollTarget: "t1") : Snapshot.requested == .readme ? ChatPresentation(expandedCards: ["pancakes"]) : ChatPresentation(),
             actions: ChatActions(
                 send: { session?.send($0, attachments: $1, mentioning: $2, mode: $3) },
@@ -100,7 +102,8 @@ struct ChatScreen: View {
                 addShop: { addingShop = $0 },
                 dismissShopOffer: { session?.dismissedOffer = session?.transcript.turns.last?.id },
                 loadEarlier: { session?.loadEarlier() },
-                openTeammate: openTeammate
+                openTeammate: openTeammate,
+                dismissDelivery: { dismissedDeliveries.dismiss($0) }
             )
         )
         .environment(\.chatSession, session)
@@ -122,7 +125,7 @@ struct ChatScreen: View {
         }
         .task(id: [connection.gateway.map { "\(ObjectIdentifier($0))" }, scenePhase == .active ? "active" : "inactive"]) {
             guard let gateway = connection.gateway, scenePhase == .active, Snapshot.requested == nil else { return }
-            await waits.run(profile: bot.name, via: gateway)
+            await waits.run(profile: bot.name, dismissed: dismissedDeliveries, via: gateway)
         }
         .task(id: connection.state == .connected) {
             showsOffline = false

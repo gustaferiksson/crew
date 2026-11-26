@@ -11,6 +11,7 @@ struct CrewApp: App {
     @State private var bots = Snapshot.requested?.bots ?? BotStore()
     @State private var chats = Snapshot.requested?.chats ?? ChatSessions()
     @State private var drafts = Snapshot.requested?.drafts ?? .shared
+    @State private var dismissedDeliveries = Snapshot.requested == nil ? DismissedDeliveries() : DismissedDeliveries(fileURL: nil)
     @State private var pins = Snapshot.requested == nil ? ChatPins.shared : ChatPins(fixture: Snapshot.requested == .chatA2UIPinnedSheet ? ["default": ChatPins.Pin(seen: ChatPins.Seen(fingerprint: "", finishedAt: .distantFuture), pinned: "party-list")] : [:])
     @State private var cardState = Snapshot.requested == nil ? CardState.shared : UserDefaults.standard.string(forKey: "cardsFile").map { CardState(fileURL: URL.temporaryDirectory.appending(path: $0)) } ?? (Snapshot.requested == .chatA2UISaved ? ChatFixture.savedCards() : CardState(fileURL: nil))
     @State private var cardTimers = Snapshot.requested == nil ? CardTimers.shared : Snapshot.requested == .chatA2UITimer ? ChatFixture.timerStates() : CardTimers(fileURL: nil)
@@ -78,6 +79,7 @@ struct CrewApp: App {
             .environment(chats)
             .environment(drafts)
             .environment(pins)
+            .environment(dismissedDeliveries)
             .environment(cardState)
             .environment(cardTimers)
             .environment(groups)

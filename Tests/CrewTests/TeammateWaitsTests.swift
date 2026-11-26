@@ -62,19 +62,45 @@ private func store() -> DismissedDeliveries {
     #expect(row.teammate(in: [peer], sender: "crew-test-peer") == nil)
 }
 
-@Test func waitingRowsComeFirstAndDismissedFailuresDrop() {
+private struct Offline: Error {}
+
+@Test func waitingRowsComeFirstAndDismissedFailuresDrop() async {
     let now = Date.now
     let dismissed = store()
-    let waits = TeammateWaits(rows: [
+    let waits = TeammateWaits()
+    await waits.refresh(dismissed: dismissed) { [
         TeammateDelivery(id: "f1", target: "a", state: .failed, since: now, reason: "cancelled"),
         TeammateDelivery(id: "w1", target: "b", state: .working, since: now),
         TeammateDelivery(id: "f2", target: "c", state: .failed, since: now, reason: "cancelled"),
         TeammateDelivery(id: "y1", target: "d", state: .waitingOnYou, since: now, waitingOn: "clarify"),
-    ], dismissed: dismissed)
-    #expect(waits.visible.map(\.id) == ["y1", "w1", "f1", "f2"])
-    waits.dismiss("f1")
-    waits.dismiss("w1")
-    #expect(waits.visible.map(\.id) == ["y1", "w1", "f2"])
+    ] }
+    #expect(waits.visible(excluding: dismissed).map(\.id) == ["y1", "w1", "f1", "f2"])
+    dismissed.dismiss("f1")
+    dismissed.dismiss("w1")
+    #expect(waits.visible(excluding: dismissed).map(\.id) == ["y1", "w1", "f2"])
+}
+
+@Test func failedPollKeepsTheLastRowsMarkedStaleUntilAnAnswerComes() async {
+    let dismissed = store()
+    let waits = TeammateWaits()
+    let row = TeammateDelivery(id: "w1", target: "b", state: .working, since: .now)
+    await waits.refresh(dismissed: dismissed) { [row] }
+    await waits.refresh(dismissed: dismissed) { throw Offline() }
+    #expect(waits.visible(excluding: dismissed) == [row])
+    #expect(waits.isStale && waits.isSupported)
+    await waits.refresh(dismissed: dismissed) { [] }
+    #expect(waits.visible(excluding: dismissed).isEmpty && !waits.isStale)
+}
+
+@Test func serverWithoutTheMethodHidesTheStripAndStopsPolling() async {
+    let dismissed = store()
+    let waits = TeammateWaits()
+    await waits.refresh(dismissed: dismissed) { [TeammateDelivery(id: "w1", target: "b", state: .working, since: .now)] }
+    await waits.refresh(dismissed: dismissed) { throw GatewayError.rpc(code: -32601, message: "unknown method: bot_delivery.list") }
+    #expect(waits.visible(excluding: dismissed).isEmpty && !waits.isSupported && !waits.isStale)
+    let other = TeammateWaits()
+    await other.refresh(dismissed: dismissed) { throw GatewayError.rpc(code: -32000, message: "Method not found") }
+    #expect(!other.isSupported)
 }
 
 @Test func dismissalsSurviveARestartAndAgeOut() {

@@ -18,7 +18,22 @@ struct TeammateWaitRow: View {
 
     private var tint: HierarchicalShapeStyle { row.state == .waitingOnYou ? .primary : .secondary }
 
-    private var statusStyle: AnyShapeStyle { row.state == .waitingOnYou ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary) }
+    private var status: String { row.status(for: name) }
+
+    private var line: AttributedString {
+        var text = AttributedString(status)
+        text.foregroundColor = row.state == .waitingOnYou ? Color.accentColor : Color.secondary
+        guard let range = text.range(of: name) else {
+            var lead = AttributedString("\(name) ")
+            lead.font = .footnote.weight(.medium)
+            return lead + text
+        }
+        text[range].font = .footnote.weight(.medium)
+        text[range].foregroundColor = Color.primary
+        return text
+    }
+
+    private var spokenLabel: String { status.contains(name) ? "\(status), \(row.age(at: now))" : "\(name), \(status), \(row.age(at: now))" }
 
     var body: some View {
         HStack(spacing: 8) {
@@ -28,7 +43,7 @@ struct TeammateWaitRow: View {
                     .foregroundStyle(.red)
                     .accessibilityHidden(true)
             }
-            Text("\(Text(name).fontWeight(.medium)) \(Text(row.status(for: name)).foregroundStyle(statusStyle))")
+            Text(line)
                 .font(.footnote)
                 .lineLimit(row.isUnknownOutcome ? nil : 2)
             Spacer(minLength: 4)
@@ -38,6 +53,8 @@ struct TeammateWaitRow: View {
             Button("Open") { if let teammate { open(teammate) } }
                 .font(.footnote.weight(.medium))
                 .buttonStyle(.borderless)
+                .padding(.horizontal, 4)
+                .contentShape(.rect.inset(by: -14))
                 .disabled(teammate == nil)
             if row.state == .failed {
                 Button("Dismiss", systemImage: "xmark", action: dismiss)
@@ -65,7 +82,7 @@ struct TeammateWaitRow: View {
             if row.state == .failed { Button("Dismiss", systemImage: "xmark", action: dismiss) }
         }
         .accessibilityElement(children: .contain)
-        .accessibilityLabel(Text("\(name), \(row.status(for: name)), \(row.age(at: now))"))
+        .accessibilityLabel(Text(spokenLabel))
         .accessibilityValue(Text(row.preview))
     }
 }

@@ -271,18 +271,50 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
         .coordinateSpace(.named(chatSpace))
     }
 
+    @ViewBuilder private func turnView(_ turn: Turn) -> some View {
+        let speaker = turn.speaker.flatMap { name in bots.bots.first { $0.name == name } }
+        TurnView(
+            turn: turn,
+            surfaces: surfaces,
+            speaker: speaker,
+            speakerPhoto: speaker.flatMap { bots.photos[$0.id] },
+            failureTarget: turn.deliveryFailure.flatMap { failure in bots.bots.first { $0.name == failure.target }?.title },
+            activity: turn.status == .streaming ? activity : nil,
+            reveal: reveal,
+            timestampWidth: timestampWidth,
+            mentionable: mentionable,
+            profile: profile,
+            speakerName: speaker?.title ?? turn.speaker ?? botName,
+            isExpanded: expansion.turns.contains(turn.id),
+            expandedWork: expansion.work.filter { id in turn.work.contains { $0.id == id } },
+            expandedRuns: expansion.runs.filter { id in turn.work.contains { $0.id == id } },
+            canStop: offlineReason == nil,
+            limitModel: turn.limit?.switchable(among: models?.providers ?? [], current: models?.current)
+        )
+        .environment(\.replyTarget, turn.thread == nil ? nil : turn.id)
+        .background {
+            if highlighted == turn.id {
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(.tint.opacity(0.12))
+                    .padding(-8)
+            }
+        }
+    }
+
     private var chat: some View {
         latestActions.actions = actions
+        let rows = transcript.rows
         return TranscriptScroll(position: $position, revision: TranscriptRevision(count: transcript.turns.count, last: transcript.turns.last), barHeight: barHeight) {
             if earlier == .loading || earlier == .failed {
                 EarlierHistoryRow(state: earlier, retry: actions.loadEarlier)
                     .padding([.horizontal, .top], 16)
             }
             LazyVStack(alignment: .leading, spacing: 28) {
-                ForEach(Array(transcript.turns.enumerated()), id: \.element.id) { index, turn in
+                ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
                     VStack(alignment: .leading, spacing: 12) {
-                        let previousEnd = index > 0 ? transcript.turns[index - 1].finishedAt ?? transcript.turns[index - 1].startedAt : nil
-                        let start = turn.prompt?.sentAt ?? turn.startedAt
+                        let previousEnd = index > 0 ? rows[index - 1].turns.last.map { $0.finishedAt ?? $0.startedAt } : nil
+                        let first = row.turns[0]
+                        let start = first.prompt?.sentAt ?? first.startedAt
                         if previousEnd.map({ start.timeIntervalSince($0) > separatorGap || !Calendar.current.isDate($0, inSameDayAs: start) }) ?? true {
                             Text(separatorFormatter.string(from: start))
                                 .font(.caption.weight(.medium))
@@ -290,36 +322,14 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 4)
                         }
-                        let speaker = turn.speaker.flatMap { name in bots.bots.first { $0.name == name } }
-                        TurnView(
-                            turn: turn,
-                            surfaces: surfaces,
-                            speaker: speaker,
-                            speakerPhoto: speaker.flatMap { bots.photos[$0.id] },
-                            failureTarget: turn.deliveryFailure.flatMap { failure in bots.bots.first { $0.name == failure.target }?.title },
-                            activity: turn.status == .streaming ? activity : nil,
-                            reveal: reveal,
-                            timestampWidth: timestampWidth,
-                            mentionable: mentionable,
-                            profile: profile,
-                            speakerName: speaker?.title ?? turn.speaker ?? botName,
-                            isExpanded: expansion.turns.contains(turn.id),
-                            expandedWork: expansion.work.filter { id in turn.work.contains { $0.id == id } },
-                            expandedRuns: expansion.runs.filter { id in turn.work.contains { $0.id == id } },
-                            canStop: offlineReason == nil,
-                            limitModel: turn.limit?.switchable(among: models?.providers ?? [], current: models?.current)
-                        )
-                        .environment(\.replyTarget, turn.thread == nil ? nil : turn.id)
-                        .background {
-                            if highlighted == turn.id {
-                                RoundedRectangle(cornerRadius: 12)
-                                    .fill(.tint.opacity(0.12))
-                                    .padding(-8)
-                            }
+                        if row.turns.count > 1 {
+                            BotExchangeGroup(id: row.id, turns: row.turns, reveal: reveal, timestampWidth: timestampWidth) { turnView($0) }
+                        } else {
+                            turnView(first)
                         }
                     }
                     .padding(.horizontal, 16)
-                    .id(turn.id)
+                    .id(row.id)
                 }
             }
             .scrollTargetLayout()
@@ -339,7 +349,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
             .padding(.vertical, 16)
         }
         .onScrollTargetVisibilityChange(idType: Turn.ID.self, threshold: 0.01) { ids in
-            guard earlier == .more, transcript.turns.prefix(earlierLead).contains(where: { ids.contains($0.id) }) else { return }
+            guard earlier == .more, transcript.rows.prefix(earlierLead).contains(where: { ids.contains($0.id) }) else { return }
             actions.loadEarlier()
         }
         #if os(iOS)
@@ -448,14 +458,17 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
                 focusPages = (focus.id, pages + 1)
                 return actions.loadEarlier()
             }
-            if target.agentMessage != nil { expansion.turns.insert(target.id) }
-            position.scrollTo(id: target.id, anchor: .center)
+            let row = transcript.rows.first { $0.turns.contains { $0.id == target.id } }
+            let isGrouped = (row?.turns.count ?? 0) > 1
+            if target.agentMessage != nil || isGrouped { expansion.turns.insert(target.id) }
+            if let row, isGrouped { expansion.turns.insert(row.id) }
+            position.scrollTo(id: row?.id ?? target.id, anchor: .center)
             handledFocus = focus.id
             highlighted = target.id
         }
         .onChange(of: shownTurn) {
             guard let shownTurn else { return }
-            position.scrollTo(id: shownTurn, anchor: .center)
+            position.scrollTo(id: transcript.rows.first { $0.turns.contains { $0.id == shownTurn } }?.id ?? shownTurn, anchor: .center)
             highlighted = shownTurn
             self.shownTurn = nil
         }
@@ -765,7 +778,7 @@ struct TurnView: View {
     }
 }
 
-private struct Timestamp: ViewModifier {
+struct Timestamp: ViewModifier {
     let date: Date
     let reveal: CGFloat
     let width: CGFloat

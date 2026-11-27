@@ -2,7 +2,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 enum ChatFixture {
-    case conversation, history, earlierLoading, earlierFailed, timestamps, workLog, workLogTools, question, questions, questionsSnacks, questionLong, offline, attachments, dictation, mentions, slash, slashOutput, agentMessage, routine, deliveryFailure, limitFailure, a2ui, a2uiCards, a2uiForm, a2uiTable, a2uiTableExpanded, a2uiChart, a2uiMap, a2uiCarousel, a2uiCarouselStates, a2uiPinned, a2uiPinnedSheet, a2uiExpanded, a2uiProducts, a2uiUpdates, a2uiStreaming, a2uiServings, a2uiServingsScaled, a2uiSaved, a2uiTimer, a2uiShopping
+    case conversation, history, earlierLoading, earlierFailed, timestamps, workLog, workLogTools, question, questions, questionsSnacks, questionLong, offline, attachments, dictation, mentions, slash, slashOutput, agentMessage, agentMessageGroup, routine, deliveryFailure, limitFailure, a2ui, a2uiCards, a2uiForm, a2uiTable, a2uiTableExpanded, a2uiChart, a2uiMap, a2uiCarousel, a2uiCarouselStates, a2uiPinned, a2uiPinnedSheet, a2uiExpanded, a2uiProducts, a2uiUpdates, a2uiStreaming, a2uiServings, a2uiServingsScaled, a2uiSaved, a2uiTimer, a2uiShopping
     case composerLine, composerLines, composerRunning, composerRunningText, steer, steerTaken, waiting, teammateWaits, teammateWaitsFailed
     case payment, paymentHolding, paymentApproved, paymentLoading, paymentFailed, paymentUnverified, paymentPunycode, paymentCountdown, paymentNotice, paymentOffer, paymentOfferHistory, paymentReceipts
     case approvalFolder, approvalSite, approvalUnknown
@@ -180,6 +180,7 @@ enum ChatFixture {
             let followUp = Turn(id: "t8", delivery: "proc_7f3a", deliveryFailure: DeliveryFailure(notice: notice), reply: "Scout is busy in another chat right now, so the flight request didn't reach it.", status: .complete, startedAt: now.addingTimeInterval(-4 * 60), finishedAt: now.addingTimeInterval(-4 * 60 + 3))
             return Transcript(turns: [greeting(now.addingTimeInterval(-26 * 3600)), handoff(now.addingTimeInterval(-6 * 60)), followUp]).visible
         }
+        if self == .agentMessageGroup { return Transcript(turns: [greeting(now.addingTimeInterval(-26 * 3600)), message("m1", "Which hotel did you pick in Svolvær?", reply: "The Rorbu by the harbour.", at: now.addingTimeInterval(-30 * 60)), message("m2", "Can you add the Lofoten ferry to the trip notes?", reply: "Added the 08:15 ferry to the trip notes.", at: now.addingTimeInterval(-20 * 60)), message("m3", "Anything else I should pack?", reply: "Warm layers and a rain shell.", at: now.addingTimeInterval(-5 * 60))]).visible }
         if self == .agentMessage { return Transcript(turns: [greeting(now.addingTimeInterval(-26 * 3600)), message("m1", "Flights for Saturday are booked.", reply: "Thanks, Scout!", result: #"{"reason": "runtime_offline", "error": "Scout is offline."}"#, at: now.addingTimeInterval(-40 * 60)), message("m2", "Can you add the Lofoten ferry to the trip notes?", reply: "Added the 08:15 ferry to the trip notes.", at: now.addingTimeInterval(-5 * 60))]).visible }
         if self == .slashOutput {
             var transcript = Transcript(turns: [greeting(now.addingTimeInterval(-26 * 3600))])

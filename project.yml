@@ -232,6 +232,8 @@ targets:
       - Sources/Chat/DismissedDeliveries.swift
       - Sources/Chat/EarlierHistoryRow.swift
       - Sources/Chat/WorkLog.swift
+      - Sources/Chat/BotExchangeGroup.swift
+      - Sources/Chat/TranscriptRow.swift
       - Sources/Chat/UserBubble.swift
       - Sources/Chat/MessageMenu.swift
       - Sources/Chat/ReplyText.swift

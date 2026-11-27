@@ -672,12 +672,15 @@ extension ChatFixtureScreen {
             ]
         }
         guard fixture == .teammateWaits else { return [] }
-        return [
+        return TeammateWaits.grouped([
             TeammateDelivery(id: "d2", target: "quill", state: .waitingOnYou, since: now.addingTimeInterval(-140), preview: "Draft the release notes.", waitingOn: "clarify"),
             TeammateDelivery(id: "d1", target: "scout", state: .working, since: now.addingTimeInterval(-5 * 60), preview: "Find three direct flights to Lisbon for the long weekend."),
             TeammateDelivery(id: "d3", target: "ada", state: .queued, since: now.addingTimeInterval(-20), preview: "Summarise the survey results."),
             TeammateDelivery(id: "d4", target: "forge", state: .claimed, since: now.addingTimeInterval(-3600), preview: "Tag the release."),
-        ]
+            TeammateDelivery(id: "d5", target: "ada", state: .queued, since: now.addingTimeInterval(-50), preview: "Plot the survey results."),
+            TeammateDelivery(id: "d6", target: "ada", state: .queued, since: now.addingTimeInterval(-80), preview: "Email the survey results."),
+            TeammateDelivery(id: "d7", target: "scout", state: .queued, since: now.addingTimeInterval(-200), preview: "Then book the hotel."),
+        ])
     }
 }
 

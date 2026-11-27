@@ -35,7 +35,7 @@ private func store() -> DismissedDeliveries {
 @Test func recordedUnknownOutcomeSaysItMayHaveActed() throws {
     let row = try #require(try recorded("failed").first)
     #expect(row.isUnknownOutcome)
-    #expect(row.status(for: "Crew Peer") == "Outcome unknown. It may have acted, so check its chat before asking again.")
+    #expect(row.status(for: "Crew Peer") == "Outcome unknown. It may have acted, and Crew won't send it again.")
 }
 
 @Test func waitingOnYouDerivedFromARecordedRowNamesWhatTheUserOwes() throws {
@@ -63,6 +63,38 @@ private func store() -> DismissedDeliveries {
 }
 
 private struct Offline: Error {}
+
+@Test func queuedDeliveriesToOneTeammateFoldIntoTheMostUrgentRow() async {
+    let now = Date.now
+    let dismissed = store()
+    let waits = TeammateWaits()
+    await waits.refresh(dismissed: dismissed) { [
+        TeammateDelivery(id: "q1", target: "ada", state: .queued, since: now),
+        TeammateDelivery(id: "q2", target: "ada", state: .queued, since: now),
+        TeammateDelivery(id: "q3", target: "ada", state: .queued, since: now),
+        TeammateDelivery(id: "w1", target: "scout", state: .working, since: now),
+        TeammateDelivery(id: "q4", target: "scout", state: .queued, since: now),
+        TeammateDelivery(id: "f1", target: "scout", state: .failed, since: now, reason: "cancelled"),
+        TeammateDelivery(id: "y1", target: "scout", state: .waitingOnYou, since: now, waitingOn: "clarify"),
+    ] }
+    let rows = waits.visible(excluding: dismissed)
+    #expect(rows.map(\.id) == ["y1", "q1", "w1", "f1"])
+    #expect(rows.map(\.queuedBehind) == [1, 2, 0, 0])
+    #expect(rows[1].status(for: "Ada") == "3 queued")
+    #expect(rows[2].status(for: "Scout") == "Working on it")
+}
+
+@Test func workingRowCarriesTheQueuedCount() async {
+    let waits = TeammateWaits()
+    await waits.refresh(dismissed: store()) { [
+        TeammateDelivery(id: "q1", target: "ada", state: .queued, since: .now),
+        TeammateDelivery(id: "w1", target: "ada", state: .working, since: .now),
+        TeammateDelivery(id: "q2", target: "ada", state: .queued, since: .now),
+    ] }
+    let rows = waits.visible(excluding: store())
+    #expect(rows.map(\.id) == ["w1"])
+    #expect(rows[0].status(for: "Ada") == "Working on it, and 2 queued")
+}
 
 @Test func waitingRowsComeFirstAndDismissedFailuresDrop() async {
     let now = Date.now

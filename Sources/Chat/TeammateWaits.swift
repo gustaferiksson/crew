@@ -12,8 +12,21 @@ final class TeammateWaits {
     private(set) var isSupported = true
 
     func visible(excluding dismissed: DismissedDeliveries) -> [TeammateDelivery] {
-        let shown = rows.filter { $0.state != .failed || !dismissed.contains($0.id) }
-        return shown.filter { $0.state == .waitingOnYou } + shown.filter { $0.state != .waitingOnYou && $0.state != .failed } + shown.filter { $0.state == .failed }
+        Self.grouped(rows.filter { $0.state != .failed || !dismissed.contains($0.id) })
+    }
+
+    static func grouped(_ shown: [TeammateDelivery]) -> [TeammateDelivery] {
+        let ordered = shown.filter { $0.state == .waitingOnYou } + shown.filter { $0.state != .waitingOnYou && $0.state != .failed } + shown.filter { $0.state == .failed }
+        let live = ordered.filter { $0.state != .failed }
+        let leads = Dictionary(grouping: live, by: \.target).mapValues { $0.min { $0.state.urgency < $1.state.urgency }!.id }
+        let folded = Dictionary(grouping: live.filter { $0.state == .queued && $0.id != leads[$0.target] }, by: \.target).mapValues(\.count)
+        return ordered.compactMap { row in
+            if row.state == .failed { return row }
+            guard row.id == leads[row.target] else { return row.state == .queued ? nil : row }
+            var lead = row
+            lead.queuedBehind = folded[row.target] ?? 0
+            return lead
+        }
     }
 
     func run(profile: String, dismissed: DismissedDeliveries, via gateway: Gateway) async {

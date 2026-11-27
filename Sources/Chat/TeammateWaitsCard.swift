@@ -17,12 +17,8 @@ struct TeammateWaitsCard: View {
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 30)) { context in
-            VStack(alignment: .leading, spacing: 8) {
-                Label("Waiting on teammates", systemImage: "person.2")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .accessibilityAddTraits(.isHeader)
-                VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: 6) {
                     ForEach(shown) { row in
                         TeammateWaitRow(row: row, teammate: row.teammate(in: bots, sender: sender), photo: photos[row.target], now: context.date, open: open) { dismiss(row.id) }
                     }
@@ -40,8 +36,8 @@ struct TeammateWaitsCard: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
             .frame(maxWidth: .infinity, alignment: .leading)
             .glassEffect(.regular, in: .rect(cornerRadius: 18))
             .dynamicTypeSize(...DynamicTypeSize.accessibility3)

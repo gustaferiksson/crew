@@ -48,6 +48,12 @@ nonisolated struct Turn: Identifiable, Codable, Sendable, Equatable {
     var stopReason: String?
 }
 
+nonisolated extension Turn {
+    var hasSilentReply: Bool {
+        ["[silent]", "silent", "no_reply", "no reply", "(empty)"].contains(reply.trimmingCharacters(in: .whitespacesAndNewlines).lowercased())
+    }
+}
+
 nonisolated struct Prompt: Codable, Sendable, Equatable {
     var text: String
     var sentAt: Date
@@ -294,6 +300,9 @@ nonisolated extension DeliveryFailure {
 extension Transcript {
     var visible: Transcript {
         let quote = { (text: String) in text.split(separator: "\n", omittingEmptySubsequences: false).map { "> \($0)" }.joined(separator: "\n") }
+        let replyNote = { (turn: Turn) -> [WorkItem] in
+            turn.reply.isEmpty || turn.hasSilentReply ? [] : [WorkItem(id: "\(turn.id)-reply", kind: .note(turn.reply), startedAt: turn.finishedAt ?? turn.startedAt)]
+        }
         var shown: [Turn] = []
         var awaited: [(handle: String, origin: Turn.ID)] = []
         var answered: [(handle: String, at: Int)] = []
@@ -318,7 +327,8 @@ extension Transcript {
                 exchanges[turn.id] = shown.count
                 var exchange = turn
                 exchange.prompt = nil
-                exchange.work = [WorkItem(id: "\(turn.id)-message", kind: .note(quote(message.body)), startedAt: turn.startedAt)] + turn.work
+                exchange.work = [WorkItem(id: "\(turn.id)-message", kind: .note(quote(message.body)), startedAt: turn.startedAt)] + turn.work + replyNote(turn)
+                exchange.reply = ""
                 shown.append(exchange)
                 continue
             }
@@ -339,7 +349,7 @@ extension Transcript {
             followUp.deliveryFailure?.target = handle
             let sent = call.flatMap { call in shown.firstIndex { $0.id == "\(call.id)-to" } }
             if let origin, let index = exchanges[origin.id] {
-                shown[index].work += turn.work + (turn.reply.isEmpty ? [] : [WorkItem(id: "\(turn.id)-reply", kind: .note(turn.reply), startedAt: turn.finishedAt ?? turn.startedAt)])
+                shown[index].work += turn.work + replyNote(turn)
                 shown[index].finishedAt = turn.finishedAt
                 let failed = sent ?? index
                 shown[failed].deliveryFailure = shown[failed].deliveryFailure ?? followUp.deliveryFailure
@@ -355,12 +365,31 @@ extension Transcript {
                 shown[sent].deliveryFailure = shown[sent].deliveryFailure ?? followUp.deliveryFailure
             }
         }
-        return Transcript(turns: shown + waiting)
+        let spoken = shown.compactMap { turn -> Turn? in
+            guard turn.hasSilentReply else { return turn }
+            var turn = turn
+            turn.reply = ""
+            let isBare = turn.prompt == nil && turn.notice == nil && turn.agentMessage == nil && turn.work.isEmpty && turn.warnings.isEmpty && turn.failure == nil && turn.deliveryFailure == nil && turn.status == .complete
+            return isBare ? nil : turn
+        }
+        return Transcript(turns: spoken + waiting)
+    }
+
+    static func quietRows(in rows: [HistoryRow]) -> Int {
+        let transcript = Transcript(window: rows)
+        let start = { (turn: Turn) in Int(turn.id.prefix { $0 != "-" }) ?? 0 }
+        guard let last = transcript.visible.lastOutsideTurn, let index = transcript.turns.firstIndex(where: { $0.id == last.id }) else { return rows.count }
+        guard let next = transcript.turns[(index + 1)...].first(where: { start($0) > start(last) }) else { return 0 }
+        return rows.filter { $0.id >= start(next) }.count
+    }
+
+    private var lastOutsideTurn: Turn? {
+        turns.last { $0.pending == nil && $0.agentMessage == nil && (!$0.reply.isEmpty || $0.prompt?.text.isEmpty == false || $0.isRoutine) }
     }
 
     var lastMessage: LastMessage? {
-        guard let turn = turns.last(where: { $0.pending == nil && (!$0.reply.isEmpty || $0.prompt?.text.isEmpty == false || $0.agentMessage != nil || $0.isRoutine) }) else { return nil }
-        let text = turn.reply.isEmpty ? turn.agentMessage.map { String(localized: "Message from \($0.sender)") } ?? turn.prompt?.text ?? turn.notice ?? "" : cardlessReply(turn.reply)
+        guard let turn = lastOutsideTurn else { return nil }
+        let text = turn.reply.isEmpty ? turn.prompt?.text ?? turn.notice ?? "" : cardlessReply(turn.reply)
         return LastMessage(text: text.split(whereSeparator: \.isWhitespace).joined(separator: " "), date: turn.finishedAt ?? turn.prompt?.sentAt ?? turn.startedAt)
     }
 

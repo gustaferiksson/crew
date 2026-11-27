@@ -34,11 +34,11 @@ private struct DisclosureColumn: View {
     }
 }
 
-private func botThread(endingWith last: String) throws -> [Turn] {
+private func botThread() throws -> [Turn] {
     let decoder = JSONDecoder()
     decoder.keyDecodingStrategy = .convertFromSnakeCase
     let thread = Transcript(history: try decoder.decode([HistoryRow].self, from: Data(contentsOf: botThreadFile))).visible.turns
-    let end = try #require(thread.lastIndex { last == "to" ? $0.outgoingMessage != nil : $0.agentMessage != nil })
+    let end = try #require(thread.lastIndex { $0.agentMessage != nil })
     let start = try #require(thread.first?.startedAt).addingTimeInterval(-200 * 60)
     let earlier = (0..<200).map { index in
         Turn(id: "u\(index)", prompt: Prompt(text: "Question \(index) about the trip?", sentAt: start.addingTimeInterval(Double(index) * 60)), reply: String(repeating: "A reply that wraps across the column a few times. ", count: 1 + (index * 7) % 40), status: .complete, startedAt: start.addingTimeInterval(Double(index) * 60), finishedAt: start.addingTimeInterval(Double(index) * 60 + 5))
@@ -47,10 +47,9 @@ private func botThread(endingWith last: String) throws -> [Turn] {
 }
 
 @MainActor struct DisclosureScrollTests {
-    @Test(.serialized, arguments: ["from", "to"])
-    func theLastBotMessageRowOpensAndClosesWithTheEndHeld(last: String) throws {
+    @Test func theLastBotMessageRowOpensAndClosesWithTheEndHeld() throws {
         let model = DisclosureModel()
-        model.turns = try botThread(endingWith: last)
+        model.turns = try botThread()
         let row = try #require(model.turns.last?.id)
         let window = OffscreenWindow(size: NSSize(width: 600, height: 500), styleMask: [.titled, .resizable])
         window.isRestorable = false
@@ -68,7 +67,7 @@ private func botThread(endingWith last: String) throws -> [Turn] {
             withTransaction(.disclosure(.snappy)) { model.expanded.formSymmetricDifference([row]) }
             settle(1)
             let worst = model.distances.max() ?? 0
-            print("Disclosure \(last): \(step) height \(before) -> \(height()), \(model.distances.count) geometry changes, farthest from the end \(worst)")
+            print("Disclosure: \(step) height \(before) -> \(height()), \(model.distances.count) geometry changes, farthest from the end \(worst)")
             #expect(abs(height() - before) > 20, "\(step) did not change the row: height \(before) -> \(height())")
             #expect(worst < 1, "\(step) left the end by \(worst) pt during the animation")
             #expect(model.distances.count < 10, "\(step) changed the scroll geometry \(model.distances.count) times")

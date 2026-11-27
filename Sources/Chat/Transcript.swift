@@ -23,7 +23,6 @@ nonisolated struct Turn: Identifiable, Codable, Sendable, Equatable {
     var prompt: Prompt?
     var notice: String?
     var agentMessage: AgentMessage?
-    var outgoingMessage: AgentMessage?
     var delivery: String?
     var deliveryFailure: DeliveryFailure?
     var hiddenText: String?
@@ -300,6 +299,7 @@ nonisolated extension DeliveryFailure {
 extension Transcript {
     var visible: Transcript {
         let quote = { (text: String) in text.split(separator: "\n", omittingEmptySubsequences: false).map { "> \($0)" }.joined(separator: "\n") }
+        let holder = { (shown: [Turn], item: WorkItem) in shown.firstIndex { $0.work.contains { $0.id == item.id } } }
         let replyNote = { (turn: Turn) -> [WorkItem] in
             turn.reply.isEmpty || turn.hasSilentReply ? [] : [WorkItem(id: "\(turn.id)-reply", kind: .note(turn.reply), startedAt: turn.finishedAt ?? turn.startedAt)]
         }
@@ -309,10 +309,9 @@ extension Transcript {
         var exchanges: [Turn.ID: Int] = [:]
         for (position, turn) in turns.enumerated() {
             defer {
-                shown += turn.work.compactMap { item in
-                    guard turn.status != .streaming, case .tool(let call) = item.kind, call.result != nil, let sent = MessageAgentCall(call) else { return nil }
-                    let note = WorkItem(id: "\(item.id)-message", kind: .note(quote(sent.message)), startedAt: item.startedAt)
-                    return Turn(id: "\(item.id)-to", outgoingMessage: AgentMessage(sender: sent.target, handle: sent.target, body: sent.message), deliveryFailure: call.status == .error || sent.result["status"] as? String == "ambiguous" ? sent.failure : nil, work: [note], status: .complete, startedAt: item.startedAt, finishedAt: item.startedAt)
+                for item in turn.work where turn.status != .streaming {
+                    guard case .tool(let call) = item.kind, call.result != nil, let sent = MessageAgentCall(call), call.status == .error || sent.result["status"] as? String == "ambiguous", let index = holder(shown, item) else { continue }
+                    shown[index].deliveryFailure = shown[index].deliveryFailure ?? sent.failure
                 }
             }
             if let message = turn.agentMessage {
@@ -347,7 +346,7 @@ extension Transcript {
             if !repliedLater { awaited.removeAll { $0.origin == origin?.id } }
             var followUp = turn
             followUp.deliveryFailure?.target = handle
-            let sent = call.flatMap { call in shown.firstIndex { $0.id == "\(call.id)-to" } }
+            let sent = call.flatMap { holder(shown, $0) }
             if let origin, let index = exchanges[origin.id] {
                 shown[index].work += turn.work + replyNote(turn)
                 shown[index].finishedAt = turn.finishedAt

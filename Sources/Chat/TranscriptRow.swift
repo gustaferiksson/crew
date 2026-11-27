@@ -8,7 +8,7 @@ nonisolated struct TranscriptRow: Identifiable {
 
 nonisolated extension Turn {
     var isBotExchange: Bool {
-        (agentMessage != nil || outgoingMessage != nil) && pending == nil && notice == nil && warnings.isEmpty && deliveryFailure == nil && status != .error && status != .interrupted
+        agentMessage != nil && pending == nil && notice == nil && warnings.isEmpty && deliveryFailure == nil && status != .error && status != .interrupted
     }
 }
 

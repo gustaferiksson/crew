@@ -193,7 +193,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
     }
 
     private var lastTurnState: [String]? {
-        transcript.turns.last { $0.pending == nil && $0.outgoingMessage == nil }.map { [$0.id, $0.status.rawValue] }
+        transcript.turns.last { $0.pending == nil }.map { [$0.id, $0.status.rawValue] }
     }
 
     private func readFinishedReply() {
@@ -205,7 +205,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
             liveTurn = nil
             if let profile { Speaker.shared.readAloud(done, profile: profile, from: botName) }
         }
-        if let turn = transcript.turns.last(where: { $0.pending == nil && $0.outgoingMessage == nil }), turn.status == .streaming { liveTurn = turn.id }
+        if let turn = transcript.turns.last(where: { $0.pending == nil }), turn.status == .streaming { liveTurn = turn.id }
     }
 
     private var reveal: CGFloat {
@@ -238,7 +238,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
 
     private var composerPhase: Composer.Phase {
         if let offlineReason { return .offline(reason: offlineReason) }
-        return transcript.turns.last { $0.pending == nil && $0.outgoingMessage == nil }?.status == .streaming ? .running : .idle
+        return transcript.turns.last { $0.pending == nil }?.status == .streaming ? .running : .idle
     }
 
     var body: some View {
@@ -460,7 +460,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
             }
             let row = transcript.rows.first { $0.turns.contains { $0.id == target.id } }
             let isGrouped = (row?.turns.count ?? 0) > 1
-            if target.agentMessage != nil || isGrouped { expansion.turns.insert(target.id) }
+            if target.agentMessage != nil || isGrouped || !MessageAgentCall.all(in: target).isEmpty { expansion.turns.insert(target.id) }
             if let row, isGrouped { expansion.turns.insert(row.id) }
             position.scrollTo(id: row?.id ?? target.id, anchor: .center)
             handledFocus = focus.id

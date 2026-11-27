@@ -143,13 +143,6 @@ struct WorkLog: View {
                         } animation: { _ in
                             .easeInOut(duration: 1)
                         }
-                } else if let message = turn.outgoingMessage {
-                    let bot = bots.bots.first { $0.name == message.handle }
-                    if let bot {
-                        BotAvatar(bot: bot, status: nil, photo: bots.photos[bot.id], size: 16)
-                            .padding(.trailing, 4)
-                    }
-                    Text("Message to \(bot?.title ?? message.sender)")
                 } else if isLive {
                     TimelineView(.periodic(from: turn.startedAt, by: 1)) { context in
                         Text("Working for \(Duration.seconds(Int(context.date.timeIntervalSince(turn.startedAt))).formatted(elapsedStyle))")
@@ -278,9 +271,14 @@ private struct WorkRow: View {
         let verb = Text(appearance.verb).fontWeight(.semibold)
         let subject = subject
         return HStack(spacing: 8) {
-            Image(systemName: appearance.icon)
-                .foregroundStyle(.secondary)
-                .frame(width: 20)
+            if let bot = sentBot {
+                BotAvatar(bot: bot, status: nil, photo: bots.photos[bot.id], size: 16)
+                    .frame(width: 20)
+            } else {
+                Image(systemName: appearance.icon)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 20)
+            }
             VStack(alignment: .leading, spacing: 2) {
                 (subject.isEmpty ? verb : Text("\(verb) \(Text(subject).foregroundStyle(.secondary))"))
                     .lineLimit(1)
@@ -342,6 +340,12 @@ private struct WorkRow: View {
                 .foregroundStyle(.secondary)
         case .tool(let call):
             VStack(alignment: .leading, spacing: 8) {
+                if let sent = MessageAgentCall(call), !sent.message.isEmpty {
+                    MarkdownText(source: sent.message.split(separator: "\n", omittingEmptySubsequences: false).map { "> \($0)" }.joined(separator: "\n"))
+                        .textSelection(.enabled)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
                 if let outcome = deliveryFailureNote ?? call.outcome {
                     Text(outcome)
                         .font(.footnote)
@@ -353,6 +357,11 @@ private struct WorkRow: View {
                 }
             }
         }
+    }
+
+    private var sentBot: Bot? {
+        guard case .tool(let call) = item.kind, let sent = MessageAgentCall(call) else { return nil }
+        return bots.bots.first { $0.name == sent.target }
     }
 
     private var runningCall: ToolCall? {
@@ -368,6 +377,7 @@ private struct WorkRow: View {
     private var appearance: (verb: String, icon: String) {
         if case .thinking = item.kind { return ("Thinking", "brain") }
         guard case .tool(let call) = item.kind else { return ("", "text.bubble") }
+        if call.name == "message_agent" { return ("Message to", "paperplane") }
         if call.name == "browser_vault" { return (vaultAction(call) == "fill" ? "Card" : "Checked cards", "creditcard") }
         if let style = toolStyles[call.name] { return style }
         if call.name.hasPrefix("browser_") { return ("Browsed", "safari") }
@@ -382,6 +392,8 @@ private struct WorkRow: View {
             text.split(whereSeparator: \.isNewline).first.map { $0.replacing("**", with: "").replacing("#", with: "").trimmingCharacters(in: .whitespaces) } ?? ""
         case .tool(let call) where call.name == "browser_vault":
             vaultSubject(call)
+        case .tool(let call) where call.name == "message_agent":
+            sentBot?.title ?? MessageAgentCall(call)?.target ?? call.subject
         case .tool(let call):
             call.subject
         }

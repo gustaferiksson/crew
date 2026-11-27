@@ -12,42 +12,37 @@ private func recorded(_ profile: String, replacing edits: [String: String] = [:]
 private func rows(_ turns: [Turn]) -> [String] {
     turns.map { turn in
         if let message = turn.agentMessage { return "from \(message.handle)" }
-        if let message = turn.outgoingMessage { return "to \(message.handle)" }
         if let prompt = turn.prompt { return "you: \(prompt.text)" }
         if turn.isRoutine { return "routine" }
         return "reply: \(turn.reply)"
     }
 }
 
-@Test func targetAnsweringWithMessageAgentShowsMessageToBetweenTheIncomingRows() throws {
+@Test func targetAnsweringWithMessageAgentKeepsTheCallInsideItsExchangeRow() throws {
     let history = try recorded("default")
     let shown = Transcript(history: history).visible.turns
     try #require(rows(shown) == [
         "you: Can you restart it? Sure.",
         "from scout",
-        "to scout",
         "you: Let Scout do that himself; just make sure he can.",
         "from scout",
-        "to scout",
         "from scout",
         "from scout",
     ])
 
     let call = try #require(history.first { $0.id == 1077 }?.toolCalls?.first)
-    let outgoing = shown[5]
-    #expect(outgoing.id == "\(call.id)-to")
-    #expect(outgoing.status == .complete)
-    #expect(outgoing.startedAt == Date(timeIntervalSince1970: try #require(history.first { $0.id == 1077 }?.timestamp)))
-    #expect(outgoing.work.map(\.kind) == [.note("> I won't split it for you. You need bounded paging in the file tool; keep the task and tell the user that paging is the blocker.")])
-    #expect(outgoing.deliveryFailure == nil)
+    #expect(shown.allSatisfy { !$0.id.hasSuffix("-to") })
+    let exchange = try #require(shown.first { $0.work.contains { $0.id == call.id } })
+    #expect(exchange.agentMessage != nil)
+    #expect(exchange.deliveryFailure == nil)
 }
 
 @Test func consecutiveBotRowsFoldIntoOneGroupAndAnythingElseBreaksIt() throws {
     let rows = Transcript(history: try recorded("default")).visible.rows
-    #expect(rows.map(\.turns.count) == [1, 1, 1, 1, 4])
-    #expect(rows[4].id == "\(rows[4].turns[0].id)-group")
-    #expect(rows[..<4].allSatisfy { $0.id == $0.turns[0].id })
-    #expect(rows[4].turns.map { $0.agentMessage?.handle ?? $0.outgoingMessage?.handle } == ["scout", "scout", "scout", "scout"])
+    #expect(rows.map(\.turns.count) == [1, 1, 1, 3])
+    #expect(rows[3].id == "\(rows[3].turns[0].id)-group")
+    #expect(rows[..<3].allSatisfy { $0.id == $0.turns[0].id })
+    #expect(rows[3].turns.map { $0.agentMessage?.handle } == ["scout", "scout", "scout"])
 }
 
 @Test func exchangeKeepsItsLastReplyInsideTheCollapsedRow() throws {
@@ -64,10 +59,11 @@ private func rows(_ turns: [Turn]) -> [String] {
     #expect(preview?.text.contains("Do you approve") != true)
 }
 
-@Test func refusedMessageAgentCallShowsItsRowWithTheFailure() throws {
+@Test func refusedMessageAgentCallShowsItsFailureUnderTheTurnThatMadeIt() throws {
     let shown = Transcript(history: try recorded("default")).visible.turns
-    let refused = shown[2]
-    #expect(refused.outgoingMessage?.body == "I saved the transcript to the shared folder.")
+    let refused = shown[1]
+    #expect(refused.agentMessage != nil)
+    #expect(MessageAgentCall.all(in: refused).first?.message == "I saved the transcript to the shared folder.")
     #expect(refused.deliveryFailure?.target == "scout")
     #expect(refused.deliveryFailure?.isUnconfirmed == false)
     #expect(refused.deliveryFailure?.headline(for: "Scout") == "Not delivered.")
@@ -82,26 +78,23 @@ private func rows(_ turns: [Turn]) -> [String] {
     #expect(failure.headline(for: "Scout") == "Not delivered.")
 }
 
-@Test func senderShowsMessageToAfterUserStartedRoutineAndRelayTurns() throws {
+@Test func senderKeepsMessageToCallsInsideTheTurnsThatMadeThem() throws {
     let shown = Transcript(history: try recorded("scout")).visible.turns
     #expect(rows(shown) == [
         "you: Can you get the transcript yourself?",
-        "to default",
         "reply: Hermes found the original captions; the transcript is saved.",
         "routine",
-        "to default",
         "reply: Understood. The summary stays my job. May Hermes add paging to the file tool?",
-        "to default",
         "you: Which Hermes version are we on?",
-        "to default",
         "reply: We're running Hermes Agent v0.23.0.",
     ])
+    #expect(shown.filter { !MessageAgentCall.all(in: $0).isEmpty }.count == 4)
 }
 
-@Test func messageToRowNeverSetsThePreview() throws {
+@Test func messageAgentCallNeverSetsThePreview() throws {
     let window = try recorded("scout").filter { $0.id <= 241 }
     let transcript = Transcript(history: window).visible
-    #expect(transcript.turns.last?.outgoingMessage?.handle == "default")
+    #expect(transcript.turns.last.map { MessageAgentCall.all(in: $0).map(\.target) } == ["default"])
     #expect(transcript.lastMessage?.text == "I've asked Hermes to check the live version.")
 }
 
@@ -109,18 +102,18 @@ private func rows(_ turns: [Turn]) -> [String] {
     let history = try recorded("default")
     let time = { (id: Int) in Date(timeIntervalSince1970: history.first { $0.id == id }?.timestamp ?? 0) }
     let shown = Transcript(history: history).visible.turns
-    try #require(shown.count == 8)
+    try #require(shown.count == 6)
     #expect(Set(shown.map(\.id)).count == shown.count)
 
-    let earlier = shown[4]
+    let earlier = shown[3]
     #expect(earlier.agentMessage?.body.hasPrefix("The morning summary failed") == true)
     #expect(earlier.finishedAt == time(1082))
     #expect(!earlier.work.contains { $0.kind == .note("Scout, read-only checks returned: Hermes Agent v0.23.0.") })
 
-    #expect(shown[6].agentMessage?.body == "Understood, I keep the task. The file tool only has head and tail reads; proposed fix: a paged reader.")
-    #expect(shown[6].reply == "")
+    #expect(shown[4].agentMessage?.body == "Understood, I keep the task. The file tool only has head and tail reads; proposed fix: a paged reader.")
+    #expect(shown[4].reply == "")
 
-    let appended = shown[7]
+    let appended = shown[5]
     #expect(appended.agentMessage == AgentMessage(sender: "Scout", handle: "scout", body: "Please check the live Hermes version of our instance."))
     #expect(appended.id == "1082-1")
     #expect(appended.delivery == nil)
@@ -165,15 +158,16 @@ private func rows(_ turns: [Turn]) -> [String] {
     #expect(Set(turns.map(\.id)).count == 3)
 }
 
-@Test func relayRepliesFailedDeliveryShowsUnderItsMessageToRow() throws {
+@Test func relayRepliesFailedDeliveryShowsUnderTheTurnThatMadeTheCall() throws {
     let history = try recorded("scout", replacing: ["proc_01f5f8a98e56 completed normally (exit code 0)": "proc_01f5f8a98e56 exited (exit code 1)"])
     let shown = Transcript(history: history).visible.turns
     #expect(rows(shown) == rows(Transcript(history: try recorded("scout")).visible.turns))
 
     let call = try #require(history.first { $0.id == 219 }?.toolCalls?.first)
-    #expect(shown.filter { $0.deliveryFailure != nil }.map(\.id) == ["\(call.id)-to"])
-    #expect(shown[6].deliveryFailure?.target == "default")
-    #expect(shown[6].deliveryFailure?.headline(for: "Hermes") == "Message to Hermes failed.")
+    let holder = try #require(shown.first { $0.work.contains { $0.id == call.id } })
+    #expect(shown.filter { $0.deliveryFailure != nil }.map(\.id) == [holder.id])
+    #expect(holder.deliveryFailure?.target == "default")
+    #expect(holder.deliveryFailure?.headline(for: "Hermes") == "Message to Hermes failed.")
 }
 
 @Test func mergedRowSplitsBeforeAnAppendedDeliveryNotice() throws {

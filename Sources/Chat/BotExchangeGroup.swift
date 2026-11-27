@@ -13,7 +13,7 @@ struct BotExchangeGroup<Row: View>: View {
     private var isExpanded: Bool { expansion?.turns.contains(id) == true }
 
     private var participants: [(handle: String, name: String, bot: Bot?)] {
-        let messages = turns.compactMap { $0.agentMessage ?? $0.outgoingMessage }
+        let messages = turns.compactMap(\.agentMessage)
         return messages.reduce(into: [(handle: String, name: String, bot: Bot?)]()) { found, message in
             guard !found.contains(where: { $0.handle == message.handle }) else { return }
             let bot = bots.bots.first { $0.name == message.handle }

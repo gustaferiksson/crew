@@ -45,9 +45,8 @@ private func settle(_ session: ChatSession) async throws {
 @Test func targetChatShowsEveryExchangeUpToTheLatest() throws {
     let rows = try recorded("test-bot.history", as: [HistoryRow].self)
     let visible = Transcript(history: rows).visible.turns
-    let shown = visible.filter { $0.outgoingMessage == nil }
+    let shown = visible
     let starts = rows.filter { $0.role == "user" && AgentMessage($0.content ?? "") != nil }.map { Date(timeIntervalSince1970: $0.timestamp) }
-    #expect(visible.filter { $0.outgoingMessage?.handle == "crew-test" }.count == visible.count - 5)
     #expect(shown.count == 5)
     #expect(shown.allSatisfy { $0.agentMessage?.sender == "Crew Test" && $0.prompt == nil })
     #expect(shown.map(\.reply) == ["", "", "", "", ""])
@@ -58,7 +57,7 @@ private func settle(_ session: ChatSession) async throws {
     let store = BotStore(fixture: [], statuses: [:])
     store.apply(roster: try recorded("profiles.after", as: Roster.self).profiles)
     store.showPreview(of: "test-bot", from: try recorded("test-bot.preview", as: [HistoryRow].self))
-    let lastRow = try #require(Transcript(history: try recorded("test-bot.history", as: [HistoryRow].self)).visible.turns.last { $0.outgoingMessage == nil })
+    let lastRow = try #require(Transcript(history: try recorded("test-bot.history", as: [HistoryRow].self)).visible.turns.last)
     let lastActive = try #require(store.bots.first { $0.name == "test-bot" }?.canonicalSession?.lastActive)
     #expect(store.previews["test-bot"] == nil)
     #expect(abs(lastActive.timeIntervalSince(lastRow.startedAt)) < 1)
@@ -74,7 +73,7 @@ private func settle(_ session: ChatSession) async throws {
     let chats = ChatSessions(fixture: ["test-bot": session])
     chats.sync(with: bots)
     try await Task.sleep(for: .milliseconds(300))
-    let exchanges = { session.transcript.visible.turns.filter { $0.outgoingMessage == nil } }
+    let exchanges = { session.transcript.visible.turns }
     #expect(exchanges().count == 4)
     #expect(session.visible.lastMessage == nil)
     let position = try #require(bot.canonicalSession?.position)
@@ -92,7 +91,7 @@ private func settle(_ session: ChatSession) async throws {
     let session = try openChat(try #require(before.first { $0.name == "crew-test-peer" }))
     ChatSessions(fixture: ["crew-test-peer": session]).sync(with: try recorded("profiles.after", in: "open-target", as: Roster.self).profiles)
     try await settle(session)
-    #expect(session.transcript.visible.turns.filter { $0.outgoingMessage == nil }.count == 1)
+    #expect(session.transcript.visible.turns.count == 1)
     #expect(session.transcript.visible.turns.first?.agentMessage?.sender == "Crew Test")
     #expect(session.visible.lastMessage == nil)
 }
@@ -109,7 +108,7 @@ private func settle(_ session: ChatSession) async throws {
 }
 
 @Test func senderChatHidesTheFollowUpAfterAnEarlierDeliveryDied() throws {
-    let shown = Transcript(history: try recorded("crew-test.history", as: [HistoryRow].self)).visible.turns.filter { $0.outgoingMessage == nil }
+    let shown = Transcript(history: try recorded("crew-test.history", as: [HistoryRow].self)).visible.turns
     #expect(shown.map { $0.prompt?.text ?? $0.reply } == [
         "@test-bot what time is it?",
         "@test-bot hi",

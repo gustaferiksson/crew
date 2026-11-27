@@ -92,18 +92,16 @@ private func peekOutcome(_ transcript: Transcript) throws -> MentionExchange.Out
     #expect(shown.first?.deliveryFailure == nil)
 }
 
-@Test func targetsFailedReplyBackShowsUnderItsMessageToRow() throws {
+@Test func targetsFailedReplyBackShowsUnderItsExchangeRow() throws {
     let decoder = JSONDecoder()
     decoder.keyDecodingStrategy = .convertFromSnakeCase
     let text = try String(contentsOf: scenario.deletingLastPathComponent().appending(path: "bot-mention/crew-test-peer.history.json"), encoding: .utf8)
     let failed = Data(text.replacingOccurrences(of: "completed normally (exit code 0)", with: "exited (exit code 1)").utf8)
     let shown = Transcript(history: try decoder.decode([HistoryRow].self, from: failed)).visible.turns
-    try #require(shown.count == 2)
+    try #require(shown.count == 1)
     #expect(shown[0].agentMessage != nil)
-    #expect(shown[0].deliveryFailure == nil)
-    #expect(shown[1].outgoingMessage?.handle == "crew-test")
-    #expect(shown[1].deliveryFailure?.target == "crew-test")
-    #expect(shown[1].deliveryFailure?.headline(for: "Crew Test") == "Message to Crew Test failed.")
+    #expect(shown[0].deliveryFailure?.target == "crew-test")
+    #expect(shown[0].deliveryFailure?.headline(for: "Crew Test") == "Message to Crew Test failed.")
 }
 
 @Test func recordedAmbiguousAdmissionIsUnconfirmedNotFailed() throws {
@@ -150,7 +148,7 @@ private func peekOutcome(_ transcript: Transcript) throws -> MentionExchange.Out
         Turn(id: "t3", agentMessage: AgentMessage("Message from 🤖 Scout (@scout): Found three flights."), reply: "Scout found three flights.", status: .complete, startedAt: start.addingTimeInterval(700)),
     ])
     let shown = transcript.visible.turns
-    #expect(shown.map(\.id) == ["t1", "w1-to", "t3"])
+    #expect(shown.map(\.id) == ["t1", "t3"])
     #expect(shown.allSatisfy { $0.agentMessage == nil && $0.deliveryFailure == nil })
 }
 

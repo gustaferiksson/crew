@@ -20,7 +20,7 @@ private func recordedHistories() throws -> [(name: String, rows: [HistoryRow])] 
 }
 
 private func shape(_ turn: Turn) -> String {
-    "\(turn.prompt?.text ?? "-")|\(turn.notice ?? "-")|\(turn.agentMessage?.sender ?? "-")|\(turn.outgoingMessage?.handle ?? "-")|\(turn.delivery ?? "-")|\(turn.reply)"
+    "\(turn.prompt?.text ?? "-")|\(turn.notice ?? "-")|\(turn.agentMessage?.sender ?? "-")|\(turn.delivery ?? "-")|\(turn.reply)"
 }
 
 @MainActor @Test func everyCutOfARecordedChatWithAPromptShowsTheSameRowsAsTheWholeChat() throws {

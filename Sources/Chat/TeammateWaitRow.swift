@@ -18,45 +18,54 @@ struct TeammateWaitRow: View {
 
     private var tint: HierarchicalShapeStyle { row.state == .waitingOnYou ? .primary : .secondary }
 
+    private var status: String { row.status(for: name) }
+
+    private var line: AttributedString {
+        var text = AttributedString(status)
+        text.foregroundColor = row.state == .waitingOnYou ? Color.accentColor : Color.secondary
+        guard let range = text.range(of: name) else {
+            var lead = AttributedString("\(name) ")
+            lead.font = .footnote.weight(.medium)
+            return lead + text
+        }
+        text[range].font = .footnote.weight(.medium)
+        text[range].foregroundColor = Color.primary
+        return text
+    }
+
+    private var spokenLabel: String { status.contains(name) ? "\(status), \(row.age(at: now))" : "\(name), \(status), \(row.age(at: now))" }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            HStack(spacing: 8) {
-                BotAvatar(bot: avatarBot, status: nil, photo: photo, size: avatarSize)
-                Text(name)
-                    .font(.subheadline.weight(.medium))
-                    .lineLimit(1)
-                Spacer(minLength: 8)
-                Text(row.age(at: now))
-                    .font(.footnote.monospacedDigit())
+        HStack(spacing: 8) {
+            BotAvatar(bot: avatarBot, status: nil, photo: photo, size: avatarSize)
+            if row.state == .failed {
+                Image(systemName: "exclamationmark.circle")
+                    .foregroundStyle(.red)
+                    .accessibilityHidden(true)
+            }
+            Text(line)
+                .font(.footnote)
+                .lineLimit(row.isUnknownOutcome ? nil : 2)
+            Spacer(minLength: 4)
+            Text(row.age(at: now))
+                .font(.footnote.monospacedDigit())
+                .foregroundStyle(.secondary)
+            Button("Open") { if let teammate { open(teammate) } }
+                .font(.footnote.weight(.medium))
+                .buttonStyle(.borderless)
+                .padding(.horizontal, 4)
+                .contentShape(.rect.inset(by: -14))
+                .disabled(teammate == nil)
+            if row.state == .failed {
+                Button("Dismiss", systemImage: "xmark", action: dismiss)
+                    .labelStyle(.iconOnly)
+                    .font(.caption2.weight(.bold))
                     .foregroundStyle(.secondary)
-                Button("Open") { if let teammate { open(teammate) } }
-                    .font(.footnote.weight(.medium))
-                    .buttonStyle(.borderless)
-                    .disabled(teammate == nil)
-                if row.state == .failed {
-                    Button("Dismiss", systemImage: "xmark", action: dismiss)
-                        .labelStyle(.iconOnly)
-                        .font(.caption2.weight(.bold))
-                        .foregroundStyle(.secondary)
-                        .frame(minWidth: 44, minHeight: 32)
-                        .contentShape(.rect)
-                        .buttonStyle(.plain)
-                        .help("Dismiss")
-                }
+                    .frame(minWidth: 32)
+                    .contentShape(.rect.inset(by: -6))
+                    .buttonStyle(.plain)
+                    .help("Dismiss")
             }
-            HStack(alignment: .firstTextBaseline, spacing: 4) {
-                if row.state == .failed {
-                    Image(systemName: "exclamationmark.circle")
-                        .foregroundStyle(.red)
-                        .accessibilityHidden(true)
-                }
-                Text(row.status(for: name))
-                    .foregroundStyle(row.state == .waitingOnYou ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
-                    .fontWeight(row.state == .waitingOnYou ? .medium : .regular)
-                    .lineLimit(row.isUnknownOutcome ? nil : 2)
-            }
-            .font(.footnote)
-            .padding(.leading, avatarSize + 8)
         }
         .help(row.preview)
         .contextMenu {
@@ -73,7 +82,7 @@ struct TeammateWaitRow: View {
             if row.state == .failed { Button("Dismiss", systemImage: "xmark", action: dismiss) }
         }
         .accessibilityElement(children: .contain)
-        .accessibilityLabel(Text("\(name), \(row.status(for: name)), \(row.age(at: now))"))
+        .accessibilityLabel(Text(spokenLabel))
         .accessibilityValue(Text(row.preview))
     }
 }

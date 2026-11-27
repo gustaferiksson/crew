@@ -528,7 +528,6 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
                 }
                 if request == nil, !isRecordingHere, !teammates.isEmpty {
                     TeammateWaitsCard(rows: teammates, isStale: teammatesAreStale, bots: bots.bots, photos: bots.photos, sender: profile, open: { actions.openTeammate($0.id) }, dismiss: actions.dismissDelivery)
-                        .frame(maxWidth: 560)
                         .padding(.horizontal, 16)
                         .transition(.blurReplace)
                 }

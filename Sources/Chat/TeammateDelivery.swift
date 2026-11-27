@@ -1,9 +1,11 @@
 import Foundation
 
 nonisolated struct TeammateDelivery: Decodable, Sendable, Equatable, Identifiable {
-    enum State: String, Sendable {
-        case queued, claimed, working, failed
+    enum State: String, CaseIterable, Sendable {
         case waitingOnYou = "waiting_on_you"
+        case working, claimed, queued, failed
+
+        var urgency: Int { Self.allCases.firstIndex(of: self)! }
     }
 
     let id: String
@@ -15,6 +17,7 @@ nonisolated struct TeammateDelivery: Decodable, Sendable, Equatable, Identifiabl
     let waitingOn: String?
     let reason: String?
     let error: String?
+    var queuedBehind = 0
 
     var isUnknownOutcome: Bool { state == .failed && reason == "unknown_outcome" }
 
@@ -56,17 +59,21 @@ nonisolated struct TeammateDelivery: Decodable, Sendable, Equatable, Identifiabl
 
     func status(for bot: String) -> String {
         switch state {
-        case .queued: return String(localized: "Queued")
-        case .claimed: return String(localized: "Picked up")
-        case .working: return String(localized: "Working on it")
+        case .queued: return queuedBehind == 0 ? String(localized: "Queued") : String(localized: "\(queuedBehind + 1) queued")
+        case .claimed: return withQueued(String(localized: "Picked up"))
+        case .working: return withQueued(String(localized: "Working on it"))
         case .waitingOnYou: return waitingOn == "approval" ? String(localized: "Needs your approval") : String(localized: "Needs your answer")
         case .failed:
-            if isUnknownOutcome { return String(localized: "Outcome unknown. It may have acted, so check its chat before asking again.") }
+            if isUnknownOutcome { return String(localized: "Outcome unknown. It may have acted, and Crew won't send it again.") }
             let failure = DeliveryFailure(reason: reason, detail: error, target: bot)
             if let sentence = failure.explanation(for: bot) { return sentence }
             if let error = error?.trimmingCharacters(in: .whitespacesAndNewlines), !error.isEmpty { return error }
             return String(localized: "Delivery to \(bot) failed.")
         }
+    }
+
+    private func withQueued(_ status: String) -> String {
+        queuedBehind == 0 ? status : String(localized: "\(status), and \(queuedBehind) queued")
     }
 
     func age(at now: Date) -> String {

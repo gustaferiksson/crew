@@ -48,6 +48,7 @@ enum Snapshot: String {
     case chatMentionPeek = "chat-mention-peek"
     case chatMentionChat = "chat-mention-chat"
     case chatAgentMessage = "chat-agent-message"
+    case chatAgentMessageGroup = "chat-agent-message-group"
     case chatRoutine = "chat-routine"
     case chatDeliveryFailure = "chat-delivery-failure"
     case chatLimitFailure = "chat-limit-failure"

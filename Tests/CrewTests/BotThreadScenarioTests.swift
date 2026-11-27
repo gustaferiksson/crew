@@ -42,6 +42,14 @@ private func rows(_ turns: [Turn]) -> [String] {
     #expect(outgoing.deliveryFailure == nil)
 }
 
+@Test func consecutiveBotRowsFoldIntoOneGroupAndAnythingElseBreaksIt() throws {
+    let rows = Transcript(history: try recorded("default")).visible.rows
+    #expect(rows.map(\.turns.count) == [1, 1, 1, 1, 4])
+    #expect(rows[4].id == "\(rows[4].turns[0].id)-group")
+    #expect(rows[..<4].allSatisfy { $0.id == $0.turns[0].id })
+    #expect(rows[4].turns.map { $0.agentMessage?.handle ?? $0.outgoingMessage?.handle } == ["scout", "scout", "scout", "scout"])
+}
+
 @Test func exchangeKeepsItsLastReplyInsideTheCollapsedRow() throws {
     let history = try recorded("default")
     let question = try #require(history.first { $0.id == 1081 }?.content)

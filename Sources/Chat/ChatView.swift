@@ -448,6 +448,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
                 focusPages = (focus.id, pages + 1)
                 return actions.loadEarlier()
             }
+            if target.agentMessage != nil { expansion.turns.insert(target.id) }
             position.scrollTo(id: target.id, anchor: .center)
             handledFocus = focus.id
             highlighted = target.id

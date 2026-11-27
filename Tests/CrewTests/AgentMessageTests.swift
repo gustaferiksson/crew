@@ -34,8 +34,8 @@ func notes(_ turn: Turn) -> [String?] {
     #expect(notes(visible.turns[1]) == ["> Hello! Please pass my greeting along to the user."])
     #expect(visible.turns[1].deliveryFailure?.isUnconfirmed == true)
     #expect(visible.turns[0].prompt == nil)
-    #expect(visible.turns[0].reply == "Hello!")
-    #expect(notes(visible.turns[0]) == ["> The user is greeting you—please say hello back.", nil])
+    #expect(visible.turns[0].reply == "")
+    #expect(notes(visible.turns[0]) == ["> The user is greeting you—please say hello back.", nil, "Hello!"])
     #expect(visible.turns[2].reply == "Just hello.")
 }
 
@@ -50,9 +50,9 @@ func notes(_ turn: Turn) -> [String?] {
     #expect(transcript.turns.last?.agentMessage == AgentMessage("Message from Scout (@scout): Flights found."))
     let exchange = transcript.visible.turns.last
     #expect(exchange?.status == .streaming)
-    #expect(exchange.map(notes) == ["> Flights found."])
-    #expect(exchange?.reply == "Thanks, Scout.")
-    #expect(transcript.visible.lastMessage?.text == "Thanks, Scout.")
+    #expect(exchange.map(notes) == ["> Flights found.", "Thanks, Scout."])
+    #expect(exchange?.reply == "")
+    #expect(transcript.visible.lastMessage?.text == "On it.")
 }
 
 @Test func replyToOwnMessageStaysHiddenButASecondMessageShows() {
@@ -109,4 +109,19 @@ func notes(_ turn: Turn) -> [String?] {
     transcript.apply(.messageComplete(text: "Asked Scout.", status: .complete, error: nil))
     #expect(transcript.visible.turns.last?.id == "c1-to")
     #expect(transcript.visible.turns.last?.outgoingMessage?.body == "Find flights.")
+}
+
+@Test func silentRepliesNeverShow() {
+    var transcript = Transcript()
+    transcript.begin(prompt: "Ping Scout", at: .now)
+    transcript.apply(.messageComplete(text: "[SILENT]", status: .complete, error: nil))
+    transcript.begin(remote: "Message from 🤖 Scout (@scout): Done.", displayKind: "internal_notification", at: .now)
+    transcript.apply(.messageStart)
+    transcript.apply(.messageComplete(text: "(empty)", status: .complete, error: nil))
+    transcript.begin(prompt: "Thanks", at: .now)
+    transcript.apply(.messageComplete(text: "Welcome.", status: .complete, error: nil))
+    let visible = transcript.visible
+    #expect(visible.turns.map(\.reply) == ["", "", "Welcome."])
+    #expect(visible.turns.map { notes($0).count } == [0, 1, 0])
+    #expect(visible.lastMessage?.text == "Welcome.")
 }

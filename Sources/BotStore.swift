@@ -271,6 +271,7 @@ nonisolated struct ActiveList: Decodable {
 nonisolated struct CachedChat: Codable, Sendable {
     let position: ReadPosition
     let transcript: Transcript
+    var quietRows: Int?
 }
 
 extension Transcript {
@@ -319,6 +320,7 @@ final class BotStore {
     private let chatDirectory: URL?
     private var photoRevisions: [Bot.ID: Int] = [:]
     private var previewPositions: [Bot.ID: ReadPosition] = [:]
+    private var quietTails: [Bot.ID: (position: ReadPosition, rows: Int)] = [:]
     private var liveSessions: [LiveSession] = []
     private var waitingKinds: [RuntimeSessionID: WaitingKind] = [:]
     private var seenActivity: [Bot.ID: ReadPosition] = [:]
@@ -579,6 +581,7 @@ final class BotStore {
         photoRevisions = [:]
         previews = [:]
         previewPositions = [:]
+        quietTails = [:]
         cachedChats = [:]
         liveSessions = []
         waitingKinds = [:]
@@ -716,15 +719,20 @@ final class BotStore {
             previewPositions[bot.id] = position
             guard let rows = try? await history(of: session.resolvedID, profile: bot.name, on: server, with: urlSession, limit: caches ? Self.pageRows : 20) else {
                 previewPositions[bot.id] = nil
+                quietTails[bot.id] = (position, 0)
+                updateStatuses()
                 continue
             }
             guard self.generation == generation else { return }
             guard bots.first(where: { $0.id == bot.id })?.canonicalSession?.position == position else { continue }
+            let quietRows = Transcript.quietRows(in: rows)
+            quietTails[bot.id] = (position, quietRows)
+            updateStatuses()
             guard caches else {
                 showPreview(of: bot.id, from: rows)
                 continue
             }
-            let chat = CachedChat(position: position, transcript: Transcript(window: rows))
+            let chat = CachedChat(position: position, transcript: Transcript(window: rows), quietRows: quietRows)
             previews[bot.id] = chat.transcript.visible.lastMessage
             cachedChats[bot.id] = chat
             save(chat, of: bot.id)
@@ -772,6 +780,7 @@ final class BotStore {
             guard bots.first(where: { $0.id == id })?.canonicalSession?.position == chat.position else { continue }
             previews[id] = previews[id] ?? chat.transcript.visible.lastMessage
             previewPositions[id] = previewPositions[id] ?? chat.position
+            quietTails[id] = quietTails[id] ?? (chat.position, chat.quietRows ?? 0)
         }
     }
 
@@ -819,6 +828,11 @@ final class BotStore {
         await poll(gateway)
     }
 
+    private func quietRows(of id: Bot.ID, at position: ReadPosition) -> Int {
+        guard let tail = quietTails[id], tail.position == position else { return urlSession == nil ? 0 : position.messages }
+        return tail.rows
+    }
+
     private func updateStatuses() {
         var owners: [StoredSessionID: Set<Bot.ID>] = [:]
         for bot in bots {
@@ -828,7 +842,7 @@ final class BotStore {
         }
         var result: [Bot.ID: BotStatus] = [:]
         for bot in bots {
-            guard let position = bot.canonicalSession?.position, let read = [bot.lastRead, seenActivity[bot.id], firstSeenActivity[bot.id]].compactMap(\.self).max(), position > read else { continue }
+            guard let position = bot.canonicalSession?.position, let read = [bot.lastRead, seenActivity[bot.id], firstSeenActivity[bot.id]].compactMap(\.self).max(), ReadPosition(session: position.session, messages: position.messages - quietRows(of: bot.id, at: position)) > read else { continue }
             result[bot.id] = .unread
         }
         for session in liveSessions.sorted(by: { $1.status == "waiting" && $0.status != "waiting" }) {

@@ -48,6 +48,8 @@ nonisolated struct Turn: Identifiable, Codable, Sendable, Equatable {
 }
 
 nonisolated extension Turn {
+    static let busyElsewhereID = "busy-elsewhere"
+
     var hasSilentReply: Bool {
         ["[silent]", "silent", "no_reply", "no reply", "(empty)"].contains(reply.trimmingCharacters(in: .whitespacesAndNewlines).lowercased())
     }
@@ -498,6 +500,11 @@ extension Transcript {
         let dropped = waiting.filter(shouldDrop)
         waiting.removeAll(where: shouldDrop)
         return dropped.compactMap(\.prompt?.text)
+    }
+
+    mutating func requeue(_ prompt: Prompt, replacing id: Turn.ID) {
+        turns.removeAll { $0.id == id }
+        waiting.insert(Turn(id: id, prompt: prompt, status: .complete, startedAt: prompt.sentAt, pending: .queued), at: 0)
     }
 
     mutating func dequeue() -> Prompt? {

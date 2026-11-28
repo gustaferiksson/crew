@@ -29,9 +29,10 @@ final class ChatSessions {
         session.expectPayment(requestID)
     }
 
-    func sync(with bots: [Bot]) {
+    func sync(with bots: [Bot], statuses: [Bot.ID: BotStatus]) {
         for bot in bots {
             sessions[bot.id]?.sync(to: bot.canonicalSession?.position)
+            sessions[bot.id]?.update(busy: statuses[bot.id]?.isBusy == true)
         }
     }
 

@@ -48,10 +48,11 @@ struct AppTasks: ViewModifier {
             }
             .onChange(of: bots.bots) {
                 guard owns else { return }
-                chats.sync(with: bots.bots)
+                chats.sync(with: bots.bots, statuses: bots.statuses)
             }
             .onChange(of: bots.statuses) { old, new in
                 guard owns else { return }
+                chats.sync(with: bots.bots, statuses: new)
                 push.notifyLocally(from: old, to: new, bots: bots.bots)
             }
             .onChange(of: owns && connection.state == .signedOut, initial: true) { _, isSignedOut in

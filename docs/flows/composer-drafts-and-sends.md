@@ -64,6 +64,7 @@ Seven user reports from the iPhone, fixed together because they all live in the 
 - **Bot list preview:** follows the last visible turn as today (a solid steer becomes the latest user message); waiting bubbles do not change the preview. Unread: the chat is open while sending, so it stays seen as today. Push: the split turn still ends once, so crew-push sends one reply push as today.
 - **Groups:** rooms have no steer or queue (sending while working is a plain `groups.send`), so nothing changes there.
 - **Mac:** same bubbles and states.
+- **Busy elsewhere:** while the roster reports the bot working in a process this chat has no live turn for (see `agent-messages.md`), a send is always a queued bubble (no Steer, since there is no turn of this chat to steer) and goes out when the roster goes idle. Covered by `BusyElsewhereTests`.
 
 ## 6. User bubbles never fold
 

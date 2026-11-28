@@ -43,6 +43,7 @@ enum Snapshot: String {
     case chatSteer = "chat-steer"
     case chatSteerTaken = "chat-steer-taken"
     case chatWaiting = "chat-waiting"
+    case chatBusyElsewhere = "chat-busy-elsewhere"
     case chatTeammateWaits = "chat-teammate-waits"
     case chatTeammateWaitsFailed = "chat-teammate-waits-failed"
     case chatMentionPeek = "chat-mention-peek"

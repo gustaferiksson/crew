@@ -238,7 +238,7 @@ struct ChatView<Avatar: View, EmptyState: View>: View {
 
     private var composerPhase: Composer.Phase {
         if let offlineReason { return .offline(reason: offlineReason) }
-        return transcript.turns.last { $0.pending == nil }?.status == .streaming ? .running : .idle
+        return transcript.turns.last { $0.pending == nil && $0.id != Turn.busyElsewhereID }?.status == .streaming ? .running : .idle
     }
 
     var body: some View {
@@ -708,7 +708,7 @@ struct TurnView: View {
                         .modifier(Timestamp(date: turn.startedAt, reveal: reveal, width: timestampWidth))
                 }
                 if !turn.work.isEmpty || turn.status == .streaming {
-                    WorkLog(turn: turn, activity: activity, isExpanded: isExpanded, expandedWork: expandedWork, expandedRuns: expandedRuns, stop: canStop && turn.status == .streaming && turn.agentMessage == nil ? { latest?.actions.stop() } : nil)
+                    WorkLog(turn: turn, activity: activity, isExpanded: isExpanded, expandedWork: expandedWork, expandedRuns: expandedRuns, stop: canStop && turn.status == .streaming && turn.agentMessage == nil && turn.id != Turn.busyElsewhereID ? { latest?.actions.stop() } : nil)
                         .modifier(Timestamp(date: turn.startedAt, reveal: reveal, width: timestampWidth))
                 }
                 ForEach(Array(turn.paymentReceipts.enumerated()), id: \.offset) { _, receipt in

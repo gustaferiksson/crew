@@ -220,9 +220,35 @@ jobs:
           mkdir -p "$RUNNER_TEMP/pages"
           cp pages/* dist/Crew.ipa dist/manifest.plist "$RUNNER_TEMP/pages/"
 
-      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+      - id: pages-artifact
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: ${{ runner.temp }}/pages
 
+      # Deploys by artifact id: actions/deploy-pages looks the artifact up by name and often misses it (actions/deploy-pages#451).
       - id: deploy
-        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARTIFACT_ID: ${{ steps.pages-artifact.outputs.artifact_id }}
+        run: |
+          set -euo pipefail
+          oidc_token=$(curl -fsS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL" | jq -r .value)
+          echo "::add-mask::$oidc_token"
+          deployment=$(jq -n --argjson artifact_id "$ARTIFACT_ID" --arg version "$GITHUB_SHA" --arg oidc_token "$oidc_token" \
+            '{artifact_id: $artifact_id, pages_build_version: $version, oidc_token: $oidc_token}' \
+            | gh api -X POST "repos/$GITHUB_REPOSITORY/pages/deployments" --input -)
+          id=$(jq -r '.id // (.status_url | split("/") | last)' <<< "$deployment")
+          echo "page_url=$(jq -r .page_url <<< "$deployment")" >> "$GITHUB_OUTPUT"
+
+          deadline=$((SECONDS + 600))
+          while ((SECONDS < deadline)); do
+            sleep 5
+            status=$(gh api "repos/$GITHUB_REPOSITORY/pages/deployments/$id" --jq .status)
+            echo "Pages deployment status: $status"
+            case "$status" in
+              succeed) exit 0 ;;
+              deployment_failed | deployment_content_failed | deployment_cancelled | deployment_lost) exit 1 ;;
+            esac
+          done
+          echo "Timed out waiting for the Pages deployment"
+          exit 1

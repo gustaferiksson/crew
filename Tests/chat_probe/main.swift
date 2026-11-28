@@ -2152,7 +2152,7 @@ if phases.contains("record") {
             try await Task.sleep(for: .milliseconds(250))
             let current = try await roster()
             let active = try await live(of: current.bots)
-            peerChats.sync(with: current.bots)
+            peerChats.sync(with: current.bots, statuses: [:])
             if scenario.hasPrefix("teammate-waits") {
                 let list = try await gateway.call("bot_delivery.list", ["profile": "crew-test"], as: JSONValue.self)
                 if case .object(let object) = list, case .array(let deliveries) = object["deliveries"], case .object(let first)? = deliveries.first, case .string(let state)? = first["state"], savedStates.insert(state).inserted {

@@ -4,7 +4,10 @@ import Observation
 @Observable
 final class ChatSession: AttachmentSource {
     private(set) var transcript = Transcript() {
-        didSet { visible = transcript.visible }
+        didSet { refreshVisible() }
+    }
+    private(set) var busySince: Date? {
+        didSet { refreshVisible() }
     }
     private(set) var showsSeed: Bool
     private(set) var visible = Transcript()
@@ -35,6 +38,7 @@ final class ChatSession: AttachmentSource {
     private var syncedPosition: ReadPosition?
     private var serverPosition: ReadPosition?
     private var isSyncing = false
+    private var coveredByOwnTurn = false
     private var attachFailed = false
     private var pages = HistoryPages()
     private var pagedSession: StoredSessionID?
@@ -50,8 +54,9 @@ final class ChatSession: AttachmentSource {
         self.urlSession = urlSession
     }
 
-    convenience init(fixture bot: Bot, transcript: Transcript, todos: [TodoItem], urlSession: URLSession = .shared, requests: [ServerRequest] = [], payments: [ServerRequest.ID: PaymentCardState] = [:], context: ContextUsage? = nil) {
+    convenience init(fixture bot: Bot, transcript: Transcript, todos: [TodoItem], urlSession: URLSession = .shared, requests: [ServerRequest] = [], payments: [ServerRequest.ID: PaymentCardState] = [:], context: ContextUsage? = nil, runtime: RuntimeSessionID? = nil) {
         self.init(bot: bot, gateway: Gateway(server: URL(filePath: "/"), urlSession: urlSession) { throw CancellationError() }, urlSession: urlSession)
+        self.runtime = runtime
         self.transcript = transcript
         self.context = context
         self.todos = todos
@@ -80,6 +85,24 @@ final class ChatSession: AttachmentSource {
                 for await event in events { await self.handle(event) }
             }
         }
+    }
+
+    private func refreshVisible() {
+        visible = transcript.visible
+        guard let busySince, !isRunning else { return }
+        visible.turns.append(Turn(id: Turn.busyElsewhereID, status: .streaming, startedAt: busySince))
+    }
+
+    func update(busy: Bool) {
+        if isRunning {
+            coveredByOwnTurn = busy
+        } else if !busy {
+            coveredByOwnTurn = false
+        }
+        let elsewhere = busy && !isRunning && !coveredByOwnTurn
+        guard elsewhere != (busySince != nil) else { return }
+        busySince = elsewhere ? .now : nil
+        if !elsewhere { submitQueued() }
     }
 
     func sync(to position: ReadPosition?) {
@@ -121,8 +144,13 @@ final class ChatSession: AttachmentSource {
             Task { await attach() }
             return
         }
-        guard isRunning else { return submit(prompt) }
-        if mode == .queue || attachments.isEmpty && slashInvocation(prompt.text, in: slashCommands) != nil || !attachments.isEmpty || transcript.turns.last.map({ $0.agentMessage != nil || $0.delivery != nil }) == true { return transcript.wait(prompt, as: .queued) }
+        guard !isRunning else { return sendWhileRunning(prompt, mode: mode, runtime: runtime) }
+        guard busySince == nil else { return transcript.wait(prompt, as: .queued) }
+        submit(prompt)
+    }
+
+    private func sendWhileRunning(_ prompt: Prompt, mode: SendMode, runtime: RuntimeSessionID) {
+        if mode == .queue || prompt.attachments.isEmpty && slashInvocation(prompt.text, in: slashCommands) != nil || !prompt.attachments.isEmpty || transcript.turns.last.map({ $0.agentMessage != nil || $0.delivery != nil }) == true { return transcript.wait(prompt, as: .queued) }
         let id = UUID().uuidString
         transcript.wait(prompt, as: .steer, id: id)
         Task {
@@ -134,6 +162,9 @@ final class ChatSession: AttachmentSource {
             }
         }
     }
+
+    static let ownerBusyCode = 4090
+    static let ownerBusyPrefix = "The gateway is running a turn in this chat"
 
     func unqueue(_ id: Turn.ID) {
         returned += transcript.dropWaiting { $0.id == id }
@@ -326,10 +357,14 @@ final class ChatSession: AttachmentSource {
         if prompt.attachments.isEmpty, prompt.payload == nil, let (command, arg) = slashInvocation(prompt.text, in: slashCommands) {
             return run(command, arg: arg, line: prompt.text, on: runtime)
         }
-        transcript.begin(prompt: prompt.text, attachments: prompt.attachments)
+        let id = UUID().uuidString
+        transcript.begin(prompt: prompt.text, attachments: prompt.attachments, id: id)
         Task {
             do {
                 try await submitPrompt(prompt.payload ?? prompt.text + prompt.mentionNote, attachments: prompt.attachments, in: runtime, via: gateway)
+            } catch GatewayError.rpc(Self.ownerBusyCode, let message) where message.hasPrefix(Self.ownerBusyPrefix) {
+                transcript.requeue(prompt, replacing: id)
+                busySince = .now
             } catch {
                 transcript.apply(.messageComplete(text: "", status: .error, error: error.localizedDescription))
             }

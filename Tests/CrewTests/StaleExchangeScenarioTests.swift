@@ -71,7 +71,7 @@ private func settle(_ session: ChatSession) async throws {
     configuration.protocolClasses = [RecordedHistory.self]
     let session = ChatSession(fixture: bot, transcript: Transcript(history: rows.filter { $0.id <= 21 }), todos: [], urlSession: URLSession(configuration: configuration))
     let chats = ChatSessions(fixture: ["test-bot": session])
-    chats.sync(with: bots)
+    chats.sync(with: bots, statuses: [:])
     try await Task.sleep(for: .milliseconds(300))
     let exchanges = { session.transcript.visible.turns }
     #expect(exchanges().count == 4)
@@ -89,7 +89,7 @@ private func settle(_ session: ChatSession) async throws {
 @Test func freshTargetChatOpenDuringTheExchangeShowsIt() async throws {
     let before = try recorded("profiles.before", in: "open-target", as: Roster.self).profiles
     let session = try openChat(try #require(before.first { $0.name == "crew-test-peer" }))
-    ChatSessions(fixture: ["crew-test-peer": session]).sync(with: try recorded("profiles.after", in: "open-target", as: Roster.self).profiles)
+    ChatSessions(fixture: ["crew-test-peer": session]).sync(with: try recorded("profiles.after", in: "open-target", as: Roster.self).profiles, statuses: [:])
     try await settle(session)
     #expect(session.transcript.visible.turns.count == 1)
     #expect(session.transcript.visible.turns.first?.agentMessage?.sender == "Crew Test")

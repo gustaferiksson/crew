@@ -3,7 +3,7 @@ import UniformTypeIdentifiers
 
 enum ChatFixture {
     case conversation, history, earlierLoading, earlierFailed, timestamps, workLog, workLogTools, question, questions, questionsSnacks, questionLong, offline, attachments, dictation, mentions, slash, slashOutput, agentMessage, agentMessageGroup, routine, deliveryFailure, limitFailure, a2ui, a2uiCards, a2uiForm, a2uiTable, a2uiTableExpanded, a2uiChart, a2uiMap, a2uiCarousel, a2uiCarouselStates, a2uiPinned, a2uiPinnedSheet, a2uiExpanded, a2uiProducts, a2uiUpdates, a2uiStreaming, a2uiServings, a2uiServingsScaled, a2uiSaved, a2uiTimer, a2uiShopping
-    case composerLine, composerLines, composerRunning, composerRunningText, steer, steerTaken, waiting, teammateWaits, teammateWaitsFailed
+    case composerLine, composerLines, composerRunning, composerRunningText, steer, steerTaken, waiting, busyElsewhere, teammateWaits, teammateWaitsFailed
     case payment, paymentHolding, paymentApproved, paymentLoading, paymentFailed, paymentUnverified, paymentPunycode, paymentCountdown, paymentNotice, paymentOffer, paymentOfferHistory, paymentReceipts
     case approvalFolder, approvalSite, approvalUnknown
 
@@ -156,6 +156,11 @@ enum ChatFixture {
             return transcript
         }
         if self == .workLogTools { return Transcript(turns: turns + [browse(now.addingTimeInterval(-40))]) }
+        if self == .busyElsewhere {
+            var transcript = Transcript(turns: turns + [Turn(id: Turn.busyElsewhereID, status: .streaming, startedAt: now.addingTimeInterval(-40))])
+            transcript.wait(Prompt(text: "Did Emil get back to you?", sentAt: now.addingTimeInterval(-8)), as: .queued, id: "q1")
+            return transcript
+        }
         if self == .waiting { return Transcript(turns: turns + [Turn(id: "t6", prompt: Prompt(text: "How many files are in your working directory?", sentAt: now.addingTimeInterval(-3)), status: .streaming, startedAt: now.addingTimeInterval(-3))]) }
         if self == .attachments { return Transcript(turns: [greeting(now.addingTimeInterval(-26 * 3600)), receipt(now.addingTimeInterval(-6 * 60)), screenshot(now.addingTimeInterval(-2 * 60))]) }
         if self == .mentions {

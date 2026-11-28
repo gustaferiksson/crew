@@ -212,6 +212,11 @@ nonisolated enum BotStatus: Hashable, Sendable {
     case waiting(WaitingKind?)
     case failed
 
+    var isBusy: Bool {
+        if case .waiting = self { return true }
+        return self == .working
+    }
+
     init?(live status: String, waiting kind: WaitingKind?) {
         if status == "waiting" {
             self = .waiting(kind)
@@ -713,8 +718,7 @@ final class BotStore {
         let cached = Set(listed.prefix(Self.cachedChatLimit).map(\.id))
         for bot in listed.filter({ cached.contains($0.id) }) + bots.filter({ !cached.contains($0.id) }) {
             guard let session = bot.canonicalSession, let position = session.position else { continue }
-            let isBusy = if case .waiting = statuses[bot.id] { true } else { statuses[bot.id] == .working }
-            let caches = cached.contains(bot.id) && !isBusy
+            let caches = cached.contains(bot.id) && statuses[bot.id]?.isBusy != true
             guard previewPositions[bot.id] != position || caches && cachedChats[bot.id]?.position != position else { continue }
             previewPositions[bot.id] = position
             guard let rows = try? await history(of: session.resolvedID, profile: bot.name, on: server, with: urlSession, limit: caches ? Self.pageRows : 20) else {
